@@ -86,7 +86,7 @@ pnpm dev
 
 - 前端地址：http://localhost:3002
 - API 文档：http://localhost:8180/api/doc.html
-- 默认账号：`admin` / `123456`
+- 默认账号：`admin` / `password`
 
 ## 目录结构
 
