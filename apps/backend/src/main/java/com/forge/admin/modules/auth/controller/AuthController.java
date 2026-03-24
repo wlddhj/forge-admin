@@ -55,7 +55,7 @@ public class AuthController {
 
         @Operation(summary = "登录")
     @PostMapping("/login")
-    @RateLimiter(time = 60, count = 20, message = "登录请求过于频繁，请稍后再试")
+    @RateLimiter(keyType = RateLimiter.KeyType.USERNAME, time = 60, count = 20, message = "登录请求过于频繁，请稍后再试")
         public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         try {
             // 认证
@@ -72,8 +72,8 @@ public class AuthController {
             // 生成 tokenId
             String tokenId = java.util.UUID.randomUUID().toString().replace("-", "");
 
-            // 生成 Access Token
-            String accessToken = jwtTokenProvider.generateToken(request.getUsername());
+            // 生成 Access Token（使用相同的 tokenId 关联会话）
+            String accessToken = jwtTokenProvider.generateTokenWithId(request.getUsername(), tokenId);
 
             // 生成 Refresh Token
             String refreshToken = refreshTokenService.generateRefreshToken(

@@ -15,10 +15,14 @@ import java.lang.annotation.Target;
 public @interface RateLimiter {
 
     /**
-     * 限流 key（支持 SpEL 表达式）
-     * 默认使用 IP 地址
+     * 限流 key 类型
      */
-    String key() default "'rate_limit:' + #root.ip";
+    KeyType keyType() default KeyType.IP;
+
+    /**
+     * 限流 key 前缀
+     */
+    String keyPrefix() default "rate_limit";
 
     /**
      * 时间窗口（秒）
@@ -34,4 +38,18 @@ public @interface RateLimiter {
      * 限流提示信息
      */
     String message() default "访问过于频繁，请稍后再试";
+
+    /**
+     * 限流 Key 类型枚举
+     */
+    enum KeyType {
+        /**
+         * 按 IP 限流
+         */
+        IP,
+        /**
+         * 按用户名限流（从方法参数中提取 username 字段）
+         */
+        USERNAME
+    }
 }

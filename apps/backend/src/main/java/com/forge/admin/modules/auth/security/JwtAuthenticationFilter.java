@@ -7,12 +7,12 @@ import com.forge.admin.modules.system.entity.SysRole;
 import com.forge.admin.modules.system.entity.SysUser;
 import com.forge.admin.modules.system.mapper.SysRoleDeptMapper;
 import com.forge.admin.modules.system.mapper.SysUserMapper;
+import com.forge.admin.modules.system.service.LoginUserSessionService;
 import com.forge.admin.modules.system.service.SysRoleService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.lang.NonNull;
@@ -47,18 +47,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final SysUserMapper sysUserMapper;
     private final SysRoleService sysRoleService;
     private final SysRoleDeptMapper sysRoleDeptMapper;
+    private final LoginUserSessionService loginUserSessionService;
 
     public JwtAuthenticationFilter(
             JwtTokenProvider jwtTokenProvider,
             UserDetailsService userDetailsService,
             SysUserMapper sysUserMapper,
             @Lazy SysRoleService sysRoleService,
-            SysRoleDeptMapper sysRoleDeptMapper) {
+            SysRoleDeptMapper sysRoleDeptMapper,
+            LoginUserSessionService loginUserSessionService) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.userDetailsService = userDetailsService;
         this.sysUserMapper = sysUserMapper;
         this.sysRoleService = sysRoleService;
         this.sysRoleDeptMapper = sysRoleDeptMapper;
+        this.loginUserSessionService = loginUserSessionService;
     }
 
     @Override
@@ -74,6 +77,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 验证 Token 并设置认证信息
             if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
                 String username = jwtTokenProvider.getUsernameFromToken(token);
+                String tokenId = jwtTokenProvider.getTokenId(token);
+
+                // 检查会话是否有效（防止强制下线后 Token 仍然可用）
+                Long sessionTTL = loginUserSessionService.getSessionTTL(tokenId);
+                if (sessionTTL == null || sessionTTL <= 0) {
+                    log.warn("[JWT认证] 会话已失效或被强制下线: username={}, tokenId={}", username, tokenId);
+                    // 会话无效，不设置认证信息，请求将被当作未认证处理
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
                 // 加载用户信息
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);

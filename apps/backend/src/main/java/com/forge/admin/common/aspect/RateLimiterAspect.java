@@ -8,14 +8,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.Collections;
-import java.util.List;
 
 /**
  * 限流切面
@@ -77,24 +80,62 @@ public class RateLimiterAspect {
         String ip = getClientIP(request);
 
         // 构建限流 key
-        String key = rateLimiter.key().replace("#root.ip", ip);
+        String keyValue;
+        if (rateLimiter.keyType() == RateLimiter.KeyType.USERNAME) {
+            // 按用户名限流，从方法参数中提取
+            String username = extractUsername(joinPoint);
+            keyValue = rateLimiter.keyPrefix() + ":username:" + username;
+        } else {
+            // 默认按 IP 限流
+            keyValue = rateLimiter.keyPrefix() + ":ip:" + ip;
+        }
 
         // 执行 Lua 脚本（不使用 SHA 缓存）
         RedisScript<Long> redisScript = RedisScript.of(LUA_SCRIPT, Long.class);
         // 使用 StringRedisTemplate 避免 JSON 序列化问题
         Long result = stringRedisTemplate.execute(
                 redisScript,
-                Collections.singletonList(key),
+                Collections.singletonList(keyValue),
                 String.valueOf(rateLimiter.count()),
                 String.valueOf(rateLimiter.time())
         );
 
         if (result == null || result == 0) {
-            log.warn("限流触发: IP={}, 方法={}", ip, joinPoint.getSignature().getName());
+            log.warn("限流触发: keyType={}, key={}, 方法={}", rateLimiter.keyType(), keyValue, joinPoint.getSignature().getName());
             throw new BusinessException(429, rateLimiter.message());
         }
 
-        log.debug("限流检查通过: IP={}, Key={}", ip, key);
+        log.debug("限流检查通过: keyType={}, key={}", rateLimiter.keyType(), keyValue);
+    }
+
+    /**
+     * 从方法参数中提取用户名
+     */
+    private String extractUsername(JoinPoint joinPoint) {
+        Object[] args = joinPoint.getArgs();
+        if (args == null || args.length == 0) {
+            return "unknown";
+        }
+
+        // 遍历方法参数，查找 username 字段
+        for (Object arg : args) {
+            if (arg == null) {
+                continue;
+            }
+            try {
+                // 尝试获取 username 字段
+                Field usernameField = arg.getClass().getDeclaredField("username");
+                usernameField.setAccessible(true);
+                Object username = usernameField.get(arg);
+                if (username != null) {
+                    return username.toString();
+                }
+            } catch (NoSuchFieldException | IllegalAccessException e) {
+                // 该参数没有 username 字段，继续检查下一个参数
+            }
+        }
+
+        return "unknown";
     }
 
     /**
