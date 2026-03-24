@@ -1,5 +1,6 @@
 package com.forge.admin.modules.system.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forge.admin.modules.system.dto.online.LoginUserSession;
 import com.forge.admin.modules.system.service.LoginUserSessionService;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -21,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 public class LoginUserSessionServiceImpl implements LoginUserSessionService {
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     private static final String LOGIN_TOKEN_KEY = "login_tokens:";
 
@@ -44,6 +47,14 @@ public class LoginUserSessionServiceImpl implements LoginUserSessionService {
             Object value = redisTemplate.opsForValue().get(key);
             if (value instanceof LoginUserSession) {
                 sessions.add((LoginUserSession) value);
+            } else if (value instanceof Map) {
+                // Jackson 反序列化时可能返回 LinkedHashMap，需要手动转换
+                try {
+                    LoginUserSession session = objectMapper.convertValue(value, LoginUserSession.class);
+                    sessions.add(session);
+                } catch (Exception e) {
+                    log.warn("转换登录会话失败: key={}, error={}", key, e.getMessage());
+                }
             }
         }
 

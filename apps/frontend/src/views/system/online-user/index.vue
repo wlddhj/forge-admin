@@ -31,7 +31,7 @@
           <el-table-column prop="loginTime" label="登录时间" width="180" v-if="!isMobile">
             <template #default="{ row }">{{ formatDateTime(row.loginTime) }}</template>
           </el-table-column>
-          <el-table-column label="剩余有效期" width="120">
+          <el-table-column label="剩余有效期" width="130">
             <template #default="{ row }">{{ formatTTL(row.ttl) }}</template>
           </el-table-column>
           <!-- 桌面端操作列 -->
