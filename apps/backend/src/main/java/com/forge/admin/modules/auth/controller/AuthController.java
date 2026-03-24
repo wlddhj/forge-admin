@@ -168,9 +168,24 @@ public class AuthController {
     @Operation(summary = "退出登录")
     @PostMapping("/logout")
     public Result<Void> logout(HttpServletRequest request) {
-        String refreshToken = request.getHeader("X-Refresh-Token");
+        // 从 Authorization header 获取 Access Token
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String accessToken = authHeader.substring(7);
+            try {
+                // 从 Token 中获取 tokenId 并删除会话
+                String tokenId = jwtTokenProvider.getTokenId(accessToken);
+                if (tokenId != null) {
+                    loginUserSessionService.deleteSession(tokenId);
+                    log.info("用户退出登录，删除会话: tokenId={}", tokenId);
+                }
+            } catch (Exception e) {
+                log.warn("退出登录时解析 Token 失败: {}", e.getMessage());
+            }
+        }
 
         // 删除 Refresh Token
+        String refreshToken = request.getHeader("X-Refresh-Token");
         if (refreshToken != null) {
             refreshTokenService.deleteRefreshToken(refreshToken);
         }
