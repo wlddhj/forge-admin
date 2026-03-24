@@ -1,0 +1,503 @@
+<template>
+  <div class="app-container">
+    <!-- 搜索栏 -->
+    <el-card shadow="never" class="search-card">
+      <!-- 桌面端搜索表单 -->
+      <el-form v-if="!isMobile" :model="queryParams" inline>
+        <el-form-item label="菜单名称">
+          <el-input v-model="queryParams.menuName" placeholder="请输入菜单名称" clearable />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 120px">
+            <el-option
+              v-for="item in statusOptions"
+              :key="item.dictValue"
+              :label="item.dictLabel"
+              :value="Number(item.dictValue)"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleQuery">
+            <el-icon><Search /></el-icon>
+            搜索
+          </el-button>
+          <el-button @click="handleReset">
+            <el-icon><Refresh /></el-icon>
+            重置
+          </el-button>
+        </el-form-item>
+      </el-form>
+
+      <!-- 移动端搜索按钮 -->
+      <div v-else class="mobile-search-actions">
+        <span class="title">菜单列表</span>
+        <div class="actions">
+          <MobileSearchButton :badge-count="activeConditionsCount" @click="searchDrawerVisible = true" />
+          <el-button type="primary" @click="handleAdd">
+            <el-icon><Plus /></el-icon>
+          </el-button>
+        </div>
+      </div>
+    </el-card>
+
+    <!-- 移动端搜索抽屉 -->
+    <MobileSearchDrawer v-model="searchDrawerVisible" :form-data="queryParams" @search="handleSearchFromDrawer" @reset="handleResetFromDrawer">
+      <template #form-items>
+        <el-form-item label="菜单名称">
+          <el-input v-model="queryParams.menuName" placeholder="请输入菜单名称" clearable />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 100%">
+            <el-option
+              v-for="item in statusOptions"
+              :key="item.dictValue"
+              :label="item.dictLabel"
+              :value="Number(item.dictValue)"
+            />
+          </el-select>
+        </el-form-item>
+      </template>
+    </MobileSearchDrawer>
+
+    <!-- 数据表格 -->
+    <el-card shadow="never" class="table-card">
+      <template #header>
+        <div class="card-header">
+          <span v-if="!isMobile">菜单列表</span>
+          <div v-if="!isMobile" class="header-btns">
+            <el-button type="primary" @click="handleAdd">
+              <el-icon><Plus /></el-icon>
+              新增菜单
+            </el-button>
+            <el-button @click="handleToggleExpand">
+              <el-icon><component :is="allExpanded ? 'Fold' : 'Expand'" /></el-icon>
+              {{ allExpanded ? '全部折叠' : '全部展开' }}
+            </el-button>
+          </div>
+        </div>
+      </template>
+
+      <div class="table-responsive">
+        <el-table
+          ref="tableRef"
+          v-loading="loading"
+          :data="tableData"
+          border
+          stripe
+          row-key="id"
+          :tree-props="{ children: 'children' }"
+          :default-expand-all="!isMobile"
+          :row-class-name="getRowClassName"
+          @row-click="handleRowClick"
+        >
+          <el-table-column prop="menuName" label="菜单名称" width="200" />
+          <el-table-column prop="icon" label="图标" width="80" align="center" v-if="!isMobile">
+            <template #default="{ row }">
+              <el-icon v-if="row.icon"><component :is="row.icon" /></el-icon>
+            </template>
+          </el-table-column>
+          <el-table-column prop="menuType" label="类型" width="80">
+            <template #default="{ row }">
+              <el-tag :type="getMenuTypeColor(row.menuType)" size="small">
+                {{ getMenuTypeText(row.menuType) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="routePath" label="路由路径" min-width="180" show-overflow-tooltip v-if="!isMobile" />
+          <el-table-column prop="componentPath" label="组件路径" min-width="180" show-overflow-tooltip v-if="!isMobile" />
+          <el-table-column prop="permission" label="权限标识" width="150" show-overflow-tooltip v-if="!isMobile" />
+          <el-table-column prop="sortOrder" label="排序" width="80" v-if="!isMobile" />
+          <el-table-column label="状态" width="80">
+            <template #default="{ row }">
+              <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
+            </template>
+          </el-table-column>
+          <!-- 桌面端操作列 -->
+          <el-table-column v-if="!isMobile" label="操作" width="200" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
+              <el-button type="primary" link @click="handleAddChild(row)">新增</el-button>
+              <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </el-card>
+
+    <!-- 移动端底部操作栏 -->
+    <MobileBottomActions
+      :show="!!selectedRow"
+      :item="selectedRow"
+      :item-title="selectedRow?.menuName"
+      @cancel="cancelSelection"
+    >
+      <template #actions="{ item }">
+        <el-button size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
+        <el-button size="small" @click.stop="handleAddChild(item)">新增子菜单</el-button>
+        <el-button size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
+      </template>
+    </MobileBottomActions>
+
+    <!-- 新增/编辑对话框 -->
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" class="dialog-form-responsive" @close="handleDialogClose">
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
+        <el-form-item label="上级菜单">
+          <el-tree-select
+            v-model="formData.parentId"
+            :data="menuTreeOptions"
+            :props="{ label: 'menuName', value: 'id' }"
+            placeholder="请选择上级菜单（不选则为顶级菜单）"
+            clearable
+            check-strictly
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="菜单类型" prop="menuType">
+          <el-radio-group v-model="formData.menuType">
+            <el-radio :value="0">目录</el-radio>
+            <el-radio :value="1">菜单</el-radio>
+            <el-radio :value="2">按钮</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="菜单名称" prop="menuName">
+          <el-input v-model="formData.menuName" placeholder="请输入菜单名称" />
+        </el-form-item>
+        <el-form-item label="菜单编码" prop="menuCode">
+          <el-input v-model="formData.menuCode" placeholder="请输入菜单编码" />
+        </el-form-item>
+        <el-form-item v-if="formData.menuType !== 2" label="路由路径" prop="routePath">
+          <el-input v-model="formData.routePath" placeholder="请输入路由路径，如：/system/user" />
+        </el-form-item>
+        <el-form-item v-if="formData.menuType === 1" label="组件路径" prop="componentPath">
+          <el-input v-model="formData.componentPath" placeholder="请输入组件路径，如：/views/system/user/index" />
+        </el-form-item>
+        <el-form-item v-if="formData.menuType !== 2" label="图标">
+          <el-input v-model="formData.icon" placeholder="请输入图标名称，如：User" />
+        </el-form-item>
+        <el-form-item label="权限标识">
+          <el-input v-model="formData.permission" placeholder="请输入权限标识，如：system:user:list" />
+        </el-form-item>
+        <el-form-item label="排序" prop="sortOrder">
+          <el-input-number v-model="formData.sortOrder" :min="0" controls-position="right" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="状态" prop="status">
+          <el-radio-group v-model="formData.status">
+            <el-radio
+              v-for="item in statusOptions"
+              :key="item.dictValue"
+              :value="Number(item.dictValue)"
+            >
+              {{ item.dictLabel }}
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="formData.menuType !== 2" label="显示状态">
+          <el-radio-group v-model="formData.visible">
+            <el-radio :value="1">显示</el-radio>
+            <el-radio :value="0">隐藏</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { reactive, ref, computed, onMounted, nextTick } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
+import { getMenuList, getMenuTree, addMenu, updateMenu, deleteMenu } from '@/api/system'
+import type { Menu, MenuTree, MenuRequest } from '@/types/system'
+import { useResponsive } from '@/composables/useResponsive'
+import { useDict } from '@/composables/useDict'
+import { DICT_TYPE } from '@/constants/dict'
+import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
+import MobileSearchButton from '@/components/MobileSearchButton.vue'
+import MobileBottomActions from '@/components/MobileBottomActions.vue'
+import DictValue from '@/components/DictValue.vue'
+
+const { isMobile } = useResponsive()
+const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
+
+const loading = ref(false)
+const tableData = ref<MenuTree[]>([])
+const tableRef = ref()
+const allExpanded = ref(true)
+
+// 移动端状态
+const searchDrawerVisible = ref(false)
+const selectedRow = ref<MenuTree | null>(null)
+
+const queryParams = reactive({
+  menuName: '',
+  status: undefined as number | undefined
+})
+
+// 计算激活的搜索条件数量
+const activeConditionsCount = computed(() => {
+  let count = 0
+  if (queryParams.menuName) count++
+  if (queryParams.status !== undefined) count++
+  return count
+})
+
+const dialogVisible = ref(false)
+const dialogTitle = ref('')
+const isEdit = ref(false)
+const submitLoading = ref(false)
+
+const formRef = ref<FormInstance>()
+const formData = reactive<MenuRequest>({
+  id: undefined,
+  parentId: undefined,
+  menuType: 1,
+  menuName: '',
+  menuCode: '',
+  routePath: '',
+  componentPath: '',
+  icon: '',
+  permission: '',
+  sortOrder: 0,
+  status: 1,
+  visible: 1
+})
+
+const formRules: FormRules = {
+  menuType: [{ required: true, message: '请选择菜单类型', trigger: 'change' }],
+  menuName: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
+  menuCode: [{ required: true, message: '请输入菜单编码', trigger: 'blur' }]
+}
+
+const menuTreeOptions = ref<MenuTree[]>([])
+
+const getList = async () => {
+  loading.value = true
+  try {
+    const res = await getMenuList(queryParams)
+    tableData.value = buildMenuTree(res)
+    allExpanded.value = !isMobile.value
+    nextTick(() => {
+      if (!isMobile.value) expandAll()
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+const getMenuTreeData = async () => {
+  try {
+    const res = await getMenuTree()
+    menuTreeOptions.value = [{ id: 0, menuName: '顶级菜单', children: res } as any]
+  } catch (error) {
+    console.error('获取菜单树失败:', error)
+  }
+}
+
+const buildMenuTree = (flatList: Menu[]): MenuTree[] => {
+  const map = new Map<number, MenuTree>()
+  const tree: MenuTree[] = []
+
+  flatList.forEach(item => {
+    map.set(item.id!, { ...item, children: [] })
+  })
+
+  flatList.forEach(item => {
+    const node = map.get(item.id!)!
+    if (!item.parentId || item.parentId === 0) {
+      tree.push(node)
+    } else {
+      const parent = map.get(item.parentId)
+      if (parent) {
+        if (!parent.children) parent.children = []
+        parent.children.push(node)
+      } else {
+        tree.push(node)
+      }
+    }
+  })
+
+  return tree
+}
+
+const expandAll = () => {
+  if (!tableRef.value) return
+  const expandRows = (rows: MenuTree[]) => {
+    rows.forEach(row => {
+      if (row.children && row.children.length > 0) {
+        tableRef.value?.toggleRowExpansion(row, true)
+        expandRows(row.children)
+      }
+    })
+  }
+  expandRows(tableData.value)
+}
+
+const collapseAll = () => {
+  if (!tableRef.value) return
+  const collapseRows = (rows: MenuTree[]) => {
+    rows.forEach(row => {
+      if (row.children && row.children.length > 0) {
+        tableRef.value?.toggleRowExpansion(row, false)
+        collapseRows(row.children)
+      }
+    })
+  }
+  collapseRows(tableData.value)
+}
+
+const handleToggleExpand = () => {
+  allExpanded.value = !allExpanded.value
+  if (allExpanded.value) {
+    expandAll()
+  } else {
+    collapseAll()
+  }
+}
+
+const handleQuery = () => getList()
+const handleReset = () => {
+  queryParams.menuName = ''
+  queryParams.status = undefined
+  getList()
+}
+
+// 移动端抽屉搜索
+const handleSearchFromDrawer = () => {
+  getList()
+}
+
+// 移动端抽屉重置
+const handleResetFromDrawer = () => {
+  handleReset()
+}
+
+const handleAdd = () => {
+  isEdit.value = false
+  dialogTitle.value = '新增菜单'
+  Object.assign(formData, {
+    id: undefined, parentId: undefined, menuType: 1, menuName: '', menuCode: '',
+    routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1
+  })
+  dialogVisible.value = true
+}
+
+const handleAddChild = (row: MenuTree) => {
+  cancelSelection()
+  isEdit.value = false
+  dialogTitle.value = '新增子菜单'
+  Object.assign(formData, {
+    id: undefined, parentId: row.id, menuType: 1, menuName: '', menuCode: '',
+    routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1
+  })
+  dialogVisible.value = true
+}
+
+const handleEdit = (row: MenuTree) => {
+  cancelSelection()
+  isEdit.value = true
+  dialogTitle.value = '编辑菜单'
+  Object.assign(formData, {
+    id: row.id, parentId: row.parentId, menuType: row.menuType, menuName: row.menuName,
+    menuCode: row.menuCode, routePath: row.routePath, componentPath: row.componentPath,
+    icon: row.icon, permission: row.permission, sortOrder: row.sortOrder, status: row.status, visible: row.visible
+  })
+  dialogVisible.value = true
+}
+
+const handleSubmit = async () => {
+  if (!formRef.value) return
+  await formRef.value.validate()
+  submitLoading.value = true
+  try {
+    if (isEdit.value) {
+      await updateMenu(formData)
+      ElMessage.success('更新成功')
+    } else {
+      await addMenu(formData)
+      ElMessage.success('新增成功')
+    }
+    dialogVisible.value = false
+    getList()
+    getMenuTreeData()
+  } finally {
+    submitLoading.value = false
+  }
+}
+
+const handleDialogClose = () => formRef.value?.resetFields()
+
+const handleDelete = async (row: MenuTree) => {
+  if (row.children && row.children.length > 0) {
+    ElMessage.warning('该菜单存在子菜单，无法删除')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定要删除菜单 "${row.menuName}" 吗？`, '警告', { type: 'warning' })
+    await deleteMenu(row.id!)
+    ElMessage.success('删除成功')
+    cancelSelection()
+    getList()
+    getMenuTreeData()
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.error('删除失败')
+  }
+}
+
+const getMenuTypeColor = (type: number) => {
+  const map: Record<number, string> = { 0: 'primary', 1: 'success', 2: 'warning' }
+  return map[type] || 'info'
+}
+
+const getMenuTypeText = (type: number) => {
+  const map: Record<number, string> = { 0: '目录', 1: '菜单', 2: '按钮' }
+  return map[type] || '未知'
+}
+
+// 获取行样式名
+const getRowClassName = ({ row }: { row: MenuTree }) => {
+  if (isMobile.value && selectedRow.value?.id === row.id) {
+    return 'selected-row'
+  }
+  return ''
+}
+
+// 处理行点击（移动端）
+const handleRowClick = (row: MenuTree) => {
+  if (isMobile.value) {
+    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+  }
+}
+
+// 取消选择
+const cancelSelection = () => {
+  selectedRow.value = null
+}
+
+onMounted(() => {
+  getList()
+  getMenuTreeData()
+})
+</script>
+
+<style scoped lang="scss">
+.app-container {
+  padding: 0;
+
+  .search-card {
+    margin-bottom: 15px;
+  }
+
+  .table-card {
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  }
+}
+</style>

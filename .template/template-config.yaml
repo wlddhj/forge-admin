@@ -1,0 +1,107 @@
+# 模板配置文件
+# 用于初始化新项目时替换相关内容
+
+project:
+  # 项目名称（显示用）
+  name: "forge-admin"
+  # 项目标识（用于 URL、包名等，kebab-case）
+  name_kebab: "forge-admin"
+  # 项目标识（用于数据库名等，snake_case）
+  name_snake: "forge_admin"
+  # 描述
+  description: "聚能后台管理系统"
+  # Java 基础包名
+  base_package: "com.forge.admin"
+
+# 以下为模板变量，初始化脚本会自动替换这些值
+# 请勿直接修改此处的值，而是运行 pnpm run init 命令
+placeholders:
+  # 项目名称占位符
+  PROJECT_NAME: "{{PROJECT_NAME}}"
+  # 项目标识占位符 (kebab-case)
+  PROJECT_KEBAB: "{{PROJECT_KEBAB}}"
+  # 项目标识占位符 (snake_case)
+  PROJECT_SNAKE: "{{PROJECT_SNAKE}}"
+  # 项目描述占位符
+  PROJECT_DESCRIPTION: "{{PROJECT_DESCRIPTION}}"
+  # Java 包名占位符
+  BASE_PACKAGE: "{{BASE_PACKAGE}}"
+
+# 需要替换的文件和位置
+replacements:
+  # 后端文件
+  - path: "apps/backend/pom.xml"
+    type: "xml"
+    replacements:
+      - placeholder: "<groupId>com.forge.admin</groupId>"
+        key: "BASE_PACKAGE"
+      - placeholder: "<artifactId>forge-admin-backend</artifactId>"
+        key: "PROJECT_KEBAB"
+      - placeholder: "<name>forge-admin-backend</name>"
+        key: "PROJECT_KEBAB"
+      - placeholder: "forge-admin - 聚能后台管理系统"
+        key: "PROJECT_DESCRIPTION"
+
+  - path: "apps/backend/src/main/resources/application.yml"
+    type: "yaml"
+    replacements:
+      - placeholder: "forge-admin"
+        key: "PROJECT_KEBAB"
+      - placeholder: "forge_admin"
+        key: "PROJECT_SNAKE"
+      - placeholder: "com.forge.admin"
+        key: "BASE_PACKAGE"
+
+  # 前端文件
+  - path: "apps/frontend/package.json"
+    type: "json"
+    replacements:
+      - placeholder: "forge-admin-frontend"
+        key: "PROJECT_KEBAB"
+
+  - path: "apps/frontend/.env.development"
+    type: "env"
+    replacements:
+      - placeholder: "forge-admin"
+        key: "PROJECT_NAME"
+
+  - path: "apps/frontend/.env.production"
+    type: "env"
+    replacements:
+      - placeholder: "forge-admin"
+        key: "PROJECT_NAME"
+
+  - path: "apps/frontend/src/views/login/index.vue"
+    type: "vue"
+    replacements:
+      - placeholder: "forge-admin"
+        key: "PROJECT_NAME"
+      - placeholder: "聚能后台管理系统"
+        key: "PROJECT_DESCRIPTION"
+
+  - path: "apps/frontend/src/layouts/BasicLayout.vue"
+    type: "vue"
+    replacements:
+      - placeholder: "forge-admin"
+        key: "PROJECT_NAME"
+
+  - path: "apps/frontend/src/stores/pageConfig.ts"
+    type: "ts"
+    replacements:
+      - placeholder: "forge_admin-page-config"
+        key: "PROJECT_SNAKE"
+
+# 说明文档
+instructions: |
+  使用方法:
+  1. 运行初始化脚本创建新项目:
+     pnpm run init <项目名称> "<项目描述>" <包名>
+
+  示例:
+     pnpm run init my-admin "我的管理系统" com.mycompany
+
+  2. 脚本会自动:
+     - 重命名 Java 包目录
+     - 替换所有配置文件中的占位符
+     - 更新前端标题和 localStorage keys
+     - 更新数据库名

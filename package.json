@@ -1,0 +1,27 @@
+{
+  "name": "forge-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "企业级后台管理系统模板",
+  "scripts": {
+    "init": "node scripts/init-project.js",
+    "dev:frontend": "pnpm --filter forge-admin-frontend dev",
+    "dev:backend": "cd apps/backend && mvn spring-boot:run",
+    "build:frontend": "pnpm --filter forge-admin-frontend build",
+    "build:backend": "cd apps/backend && mvn clean package -DskipTests",
+    "lint:frontend": "pnpm --filter forge-admin-frontend lint"
+  },
+  "keywords": [
+    "admin",
+    "vue3",
+    "spring-boot",
+    "typescript",
+    "element-plus"
+  ],
+  "author": "",
+  "license": "MIT",
+  "volta": {
+    "node": "22.9.0",
+    "pnpm": "8.15.4"
+  }
+}

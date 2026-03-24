@@ -1,0 +1,498 @@
+/**
+ * 响应式样式规范
+ * 参考 TrendEye 项目的移动端适配实现
+ */
+
+// ==================== 断点配置 ====================
+$breakpoint-xs: 375px;   // 超小屏（小手机）
+$breakpoint-sm: 640px;   // 小屏（大手机）
+$breakpoint-md: 768px;   // 中等屏（平板竖屏）
+$breakpoint-lg: 1024px;  // 大屏（平板横屏/小笔记本）
+$breakpoint-xl: 1280px;  // 超大屏（桌面）
+$breakpoint-2xl: 1536px; // 2K 屏幕
+
+$mobile-breakpoint: $breakpoint-md;
+$tablet-breakpoint: $breakpoint-lg;
+
+// ==================== 媒体查询 Mixin ====================
+
+// 超小屏（小手机）
+@mixin xs {
+  @media (max-width: #{$breakpoint-sm - 1px}) {
+    @content;
+  }
+}
+
+// 小屏（大手机）
+@mixin sm {
+  @media (min-width: #{$breakpoint-sm}) and (max-width: #{$breakpoint-md - 1px}) {
+    @content;
+  }
+}
+
+// 中等屏（平板竖屏）
+@mixin md {
+  @media (min-width: #{$breakpoint-md}) and (max-width: #{$breakpoint-lg - 1px}) {
+    @content;
+  }
+}
+
+// 大屏（平板横屏/小笔记本）
+@mixin lg {
+  @media (min-width: #{$breakpoint-lg}) and (max-width: #{$breakpoint-xl - 1px}) {
+    @content;
+  }
+}
+
+// 超大屏（桌面）
+@mixin xl {
+  @media (min-width: #{$breakpoint-xl}) {
+    @content;
+  }
+}
+
+// 移动端（手机及以下）
+@mixin mobile {
+  @media (max-width: #{$mobile-breakpoint - 1px}) {
+    @content;
+  }
+}
+
+// 平板
+@mixin tablet {
+  @media (min-width: #{$mobile-breakpoint}) and (max-width: #{$tablet-breakpoint - 1px}) {
+    @content;
+  }
+}
+
+// 桌面端
+@mixin desktop {
+  @media (min-width: #{$tablet-breakpoint}) {
+    @content;
+  }
+}
+
+// 移动端及平板
+@mixin mobile-and-tablet {
+  @media (max-width: #{$tablet-breakpoint - 1px}) {
+    @content;
+  }
+}
+
+// ==================== 移动端优化 Mixin ====================
+
+// 触摸目标最小尺寸
+@mixin touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+// 安全区域（支持刘海屏）
+@mixin safe-area($property: padding, $top: true, $right: true, $bottom: true, $left: true) {
+  @if $top {
+    #{$property}-top: calc(#{$property}-top + env(safe-area-inset-top, 0px));
+  }
+  @if $right {
+    #{$property}-right: calc(#{$property}-right + env(safe-area-inset-right, 0px));
+  }
+  @if $bottom {
+    #{$property}-bottom: calc(#{$property}-bottom + env(safe-area-inset-bottom, 0px));
+  }
+  @if $left {
+    #{$property}-left: calc(#{$property}-left + env(safe-area-inset-left, 0px));
+  }
+}
+
+// 横向滚动优化
+@mixin scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+// 纵向滚动优化
+@mixin scroll-y {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+}
+
+// ==================== Element Plus 响应式优化 ====================
+
+// 按钮移动端优化
+@include mobile {
+  .el-button {
+    @include touch-target;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  .el-button--small {
+    min-height: 36px;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .el-button--large {
+    min-height: 48px;
+    padding: 14px 24px;
+    font-size: 16px;
+  }
+}
+
+// 输入框移动端优化
+@include mobile {
+  .el-input {
+    :deep(.el-input__wrapper) {
+      @include touch-target;
+      padding: 8px 15px;
+    }
+
+    :deep(.el-input__inner) {
+      font-size: 16px; // 防止 iOS 自动缩放
+    }
+  }
+
+  .el-textarea {
+    :deep(.el-textarea__inner) {
+      font-size: 16px;
+      padding: 8px 15px;
+    }
+  }
+}
+
+// 选择器移动端优化
+@include mobile {
+  .el-select {
+    width: 100%;
+
+    :deep(.el-select__wrapper) {
+      @include touch-target;
+      padding: 8px 15px;
+    }
+  }
+
+  .el-cascader {
+    width: 100%;
+
+    :deep(.el-input__wrapper) {
+      @include touch-target;
+    }
+  }
+}
+
+// 日期选择器移动端优化
+@include mobile {
+  .el-date-editor {
+    width: 100%;
+
+    &.el-input {
+      :deep(.el-input__wrapper) {
+        @include touch-target;
+      }
+    }
+  }
+}
+
+// 表格移动端优化
+.table-responsive {
+  @include mobile {
+    @include scroll-x;
+
+    :deep(.el-table) {
+      min-width: 800px;
+      font-size: 13px;
+
+      .el-table__header th {
+        padding: 8px 0;
+        white-space: nowrap;
+      }
+
+      .el-table__body td {
+        padding: 8px 0;
+      }
+
+      .cell {
+        padding: 0 8px;
+      }
+    }
+
+    // 隐藏非必要列
+    .hide-on-mobile {
+      display: none;
+    }
+  }
+}
+
+// 分页移动端优化
+@include mobile {
+  .el-pagination {
+    // 隐藏非必要元素（包括总数）
+    :deep(.el-pagination__sizes),
+    :deep(.el-pagination__jump),
+    :deep(.el-pagination__total) {
+      display: none !important;
+    }
+
+    // 页码按钮
+    :deep(.el-pager) {
+      li {
+        min-width: 32px !important;
+        height: 32px !important;
+        line-height: 32px !important;
+        font-size: 13px !important;
+        border-radius: 50%;
+      }
+
+      .more {
+        min-width: 32px !important;
+        height: 32px !important;
+        line-height: 32px !important;
+      }
+    }
+
+    // 前进后退按钮
+    :deep(.btn-prev),
+    :deep(.btn-next) {
+      padding: 0 !important;
+      min-width: 32px !important;
+      height: 32px !important;
+      border-radius: 50%;
+
+      .el-icon {
+        font-size: 13px;
+      }
+    }
+
+    // 居中对齐分页
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 4px;
+    padding: 8px 0 !important;
+  }
+}
+
+// 对话框移动端优化
+@include mobile {
+  .el-dialog {
+    width: 95% !important;
+    margin: 0 auto;
+
+    :deep(.el-dialog__header) {
+      padding: 15px;
+    }
+
+    :deep(.el-dialog__body) {
+      padding: 15px;
+      max-height: 60vh;
+      @include scroll-y;
+    }
+
+    :deep(.el-dialog__footer) {
+      padding: 15px;
+      text-align: center;
+
+      .el-button {
+        width: calc(50% - 5px);
+        margin: 0 !important;
+      }
+    }
+  }
+}
+
+// 抽屉移动端优化
+@include mobile {
+  .el-drawer {
+    &.rtl {
+      width: 85% !important;
+    }
+
+    &.ltr {
+      width: 85% !important;
+    }
+
+    &.ttb {
+      height: 70% !important;
+    }
+
+    :deep(.el-drawer__header) {
+      padding: 15px;
+      margin-bottom: 0;
+    }
+
+    :deep(.el-drawer__body) {
+      padding: 15px;
+    }
+  }
+}
+
+// 卡片移动端优化
+@include mobile {
+  .el-card {
+    :deep(.el-card__header) {
+      padding: 12px 15px;
+      font-size: 14px;
+    }
+
+    :deep(.el-card__body) {
+      padding: 15px;
+    }
+  }
+}
+
+// 消息提示移动端优化
+@include mobile {
+  .el-message {
+    min-width: 300px;
+    max-width: 85%;
+    font-size: 14px;
+  }
+
+  .el-notification {
+    width: 85%;
+    max-width: 360px;
+  }
+}
+
+// 表单移动端优化
+@include mobile {
+  .el-form {
+    .el-form-item {
+      margin-bottom: 15px;
+
+      :deep(.el-form-item__label) {
+        font-size: 14px;
+        padding-bottom: 6px;
+      }
+    }
+
+    .el-form-item--small {
+      margin-bottom: 12px;
+    }
+
+    .el-form-item--large {
+      margin-bottom: 18px;
+    }
+  }
+}
+
+// 标签页移动端优化
+@include mobile {
+  .el-tabs {
+    :deep(.el-tabs__header) {
+      margin: 0 0 10px;
+    }
+
+    :deep(.el-tabs__nav-wrap) {
+      &::after {
+        display: none;
+      }
+    }
+
+    :deep(.el-tabs__item) {
+      font-size: 14px;
+      padding: 0 12px;
+      height: 36px;
+      line-height: 36px;
+    }
+
+    &.el-tabs--card {
+      :deep(.el-tabs__item) {
+        border-radius: 4px 4px 0 0;
+      }
+    }
+  }
+}
+
+// 下拉菜单移动端优化
+@include mobile {
+  .el-dropdown-menu {
+    min-width: 150px;
+
+    .el-dropdown-menu__item {
+      padding: 10px 15px;
+      font-size: 14px;
+    }
+  }
+}
+
+// ==================== 工具类 ====================
+
+// 显示/隐藏工具类
+.hide-on-mobile {
+  @include mobile {
+    display: none !important;
+  }
+}
+
+.hide-on-tablet {
+  @include tablet {
+    display: none !important;
+  }
+}
+
+.hide-on-desktop {
+  @include desktop {
+    display: none !important;
+  }
+}
+
+.show-only-mobile {
+  @include mobile-and-tablet {
+    display: none !important;
+  }
+}
+
+.show-only-tablet {
+  @include mobile {
+    display: none !important;
+  }
+
+  @include desktop {
+    display: none !important;
+  }
+}
+
+.show-only-desktop {
+  @include mobile-and-tablet {
+    display: none !important;
+  }
+}
+
+// 文字大小响应式
+.responsive-text {
+  @include mobile {
+    font-size: 14px;
+  }
+
+  @include tablet {
+    font-size: 15px;
+  }
+
+  @include desktop {
+    font-size: 16px;
+  }
+}
+
+// 间距响应式
+.responsive-spacing {
+  @include mobile {
+    padding: 10px;
+    margin: 10px 0;
+  }
+
+  @include tablet {
+    padding: 15px;
+    margin: 15px 0;
+  }
+
+  @include desktop {
+    padding: 20px;
+    margin: 20px 0;
+  }
+}

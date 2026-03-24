@@ -1,0 +1,105 @@
+server:
+  port: ${SERVER_PORT:8180}
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: ${PROJECT_NAME:forge-admin}
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # 数据源配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:forge_admin}?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:password}
+
+  # Redis配置
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 10s
+      lettuce:
+        pool:
+          min-idle: 0
+          max-idle: 8
+          max-active: 8
+          max-wait: -1ms
+
+  # Jackson配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    serialization:
+      write-dates-as-timestamps: false
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+# MyBatis-Plus配置
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.forge.admin.modules.*.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# Knife4j配置
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: 'default'
+      paths-to-match: '/**'
+      packages-to-scan: com.forge.admin.modules
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+
+# JWT配置
+jwt:
+  secret: ${JWT_SECRET:standadmin-jwt-secret-key-must-be-at-least-256-bits-long}
+  expiration: ${JWT_EXPIRATION:7200000} # 2小时
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7天
+  header: Authorization
+  prefix: Bearer
+
+# 日志配置
+logging:
+  level:
+    com.forge.admin: ${LOG_LEVEL:debug}
+    org.springframework.security: info
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
+    file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
+  file:
+    name: ${LOG_PATH:logs}/forge-admin.log
+    max-size: 10MB
+    max-history: 30
+    total-size-cap: 1GB
+
+# 文件上传配置
+file:
+  upload-path: ${FILE_UPLOAD_PATH:./uploads}
+  base-url: ${FILE_BASE_URL:http://localhost:8180/api/uploads}

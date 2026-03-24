@@ -1,0 +1,31 @@
+# 开发环境配置
+server:
+  port: 8180
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/forge_admin?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: password
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+
+# 文件存储配置
+file:
+  storage:
+    type: local
+    local:
+      path: /tmp/forge-admin/upload
+      url-prefix: http://localhost:8180/api/file/
+
+# 日志级别
+logging:
+  level:
+    com.forge.admin: debug
+    com.forge.admin.modules.system.mapper: debug

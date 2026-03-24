@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.forge.admin.modules.system.mapper.SysPositionMapper">
+
+    <select id="selectPositionPageWithPermission" resultType="com.forge.admin.modules.system.entity.SysPosition">
+        SELECT p.id, p.position_name, p.position_code, p.dept_id, p.sort_order, p.status, p.create_time, p.update_time
+        FROM sys_position p
+        LEFT JOIN sys_dept d ON p.dept_id = d.id
+        <where>
+            <if test="positionName != null and positionName != ''">
+                AND p.position_name LIKE CONCAT('%', #{positionName}, '%')
+            </if>
+            <if test="positionCode != null and positionCode != ''">
+                AND p.position_code LIKE CONCAT('%', #{positionCode}, '%')
+            </if>
+            <if test="status != null">
+                AND p.status = #{status}
+            </if>
+            <if test="deptId != null">
+                AND p.dept_id = #{deptId}
+            </if>
+        </where>
+        ORDER BY p.sort_order ASC, p.create_time DESC
+    </select>
+
+    <select id="selectPositionListWithPermission" resultType="com.forge.admin.modules.system.entity.SysPosition">
+        SELECT p.id, p.position_name, p.position_code, p.dept_id, p.sort_order, p.status, p.create_time, p.update_time
+        FROM sys_position p
+        LEFT JOIN sys_dept d ON p.dept_id = d.id
+        <where>
+            <if test="positionName != null and positionName != ''">
+                AND p.position_name LIKE CONCAT('%', #{positionName}, '%')
+            </if>
+            <if test="positionCode != null and positionCode != ''">
+                AND p.position_code LIKE CONCAT('%', #{positionCode}, '%')
+            </if>
+            <if test="status != null">
+                AND p.status = #{status}
+            </if>
+            <if test="deptId != null">
+                AND p.dept_id = #{deptId}
+            </if>
+        </where>
+        ORDER BY p.sort_order ASC, p.create_time DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,510 @@
+<template>
+  <div class="app-container">
+    <!-- 搜索栏 -->
+    <el-card shadow="never" class="search-card">
+      <!-- 桌面端搜索表单 -->
+      <el-form v-if="!isMobile" :model="queryParams" inline>
+        <el-form-item label="任务名称">
+          <el-input v-model="queryParams.jobName" placeholder="请输入任务名称" clearable />
+        </el-form-item>
+        <el-form-item label="任务分组">
+          <el-select v-model="queryParams.jobGroup" placeholder="请选择任务分组" clearable style="width: 150px">
+            <el-option
+              v-for="item in jobGroupOptions"
+              :key="item.dictValue"
+              :label="item.dictLabel"
+              :value="item.dictValue"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 120px">
+            <el-option
+              v-for="item in statusOptions"
+              :key="item.dictValue"
+              :label="item.dictLabel"
+              :value="Number(item.dictValue)"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleQuery">搜索</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <!-- 移动端搜索按钮 -->
+      <div v-else class="mobile-search-actions">
+        <span class="title">定时任务</span>
+        <div class="actions">
+          <MobileSearchButton :badge-count="activeConditionsCount" @click="searchDrawerVisible = true" />
+          <el-button type="primary" @click="handleAdd">
+            <el-icon><Plus /></el-icon>
+          </el-button>
+        </div>
+      </div>
+    </el-card>
+
+    <!-- 移动端搜索抽屉 -->
+    <MobileSearchDrawer v-model="searchDrawerVisible" :form-data="queryParams" @search="handleSearchFromDrawer" @reset="handleResetFromDrawer">
+      <template #form-items>
+        <el-form-item label="任务名称">
+          <el-input v-model="queryParams.jobName" placeholder="请输入任务名称" clearable />
+        </el-form-item>
+        <el-form-item label="任务分组">
+          <el-select v-model="queryParams.jobGroup" placeholder="请选择任务分组" clearable style="width: 100%">
+            <el-option
+              v-for="item in jobGroupOptions"
+              :key="item.dictValue"
+              :label="item.dictLabel"
+              :value="item.dictValue"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 100%">
+            <el-option
+              v-for="item in statusOptions"
+              :key="item.dictValue"
+              :label="item.dictLabel"
+              :value="Number(item.dictValue)"
+            />
+          </el-select>
+        </el-form-item>
+      </template>
+    </MobileSearchDrawer>
+
+    <!-- 数据表格 -->
+    <el-card shadow="never" class="table-card">
+      <template #header>
+        <div class="card-header">
+          <span v-if="!isMobile">定时任务列表</span>
+          <div v-if="!isMobile" class="header-btns">
+            <el-button type="primary" @click="handleAdd">
+              <el-icon><Plus /></el-icon>
+              新增任务
+            </el-button>
+          </div>
+        </div>
+      </template>
+
+      <div class="table-responsive">
+        <el-table
+          v-loading="loading"
+          :data="tableData"
+          border
+          stripe
+          :row-class-name="getRowClassName"
+          @row-click="handleRowClick"
+        >
+          <el-table-column prop="id" label="ID" width="80" v-if="!isMobile" />
+          <el-table-column prop="jobName" label="任务名称" width="150" />
+          <el-table-column prop="jobGroup" label="任务分组" width="100" v-if="!isMobile" />
+          <el-table-column prop="invokeTarget" label="调用目标" min-width="200" show-overflow-tooltip />
+          <el-table-column prop="cronExpression" label="cron表达式" width="120" />
+          <el-table-column label="状态" width="80">
+            <template #default="{ row }">
+              <el-switch v-model="row.status" :active-value="1" :inactive-value="0" @change="handleStatusChange(row)" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="createTime" label="创建时间" width="180" v-if="!isMobile">
+            <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+          </el-table-column>
+          <!-- 桌面端操作列 -->
+          <el-table-column v-if="!isMobile" label="操作" width="280" fixed="right">
+            <template #default="{ row }">
+              <el-button v-if="row.status === 1" type="warning" link @click.stop="handlePause(row)">暂停</el-button>
+              <el-button v-else type="success" link @click.stop="handleResume(row)">恢复</el-button>
+              <el-button type="primary" link @click.stop="handleRunOnce(row)">执行一次</el-button>
+              <el-button type="info" link @click.stop="handleViewLog(row)">日志</el-button>
+              <el-button type="primary" link @click.stop="handleEdit(row)">编辑</el-button>
+              <el-button type="danger" link @click.stop="handleDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <el-pagination
+        v-model:current-page="queryParams.pageNum"
+        v-model:page-size="queryParams.pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50]"
+        :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+        @size-change="getList"
+        @current-change="getList"
+      />
+    </el-card>
+
+    <!-- 移动端底部操作栏 -->
+    <MobileBottomActions
+      :show="!!selectedRow"
+      :item="selectedRow"
+      :item-title="selectedRow?.jobName"
+      @cancel="cancelSelection"
+    >
+      <template #actions="{ item }">
+        <el-button size="small" v-if="item.status === 1" type="warning" @click.stop="handlePause(item)">暂停</el-button>
+        <el-button size="small" v-else type="success" @click.stop="handleResume(item)">恢复</el-button>
+        <el-button size="small" type="primary" @click.stop="handleRunOnce(item)">执行一次</el-button>
+        <el-button size="small" type="info" @click.stop="handleViewLog(item)">日志</el-button>
+        <el-button size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
+        <el-button size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
+      </template>
+    </MobileBottomActions>
+
+    <!-- 对话框 -->
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" class="dialog-form-responsive">
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="120px">
+        <el-form-item label="任务名称" prop="jobName">
+          <el-input v-model="formData.jobName" placeholder="请输入任务名称" />
+        </el-form-item>
+        <el-form-item label="任务分组" prop="jobGroup">
+          <el-select v-model="formData.jobGroup" style="width: 100%">
+            <el-option
+              v-for="item in jobGroupOptions"
+              :key="item.dictValue"
+              :label="item.dictLabel"
+              :value="item.dictValue"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="调用目标" prop="invokeTarget">
+          <el-input v-model="formData.invokeTarget" placeholder="如: demoTask.execute('test')" />
+          <div class="form-tip">
+            <p>调用目标格式：beanName.methodName(params)</p>
+            <p>示例：demoTask.execute("test") 或 demoTask.cleanExpiredData()</p>
+          </div>
+        </el-form-item>
+        <el-form-item label="cron表达式" prop="cronExpression">
+          <el-input v-model="formData.cronExpression" placeholder="如: 0 0/5 * * * ?">
+            <template #append>
+              <el-button @click="cronDialogVisible = true">生成</el-button>
+            </template>
+          </el-input>
+          <div class="form-tip">
+            <p>Cron 表达式格式：秒 分 时 日 月 周 年(可选)</p>
+            <p>示例：0 0/5 * * * ? - 每5分钟执行一次</p>
+          </div>
+        </el-form-item>
+        <el-form-item label="是否并发">
+          <el-radio-group v-model="formData.concurrent">
+            <el-radio :value="0">禁止</el-radio>
+            <el-radio :value="1">允许</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-radio-group v-model="formData.status">
+            <el-radio
+              v-for="item in statusOptions"
+              :key="item.dictValue"
+              :value="Number(item.dictValue)"
+            >
+              {{ item.dictLabel }}
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入备注" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Cron 表达式生成对话框 -->
+    <el-dialog v-model="cronDialogVisible" title="Cron 表达式生成器" width="600px">
+      <div class="cron-builder">
+        <el-tabs v-model="cronTab">
+          <el-tab-pane label="常用" name="common">
+            <div class="cron-common">
+              <el-button @click="setCron('0 0/5 * * * ?')">每5分钟</el-button>
+              <el-button @click="setCron('0 0/10 * * * ?')">每10分钟</el-button>
+              <el-button @click="setCron('0 0/30 * * * ?')">每30分钟</el-button>
+              <el-button @click="setCron('0 0 0/1 * * ?')">每小时</el-button>
+              <el-button @click="setCron('0 0 2 * * ?')">每天凌晨2点</el-button>
+              <el-button @click="setCron('0 0 0 * * ?')">每天凌晨0点</el-button>
+              <el-button @click="setCron('0 0 0 ? * MON')">每周一凌晨</el-button>
+              <el-button @click="setCron('0 0 0 1 * ?')">每月1号凌晨</el-button>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
+        <el-divider />
+        <div class="cron-result">
+          <el-input v-model="generatedCron" readonly>
+            <template #prepend>生成的表达式</template>
+          </el-input>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="cronDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="applyCronExpression">应用</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
+import { getJobList, addJob, updateJob, deleteJob, changeJobStatus, runJobOnce } from '@/api/system'
+import { formatDateTime } from '@/utils/dateFormat'
+import { useResponsive } from '@/composables/useResponsive'
+import { useDict } from '@/composables/useDict'
+import { DICT_TYPE } from '@/constants/dict'
+import { useRouter } from 'vue-router'
+import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
+import MobileSearchButton from '@/components/MobileSearchButton.vue'
+import MobileBottomActions from '@/components/MobileBottomActions.vue'
+
+const { isMobile } = useResponsive()
+const router = useRouter()
+const { dictData: jobGroupOptions } = useDict(DICT_TYPE.SYS_JOB_GROUP)
+const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_COMMON_STATUS)
+
+interface Job {
+  id: number
+  jobName: string
+  jobGroup: string
+  invokeTarget: string
+  cronExpression: string
+  status: number
+  concurrent: number
+  remark: string
+  createTime: string
+}
+
+const loading = ref(false)
+const tableData = ref<Job[]>([])
+const total = ref(0)
+
+// 移动端状态
+const searchDrawerVisible = ref(false)
+const selectedRow = ref<Job | null>(null)
+
+// Cron 表达式生成器
+const cronDialogVisible = ref(false)
+const cronTab = ref('common')
+const generatedCron = ref('')
+
+const queryParams = reactive({
+  jobName: '',
+  jobGroup: '',
+  status: undefined as number | undefined,
+  pageNum: 1,
+  pageSize: 10
+})
+
+// 计算激活的搜索条件数量
+const activeConditionsCount = computed(() => {
+  let count = 0
+  if (queryParams.jobName) count++
+  if (queryParams.jobGroup) count++
+  if (queryParams.status !== undefined) count++
+  return count
+})
+
+const dialogVisible = ref(false)
+const dialogTitle = ref('')
+const isEdit = ref(false)
+const submitLoading = ref(false)
+const formRef = ref<FormInstance>()
+const formData = reactive({
+  id: undefined as number | undefined,
+  jobName: '',
+  jobGroup: 'DEFAULT',
+  invokeTarget: '',
+  cronExpression: '',
+  status: 1,
+  concurrent: 0,
+  remark: ''
+})
+
+const formRules: FormRules = {
+  jobName: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
+  invokeTarget: [{ required: true, message: '请输入调用目标', trigger: 'blur' }],
+  cronExpression: [{ required: true, message: '请输入cron表达式', trigger: 'blur' }]
+}
+
+const getList = async () => {
+  loading.value = true
+  try {
+    const res = await getJobList(queryParams)
+    tableData.value = res.list
+    total.value = res.total
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleQuery = () => { queryParams.pageNum = 1; getList() }
+const handleReset = () => {
+  queryParams.jobName = ''
+  queryParams.jobGroup = ''
+  queryParams.status = undefined
+  handleQuery()
+}
+
+// 移动端抽屉搜索
+const handleSearchFromDrawer = () => {
+  queryParams.pageNum = 1
+  getList()
+}
+
+// 移动端抽屉重置
+const handleResetFromDrawer = () => {
+  handleReset()
+}
+
+const handleAdd = () => {
+  isEdit.value = false
+  dialogTitle.value = '新增任务'
+  Object.assign(formData, { id: undefined, jobName: '', jobGroup: 'DEFAULT', invokeTarget: '', cronExpression: '', status: 1, concurrent: 0, remark: '' })
+  dialogVisible.value = true
+}
+
+const handleEdit = (row: Job) => {
+  cancelSelection()
+  isEdit.value = true
+  dialogTitle.value = '编辑任务'
+  Object.assign(formData, row)
+  dialogVisible.value = true
+}
+
+const handleSubmit = async () => {
+  if (!formRef.value) return
+  await formRef.value.validate()
+  submitLoading.value = true
+  try {
+    if (isEdit.value) {
+      await updateJob(formData)
+      ElMessage.success('更新成功')
+    } else {
+      await addJob(formData)
+      ElMessage.success('新增成功')
+    }
+    dialogVisible.value = false
+    getList()
+  } finally {
+    submitLoading.value = false
+  }
+}
+
+const handleStatusChange = async (row: Job) => {
+  try {
+    await changeJobStatus(row.id, row.status)
+    ElMessage.success('状态修改成功')
+  } catch {
+    row.status = row.status === 1 ? 0 : 1
+  }
+}
+
+const handleRunOnce = async (row: Job) => {
+  try {
+    await ElMessageBox.confirm(`确认要立即执行一次任务 "${row.jobName}" 吗？`, '提示', { type: 'warning' })
+    await runJobOnce(row.id)
+    ElMessage.success('执行成功')
+  } catch (e) {}
+}
+
+const handleDelete = async (row: Job) => {
+  try {
+    await ElMessageBox.confirm(`确定删除任务 "${row.jobName}"?`, '警告', { type: 'warning' })
+    await deleteJob([row.id])
+    ElMessage.success('删除成功')
+    cancelSelection()
+    getList()
+  } catch (e) {}
+}
+
+const handlePause = async (row: Job) => {
+  try {
+    await changeJobStatus(row.id, 0)
+    ElMessage.success('暂停成功')
+    cancelSelection()
+    getList()
+  } catch {
+    ElMessage.error('暂停失败')
+  }
+}
+
+const handleResume = async (row: Job) => {
+  try {
+    await changeJobStatus(row.id, 1)
+    ElMessage.success('恢复成功')
+    cancelSelection()
+    getList()
+  } catch {
+    ElMessage.error('恢复失败')
+  }
+}
+
+const handleViewLog = (row: Job) => {
+  router.push({
+    path: '/system/job-log',
+    query: { jobId: row.id, jobName: row.jobName }
+  })
+}
+
+// Cron 表达式生成器相关方法
+const setCron = (cronExpr: string) => {
+  generatedCron.value = cronExpr
+}
+
+const applyCronExpression = () => {
+  formData.cronExpression = generatedCron.value
+  cronDialogVisible.value = false
+}
+
+// 获取行样式名
+const getRowClassName = ({ row }: { row: Job }) => {
+  if (isMobile.value && selectedRow.value?.id === row.id) {
+    return 'selected-row'
+  }
+  return ''
+}
+
+// 处理行点击（移动端）
+const handleRowClick = (row: Job) => {
+  if (isMobile.value) {
+    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+  }
+}
+
+// 取消选择
+const cancelSelection = () => {
+  selectedRow.value = null
+}
+
+onMounted(() => getList())
+</script>
+
+<style scoped lang="scss">
+.app-container {
+  padding: 0;
+
+  .search-card { margin-bottom: 15px; }
+  .table-card {
+    .card-header { display: flex; justify-content: space-between; align-items: center; }
+    .el-pagination { margin-top: 15px; justify-content: flex-end; }
+  }
+
+  .form-tip {
+    margin-top: 5px;
+    font-size: 12px;
+    color: #909399;
+    line-height: 1.5;
+  }
+
+  .cron-builder {
+    .cron-common {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+  }
+}
+</style>

@@ -1,0 +1,297 @@
+/**
+ * 表格页面响应式样式
+ * 用于用户管理、角色管理等列表页面
+ */
+
+// 引入响应式 mixin
+@use './responsive.scss' as *;
+
+.app-container {
+  // 搜索卡片响应式
+  .search-card {
+    @include mobile {
+      :deep(.el-card__body) {
+        padding: 12px;
+      }
+
+      .search-form {
+        display: none; // 移动端隐藏桌面端搜索表单
+      }
+
+      // 移动端搜索按钮区域
+      .mobile-search-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+
+        .title {
+          font-size: 16px;
+          font-weight: 500;
+          color: #303133;
+        }
+
+        .actions {
+          display: flex;
+          gap: 8px;
+        }
+      }
+    }
+  }
+
+  // 表格卡片响应式
+  .table-card {
+    @include mobile {
+      :deep(.el-card__header) {
+        padding: 12px 15px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        .card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+
+          span {
+            font-size: 16px;
+          }
+
+          .el-button {
+            margin-left: 8px;
+          }
+        }
+      }
+
+      :deep(.el-card__body) {
+        padding: 0;
+      }
+    }
+  }
+
+  // 表格响应式容器
+  .table-responsive {
+    @include mobile {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      // 给滚动条添加样式，使其更明显
+      scrollbar-width: thin;
+      scrollbar-color: #c1c1c1 #f1f1f1;
+
+      // Webkit 浏览器滚动条样式
+      &::-webkit-scrollbar {
+        height: 6px;
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+
+        &:hover {
+          background: #a8a8a8;
+        }
+      }
+
+      // 确保表格内容正确渲染
+      :deep(.el-table) {
+        width: 100%;
+        min-width: max-content;
+        font-size: 13px;
+
+        // 确保表格内部元素宽度正确
+        .el-table__inner-wrapper {
+          width: 100%;
+        }
+
+        .el-table__body-wrapper {
+          width: 100%;
+        }
+
+        .el-table__header th {
+          padding: 8px 0;
+          white-space: nowrap;
+        }
+
+        .el-table__body td {
+          padding: 8px 0;
+        }
+
+        .cell {
+          padding: 0 8px;
+        }
+
+        // 移动端行可点击
+        tbody tr {
+          cursor: pointer;
+
+          &:active {
+            background-color: #f5f7fa;
+          }
+        }
+
+        // 选中行高亮
+        .selected-row {
+          background-color: #ecf5ff !important;
+
+          &:hover td {
+            background-color: #ecf5ff !important;
+          }
+        }
+      }
+    }
+  }
+
+  // 分页组件响应式
+  .el-pagination {
+    @include mobile {
+      // 隐藏非必要元素
+      :deep(.el-pagination__sizes),
+      :deep(.el-pagination__jump),
+      :deep(.el-pagination__total) {
+        display: none !important;
+      }
+
+      // 页码按钮
+      :deep(.el-pager) {
+        .number {
+          min-width: 32px !important;
+          height: 32px !important;
+          line-height: 32px !important;
+          font-size: 13px !important;
+          border-radius: 50%;
+        }
+
+        .more {
+          min-width: 32px !important;
+          height: 32px !important;
+          line-height: 32px !important;
+        }
+      }
+
+      // 前进后退按钮
+      :deep(.btn-prev),
+      :deep(.btn-next) {
+        padding: 0 !important;
+        min-width: 32px !important;
+        height: 32px !important;
+        border-radius: 50%;
+
+        .el-icon {
+          font-size: 13px;
+        }
+      }
+
+      // 居中对齐分页
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      gap: 4px;
+      padding: 8px 0 !important;
+      margin-top: 15px !important;
+
+      // 选中状态
+      :deep(.el-pager li.is-active) {
+        .number {
+          background-color: #409eff;
+          color: #fff;
+        }
+      }
+
+      // 禁用状态
+      :deep(.btn-prev:disabled),
+      :deep(.btn-next:disabled) {
+        background-color: #f4f4f5;
+        color: #c0c4cc;
+
+        .el-icon {
+          color: #c0c4cc;
+        }
+      }
+    }
+  }
+
+  // 对话框响应式
+  .el-dialog {
+    @include mobile {
+      width: 95% !important;
+      margin: 0 auto;
+
+      :deep(.el-dialog__header) {
+        padding: 15px;
+      }
+
+      :deep(.el-dialog__body) {
+        padding: 15px;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+
+      :deep(.el-dialog__footer) {
+        padding: 15px;
+        text-align: center;
+
+        .el-button {
+          width: calc(50% - 5px);
+          margin: 0 !important;
+        }
+      }
+    }
+  }
+}
+
+// 移动端头部操作栏
+.mobile-header-actions {
+  display: none;
+
+  @include mobile {
+    display: flex;
+    gap: 8px;
+  }
+}
+
+// 桌面端头部操作栏
+.desktop-header-actions {
+  @include mobile {
+    display: none;
+  }
+}
+
+// 表单对话框响应式
+.dialog-form-responsive {
+  @include mobile {
+    :deep(.el-form-item) {
+      .el-form-item__label {
+        display: block;
+        text-align: left;
+        line-height: 1.5;
+        padding-bottom: 6px;
+      }
+
+      .el-form-item__content {
+        margin-left: 0 !important;
+      }
+    }
+
+    :deep(.el-select),
+    :deep(.el-cascader),
+    :deep(.el-date-editor),
+    :deep(.el-input-number) {
+      width: 100%;
+    }
+  }
+}
+
+// 移动端底部安全区域
+.mobile-safe-bottom {
+  @include mobile {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+}
