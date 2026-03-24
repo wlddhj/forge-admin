@@ -22,9 +22,9 @@
           @row-click="handleRowClick"
         >
           <el-table-column prop="tokenId" label="会话ID" min-width="200" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="username" label="用户名" width="120" />
-          <el-table-column prop="nickname" label="昵称" width="120" v-if="!isMobile" />
-          <el-table-column label="状态" width="80">
+          <el-table-column prop="username" label="用户名" width="100" />
+          <el-table-column prop="nickname" label="昵称" width="100" v-if="!isMobile" />
+          <el-table-column label="状态" width="70">
             <template #default="{ row }">
               <el-tag :type="row.status === 'online' ? 'success' : 'warning'" size="small">
                 {{ row.status === 'online' ? '在线' : '闲置' }}
@@ -33,9 +33,9 @@
           </el-table-column>
           <el-table-column prop="loginIp" label="登录IP" width="130" />
           <el-table-column prop="loginLocation" label="登录地点" width="120" v-if="!isMobile" />
-          <el-table-column prop="browser" label="浏览器" width="120" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="os" label="操作系统" width="120" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="loginTime" label="登录时间" width="180" v-if="!isMobile">
+          <el-table-column prop="browser" label="浏览器" width="100" show-overflow-tooltip v-if="!isMobile" />
+          <el-table-column prop="os" label="操作系统" width="100" show-overflow-tooltip v-if="!isMobile" />
+          <el-table-column prop="loginTime" label="登录时间" width="170" v-if="!isMobile">
             <template #default="{ row }">{{ formatDateTime(row.loginTime) }}</template>
           </el-table-column>
           <el-table-column label="剩余有效期" width="130">
