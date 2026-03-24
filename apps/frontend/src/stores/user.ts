@@ -1,14 +1,40 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { login, getUserInfo, getUserMenus, logout, refreshToken } from '@/api/auth'
+import { login, getUserInfo, getUserMenus, logout, refreshToken, heartbeat } from '@/api/auth'
 import type { LoginRequest, UserInfo } from '@/types/auth'
 import type { MenuTree } from '@/types/system'
+
+// 心跳间隔：2分钟
+const HEARTBEAT_INTERVAL = 2 * 60 * 1000
 
 export const useUserStore = defineStore('user', () => {
   const token = ref<string>(localStorage.getItem('token') || '')
   const refreshTokenValue = ref<string>(localStorage.getItem('refreshToken') || '')
   const userInfo = ref<UserInfo | null>(null)
   const menus = ref<MenuTree[]>([])
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+
+  // 启动心跳定时器
+  const startHeartbeat = () => {
+    stopHeartbeat()
+    heartbeatTimer = setInterval(async () => {
+      if (token.value) {
+        try {
+          await heartbeat()
+        } catch {
+          // 忽略心跳失败
+        }
+      }
+    }, HEARTBEAT_INTERVAL)
+  }
+
+  // 停止心跳定时器
+  const stopHeartbeat = () => {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer)
+      heartbeatTimer = null
+    }
+  }
 
   // 登录
   const loginAction = async (loginForm: LoginRequest) => {
@@ -17,6 +43,8 @@ export const useUserStore = defineStore('user', () => {
     refreshTokenValue.value = res.refreshToken
     localStorage.setItem('token', res.accessToken)
     localStorage.setItem('refreshToken', res.refreshToken)
+    // 登录成功后启动心跳
+    startHeartbeat()
     return res
   }
 
@@ -67,6 +95,8 @@ export const useUserStore = defineStore('user', () => {
     } catch {
       // 忽略 logout API 错误，直接清除本地状态
     } finally {
+      // 停止心跳
+      stopHeartbeat()
       token.value = ''
       refreshTokenValue.value = ''
       userInfo.value = null
@@ -83,6 +113,11 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // 如果已有 token，启动心跳
+  if (token.value) {
+    startHeartbeat()
+  }
+
   return {
     token,
     refreshTokenValue,
@@ -95,6 +130,8 @@ export const useUserStore = defineStore('user', () => {
     getUserInfoAction,
     getMenusAction,
     logoutAction,
-    updateUserInfo
+    updateUserInfo,
+    startHeartbeat,
+    stopHeartbeat
   }
 })

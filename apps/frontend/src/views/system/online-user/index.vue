@@ -24,6 +24,13 @@
           <el-table-column prop="tokenId" label="会话ID" min-width="200" show-overflow-tooltip v-if="!isMobile" />
           <el-table-column prop="username" label="用户名" width="120" />
           <el-table-column prop="nickname" label="昵称" width="120" v-if="!isMobile" />
+          <el-table-column label="状态" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'online' ? 'success' : 'warning'" size="small">
+                {{ row.status === 'online' ? '在线' : '闲置' }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="loginIp" label="登录IP" width="130" />
           <el-table-column prop="loginLocation" label="登录地点" width="120" v-if="!isMobile" />
           <el-table-column prop="browser" label="浏览器" width="120" show-overflow-tooltip v-if="!isMobile" />
@@ -62,25 +69,12 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { getOnlineUsers, forceLogout } from '@/api/system'
+import { getOnlineUsers, forceLogout, type OnlineUser } from '@/api/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
 
 const { isMobile } = useResponsive()
-
-interface OnlineUser {
-  tokenId: string
-  userId: number
-  username: string
-  nickname: string
-  loginIp: string
-  loginLocation: string
-  browser: string
-  os: string
-  loginTime: number
-  ttl: number
-}
 
 const loading = ref(false)
 const tableData = ref<OnlineUser[]>([])

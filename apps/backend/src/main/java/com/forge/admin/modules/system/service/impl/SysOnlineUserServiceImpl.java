@@ -19,9 +19,15 @@ public class SysOnlineUserServiceImpl implements SysOnlineUserService {
 
     private final LoginUserSessionService loginUserSessionService;
 
+    /**
+     * 闲置超时时间：10分钟（毫秒）
+     */
+    private static final long IDLE_TIMEOUT_MS = 10 * 60 * 1000L;
+
     @Override
     public List<OnlineUserResponse> getOnlineUsers() {
         List<LoginUserSession> sessions = loginUserSessionService.getAllSessions();
+        long now = System.currentTimeMillis();
 
         return sessions.stream().map(session -> {
             OnlineUserResponse user = new OnlineUserResponse();
@@ -34,6 +40,15 @@ public class SysOnlineUserServiceImpl implements SysOnlineUserService {
             user.setBrowser(session.getBrowser());
             user.setOs(session.getOs());
             user.setLoginTime(session.getLoginTime());
+            user.setLastActiveTime(session.getLastActiveTime());
+
+            // 计算状态：超过10分钟无心跳为"闲置"
+            Long lastActiveTime = session.getLastActiveTime();
+            if (lastActiveTime != null && (now - lastActiveTime) > IDLE_TIMEOUT_MS) {
+                user.setStatus("idle");
+            } else {
+                user.setStatus("online");
+            }
 
             // 获取剩余过期时间
             Long ttl = loginUserSessionService.getSessionTTL(session.getTokenId());

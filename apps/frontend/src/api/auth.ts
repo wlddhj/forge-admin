@@ -22,6 +22,11 @@ export function getUserMenus() {
   return request.get<MenuTree[]>('/auth/menus').then(res => res.data)
 }
 
+// 心跳接口
+export function heartbeat() {
+  return request.post('/auth/heartbeat')
+}
+
 // 退出登录
 export function logout(refreshToken?: string) {
   const headers: Record<string, string> = {}

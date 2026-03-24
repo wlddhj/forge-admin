@@ -18,7 +18,7 @@ public interface LoginUserSessionService {
     void saveSession(LoginUserSession session, long ttl);
 
     /**
-     * 获取所有在线用户
+     * 获取所有在线用户（超过30分钟无心跳的自动过滤）
      */
     List<LoginUserSession> getAllSessions();
 
@@ -31,4 +31,11 @@ public interface LoginUserSessionService {
      * 删除会话（强制下线）
      */
     void deleteSession(String tokenId);
+
+    /**
+     * 更新会话最后活跃时间（心跳）
+     *
+     * @param tokenId 会话ID
+     */
+    void updateLastActiveTime(String tokenId);
 }

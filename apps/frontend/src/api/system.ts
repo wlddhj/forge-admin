@@ -330,7 +330,9 @@ export interface OnlineUser {
   browser: string
   os: string
   loginTime: number
+  lastActiveTime: number
   ttl: number
+  status: 'online' | 'idle'
 }
 
 export function getOnlineUsers() {

@@ -61,4 +61,9 @@ public class LoginUserSession implements Serializable {
      * 登录时间（时间戳）
      */
     private Long loginTime;
+
+    /**
+     * 最后活跃时间（时间戳）
+     */
+    private Long lastActiveTime;
 }

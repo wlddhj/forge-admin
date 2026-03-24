@@ -13,5 +13,10 @@ public class OnlineUserResponse {
     private String browser;
     private String os;
     private Long loginTime;
+    private Long lastActiveTime;
     private Long ttl;
+    /**
+     * 状态：online-在线，idle-闲置
+     */
+    private String status;
 }

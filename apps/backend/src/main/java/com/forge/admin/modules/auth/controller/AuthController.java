@@ -89,6 +89,7 @@ public class AuthController {
             String loginLocation = com.forge.admin.common.utils.IpUtils.getLocationByIp(loginIp);
 
             // 保存登录会话到 Redis
+            long currentTime = System.currentTimeMillis();
             LoginUserSession session = LoginUserSession.builder()
                     .tokenId(tokenId)
                     .userId(user.getId())
@@ -98,7 +99,8 @@ public class AuthController {
                     .loginLocation(loginLocation)
                     .browser(browser)
                     .os(os)
-                    .loginTime(System.currentTimeMillis())
+                    .loginTime(currentTime)
+                    .lastActiveTime(currentTime)
                     .build();
             loginUserSessionService.saveSession(session, jwtProperties.getRefreshExpiration());
 
@@ -192,6 +194,25 @@ public class AuthController {
 
         // 清除用户上下文
         UserContext.clear();
+        return Result.success();
+    }
+
+    @Operation(summary = "心跳接口")
+    @PostMapping("/heartbeat")
+    public Result<Void> heartbeat(HttpServletRequest request) {
+        // 从 Authorization header 获取 Access Token
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String accessToken = authHeader.substring(7);
+            try {
+                String tokenId = jwtTokenProvider.getTokenId(accessToken);
+                if (tokenId != null) {
+                    loginUserSessionService.updateLastActiveTime(tokenId);
+                }
+            } catch (Exception e) {
+                log.warn("心跳更新失败: {}", e.getMessage());
+            }
+        }
         return Result.success();
     }
 
