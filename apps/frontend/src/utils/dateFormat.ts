@@ -20,7 +20,13 @@ function toDate(date: string | Date | number | null | undefined): Date | null {
       d = new Date(date) // 已经是毫秒级
     }
   } else {
-    d = new Date(date)
+      if (typeof date === 'string') {
+          // 将string  转成 number
+          date = Number(date)
+          d = new Date(date)
+      } else {
+          d = date
+      }
   }
 
   if (isNaN(d.getTime())) return null

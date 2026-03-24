@@ -43,8 +43,10 @@ public class SysOnlineUserServiceImpl implements SysOnlineUserService {
             user.setLastActiveTime(session.getLastActiveTime());
 
             // 计算状态：超过10分钟无心跳为"闲置"
+            // 使用 loginTime 作为备用判断（兼容旧数据没有 lastActiveTime 的情况）
             Long lastActiveTime = session.getLastActiveTime();
-            if (lastActiveTime != null && (now - lastActiveTime) > IDLE_TIMEOUT_MS) {
+            Long checkTime = lastActiveTime != null ? lastActiveTime : session.getLoginTime();
+            if (checkTime != null && (now - checkTime) > IDLE_TIMEOUT_MS) {
                 user.setStatus("idle");
             } else {
                 user.setStatus("online");

@@ -75,8 +75,10 @@ public class LoginUserSessionServiceImpl implements LoginUserSessionService {
 
             if (session != null) {
                 // 过滤超过30分钟无心跳的会话（视为离线）
+                // 使用 loginTime 作为备用判断（兼容旧数据没有 lastActiveTime 的情况）
                 Long lastActiveTime = session.getLastActiveTime();
-                if (lastActiveTime != null && (now - lastActiveTime) > OFFLINE_TIMEOUT_MS) {
+                Long checkTime = lastActiveTime != null ? lastActiveTime : session.getLoginTime();
+                if (checkTime != null && (now - checkTime) > OFFLINE_TIMEOUT_MS) {
                     // 删除过期的会话
                     redisTemplate.delete(key);
                     log.debug("清理离线会话: tokenId={}, username={}", session.getTokenId(), session.getUsername());
