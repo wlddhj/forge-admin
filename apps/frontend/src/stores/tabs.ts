@@ -80,8 +80,15 @@ export const useTabsStore = defineStore('tabs', () => {
   // 关闭其他标签页
   const closeOtherTabs = (path: string) => {
     const currentTab = tabs.value.find(t => t.path === path)
+    const homeTab = tabs.value.find(t => t.path === '/dashboard')
+
     if (currentTab) {
-      tabs.value = [currentTab]
+      // 如果当前不是首页，需要同时保留首页
+      if (homeTab && path !== '/dashboard') {
+        tabs.value = [homeTab, currentTab]
+      } else {
+        tabs.value = [currentTab]
+      }
       activeTab.value = currentTab.path
     }
   }
