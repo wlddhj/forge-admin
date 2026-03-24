@@ -48,7 +48,7 @@
 
 ```bash
 git clone <repository-url>
-cd standAdmin
+cd forge-admin
 ```
 
 2. **创建数据库**
@@ -85,12 +85,12 @@ pnpm dev
 ## 目录结构
 
 ```
-standAdmin/
+forge-admin/
 ├── apps/
 │   ├── backend/                # 后端应用
 │   │   ├── src/
 │   │   │   ├── main/
-│   │   │   │   ├── java/com/standadmin/
+│   │   │   │   ├── java/com/forge/admin/
 │   │   │   │   │   ├── common/       # 通用模块
 │   │   │   │   │   │   ├── annotation/  # 自定义注解
 │   │   │   │   │   │   ├── aspect/      # AOP 切面

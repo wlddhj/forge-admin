@@ -32,6 +32,7 @@ forge-admin is an enterprise-level admin management system with RBAC (Role-Based
 pnpm install    # Install dependencies
 pnpm dev        # Start dev server (port 3002)
 pnpm build      # Build for production (includes type check)
+pnpm preview    # Preview production build
 pnpm lint       # Run ESLint
 ```
 
@@ -40,27 +41,38 @@ pnpm lint       # Run ESLint
 mvn spring-boot:run              # Start dev server
 mvn clean compile                # Compile only
 mvn clean package -DskipTests    # Build JAR (skip tests)
-mvn test                         # Run tests
+mvn test                         # Run all tests
+mvn test -Dtest=ClassName       # Run single test class
+mvn test -Dtest=ClassName#methodName  # Run single test method
 ```
 
 ## Architecture
 
-### Backend Structure (`apps/backend/src/main/java/com/standadmin/`)
+### Backend Structure (`apps/backend/src/main/java/com/forge/admin/`)
 ```
 common/
-├── annotation/    # Custom annotations (e.g., @OperationLog)
-├── aspect/        # AOP aspects
-├── config/        # Spring configurations (Security, Redis, JWT, etc.)
+├── annotation/    # Custom annotations (@OperationLog, @DataPermission, @RateLimiter)
+├── aspect/        # AOP aspects (logging, rate limiting, data scope)
+├── config/        # Spring configurations (Security, Redis, JWT, MyBatis Plus)
+├── enumeration/   # Enums (DataScope types)
 ├── exception/     # Global exception handling
 ├── json/          # Jackson serializers/deserializers
-├── permission/    # Data permission interceptors
-├── response/      # Unified API response wrapper (Result<T>)
-└── utils/         # Utility classes
+├── permission/    # Data permission rules and interceptors
+├── response/      # Unified API response wrapper (Result<T>, PageResult<T>)
+└── utils/         # Utility classes (SecurityUtils, ExcelUtils, etc.)
 
 modules/
-├── auth/          # Authentication (login, token refresh)
-├── system/        # System management (user, role, menu, dept, dict, config)
-└── quartz/        # Scheduled tasks
+├── auth/          # Authentication (login, token refresh, JWT filter)
+│   ├── controller/
+│   ├── dto/
+│   ├── security/  # JWT token provider, filters
+│   └── service/
+└── system/        # System management
+    ├── controller/
+    ├── dto/
+    ├── entity/
+    ├── mapper/
+    └── service/
 ```
 
 ### Frontend Structure (`apps/frontend/src/`)
@@ -102,6 +114,14 @@ All API responses follow this structure:
 Location: `apps/backend/src/main/resources/db/migration/`
 Naming: `V{YYYYMMDD}{seq}__{description}.sql` (e.g., `V2026030501__file_config.sql`)
 
+### Data Permission System
+The system supports department-level data isolation through `@DataPermission` annotation:
+- Type 1: All data access
+- Type 2: Custom data permission
+- Type 3: Own department only
+- Type 4: Own department and sub-departments
+- Type 5: Own data only
+
 ## Git Commit Convention
 
 **Format:** `<type>(<scope>): <subject>`
@@ -109,6 +129,16 @@ Naming: `V{YYYYMMDD}{seq}__{description}.sql` (e.g., `V2026030501__file_config.s
 Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `revert`
 
 **IMPORTANT:** Do NOT add `Co-Authored-By` in commit messages.
+
+## Key Files
+
+| Purpose | Path |
+|---------|------|
+| Backend Config | `apps/backend/src/main/resources/application.yml` |
+| API Definitions | `apps/backend/src/main/java/com/forge/admin/modules/*/controller/` |
+| Frontend Request Utils | `apps/frontend/src/utils/request.ts` |
+| Pinia Stores | `apps/frontend/src/stores/` |
+| Vue Router | `apps/frontend/src/router/` |
 
 ## Pre-existing Rules
 
