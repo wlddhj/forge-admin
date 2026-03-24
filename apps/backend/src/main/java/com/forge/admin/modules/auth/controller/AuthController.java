@@ -11,7 +11,10 @@ import com.forge.admin.modules.auth.dto.UserInfoResponse;
 import com.forge.admin.modules.auth.security.JwtTokenProvider;
 import com.forge.admin.modules.auth.service.RefreshTokenService;
 import com.forge.admin.modules.system.dto.menu.MenuTreeResponse;
+import com.forge.admin.modules.system.dto.online.LoginUserSession;
 import com.forge.admin.modules.system.entity.SysUser;
+import com.forge.admin.modules.system.service.SysUserService;
+import com.forge.admin.modules.system.service.LoginUserSessionService;
 import com.forge.admin.modules.system.service.SysLoginLogService;
 import com.forge.admin.modules.system.service.SysMenuService;
 import com.forge.admin.modules.system.service.SysUserService;
@@ -48,16 +51,26 @@ public class AuthController {
     private final SysMenuService sysMenuService;
     private final SysLoginLogService sysLoginLogService;
     private final RefreshTokenService refreshTokenService;
+    private final LoginUserSessionService loginUserSessionService;
 
-    @Operation(summary = "登录")
+        @Operation(summary = "登录")
     @PostMapping("/login")
     @RateLimiter(time = 60, count = 20, message = "登录请求过于频繁，请稍后再试")
-    public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         try {
             // 认证
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
             );
+
+            // 获取用户信息
+            SysUser user = sysUserService.getByUsername(request.getUsername());
+            if (user == null) {
+                return Result.failed("用户不存在");
+            }
+
+            // 生成 tokenId
+            String tokenId = java.util.UUID.randomUUID().toString().replace("-", "");
 
             // 生成 Access Token
             String accessToken = jwtTokenProvider.generateToken(request.getUsername());
@@ -67,6 +80,27 @@ public class AuthController {
                     request.getUsername(),
                     jwtProperties.getRefreshExpiration()
             );
+
+            // 获取客户端信息
+            String loginIp = com.forge.admin.common.utils.IpUtils.getClientIp(httpRequest);
+            String userAgent = httpRequest.getHeader("User-Agent");
+            String browser = com.forge.admin.common.utils.IpUtils.getBrowser(userAgent);
+            String os = com.forge.admin.common.utils.IpUtils.getOs(userAgent);
+            String loginLocation = com.forge.admin.common.utils.IpUtils.getLocationByIp(loginIp);
+
+            // 保存登录会话到 Redis
+            LoginUserSession session = LoginUserSession.builder()
+                    .tokenId(tokenId)
+                    .userId(user.getId())
+                    .username(user.getUsername())
+                    .nickname(user.getNickname())
+                    .loginIp(loginIp)
+                    .loginLocation(loginLocation)
+                    .browser(browser)
+                    .os(os)
+                    .loginTime(System.currentTimeMillis())
+                    .build();
+            loginUserSessionService.saveSession(session, jwtProperties.getRefreshExpiration());
 
             // 记录登录成功日志
             sysLoginLogService.recordLoginLog(request.getUsername(), 1, "登录成功", httpRequest);

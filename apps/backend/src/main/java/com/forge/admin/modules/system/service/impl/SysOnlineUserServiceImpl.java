@@ -1,15 +1,14 @@
 package com.forge.admin.modules.system.service.impl;
 
+import com.forge.admin.modules.system.dto.online.LoginUserSession;
 import com.forge.admin.modules.system.dto.online.OnlineUserResponse;
+import com.forge.admin.modules.system.service.LoginUserSessionService;
 import com.forge.admin.modules.system.service.SysOnlineUserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * 在线用户服务实现
@@ -18,54 +17,34 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class SysOnlineUserServiceImpl implements SysOnlineUserService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
-
-    private static final String LOGIN_TOKEN_KEY = "login_tokens:";
+    private final LoginUserSessionService loginUserSessionService;
 
     @Override
     public List<OnlineUserResponse> getOnlineUsers() {
-        List<OnlineUserResponse> onlineUsers = new ArrayList<>();
+        List<LoginUserSession> sessions = loginUserSessionService.getAllSessions();
 
-        // 获取所有登录token
-        Set<String> keys = redisTemplate.keys(LOGIN_TOKEN_KEY + "*");
-        if (keys == null || keys.isEmpty()) {
-            return onlineUsers;
-        }
+        return sessions.stream().map(session -> {
+            OnlineUserResponse user = new OnlineUserResponse();
+            user.setTokenId(session.getTokenId());
+            user.setUserId(session.getUserId());
+            user.setUsername(session.getUsername());
+            user.setNickname(session.getNickname());
+            user.setLoginIp(session.getLoginIp());
+            user.setLoginLocation(session.getLoginLocation());
+            user.setBrowser(session.getBrowser());
+            user.setOs(session.getOs());
+            user.setLoginTime(session.getLoginTime());
 
-        for (String key : keys) {
-            Object value = redisTemplate.opsForValue().get(key);
-            if (value instanceof java.util.Map) {
-                @SuppressWarnings("unchecked")
-                java.util.Map<String, Object> userInfo = (java.util.Map<String, Object>) value;
+            // 获取剩余过期时间
+            Long ttl = loginUserSessionService.getSessionTTL(session.getTokenId());
+            user.setTtl(ttl != null && ttl > 0 ? ttl : 0);
 
-                OnlineUserResponse user = new OnlineUserResponse();
-                user.setTokenId(key.replace(LOGIN_TOKEN_KEY, ""));
-                user.setUserId(Long.valueOf(userInfo.get("userId").toString()));
-                user.setUsername((String) userInfo.get("username"));
-                user.setNickname((String) userInfo.get("nickname"));
-                user.setLoginIp((String) userInfo.get("loginIp"));
-                user.setLoginLocation((String) userInfo.get("loginLocation"));
-                user.setBrowser((String) userInfo.get("browser"));
-                user.setOs((String) userInfo.get("os"));
-                user.setLoginTime(Long.valueOf(userInfo.get("loginTime").toString()));
-
-                // 获取剩余过期时间
-                Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
-                user.setTtl(ttl);
-
-                onlineUsers.add(user);
-            }
-        }
-
-        // 按登录时间倒序排列
-        onlineUsers.sort((a, b) -> Long.compare(b.getLoginTime(), a.getLoginTime()));
-
-        return onlineUsers;
+            return user;
+        }).collect(Collectors.toList());
     }
 
     @Override
     public void forceLogout(String tokenId) {
-        String key = LOGIN_TOKEN_KEY + tokenId;
-        redisTemplate.delete(key);
+        loginUserSessionService.deleteSession(tokenId);
     }
 }
