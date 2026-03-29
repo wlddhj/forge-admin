@@ -197,6 +197,8 @@ function main() {
     { from: 'forge-admin-backend', to: `${config.nameKebab}-backend` },
     { from: 'forge-admin-frontend', to: `${config.nameKebab}-frontend` },
     { from: 'forge_admin-page-config', to: `${config.nameSnake}-page-config` },
+    { from: 'forge-server', to: `${config.nameKebab}-server` },
+    { from: 'forge-web', to: `${config.nameKebab}-web` },
   ]
 
   // 需要处理的文件扩展名
@@ -249,8 +251,23 @@ function main() {
     log(`  ✓ ForgeAdminApplication.java -> ${namePascal}Application.java`, 'green')
   }
 
+  // 重命名应用目录
+  log('\n4. 重命名应用目录...', 'yellow')
+  const dirRenames = [
+    { from: 'forge-server', to: `${config.nameKebab}-server` },
+    { from: 'forge-web', to: `${config.nameKebab}-web` },
+  ]
+  dirRenames.forEach(({ from, to }) => {
+    const oldDir = path.join(rootDir, 'apps', from)
+    const newDir = path.join(rootDir, 'apps', to)
+    if (fs.existsSync(oldDir) && from !== to) {
+      fs.renameSync(oldDir, newDir)
+      log(`  ✓ apps/${from} -> apps/${to}`, 'green')
+    }
+  })
+
   // 更新数据库初始化脚本
-  log('\n4. 更新数据库脚本...', 'yellow')
+  log('\n5. 更新数据库脚本...', 'yellow')
   const sqlFile = path.join(rootDir, 'sql/init.sql')
   if (fs.existsSync(sqlFile)) {
     replaceInFile(sqlFile, [
@@ -266,8 +283,8 @@ function main() {
   log('后续步骤:', 'yellow')
   log('  1. 创建数据库: mysql -u root -p < sql/init.sql')
   log('  2. 更新 .env 文件中的配置')
-  log('  3. 启动后端: cd apps/forge-server && mvn spring-boot:run')
-  log('  4. 启动前端: cd apps/forge-web && pnpm dev')
+  log(`  3. 启动后端: cd apps/${config.nameKebab}-server && mvn spring-boot:run`)
+  log(`  4. 启动前端: cd apps/${config.nameKebab}-web && pnpm dev`)
   log('')
 }
 
