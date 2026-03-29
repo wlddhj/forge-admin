@@ -77,7 +77,6 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJob> impleme
 
         SysJob job = new SysJob();
         BeanUtil.copyProperties(request, job);
-        job.setCreateTime(LocalDateTime.now());
         save(job);
 
         // 如果状态是正常，则创建定时任务
@@ -105,7 +104,6 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJob> impleme
         }
 
         BeanUtil.copyProperties(request, job);
-        job.setUpdateTime(LocalDateTime.now());
         updateById(job);
 
         // 如果状态是正常，重新创建定时任务
@@ -143,7 +141,6 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJob> impleme
         }
 
         job.setStatus(status);
-        job.setUpdateTime(LocalDateTime.now());
         updateById(job);
     }
 

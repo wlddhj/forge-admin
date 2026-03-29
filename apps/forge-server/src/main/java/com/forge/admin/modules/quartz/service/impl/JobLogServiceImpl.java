@@ -53,7 +53,6 @@ public class JobLogServiceImpl extends ServiceImpl<SysJobLogMapper, SysJobLog> i
             jobLog.setStartTime(LocalDateTime.ofInstant(Instant.ofEpochMilli(startTime), ZoneId.systemDefault()));
             jobLog.setEndTime(LocalDateTime.now());
             jobLog.setDuration(duration);
-            jobLog.setCreateTime(LocalDateTime.now());
 
             if (success) {
                 jobLog.setJobMessage("任务执行成功");

@@ -143,7 +143,6 @@ public class SysAttachmentServiceImpl extends ServiceImpl<SysAttachmentMapper, S
         attachment.setBizId(bizId);
         attachment.setUploaderId(uploaderId);
         attachment.setUploaderName(uploaderName);
-        attachment.setCreateTime(LocalDateTime.now());
 
         sysAttachmentMapper.insert(attachment);
 
