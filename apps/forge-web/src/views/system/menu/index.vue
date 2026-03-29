@@ -163,16 +163,13 @@
         <el-form-item label="菜单名称" prop="menuName">
           <el-input v-model="formData.menuName" placeholder="请输入菜单名称" />
         </el-form-item>
-        <el-form-item label="菜单编码" prop="menuCode">
-          <el-input v-model="formData.menuCode" placeholder="请输入菜单编码" />
-        </el-form-item>
         <el-form-item v-if="formData.menuType !== 2" label="路由路径" prop="routePath">
           <el-input v-model="formData.routePath" placeholder="请输入路由路径，如：/system/user" />
         </el-form-item>
         <el-form-item v-if="formData.menuType === 1" label="组件路径" prop="componentPath">
           <el-input v-model="formData.componentPath" placeholder="请输入组件路径，如：/views/system/user/index" />
         </el-form-item>
-        <el-form-item v-if="formData.menuType !== 2" label="图标">
+        <el-form-item v-if="formData.menuType === 2" label="权限标识">
           <el-input v-model="formData.icon" placeholder="请输入图标名称，如：User" />
         </el-form-item>
         <el-form-item label="权限标识">
@@ -257,7 +254,6 @@ const formData = reactive<MenuRequest>({
   parentId: undefined,
   menuType: 1,
   menuName: '',
-  menuCode: '',
   routePath: '',
   componentPath: '',
   icon: '',
@@ -269,8 +265,7 @@ const formData = reactive<MenuRequest>({
 
 const formRules: FormRules = {
   menuType: [{ required: true, message: '请选择菜单类型', trigger: 'change' }],
-  menuName: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
-  menuCode: [{ required: true, message: '请输入菜单编码', trigger: 'blur' }]
+  menuName: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }]
 }
 
 const menuTreeOptions = ref<MenuTree[]>([])
@@ -380,7 +375,7 @@ const handleAdd = () => {
   isEdit.value = false
   dialogTitle.value = '新增菜单'
   Object.assign(formData, {
-    id: undefined, parentId: undefined, menuType: 1, menuName: '', menuCode: '',
+    id: undefined, parentId: undefined, menuType: 1, menuName: '',
     routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1
   })
   dialogVisible.value = true
@@ -391,7 +386,7 @@ const handleAddChild = (row: MenuTree) => {
   isEdit.value = false
   dialogTitle.value = '新增子菜单'
   Object.assign(formData, {
-    id: undefined, parentId: row.id, menuType: 1, menuName: '', menuCode: '',
+    id: undefined, parentId: row.id, menuType: 1, menuName: '',
     routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1
   })
   dialogVisible.value = true
@@ -403,7 +398,7 @@ const handleEdit = (row: MenuTree) => {
   dialogTitle.value = '编辑菜单'
   Object.assign(formData, {
     id: row.id, parentId: row.parentId, menuType: row.menuType, menuName: row.menuName,
-    menuCode: row.menuCode, routePath: row.routePath, componentPath: row.componentPath,
+    routePath: row.routePath, componentPath: row.componentPath,
     icon: row.icon, permission: row.permission, sortOrder: row.sortOrder, status: row.status, visible: row.visible
   })
   dialogVisible.value = true

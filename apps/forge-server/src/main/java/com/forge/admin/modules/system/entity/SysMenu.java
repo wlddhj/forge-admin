@@ -23,11 +23,6 @@ public class SysMenu {
     private String menuName;
 
     /**
-     * 菜单编码
-     */
-    private String menuCode;
-
-    /**
      * 父菜单ID
      */
     private Long parentId;

@@ -7,7 +7,6 @@ import java.util.List;
 public class MenuTreeResponse {
     private Long id;
     private String menuName;
-    private String menuCode;
     private Long parentId;
     private String routePath;
     private String componentPath;

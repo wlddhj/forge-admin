@@ -104,7 +104,6 @@ export const DataScopeOptions = [
 export interface Menu {
   id: number
   menuName: string
-  menuCode: string
   parentId: number
   routePath: string
   componentPath: string
@@ -129,7 +128,6 @@ export interface MenuTree extends Menu {
 export interface MenuRequest {
   id?: number
   menuName: string
-  menuCode?: string
   parentId?: number
   routePath?: string
   componentPath?: string

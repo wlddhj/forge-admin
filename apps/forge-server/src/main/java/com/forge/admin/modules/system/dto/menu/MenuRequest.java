@@ -8,7 +8,6 @@ public class MenuRequest {
     private Long id;
     @NotBlank(message = "菜单名称不能为空")
     private String menuName;
-    private String menuCode;
     private Long parentId;
     private String routePath;
     private String componentPath;

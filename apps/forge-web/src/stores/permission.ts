@@ -18,7 +18,7 @@ export const usePermissionStore = defineStore('permission', () => {
 
       const route: RouteRecordRaw = {
         path: menu.routePath || '',
-        name: menu.menuCode || `menu_${menu.id}`,
+        name: `menu_${menu.id}`,
         meta: {
           title: menu.menuName,
           icon: menu.icon,
@@ -60,7 +60,7 @@ export const usePermissionStore = defineStore('permission', () => {
 
       const route: RouteRecordRaw = {
         path: menu.routePath || '',
-        name: menu.menuCode || `menu_${menu.id}`,
+        name: `menu_${menu.id}`,
         meta: {
           title: menu.menuName,
           icon: menu.icon,
