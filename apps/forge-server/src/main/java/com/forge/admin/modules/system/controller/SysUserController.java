@@ -109,7 +109,7 @@ public class SysUserController {
 
     @Operation(summary = "更新个人资料")
     @PutMapping("/profile")
-    public Result<Void> updateProfile(@RequestBody com.forge.admin.modules.system.dto.user.UserProfileRequest request) {
+    public Result<Void> updateProfile(@Valid @RequestBody com.forge.admin.modules.system.dto.user.UserProfileRequest request) {
         sysUserService.updateProfile(request);
         return Result.success();
     }
@@ -117,7 +117,7 @@ public class SysUserController {
     @Operation(summary = "修改密码")
     @PutMapping("/password")
     @OperationLog(title = "个人中心", businessType = OperationLog.BusinessType.UPDATE)
-    public Result<Void> updatePassword(@RequestBody com.forge.admin.modules.system.dto.user.UserPasswordRequest request) {
+    public Result<Void> updatePassword(@Valid @RequestBody com.forge.admin.modules.system.dto.user.UserPasswordRequest request) {
         sysUserService.updatePassword(request);
         return Result.success();
     }
@@ -125,7 +125,7 @@ public class SysUserController {
     @Operation(summary = "更新头像")
     @PutMapping("/avatar")
     @OperationLog(title = "个人中心", businessType = OperationLog.BusinessType.UPDATE)
-    public Result<Void> updateAvatar(@RequestBody com.forge.admin.modules.system.dto.user.UserAvatarRequest request) {
+    public Result<Void> updateAvatar(@Valid @RequestBody com.forge.admin.modules.system.dto.user.UserAvatarRequest request) {
         sysUserService.updateAvatar(request);
         return Result.success();
     }

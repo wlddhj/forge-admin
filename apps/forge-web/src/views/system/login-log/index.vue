@@ -63,7 +63,10 @@
       <template #header>
         <div class="card-header">
           <span v-if="!isMobile">登录日志列表</span>
-          <el-button v-if="!isMobile" type="danger" @click="handleClear">清空日志</el-button>
+          <div v-if="!isMobile">
+            <el-button type="success" @click="handleExport">导出</el-button>
+            <el-button type="danger" @click="handleClear">清空日志</el-button>
+          </div>
         </div>
       </template>
 
@@ -110,7 +113,7 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getLoginLogList, clearLoginLogs } from '@/api/system'
+import { getLoginLogList, clearLoginLogs, exportLoginLogs } from '@/api/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
 import { useDict } from '@/composables/useDict'
@@ -191,6 +194,13 @@ const handleSearchFromDrawer = () => {
 // 移动端抽屉重置
 const handleResetFromDrawer = () => {
   handleReset()
+}
+
+const handleExport = async () => {
+  try {
+    await exportLoginLogs(queryParams)
+    ElMessage.success('导出成功')
+  } catch (e) {}
 }
 
 const handleClear = async () => {

@@ -3,6 +3,7 @@ package com.forge.admin.modules.system.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.forge.admin.modules.system.dto.log.LoginLogExport;
 import com.forge.admin.modules.system.dto.log.LoginLogQueryRequest;
 import com.forge.admin.modules.system.dto.log.LoginLogResponse;
 import com.forge.admin.modules.system.entity.SysLoginLog;
@@ -19,6 +20,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * 登录日志服务实现
@@ -93,6 +95,40 @@ public class SysLoginLogServiceImpl extends ServiceImpl<SysLoginLogMapper, SysLo
     @Override
     public void clearLogs() {
         sysLoginLogMapper.delete(null);
+    }
+
+    @Override
+    public List<LoginLogExport> getExportList(LoginLogQueryRequest request) {
+        LambdaQueryWrapper<SysLoginLog> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(request.getUsername())) {
+            wrapper.like(SysLoginLog::getUsername, request.getUsername());
+        }
+        if (StringUtils.hasText(request.getLoginIp())) {
+            wrapper.like(SysLoginLog::getLoginIp, request.getLoginIp());
+        }
+        if (request.getStatus() != null) {
+            wrapper.eq(SysLoginLog::getStatus, request.getStatus());
+        }
+        if (StringUtils.hasText(request.getStartTime())) {
+            wrapper.ge(SysLoginLog::getLoginTime, LocalDateTime.parse(request.getStartTime(), DATE_TIME_FORMATTER));
+        }
+        if (StringUtils.hasText(request.getEndTime())) {
+            wrapper.le(SysLoginLog::getLoginTime, LocalDateTime.parse(request.getEndTime(), DATE_TIME_FORMATTER));
+        }
+        wrapper.orderByDesc(SysLoginLog::getLoginTime);
+
+        return list(wrapper).stream().map(log -> {
+            LoginLogExport export = new LoginLogExport();
+            export.setUsername(log.getUsername());
+            export.setLoginIp(log.getLoginIp());
+            export.setLoginLocation(log.getLoginLocation());
+            export.setBrowser(log.getBrowser());
+            export.setOs(log.getOs());
+            export.setStatus(log.getStatus() == 1 ? "成功" : "失败");
+            export.setMsg(log.getMsg());
+            export.setLoginTime(log.getLoginTime() != null ? log.getLoginTime().format(DATE_TIME_FORMATTER) : "");
+            return export;
+        }).toList();
     }
 
     private LoginLogResponse convertToResponse(SysLoginLog log) {

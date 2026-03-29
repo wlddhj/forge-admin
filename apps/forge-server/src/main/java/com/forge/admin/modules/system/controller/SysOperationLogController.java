@@ -1,16 +1,22 @@
 package com.forge.admin.modules.system.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.forge.admin.common.annotation.OperationLog;
 import com.forge.admin.common.response.PageResult;
 import com.forge.admin.common.response.Result;
+import com.forge.admin.common.utils.ExcelUtils;
+import com.forge.admin.modules.system.dto.log.OperationLogExport;
 import com.forge.admin.modules.system.dto.log.OperationLogQueryRequest;
 import com.forge.admin.modules.system.dto.log.OperationLogResponse;
 import com.forge.admin.modules.system.service.SysOperationLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "操作日志管理")
 @RestController
@@ -44,5 +50,14 @@ public class SysOperationLogController {
     public Result<Void> clear() {
         sysOperationLogService.clearLogs();
         return Result.success();
+    }
+
+    @Operation(summary = "导出操作日志")
+    @GetMapping("/export")
+    @PreAuthorize("hasAuthority('system:log:export')")
+    @OperationLog(title = "操作日志", businessType = OperationLog.BusinessType.EXPORT)
+    public void export(OperationLogQueryRequest request, HttpServletResponse response) {
+        List<OperationLogExport> list = sysOperationLogService.getExportList(request);
+        ExcelUtils.export(response, "操作日志", "操作日志", OperationLogExport.class, list);
     }
 }

@@ -2,10 +2,13 @@ package com.forge.admin.modules.system.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.forge.admin.modules.system.dto.log.LoginLogExport;
 import com.forge.admin.modules.system.dto.log.LoginLogQueryRequest;
 import com.forge.admin.modules.system.dto.log.LoginLogResponse;
 import com.forge.admin.modules.system.entity.SysLoginLog;
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.List;
 
 /**
  * 登录日志服务接口
@@ -30,4 +33,9 @@ public interface SysLoginLogService extends IService<SysLoginLog> {
      * 清空登录日志
      */
     void clearLogs();
+
+    /**
+     * 获取导出列表
+     */
+    List<LoginLogExport> getExportList(LoginLogQueryRequest request);
 }

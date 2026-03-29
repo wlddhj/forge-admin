@@ -157,6 +157,17 @@ export function clearOperationLogs() {
   return request.delete('/system/operation-log/clear')
 }
 
+export function exportOperationLogs(params: OperationLogQuery) {
+  return request.get('/system/operation-log/export', { params, responseType: 'blob' }).then(res => {
+    const blob = new Blob([res as any], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = '操作日志.xlsx'
+    link.click()
+    URL.revokeObjectURL(link.href)
+  })
+}
+
 // ==================== 字典管理 ====================
 
 export function getDictTypeList(params: { dictName?: string; dictType?: string; status?: number; pageNum: number; pageSize: number }) {
@@ -316,6 +327,17 @@ export function getLoginLogList(params: LoginLogQuery) {
 
 export function clearLoginLogs() {
   return request.delete('/system/login-log/clear')
+}
+
+export function exportLoginLogs(params: LoginLogQuery) {
+  return request.get('/system/login-log/export', { params, responseType: 'blob' }).then(res => {
+    const blob = new Blob([res as any], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = '登录日志.xlsx'
+    link.click()
+    URL.revokeObjectURL(link.href)
+  })
 }
 
 // ==================== 在线用户 ====================

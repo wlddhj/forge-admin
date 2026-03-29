@@ -107,7 +107,10 @@
       <template #header>
         <div class="card-header">
           <span v-if="!isMobile">操作日志列表</span>
-          <el-button v-if="!isMobile" type="danger" @click="handleClear">清空日志</el-button>
+          <div v-if="!isMobile">
+            <el-button type="success" @click="handleExport">导出</el-button>
+            <el-button type="danger" @click="handleClear">清空日志</el-button>
+          </div>
         </div>
       </template>
 
@@ -242,7 +245,7 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getOperationLogList, getOperationLog, clearOperationLogs } from '@/api/system'
+import { getOperationLogList, getOperationLog, clearOperationLogs, exportOperationLogs } from '@/api/system'
 import type { OperationLog } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
@@ -380,6 +383,13 @@ const handleView = async (row: OperationLog) => {
     const res = await getOperationLog(row.id)
     currentLog.value = res
     detailVisible.value = true
+  } catch (e) {}
+}
+
+const handleExport = async () => {
+  try {
+    await exportOperationLogs(queryParams)
+    ElMessage.success('导出成功')
   } catch (e) {}
 }
 

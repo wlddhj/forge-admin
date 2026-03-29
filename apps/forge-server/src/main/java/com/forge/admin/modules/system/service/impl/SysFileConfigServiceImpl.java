@@ -20,6 +20,10 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -152,12 +156,105 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
         if (config == null) {
             throw new BusinessException(404, "配置不存在");
         }
-        // TODO: 实现实际的连接测试逻辑
-        // 目前只验证配置存在且已启用
         if (config.getStatus() != 1) {
             throw new BusinessException(400, "配置已禁用，无法测试");
         }
-        log.info("[文件配置] 测试连接成功: {}", config.getConfigName());
+
+        String storageType = config.getStorageType();
+        try {
+            switch (storageType) {
+                case "local" -> testLocalConnection(config);
+                case "aliyun_oss" -> testAliyunOssConnection(config);
+                case "tencent_cos" -> testTencentCosConnection(config);
+                case "minio" -> testMinioConnection(config);
+                default -> throw new BusinessException(400, "不支持的存储类型: " + storageType);
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[文件配置] 连接测试失败: {}", config.getConfigName(), e);
+            throw new BusinessException(500, "连接测试失败: " + e.getMessage());
+        }
+        log.info("[文件配置] 连接测试成功: {}", config.getConfigName());
+    }
+
+    private void testLocalConnection(SysFileConfig config) {
+        String basePath = StrUtil.blankToDefault(config.getBasePath(), "/uploads");
+        Path path = Paths.get(basePath);
+        if (!Files.exists(path)) {
+            try {
+                Files.createDirectories(path);
+            } catch (Exception e) {
+                throw new BusinessException(500, "无法创建目录: " + basePath + " - " + e.getMessage());
+            }
+        }
+        File dir = path.toFile();
+        if (!dir.canWrite()) {
+            throw new BusinessException(500, "目录不可写: " + basePath);
+        }
+    }
+
+    private void testAliyunOssConnection(SysFileConfig config) {
+        com.aliyun.oss.OSS ossClient = new com.aliyun.oss.OSSClientBuilder()
+                .build(config.getEndpoint(), config.getAccessKey(), config.getSecretKey());
+        try {
+            boolean exists = ossClient.doesBucketExist(config.getBucketName());
+            if (!exists) {
+                throw new BusinessException(500, "存储桶不存在: " + config.getBucketName());
+            }
+        } finally {
+            ossClient.shutdown();
+        }
+    }
+
+    private void testTencentCosConnection(SysFileConfig config) {
+        com.qcloud.cos.COSClient cosClient = createCosClient(config);
+        try {
+            cosClient.doesBucketExist(config.getBucketName());
+        } finally {
+            cosClient.shutdown();
+        }
+    }
+
+    private com.qcloud.cos.COSClient createCosClient(SysFileConfig config) {
+        com.qcloud.cos.auth.BasicCOSCredentials credentials =
+                new com.qcloud.cos.auth.BasicCOSCredentials(config.getAccessKey(), config.getSecretKey());
+        com.qcloud.cos.region.Region region = new com.qcloud.cos.region.Region(
+                extractRegionFromEndpoint(config.getEndpoint()));
+        com.qcloud.cos.ClientConfig clientConfig = new com.qcloud.cos.ClientConfig(region);
+        return new com.qcloud.cos.COSClient(credentials, clientConfig);
+    }
+
+    private void testMinioConnection(SysFileConfig config) {
+        io.minio.MinioClient minioClient = io.minio.MinioClient.builder()
+                .endpoint(config.getEndpoint())
+                .credentials(config.getAccessKey(), config.getSecretKey())
+                .build();
+        try {
+            boolean exists = minioClient.bucketExists(
+                    io.minio.BucketExistsArgs.builder()
+                            .bucket(config.getBucketName())
+                            .build());
+            if (!exists) {
+                throw new BusinessException(500, "存储桶不存在: " + config.getBucketName());
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String extractRegionFromEndpoint(String endpoint) {
+        // 从 endpoint 中提取 region，例如 cos.ap-shanghai.myqcloud.com -> ap-shanghai
+        if (StrUtil.isBlank(endpoint)) {
+            return "ap-guangzhou";
+        }
+        String[] parts = endpoint.replace("https://", "").replace("http://", "").split("\\.");
+        if (parts.length >= 2) {
+            return parts[1];
+        }
+        return "ap-guangzhou";
     }
 
     private FileConfigResponse convertToResponse(SysFileConfig config) {

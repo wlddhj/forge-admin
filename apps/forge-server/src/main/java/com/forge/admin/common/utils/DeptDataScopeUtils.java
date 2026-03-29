@@ -59,8 +59,7 @@ public class DeptDataScopeUtils {
             return result;
         }
 
-        // 缓存未初始化，返回只包含自己的列表
-        // TODO: 在应用启动时调用 buildDeptTreeCache 初始化缓存
+        // 缓存未初始化（可能初始化失败），返回只包含自己的列表
         log.warn("部门树缓存未初始化，deptId={}，返回只包含自己的列表", deptId);
         return Collections.singletonList(deptId);
     }
