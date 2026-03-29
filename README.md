@@ -115,7 +115,7 @@ pnpm dev
 ```
 forge-admin/
 ├── apps/
-│   ├── backend/                # 后端应用
+│   ├── forge-server/           # 后端应用
 │   │   ├── src/
 │   │   │   ├── main/
 │   │   │   │   ├── java/com/forge/admin/
@@ -135,7 +135,7 @@ forge-admin/
 │   │   │   └── pom.xml
 │   │   └── Dockerfile
 │   │
-│   └── frontend/               # 前端应用
+│   └── forge-web/              # 前端应用
 │       ├── src/
 │       │   ├── api/            # API 接口
 │       │   ├── components/     # 公共组件
