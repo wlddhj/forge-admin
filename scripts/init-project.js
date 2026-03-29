@@ -204,7 +204,7 @@ function main() {
   // 需要处理的文件扩展名
   const targetExtensions = [
     '.java', '.xml', '.yml', '.yaml', '.properties',
-    '.vue', '.ts', '.js', '.json', '.env', '.sql', '.md'
+    '.vue', '.ts', '.js', '.json', '.html', '.env', '.sql', '.md'
   ]
 
   log('1. 替换文件内容...', 'yellow')
