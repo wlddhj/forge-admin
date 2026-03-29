@@ -169,10 +169,10 @@
         <el-form-item v-if="formData.menuType === 1" label="组件路径" prop="componentPath">
           <el-input v-model="formData.componentPath" placeholder="请输入组件路径，如：/views/system/user/index" />
         </el-form-item>
-        <el-form-item v-if="formData.menuType === 2" label="权限标识">
+        <el-form-item v-if="formData.menuType !== 2" label="图标名称">
           <el-input v-model="formData.icon" placeholder="请输入图标名称，如：User" />
         </el-form-item>
-        <el-form-item label="权限标识">
+        <el-form-item v-if="formData.menuType === 2" label="权限标识">
           <el-input v-model="formData.permission" placeholder="请输入权限标识，如：system:user:list" />
         </el-form-item>
         <el-form-item label="排序" prop="sortOrder">

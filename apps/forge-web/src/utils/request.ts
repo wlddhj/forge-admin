@@ -136,6 +136,11 @@ service.interceptors.response.use(
       return Promise.reject(new Error(res.message || '请求失败'))
     }
 
+    // 统一将分页结果中的 total 转为数字类型
+    if (res.data && res.data.total !== undefined) {
+      res.data.total = Number(res.data.total)
+    }
+
     return res as any
   },
   (error) => {

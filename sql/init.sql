@@ -466,6 +466,8 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 (44, '登录日志', 1, '/system/login-log', '/views/system/login-log/index', NULL, 'Promotion', 11, 1, 'system:login-log:list', 1, 1, 0, 0),
 (45, '日志查询', 44, NULL, NULL, NULL, NULL, 1, 2, 'system:login-log:query', 1, 1, 0, 0),
 (46, '日志清空', 44, NULL, NULL, NULL, NULL, 2, 2, 'system:login-log:clear', 1, 1, 0, 0),
+-- 任务日志
+(60, '任务日志', 39, '/system/job-log', '/views/system/job-log/index', NULL, 'List', 2, 1, 'monitor:job-log:list', 1, 0, 0, 0),
 -- 在线用户
 (47, '在线用户', 1, '/system/online-user', '/views/system/online-user/index', NULL, 'UserFilled', 12, 1, 'system:online-user:list', 1, 1, 0, 0),
 (48, '强制退出', 47, NULL, NULL, NULL, NULL, 1, 2, 'system:online-user:force-logout', 1, 1, 0, 0),
