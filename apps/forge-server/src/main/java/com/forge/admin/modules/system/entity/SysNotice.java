@@ -1,6 +1,8 @@
 package com.forge.admin.modules.system.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -30,6 +32,7 @@ public class SysNotice {
     private Integer status;
 
     /** 创建者ID */
+    @TableField(fill = FieldFill.INSERT)
     private Long createBy;
 
     /** 创建时间 */

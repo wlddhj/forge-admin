@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.inner.DataPermissionIntercepto
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.forge.admin.common.permission.DataPermissionRuleHandler;
+import com.forge.admin.common.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.context.annotation.Bean;
@@ -55,11 +56,20 @@ public class MybatisPlusConfig {
             public void insertFill(MetaObject metaObject) {
                 this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
                 this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
+                Long userId = SecurityUtils.getCurrentUserId();
+                if (userId != null) {
+                    this.strictInsertFill(metaObject, "createBy", Long.class, userId);
+                    this.strictInsertFill(metaObject, "updateBy", Long.class, userId);
+                }
             }
 
             @Override
             public void updateFill(MetaObject metaObject) {
                 this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
+                Long userId = SecurityUtils.getCurrentUserId();
+                if (userId != null) {
+                    this.strictUpdateFill(metaObject, "updateBy", Long.class, userId);
+                }
             }
         };
     }

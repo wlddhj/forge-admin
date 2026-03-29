@@ -73,14 +73,8 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
     public void addNotice(NoticeRequest request, Long userId) {
         SysNotice notice = new SysNotice();
         BeanUtil.copyProperties(request, notice);
-        notice.setCreateBy(userId);
-        notice.setCreateTime(LocalDateTime.now());
         save(notice);
 
-        // 如果公告状态为启用，则广播通知
-        if (notice.getStatus() != null && notice.getStatus() == 1) {
-            notificationService.broadcastNotice(notice.getNoticeTitle(), "", notice.getId());
-        }
         // 新增公告时通过 WebSocket 广播通知
         if (notice.getStatus() != null && notice.getStatus() == 1) {
             notificationService.broadcastNotice(notice.getNoticeTitle(),
@@ -100,7 +94,6 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
         }
 
         BeanUtil.copyProperties(request, notice);
-        notice.setUpdateTime(LocalDateTime.now());
         updateById(notice);
     }
 
