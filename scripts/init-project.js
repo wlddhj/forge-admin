@@ -113,9 +113,9 @@ function replaceInFile(filePath, replacements) {
 }
 
 // 重命名 Java 包目录
-function renamePackageDir(oldPackage, newPackage) {
-  const oldPath = path.join('apps/backend/src/main/java', oldPackage.replace(/\./g, '/'))
-  const newPath = path.join('apps/backend/src/main/java', newPackage.replace(/\./g, '/'))
+function renamePackageDir(oldPackage, newPackage, srcDir) {
+  const oldPath = path.join(srcDir, oldPackage.replace(/\./g, '/'))
+  const newPath = path.join(srcDir, newPackage.replace(/\./g, '/'))
 
   if (!fs.existsSync(oldPath)) {
     log(`警告: 源包目录不存在: ${oldPath}`, 'yellow')
@@ -179,9 +179,16 @@ function main() {
   const rootDir = path.resolve(__dirname, '..')
   process.chdir(rootDir)
 
+  // 生成 PascalCase 类名前缀（如 my-admin → MyAdmin）
+  const namePascal = config.nameKebab
+    .split('-')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('')
+
   // 定义替换规则
   const replacements = [
     // 后端替换
+    { from: 'ForgeAdminApplication', to: `${namePascal}Application` },
     { from: 'com.forge.admin', to: config.basePackage },
     { from: 'forge-admin', to: config.nameKebab },
     { from: 'forge_admin', to: config.nameSnake },
@@ -216,16 +223,34 @@ function main() {
 
   // 重命名 Java 包目录
   log('2. 重命名 Java 包目录...', 'yellow')
-  renamePackageDir('com.forge.admin', config.basePackage)
+  const mainJavaDir = 'apps/backend/src/main/java'
+  const testJavaDir = 'apps/backend/src/test/java'
+
+  renamePackageDir('com.forge.admin', config.basePackage, mainJavaDir)
+  renamePackageDir('com.forge.admin', config.basePackage, testJavaDir)
 
   // 清理空目录
-  const oldPackagePath = path.join(rootDir, 'apps/backend/src/main/java/com/forge/admin')
-  if (fs.existsSync(path.dirname(oldPackagePath))) {
-    cleanEmptyDirs(path.dirname(oldPackagePath))
+  const oldMainPackagePath = path.join(rootDir, 'apps/backend/src/main/java/com/forge/admin')
+  if (fs.existsSync(path.dirname(oldMainPackagePath))) {
+    cleanEmptyDirs(path.dirname(oldMainPackagePath))
+  }
+  const oldTestPackagePath = path.join(rootDir, 'apps/backend/src/test/java/com/forge/admin')
+  if (fs.existsSync(path.dirname(oldTestPackagePath))) {
+    cleanEmptyDirs(path.dirname(oldTestPackagePath))
+  }
+
+  // 重命名启动类文件
+  log('\n3. 重命名启动类...', 'yellow')
+  const newPackagePath = config.basePackage.replace(/\./g, '/')
+  const oldAppFile = path.join(rootDir, `apps/backend/src/main/java/${newPackagePath}/ForgeAdminApplication.java`)
+  const newAppFile = path.join(rootDir, `apps/backend/src/main/java/${newPackagePath}/${namePascal}Application.java`)
+  if (fs.existsSync(oldAppFile)) {
+    fs.renameSync(oldAppFile, newAppFile)
+    log(`  ✓ ForgeAdminApplication.java -> ${namePascal}Application.java`, 'green')
   }
 
   // 更新数据库初始化脚本
-  log('\n3. 更新数据库脚本...', 'yellow')
+  log('\n4. 更新数据库脚本...', 'yellow')
   const sqlFile = path.join(rootDir, 'sql/init.sql')
   if (fs.existsSync(sqlFile)) {
     replaceInFile(sqlFile, [
