@@ -40,49 +40,23 @@ export const CONSTANT_ROUTES = [
   }
 ]
 
-/**
- * 组件路径映射
- * 支持动态导入所有系统管理模块的页面
- */
-export const COMPONENT_MAP: Record<string, () => Promise<any>> = {
-  // 基础页面
-  '/views/dashboard/index.vue': () => import('@/views/dashboard/index.vue'),
-  '/views/profile/index.vue': () => import('@/views/profile/index.vue'),
+// 自动扫描 views 目录下所有 Vue 组件
+// glob 返回键格式: '/src/views/system/user/index.vue'
+const viewModules = import.meta.glob<{ default: any }>('/src/views/**/*.vue')
 
-  // 系统管理模块 - 用户相关
-  '/views/system/user/index.vue': () => import('@/views/system/user/index.vue'),
+// 布局组件（单独处理，不在 views 目录下）
+export const LAYOUT_COMPONENT = () => import('@/layouts/BasicLayout.vue')
 
-  // 系统管理模块 - 权限相关
-  '/views/system/role/index.vue': () => import('@/views/system/role/index.vue'),
-  '/views/system/menu/index.vue': () => import('@/views/system/menu/index.vue'),
+// 将 glob 键转为与后端 componentPath 兼容的格式
+// '/src/views/system/user/index.vue' → '/views/system/user/index'
+function normalizeGlobKey(key: string): string {
+  return key.replace(/^\/src/, '').replace(/\.vue$/, '')
+}
 
-  // 系统管理模块 - 组织架构
-  '/views/system/dept/index.vue': () => import('@/views/system/dept/index.vue'),
-  '/views/system/position/index.vue': () => import('@/views/system/position/index.vue'),
-
-  // 系统管理模块 - 字典配置
-  '/views/system/dict-type/index.vue': () => import('@/views/system/dict-type/index.vue'),
-
-  // 系统管理模块 - 系统配置
-  '/views/system/config/index.vue': () => import('@/views/system/config/index.vue'),
-
-  // 系统管理模块 - 日志监控
-  '/views/system/operation-log/index.vue': () => import('@/views/system/operation-log/index.vue'),
-  '/views/system/login-log/index.vue': () => import('@/views/system/login-log/index.vue'),
-  '/views/system/online-user/index.vue': () => import('@/views/system/online-user/index.vue'),
-
-  // 系统管理模块 - 文件管理
-  '/views/system/attachment/index.vue': () => import('@/views/system/attachment/index.vue'),
-
-  // 系统管理模块 - 定时任务
-  '/views/system/job/index.vue': () => import('@/views/system/job/index.vue'),
-  '/views/system/job-log/index.vue': () => import('@/views/system/job-log/index.vue'),
-
-  // 系统管理模块 - 通知公告
-  '/views/system/notice/index.vue': () => import('@/views/system/notice/index.vue'),
-
-  // 布局组件
-  'Layout': () => import('@/layouts/BasicLayout.vue')
+// 构建组件注册表
+const COMPONENT_REGISTRY: Record<string, () => Promise<any>> = {}
+for (const [globKey, loader] of Object.entries(viewModules)) {
+  COMPONENT_REGISTRY[normalizeGlobKey(globKey)] = loader
 }
 
 /**
@@ -93,27 +67,15 @@ export const COMPONENT_MAP: Record<string, () => Promise<any>> = {
  * @returns 组件加载函数
  */
 export function loadComponent(componentPath: string): () => Promise<any> {
-  // 如果是 Layout，直接返回
-  if (componentPath === 'Layout') {
-    return COMPONENT_MAP['Layout']
-  }
+  if (componentPath === 'Layout') return LAYOUT_COMPONENT
 
-  // 尝试多种路径格式
-  const pathVariants = [
-    componentPath,
-    componentPath.endsWith('.vue') ? componentPath : componentPath + '.vue',
-    componentPath.startsWith('/views/') ? componentPath : '/views/' + componentPath,
-    componentPath.startsWith('/views/') ? componentPath : '/views/' + (componentPath.endsWith('.vue') ? componentPath : componentPath + '.vue')
-  ]
+  const normalizedPath = componentPath.replace(/\.vue$/, '')
+  if (COMPONENT_REGISTRY[normalizedPath]) return COMPONENT_REGISTRY[normalizedPath]
 
-  for (const path of pathVariants) {
-    if (COMPONENT_MAP[path]) {
-      return COMPONENT_MAP[path]
-    }
-  }
+  const pathWithPrefix = normalizedPath.startsWith('/') ? normalizedPath : '/views/' + normalizedPath
+  if (COMPONENT_REGISTRY[pathWithPrefix]) return COMPONENT_REGISTRY[pathWithPrefix]
 
-  // 如果组件不存在，返回 404 页面
-  console.warn(`[路由] 组件未找到: ${componentPath}，尝试的路径:`, pathVariants)
+  console.warn(`[路由] 组件未找到: ${componentPath}`)
   return () => import('@/views/error/404.vue')
 }
 

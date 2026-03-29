@@ -2,74 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import type { MenuTree } from '@/types/system'
-
-// 组件映射
-// 支持动态导入所有系统管理模块的页面
-const componentMap: Record<string, () => Promise<any>> = {
-  // 基础页面
-  '/views/dashboard/index.vue': () => import('@/views/dashboard/index.vue'),
-  '/views/profile/index.vue': () => import('@/views/profile/index.vue'),
-
-  // 系统管理模块 - 用户相关
-  '/views/system/user/index.vue': () => import('@/views/system/user/index.vue'),
-
-  // 系统管理模块 - 权限相关
-  '/views/system/role/index.vue': () => import('@/views/system/role/index.vue'),
-  '/views/system/menu/index.vue': () => import('@/views/system/menu/index.vue'),
-
-  // 系统管理模块 - 组织架构
-  '/views/system/dept/index.vue': () => import('@/views/system/dept/index.vue'),
-  '/views/system/position/index.vue': () => import('@/views/system/position/index.vue'),
-
-  // 系统管理模块 - 字典配置
-  '/views/system/dict-type/index.vue': () => import('@/views/system/dict-type/index.vue'),
-
-  // 系统管理模块 - 系统配置
-  '/views/system/config/index.vue': () => import('@/views/system/config/index.vue'),
-
-  // 系统管理模块 - 日志监控
-  '/views/system/operation-log/index.vue': () => import('@/views/system/operation-log/index.vue'),
-  '/views/system/login-log/index.vue': () => import('@/views/system/login-log/index.vue'),
-  '/views/system/online-user/index.vue': () => import('@/views/system/online-user/index.vue'),
-
-  // 系统管理模块 - 文件管理
-  '/views/system/attachment/index.vue': () => import('@/views/system/attachment/index.vue'),
-  '/views/system/file-config/index.vue': () => import('@/views/system/file-config/index.vue'),
-
-  // 系统管理模块 - 定时任务
-  '/views/system/job/index.vue': () => import('@/views/system/job/index.vue'),
-  '/views/system/job-log/index.vue': () => import('@/views/system/job-log/index.vue'),
-
-  // 系统管理模块 - 通知公告
-  '/views/system/notice/index.vue': () => import('@/views/system/notice/index.vue'),
-
-  // 布局组件
-  'Layout': () => import('@/layouts/BasicLayout.vue')
-}
-
-/**
- * 动态加载组件
- * 支持懒加载和错误处理
- */
-const loadComponent = (componentPath: string) => {
-  // 尝试多种路径格式
-  const pathVariants = [
-    componentPath,
-    componentPath.endsWith('.vue') ? componentPath : componentPath + '.vue',
-    componentPath.startsWith('/views/') ? componentPath : '/views/' + componentPath,
-    componentPath.startsWith('/views/') ? componentPath : '/views/' + (componentPath.endsWith('.vue') ? componentPath : componentPath + '.vue')
-  ]
-
-  for (const path of pathVariants) {
-    if (componentMap[path]) {
-      return componentMap[path]
-    }
-  }
-
-  // 如果组件不存在，返回 404 页面
-  console.warn(`组件未找到: ${componentPath}，尝试的路径:`, pathVariants)
-  return () => import('@/views/error/404.vue')
-}
+import { loadComponent, LAYOUT_COMPONENT } from '@/router/constants'
 
 export const usePermissionStore = defineStore('permission', () => {
   const routes = ref<RouteRecordRaw[]>([])
@@ -97,10 +30,10 @@ export const usePermissionStore = defineStore('permission', () => {
       // 设置组件
       if (menu.componentPath) {
         if (menu.componentPath === 'Layout') {
-          route.component = componentMap['Layout']
+          route.component = LAYOUT_COMPONENT
           route.redirect = menu.redirectPath || undefined
         } else {
-          route.component = componentMap[menu.componentPath]
+          route.component = loadComponent(menu.componentPath)
         }
       }
 
@@ -136,8 +69,8 @@ export const usePermissionStore = defineStore('permission', () => {
         children: []
       }
 
-      if (menu.componentPath && componentMap[menu.componentPath]) {
-        route.component = componentMap[menu.componentPath]
+      if (menu.componentPath) {
+        route.component = loadComponent(menu.componentPath)
       }
 
       if (menu.children && menu.children.length > 0) {
@@ -161,7 +94,7 @@ export const usePermissionStore = defineStore('permission', () => {
     childrenRoutes.push({
       path: '/dashboard',
       name: 'Dashboard',
-      component: () => import('@/views/dashboard/index.vue'),
+      component: loadComponent('/views/dashboard/index'),
       meta: { title: '首页', icon: 'HomeFilled', affix: true }
     } as RouteRecordRaw)
 
@@ -169,7 +102,7 @@ export const usePermissionStore = defineStore('permission', () => {
     childrenRoutes.push({
       path: '/profile',
       name: 'Profile',
-      component: () => import('@/views/profile/index.vue'),
+      component: loadComponent('/views/profile/index'),
       meta: { title: '个人中心', icon: 'User', hidden: true }
     } as RouteRecordRaw)
 
@@ -212,7 +145,7 @@ export const usePermissionStore = defineStore('permission', () => {
     routes.value = [
       {
         path: '/',
-        component: componentMap['Layout'],
+        component: LAYOUT_COMPONENT,
         redirect: '/dashboard',
         children: childrenRoutes
       }
