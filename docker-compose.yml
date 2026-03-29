@@ -3,7 +3,7 @@ version: '3.8'
 services:
   backend:
     build:
-      context: ./apps/backend
+      context: ./apps/forge-server
       dockerfile: Dockerfile
     container_name: ${PROJECT_NAME:-forge-admin}-backend
     restart: unless-stopped
@@ -31,7 +31,7 @@ services:
 
   frontend:
     build:
-      context: ./apps/frontend
+      context: ./apps/forge-web
       dockerfile: Dockerfile
     container_name: ${PROJECT_NAME:-forge-admin}-frontend
     restart: unless-stopped

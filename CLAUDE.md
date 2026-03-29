@@ -16,8 +16,8 @@ forge-admin is an enterprise-level admin management system with RBAC (Role-Based
 
 | Service | Port | Path |
 |---------|------|------|
-| Frontend Dev | 3002 | `apps/frontend` |
-| Backend API | 8180 | `apps/backend` |
+| Frontend Dev | 3002 | `apps/forge-web` |
+| Backend API | 8180 | `apps/forge-server` |
 | Context Path | - | `/api` |
 | API Docs | 8180 | `/api/doc.html` |
 
@@ -27,7 +27,7 @@ forge-admin is an enterprise-level admin management system with RBAC (Role-Based
 
 ## Development Commands
 
-### Frontend (from `apps/frontend`)
+### Frontend (from `apps/forge-web`)
 ```bash
 pnpm install    # Install dependencies
 pnpm dev        # Start dev server (port 3002)
@@ -36,7 +36,7 @@ pnpm preview    # Preview production build
 pnpm lint       # Run ESLint
 ```
 
-### Backend (from `apps/backend`)
+### Backend (from `apps/forge-server`)
 ```bash
 mvn spring-boot:run              # Start dev server
 mvn clean compile                # Compile only
@@ -48,7 +48,7 @@ mvn test -Dtest=ClassName#methodName  # Run single test method
 
 ## Architecture
 
-### Backend Structure (`apps/backend/src/main/java/com/forge/admin/`)
+### Backend Structure (`apps/forge-server/src/main/java/com/forge/admin/`)
 ```
 common/
 ├── annotation/    # Custom annotations (@OperationLog, @DataPermission, @RateLimiter)
@@ -75,7 +75,7 @@ modules/
     └── service/
 ```
 
-### Frontend Structure (`apps/frontend/src/`)
+### Frontend Structure (`apps/forge-web/src/`)
 ```
 api/           # API request modules (organized by feature)
 components/    # Shared components (auto-registered via unplugin)
@@ -111,7 +111,7 @@ All API responses follow this structure:
 - Common fields: `id`, `create_time`, `update_time`, `create_by`, `update_by`, `deleted`, `status`, `remark`
 
 ### Database Migrations
-Location: `apps/backend/src/main/resources/db/migration/`
+Location: `apps/forge-server/src/main/resources/db/migration/`
 Naming: `V{YYYYMMDD}{seq}__{description}.sql` (e.g., `V2026030501__file_config.sql`)
 
 ### Data Permission System
@@ -134,11 +134,11 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `rev
 
 | Purpose | Path |
 |---------|------|
-| Backend Config | `apps/backend/src/main/resources/application.yml` |
-| API Definitions | `apps/backend/src/main/java/com/forge/admin/modules/*/controller/` |
-| Frontend Request Utils | `apps/frontend/src/utils/request.ts` |
-| Pinia Stores | `apps/frontend/src/stores/` |
-| Vue Router | `apps/frontend/src/router/` |
+| Backend Config | `apps/forge-server/src/main/resources/application.yml` |
+| API Definitions | `apps/forge-server/src/main/java/com/forge/admin/modules/*/controller/` |
+| Frontend Request Utils | `apps/forge-web/src/utils/request.ts` |
+| Pinia Stores | `apps/forge-web/src/stores/` |
+| Vue Router | `apps/forge-web/src/router/` |
 
 ## Pre-existing Rules
 

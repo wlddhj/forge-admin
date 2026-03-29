@@ -60,7 +60,7 @@ temp/
 *.temp
 
 # Uploads
-apps/backend/uploads/
+apps/forge-server/uploads/
 
 # Claude
 .claude/

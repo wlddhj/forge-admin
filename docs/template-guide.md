@@ -46,11 +46,11 @@ cp .env.example .env
 # 编辑 .env 文件
 
 # 3. 启动后端
-cd apps/backend
+cd apps/forge-server
 mvn spring-boot:run
 
 # 4. 启动前端（新终端）
-cd apps/frontend
+cd apps/forge-web
 pnpm install
 pnpm dev
 ```
@@ -169,11 +169,11 @@ docker-compose down
 
 ```bash
 # 构建后端镜像
-cd apps/backend
+cd apps/forge-server
 docker build -t my-admin-backend .
 
 # 构建前端镜像
-cd apps/frontend
+cd apps/forge-web
 docker build -t my-admin-frontend .
 ```
 
@@ -255,7 +255,7 @@ my-admin/
 ### Q: Docker 构建失败？
 
 检查以下内容：
-1. 确保 `apps/frontend/nginx.conf` 文件存在
+1. 确保 `apps/forge-web/nginx.conf` 文件存在
 2. 确保有网络连接下载依赖
 3. 检查 Dockerfile 语法
 

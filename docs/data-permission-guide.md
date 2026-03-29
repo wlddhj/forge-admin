@@ -48,7 +48,7 @@
 
 #### 1. 数据权限规则处理器（新架构核心）⭐
 
-**文件**: `apps/backend/src/main/java/com/standadmin/common/permission/DataPermissionRuleHandler.java`
+**文件**: `apps/forge-server/src/main/java/com/standadmin/common/permission/DataPermissionRuleHandler.java`
 
 实现 MyBatis-Plus 的 `MultiDataPermissionHandler` 接口，直接处理 Expression 对象：
 
@@ -109,7 +109,7 @@ public class DataPermissionRuleHandler implements MultiDataPermissionHandler {
 
 #### 2. 规则工厂接口
 
-**文件**: `apps/backend/src/main/java/com/standadmin/common/permission/DataPermissionRuleFactory.java`
+**文件**: `apps/forge-server/src/main/java/com/standadmin/common/permission/DataPermissionRuleFactory.java`
 
 ```java
 public interface DataPermissionRuleFactory {
@@ -121,7 +121,7 @@ public interface DataPermissionRuleFactory {
 
 #### 3. 规则工厂实现
 
-**文件**: `apps/backend/src/main/java/com/standadmin/common/permission/DataPermissionRuleFactoryImpl.java`
+**文件**: `apps/forge-server/src/main/java/com/standadmin/common/permission/DataPermissionRuleFactoryImpl.java`
 
 ```java
 @Slf4j
@@ -162,7 +162,7 @@ public class DataPermissionRuleFactoryImpl implements DataPermissionRuleFactory 
 
 #### 4. 上下文栈管理
 
-**文件**: `apps/backend/src/main/java/com/standadmin/common/permission/DataPermissionContextHolder.java`
+**文件**: `apps/forge-server/src/main/java/com/standadmin/common/permission/DataPermissionContextHolder.java`
 
 ```java
 public class DataPermissionContextHolder {
@@ -189,7 +189,7 @@ public class DataPermissionContextHolder {
 
 #### 5. AOP 注解拦截器
 
-**文件**: `apps/backend/src/main/java/com/standadmin/common/aspect/DataPermissionAnnotationInterceptor.java`
+**文件**: `apps/forge-server/src/main/java/com/standadmin/common/aspect/DataPermissionAnnotationInterceptor.java`
 
 ```java
 @Slf4j
@@ -225,7 +225,7 @@ public class DataPermissionAnnotationInterceptor {
 
 #### 6. 数据权限规则接口（升级版）
 
-**文件**: `apps/backend/src/main/java/com/standadmin/common/permission/DataPermissionRule.java`
+**文件**: `apps/forge-server/src/main/java/com/standadmin/common/permission/DataPermissionRule.java`
 
 ```java
 public interface DataPermissionRule {
@@ -260,7 +260,7 @@ public interface DataPermissionRule {
 
 #### 7. MyBatis 工具类
 
-**文件**: `apps/backend/src/main/java/com/standadmin/common/utils/MyBatisUtils.java`
+**文件**: `apps/forge-server/src/main/java/com/standadmin/common/utils/MyBatisUtils.java`
 
 ```java
 @UtilityClass
@@ -362,7 +362,7 @@ public class MyBatisUtils {
 
 #### 8. 部门数据权限规则（新实现）
 
-**文件**: `apps/backend/src/main/java/com/standadmin/common/permission/DeptDataPermissionRule.java`
+**文件**: `apps/forge-server/src/main/java/com/standadmin/common/permission/DeptDataPermissionRule.java`
 
 ```java
 @Slf4j
@@ -441,7 +441,7 @@ public class DeptDataPermissionRule implements DataPermissionRule {
 
 #### 9. 数据权限注解（增强版）
 
-**文件**: `apps/backend/src/main/java/com/standadmin/common/annotation/DataPermission.java`
+**文件**: `apps/forge-server/src/main/java/com/standadmin/common/annotation/DataPermission.java`
 
 ```java
 @Target({ElementType.TYPE, ElementType.METHOD})
@@ -459,7 +459,7 @@ public @interface DataPermission {
 
 #### 10. MyBatis-Plus 配置
 
-**文件**: `apps/backend/src/main/java/com/standadmin/common/config/MybatisPlusConfig.java`
+**文件**: `apps/forge-server/src/main/java/com/standadmin/common/config/MybatisPlusConfig.java`
 
 ```java
 @Configuration
@@ -497,7 +497,7 @@ public class MybatisPlusConfig {
 
 ### 依赖配置
 
-**文件**: `apps/backend/pom.xml`
+**文件**: `apps/forge-server/pom.xml`
 
 ```xml
 <!-- MyBatis-Plus -->
@@ -594,7 +594,7 @@ IPage<SysOrder> selectOrderPageWithPermission(...);
 
 **步骤 1: 创建自定义规则类**
 
-**文件**: `apps/backend/src/main/java/com/standadmin/common/permission/OrderDataPermissionRule.java`
+**文件**: `apps/forge-server/src/main/java/com/standadmin/common/permission/OrderDataPermissionRule.java`
 
 ```java
 package com.forge.admin.common.permission;
@@ -725,7 +725,7 @@ WHERE u.dept_id = 101
 
 ### 单元测试
 
-**文件**: `apps/backend/src/test/java/com/standadmin/common/config/DataPermissionInterceptorJSQLParserTest.java`
+**文件**: `apps/forge-server/src/test/java/com/standadmin/common/config/DataPermissionInterceptorJSQLParserTest.java`
 
 ```bash
 # 运行测试
@@ -884,7 +884,7 @@ CREATE INDEX idx_dept_id ON sys_position(dept_id);
 ### 相关文件清单
 
 ```
-apps/backend/src/main/java/com/standadmin/
+apps/forge-server/src/main/java/com/standadmin/
 ├── common/
 │   ├── annotation/
 │   │   └── DataPermission.java                      # 数据权限注解（增强版）

@@ -30,7 +30,7 @@ placeholders:
 # 需要替换的文件和位置
 replacements:
   # 后端文件
-  - path: "apps/backend/pom.xml"
+  - path: "apps/forge-server/pom.xml"
     type: "xml"
     replacements:
       - placeholder: "<groupId>com.forge.admin</groupId>"
@@ -42,7 +42,7 @@ replacements:
       - placeholder: "forge-admin - 聚能后台管理系统"
         key: "PROJECT_DESCRIPTION"
 
-  - path: "apps/backend/src/main/resources/application.yml"
+  - path: "apps/forge-server/src/main/resources/application.yml"
     type: "yaml"
     replacements:
       - placeholder: "forge-admin"
@@ -53,25 +53,25 @@ replacements:
         key: "BASE_PACKAGE"
 
   # 前端文件
-  - path: "apps/frontend/package.json"
+  - path: "apps/forge-web/package.json"
     type: "json"
     replacements:
       - placeholder: "forge-admin-frontend"
         key: "PROJECT_KEBAB"
 
-  - path: "apps/frontend/.env.development"
+  - path: "apps/forge-web/.env.development"
     type: "env"
     replacements:
       - placeholder: "forge-admin"
         key: "PROJECT_NAME"
 
-  - path: "apps/frontend/.env.production"
+  - path: "apps/forge-web/.env.production"
     type: "env"
     replacements:
       - placeholder: "forge-admin"
         key: "PROJECT_NAME"
 
-  - path: "apps/frontend/src/views/login/index.vue"
+  - path: "apps/forge-web/src/views/login/index.vue"
     type: "vue"
     replacements:
       - placeholder: "forge-admin"
@@ -79,13 +79,13 @@ replacements:
       - placeholder: "聚能后台管理系统"
         key: "PROJECT_DESCRIPTION"
 
-  - path: "apps/frontend/src/layouts/BasicLayout.vue"
+  - path: "apps/forge-web/src/layouts/BasicLayout.vue"
     type: "vue"
     replacements:
       - placeholder: "forge-admin"
         key: "PROJECT_NAME"
 
-  - path: "apps/frontend/src/stores/pageConfig.ts"
+  - path: "apps/forge-web/src/stores/pageConfig.ts"
     type: "ts"
     replacements:
       - placeholder: "forge_admin-page-config"

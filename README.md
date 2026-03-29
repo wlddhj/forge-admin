@@ -88,7 +88,7 @@ mysql -u root -p < sql/init.sql
 3. **启动后端**
 
 ```bash
-cd apps/backend
+cd apps/forge-server
 mvn spring-boot:run
 ```
 
@@ -97,7 +97,7 @@ mvn spring-boot:run
 4. **启动前端**
 
 ```bash
-cd apps/frontend
+cd apps/forge-web
 pnpm install
 pnpm dev
 ```
@@ -193,11 +193,11 @@ docker-compose up -d
 
 ```bash
 # 构建后端镜像
-cd apps/backend
+cd apps/forge-server
 docker build -t forge-admin-backend .
 
 # 构建前端镜像
-cd apps/frontend
+cd apps/forge-web
 docker build -t forge-admin-frontend .
 ```
 
@@ -233,7 +233,7 @@ pnpm run init my-admin "我的管理系统" com.mycompany
 
 ### 后端配置
 
-主要配置文件：`apps/backend/src/main/resources/application.yml`
+主要配置文件：`apps/forge-server/src/main/resources/application.yml`
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|

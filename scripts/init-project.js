@@ -223,18 +223,18 @@ function main() {
 
   // 重命名 Java 包目录
   log('2. 重命名 Java 包目录...', 'yellow')
-  const mainJavaDir = 'apps/backend/src/main/java'
-  const testJavaDir = 'apps/backend/src/test/java'
+  const mainJavaDir = 'apps/forge-server/src/main/java'
+  const testJavaDir = 'apps/forge-server/src/test/java'
 
   renamePackageDir('com.forge.admin', config.basePackage, mainJavaDir)
   renamePackageDir('com.forge.admin', config.basePackage, testJavaDir)
 
   // 清理空目录
-  const oldMainPackagePath = path.join(rootDir, 'apps/backend/src/main/java/com/forge/admin')
+  const oldMainPackagePath = path.join(rootDir, 'apps/forge-server/src/main/java/com/forge/admin')
   if (fs.existsSync(path.dirname(oldMainPackagePath))) {
     cleanEmptyDirs(path.dirname(oldMainPackagePath))
   }
-  const oldTestPackagePath = path.join(rootDir, 'apps/backend/src/test/java/com/forge/admin')
+  const oldTestPackagePath = path.join(rootDir, 'apps/forge-server/src/test/java/com/forge/admin')
   if (fs.existsSync(path.dirname(oldTestPackagePath))) {
     cleanEmptyDirs(path.dirname(oldTestPackagePath))
   }
@@ -242,8 +242,8 @@ function main() {
   // 重命名启动类文件
   log('\n3. 重命名启动类...', 'yellow')
   const newPackagePath = config.basePackage.replace(/\./g, '/')
-  const oldAppFile = path.join(rootDir, `apps/backend/src/main/java/${newPackagePath}/ForgeAdminApplication.java`)
-  const newAppFile = path.join(rootDir, `apps/backend/src/main/java/${newPackagePath}/${namePascal}Application.java`)
+  const oldAppFile = path.join(rootDir, `apps/forge-server/src/main/java/${newPackagePath}/ForgeAdminApplication.java`)
+  const newAppFile = path.join(rootDir, `apps/forge-server/src/main/java/${newPackagePath}/${namePascal}Application.java`)
   if (fs.existsSync(oldAppFile)) {
     fs.renameSync(oldAppFile, newAppFile)
     log(`  ✓ ForgeAdminApplication.java -> ${namePascal}Application.java`, 'green')
@@ -266,8 +266,8 @@ function main() {
   log('后续步骤:', 'yellow')
   log('  1. 创建数据库: mysql -u root -p < sql/init.sql')
   log('  2. 更新 .env 文件中的配置')
-  log('  3. 启动后端: cd apps/backend && mvn spring-boot:run')
-  log('  4. 启动前端: cd apps/frontend && pnpm dev')
+  log('  3. 启动后端: cd apps/forge-server && mvn spring-boot:run')
+  log('  4. 启动前端: cd apps/forge-web && pnpm dev')
   log('')
 }
 

@@ -6,9 +6,9 @@
   "scripts": {
     "init": "node scripts/init-project.js",
     "dev:frontend": "pnpm --filter forge-admin-frontend dev",
-    "dev:backend": "cd apps/backend && mvn spring-boot:run",
+    "dev:backend": "cd apps/forge-server && mvn spring-boot:run",
     "build:frontend": "pnpm --filter forge-admin-frontend build",
-    "build:backend": "cd apps/backend && mvn clean package -DskipTests",
+    "build:backend": "cd apps/forge-server && mvn clean package -DskipTests",
     "lint:frontend": "pnpm --filter forge-admin-frontend lint"
   },
   "keywords": [
