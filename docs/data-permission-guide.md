@@ -736,12 +736,12 @@ mvn test -Dtest=DataPermissionInterceptorJSQLParserTest
 
 ```bash
 # 1. 登录获取 Token
-TOKEN=$(curl -s -X POST "http://localhost:8180/api/auth/login" \
+TOKEN=$(curl -s -X POST "http://localhost:8181/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"123456"}' | jq -r '.data.accessToken')
 
 # 2. 查询数据
-curl -s "http://localhost:8180/api/system/user/list?pageNum=1&pageSize=10" \
+curl -s "http://localhost:8181/api/system/user/list?pageNum=1&pageSize=10" \
   -H "Authorization: Bearer $TOKEN" | jq '.data.list'
 ```
 

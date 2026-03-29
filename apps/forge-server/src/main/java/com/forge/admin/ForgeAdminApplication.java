@@ -19,7 +19,7 @@ public class ForgeAdminApplication {
         SpringApplication.run(ForgeAdminApplication.class, args);
         System.out.println("==========================================");
         System.out.println("   forge-admin 启动成功!");
-        System.out.println("   API文档地址: http://localhost:8180/api/doc.html");
+        System.out.println("   API文档地址: http://localhost:8181/api/doc.html");
         System.out.println("==========================================");
     }
 }

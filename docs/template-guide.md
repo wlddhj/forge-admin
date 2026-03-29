@@ -183,7 +183,7 @@ docker build -t my-admin-frontend .
 # 运行后端
 docker run -d \
   --name my-admin-backend \
-  -p 8180:8180 \
+  -p 8181:8181 \
   -e DB_HOST=host.docker.internal \
   -e DB_PASSWORD=your-password \
   -e REDIS_HOST=host.docker.internal \

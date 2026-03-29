@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:8180}
+  port: ${SERVER_PORT:8181}
   servlet:
     context-path: /api
 
@@ -102,4 +102,4 @@ logging:
 # 文件上传配置
 file:
   upload-path: ${FILE_UPLOAD_PATH:./uploads}
-  base-url: ${FILE_BASE_URL:http://localhost:8180/api/uploads}
+  base-url: ${FILE_BASE_URL:http://localhost:8181/api/uploads}

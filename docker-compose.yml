@@ -19,11 +19,11 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - JWT_SECRET=${JWT_SECRET:-your-secret-key-must-be-at-least-256-bits-long}
     ports:
-      - "${BACKEND_PORT:-8180}:8180"
+      - "${BACKEND_PORT:-8181}:8181"
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8180/api/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8181/api/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3

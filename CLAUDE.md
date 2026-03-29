@@ -16,10 +16,10 @@ forge-admin is an enterprise-level admin management system with RBAC (Role-Based
 
 | Service | Port | Path |
 |---------|------|------|
-| Frontend Dev | 3002 | `apps/forge-web` |
-| Backend API | 8180 | `apps/forge-server` |
+| Frontend Dev | 3003 | `apps/forge-web` |
+| Backend API | 8181 | `apps/forge-server` |
 | Context Path | - | `/api` |
-| API Docs | 8180 | `/api/doc.html` |
+| API Docs | 8181 | `/api/doc.html` |
 
 **Database:** MySQL `forge_admin` on localhost:3306
 **Redis:** localhost:6379 (no password)
@@ -30,7 +30,7 @@ forge-admin is an enterprise-level admin management system with RBAC (Role-Based
 ### Frontend (from `apps/forge-web`)
 ```bash
 pnpm install    # Install dependencies
-pnpm dev        # Start dev server (port 3002)
+pnpm dev        # Start dev server (port 3003)
 pnpm build      # Build for production (includes type check)
 pnpm preview    # Preview production build
 pnpm lint       # Run ESLint

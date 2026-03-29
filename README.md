@@ -92,7 +92,7 @@ cd apps/forge-server
 mvn spring-boot:run
 ```
 
-后端服务将运行在 http://localhost:8180
+后端服务将运行在 http://localhost:8181
 
 4. **启动前端**
 
@@ -102,12 +102,12 @@ pnpm install
 pnpm dev
 ```
 
-前端服务将运行在 http://localhost:3002
+前端服务将运行在 http://localhost:3003
 
 5. **访问系统**
 
-- 前端地址：http://localhost:3002
-- API 文档：http://localhost:8180/api/doc.html
+- 前端地址：http://localhost:3003
+- API 文档：http://localhost:8181/api/doc.html
 - 默认账号：`admin` / `password`
 
 ## 目录结构
@@ -237,7 +237,7 @@ pnpm run init my-admin "我的管理系统" com.mycompany
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
-| `server.port` | 服务端口 | 8180 |
+| `server.port` | 服务端口 | 8181 |
 | `spring.datasource.url` | 数据库连接 | localhost:3306/forge_admin |
 | `spring.data.redis.host` | Redis 主机 | localhost |
 | `jwt.secret` | JWT 密钥 | (生产环境请修改) |
@@ -250,7 +250,7 @@ pnpm run init my-admin "我的管理系统" com.mycompany
 | 变量 | 说明 | 开发环境 | 生产环境 |
 |------|------|----------|----------|
 | `VITE_APP_TITLE` | 应用标题 | forge-admin | forge-admin |
-| `VITE_API_BASE_URL` | API 地址 | http://localhost:8180/api | /api |
+| `VITE_API_BASE_URL` | API 地址 | http://localhost:8181/api | /api |
 
 ## 许可证
 
