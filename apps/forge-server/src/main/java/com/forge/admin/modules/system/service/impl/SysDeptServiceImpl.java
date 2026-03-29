@@ -13,6 +13,8 @@ import com.forge.admin.modules.system.entity.SysDept;
 import com.forge.admin.modules.system.mapper.SysDeptMapper;
 import com.forge.admin.modules.system.service.SysDeptService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -43,6 +45,7 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
     }
 
     @Override
+    @Cacheable(value = "dept", key = "'tree'", unless = "#result == null || #result.isEmpty()")
     public List<DeptTreeResponse> getDeptTree() {
         List<SysDept> depts = lambdaQuery()
                 .eq(SysDept::getStatus, 1)
@@ -61,6 +64,7 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
     }
 
     @Override
+    @CacheEvict(value = "dept", allEntries = true)
     public void addDept(DeptRequest request) {
         SysDept dept = new SysDept();
         BeanUtil.copyProperties(request, dept);
@@ -80,6 +84,7 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
     }
 
     @Override
+    @CacheEvict(value = "dept", allEntries = true)
     public void updateDept(DeptRequest request) {
         SysDept dept = getById(request.getId());
         if (dept == null) {
@@ -90,6 +95,7 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
     }
 
     @Override
+    @CacheEvict(value = "dept", allEntries = true)
     public void deleteDept(Long id) {
         // 检查是否存在子部门
         if (sysDeptMapper.hasChildren(id) > 0) {

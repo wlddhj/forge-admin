@@ -13,6 +13,8 @@ import com.forge.admin.modules.system.entity.SysMenu;
 import com.forge.admin.modules.system.mapper.SysMenuMapper;
 import com.forge.admin.modules.system.service.SysMenuService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -43,6 +45,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     }
 
     @Override
+    @Cacheable(value = "menu", key = "'tree:all'", unless = "#result == null || #result.isEmpty()")
     public List<MenuTreeResponse> getMenuTree() {
         List<SysMenu> menus = lambdaQuery()
                 .eq(SysMenu::getStatus, 1)
@@ -52,6 +55,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     }
 
     @Override
+    @Cacheable(value = "menu", key = "'user:' + #userId", unless = "#result == null || #result.isEmpty()")
     public List<MenuTreeResponse> getUserMenuTree(Long userId) {
         List<SysMenu> menus = sysMenuMapper.selectMenusByUserId(userId);
         return buildMenuTree(menus, 0L);
@@ -67,6 +71,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     }
 
     @Override
+    @CacheEvict(value = "menu", allEntries = true)
     public void addMenu(MenuRequest request) {
         SysMenu menu = new SysMenu();
         BeanUtil.copyProperties(request, menu);
@@ -74,6 +79,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     }
 
     @Override
+    @CacheEvict(value = "menu", allEntries = true)
     public void updateMenu(MenuRequest request) {
         SysMenu menu = getById(request.getId());
         if (menu == null) {
@@ -84,6 +90,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     }
 
     @Override
+    @CacheEvict(value = "menu", allEntries = true)
     public void deleteMenu(Long id) {
         // 检查是否存在子菜单
         if (sysMenuMapper.hasChildren(id) > 0) {

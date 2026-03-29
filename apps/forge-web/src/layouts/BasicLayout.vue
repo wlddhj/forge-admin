@@ -68,6 +68,15 @@
           </el-breadcrumb>
         </div>
         <div class="header-right">
+          <!-- 通知铃铛 -->
+          <el-tooltip content="通知" placement="bottom">
+            <el-badge :value="wsUnreadCount" :hidden="wsUnreadCount === 0" :max="99">
+              <el-icon class="header-icon" @click="notificationVisible = !notificationVisible">
+                <Bell />
+              </el-icon>
+            </el-badge>
+          </el-tooltip>
+
           <!-- 主题切换 -->
           <el-tooltip :content="pageConfigStore.config.theme === 'light' ? '切换暗黑模式' : '切换明亮模式'" placement="bottom">
             <el-icon class="header-icon" @click="pageConfigStore.toggleTheme()">
@@ -123,15 +132,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { useTabsStore } from '@/stores/tabs'
 import { usePageConfigStore } from '@/stores/pageConfig'
 import { useResponsive } from '@/composables/useResponsive'
+import { useWebSocket } from '@/composables/useWebSocket'
 import { resetRouter } from '@/router'
-import { HomeFilled, Sunny, Moon, Setting, Menu, Fold, Expand } from '@element-plus/icons-vue'
+import { HomeFilled, Sunny, Moon, Setting, Menu, Fold, Expand, Bell } from '@element-plus/icons-vue'
 import TabsView from '@/components/TabsView.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
 import MobileMenu from '@/components/MobileMenu.vue'
@@ -143,6 +153,8 @@ const permissionStore = usePermissionStore()
 const tabsStore = useTabsStore()
 const pageConfigStore = usePageConfigStore()
 const { isMobile } = useResponsive()
+const { connect: wsConnect, disconnect: wsDisconnect, unreadCount: wsUnreadCount } = useWebSocket()
+const notificationVisible = ref(false)
 
 const isCollapse = ref(false)
 const mobileMenuVisible = ref(false)
@@ -225,6 +237,26 @@ watch(
   },
   { immediate: true }
 )
+
+// WebSocket 通知连接
+onMounted(() => {
+  if (userStore.token) {
+    wsConnect()
+  }
+})
+
+onUnmounted(() => {
+  wsDisconnect()
+})
+
+// 监听登录状态变化
+watch(() => userStore.token, (newToken) => {
+  if (newToken) {
+    wsConnect()
+  } else {
+    wsDisconnect()
+  }
+})
 </script>
 
 <style scoped lang="scss">

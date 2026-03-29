@@ -54,6 +54,8 @@ public class SecurityConfig {
             "/auth/register",
             "/auth/captcha",
             "/auth/refresh",
+            "/ws/**",
+            "/app/**",
             "/doc.html",
             "/swagger-ui.html",
             "/swagger-ui/**",
@@ -62,7 +64,11 @@ public class SecurityConfig {
             "/favicon.ico",
             "/file/**",
             "/uploads/**",
-            "/api/uploads/**"
+            "/api/uploads/**",
+            "/ws/**",
+            "/ws/info/**",
+            "/topic/**",
+            "/app/**"
     };
 
     @Bean

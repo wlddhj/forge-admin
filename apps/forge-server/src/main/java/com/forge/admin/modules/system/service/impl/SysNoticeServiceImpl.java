@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.forge.admin.common.exception.BusinessException;
 import com.forge.admin.common.response.ResultCode;
+import com.forge.admin.common.websocket.NotificationService;
 import com.forge.admin.modules.system.dto.notice.NoticeQueryRequest;
 import com.forge.admin.modules.system.dto.notice.NoticeRequest;
 import com.forge.admin.modules.system.dto.notice.NoticeResponse;
@@ -33,6 +34,7 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
 
     private final SysNoticeMapper sysNoticeMapper;
     private final SysUserService sysUserService;
+    private final NotificationService notificationService;
 
     @Override
     public Page<NoticeResponse> pageNotices(NoticeQueryRequest request) {
@@ -74,6 +76,19 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
         notice.setCreateBy(userId);
         notice.setCreateTime(LocalDateTime.now());
         save(notice);
+
+        // 如果公告状态为启用，则广播通知
+        if (notice.getStatus() != null && notice.getStatus() == 1) {
+            notificationService.broadcastNotice(notice.getNoticeTitle(), "", notice.getId());
+        }
+        // 新增公告时通过 WebSocket 广播通知
+        if (notice.getStatus() != null && notice.getStatus() == 1) {
+            notificationService.broadcastNotice(notice.getNoticeTitle(),
+                    notice.getNoticeContent() != null && notice.getNoticeContent().length() > 100
+                            ? notice.getNoticeContent().substring(0, 100) + "..."
+                            : notice.getNoticeContent(),
+                    notice.getId());
+        }
     }
 
     @Override

@@ -38,6 +38,7 @@ public class CacheConfig implements CachingConfigurer {
     private static final long CONFIG_CACHE_TTL = 1800;         // 系统配置缓存 30 分钟
     private static final long USER_INFO_CACHE_TTL = 1800;      // 用户信息缓存 30 分钟
     private static final long MENU_CACHE_TTL = 3600;           // 菜单缓存 1 小时
+    private static final long DEPT_CACHE_TTL = 3600;            // 部门缓存 1 小时
 
     /**
      * Redis 缓存管理器
@@ -70,6 +71,7 @@ public class CacheConfig implements CachingConfigurer {
 
         // 菜单缓存
         cacheConfigurations.put("menu", defaultConfig.entryTtl(Duration.ofSeconds(MENU_CACHE_TTL)));
+        cacheConfigurations.put("dept", defaultConfig.entryTtl(Duration.ofSeconds(DEPT_CACHE_TTL)));
 
         return RedisCacheManager.builder(factory)
                 .cacheDefaults(defaultConfig)
