@@ -1,167 +1,167 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件为 Claude Code (claude.ai/code) 在本仓库中工作时提供指导。
 
-## Project Overview
+## 项目概述
 
-forge-admin is an enterprise-level admin management system with RBAC (Role-Based Access Control). It's a monorepo with separate frontend and backend applications.
+forge-admin 是一个基于 RBAC（基于角色的访问控制）的企业级后台管理系统，采用 monorepo 结构，前后端分离。
 
-**Tech Stack:**
-- Frontend: Vue 3.4 + TypeScript + Element Plus + Pinia + Vite 5
-- Backend: Spring Boot 3.2.0 + MyBatis Plus + MySQL + Redis
-- Auth: JWT Token (access 2h, refresh 7d)
-- API Docs: Knife4j at `/api/doc.html`
+**技术栈：**
+- 前端：Vue 3.4 + TypeScript + Element Plus + Pinia + Vite 5
+- 后端：Spring Boot 3.2.0 + MyBatis Plus + MySQL + Redis
+- 认证：JWT Token（访问令牌 2 小时，刷新令牌 7 天）
+- API 文档：Knife4j，地址 `/api/doc.html`
 
-## Key Configuration
+## 关键配置
 
-| Service | Port | Path |
-|---------|------|------|
-| Frontend Dev | 3003 | `apps/forge-web` |
-| Backend API | 8181 | `apps/forge-server` |
-| Context Path | - | `/api` |
-| API Docs | 8181 | `/api/doc.html` |
+| 服务 | 端口 | 路径 |
+|------|------|------|
+| 前端开发 | 3003 | `apps/forge-web` |
+| 后端 API | 8181 | `apps/forge-server` |
+| 上下文路径 | - | `/api` |
+| API 文档 | 8181 | `/api/doc.html` |
 
-**Database:** MySQL `forge_admin` on localhost:3306
-**Redis:** localhost:6379 (no password)
-**Java:** 21 | **Node:** 22.9.0 | **pnpm:** 8.15.4
+**数据库：** MySQL `forge_admin`，地址 localhost:3306
+**Redis：** localhost:6379（无密码）
+**Java：** 21 | **Node：** 22.9.0 | **pnpm：** 8.15.4
 
-## Development Commands
+## 开发命令
 
-### Frontend (from `apps/forge-web`)
+### 前端（在 `apps/forge-web` 目录下）
 ```bash
-pnpm install    # Install dependencies
-pnpm dev        # Start dev server (port 3003)
-pnpm build      # Build for production (includes type check)
-pnpm preview    # Preview production build
-pnpm lint       # Run ESLint
-pnpm test       # Run vitest unit tests
+pnpm install    # 安装依赖
+pnpm dev        # 启动开发服务器（端口 3003）
+pnpm build      # 生产构建（含类型检查）
+pnpm preview    # 预览生产构建
+pnpm lint       # 运行 ESLint
+pnpm test       # 运行 vitest 单元测试
 ```
 
-### Backend (from `apps/forge-server`)
+### 后端（在 `apps/forge-server` 目录下）
 ```bash
-mvn spring-boot:run              # Start dev server
-mvn clean compile                # Compile only
-mvn clean package -DskipTests    # Build JAR (skip tests)
-mvn test                         # Run all tests
-mvn test -Dtest=ClassName       # Run single test class
-mvn test -Dtest=ClassName#methodName  # Run single test method
+mvn spring-boot:run              # 启动开发服务器
+mvn clean compile                # 仅编译
+mvn clean package -DskipTests    # 打包 JAR（跳过测试）
+mvn test                         # 运行所有测试
+mvn test -Dtest=ClassName       # 运行单个测试类
+mvn test -Dtest=ClassName#methodName  # 运行单个测试方法
 ```
 
-## Architecture
+## 架构
 
-### Backend Module Pattern (`apps/forge-server/src/main/java/com/forge/admin/`)
+### 后端模块模式（`apps/forge-server/src/main/java/com/forge/admin/`）
 
-Each module follows a layered pattern: `controller/` → `service/` (interface + impl) → `mapper/` → `entity/`, with `dto/` for request/response objects.
+每个模块遵循分层模式：`controller/` → `service/`（接口 + 实现）→ `mapper/` → `entity/`，`dto/` 存放请求/响应对象。
 
 ```
 common/
 ├── annotation/    # @OperationLog, @DataPermission, @RateLimiter
-├── aspect/        # AOP aspects for logging, rate limiting, data scope
-├── config/        # Security, Redis, JWT, MyBatis Plus, WebSocket, Cache, Quartz
-├── exception/     # GlobalExceptionHandler → Result<Void> with appropriate codes
-├── permission/    # Data permission rules and MyBatis interceptor
-├── response/      # Result<T>, PageResult<T>, ResultCode enum
-└── utils/         # SecurityUtils, ExcelUtils (EasyExcel)
+├── aspect/        # AOP 切面：日志、限流、数据范围
+├── config/        # 配置类：Security, Redis, JWT, MyBatis Plus, WebSocket, Cache, Quartz
+├── exception/     # GlobalExceptionHandler → 返回 Result<Void> 及对应错误码
+├── permission/    # 数据权限规则和 MyBatis 拦截器
+├── response/      # Result<T>, PageResult<T>, ResultCode 枚举
+└── utils/         # 工具类：SecurityUtils, ExcelUtils (EasyExcel)
 
 modules/
-├── auth/          # Login, token refresh, JWT filter, session management
+├── auth/          # 登录、令牌刷新、JWT 过滤器、会话管理
 │   └── security/  # JwtTokenProvider, JwtAuthenticationFilter
-└── system/        # User, Role, Menu, Dept, Dict, Config, Notice, File, Job, Log
+└── system/        # 用户、角色、菜单、部门、字典、配置、通知、文件、任务、日志
 ```
 
-**Cross-cutting concerns:**
-- `@OperationLog(title, businessType)` — AOP-based audit logging
-- `@DataPermission(deptAlias, userAlias)` — SQL-level data scope filtering (5 scope types)
-- `@RateLimiter(keyType, time, count)` — Redis-based token bucket rate limiting
-- `@Cacheable/@CacheEvict` — Redis caching (caches: dictData, dictType, sysConfig, userInfo, menu, dept)
-- `@Valid @RequestBody` — Jakarta validation on DTOs
+**横切关注点：**
+- `@OperationLog(title, businessType)` — 基于 AOP 的审计日志
+- `@DataPermission(deptAlias, userAlias)` — SQL 级数据范围过滤（5 种范围类型）
+- `@RateLimiter(keyType, time, count)` — 基于 Redis 令牌桶的限流
+- `@Cacheable/@CacheEvict` — Redis 缓存（缓存名：dictData, dictType, sysConfig, userInfo, menu, dept）
+- `@Valid @RequestBody` — Jakarta DTO 参数校验
 
-### Frontend Structure (`apps/forge-web/src/`)
+### 前端结构（`apps/forge-web/src/`）
 
 ```
-api/           # API modules with typed request/response interfaces
-composables/   # Vue composables (useWebSocket, useDict, useResponsive)
-directives/    # v-permission, v-role (remove DOM element if no access)
-layouts/       # BasicLayout with sidebar, header, tabs, notifications
-router/        # Dynamic route generation from backend menu tree
-stores/        # Pinia stores (user, permission, tabs, pageConfig)
-utils/         # request.ts (Axios with auto token refresh)
-views/         # Page components (auto-discovered via import.meta.glob)
+api/           # API 模块，带类型的请求/响应接口
+composables/   # Vue 组合式函数（useWebSocket, useDict, useResponsive）
+directives/    # v-permission, v-role（无权限时移除 DOM 元素）
+layouts/       # BasicLayout：侧边栏、头部、标签页、通知
+router/        # 基于后端菜单树动态生成路由
+stores/        # Pinia 状态（user, permission, tabs, pageConfig）
+utils/         # request.ts（Axios + 自动令牌刷新）
+views/         # 页面组件（通过 import.meta.glob 自动发现）
 ```
 
-**Auto-imports (no manual imports needed):**
-- Vue APIs (`ref`, `computed`, `watch`, etc.), vue-router, pinia — via `unplugin-auto-import`
-- Element Plus components — via `unplugin-vue-components`
+**自动导入（无需手动 import）：**
+- Vue API（`ref`, `computed`, `watch` 等）、vue-router、pinia — 通过 `unplugin-auto-import`
+- Element Plus 组件 — 通过 `unplugin-vue-components`
 
-**Dynamic routing:** Backend returns menu tree → `permissionStore.setRoutes()` converts to Vue Router config → components resolved via `import.meta.glob('/src/views/**/*.vue')` registry → routes added with `router.addRoute()`, 404 last.
+**动态路由：** 后端返回菜单树 → `permissionStore.setRoutes()` 转换为 Vue Router 配置 → 通过 `import.meta.glob('/src/views/**/*.vue')` 注册表解析组件 → `router.addRoute()` 添加路由，404 最后添加。
 
-## Important Patterns
+## 重要模式
 
-### API Response Format
+### API 响应格式
 ```json
 { "code": 200, "message": "success", "data": {}, "timestamp": 1709635800000 }
 ```
-Frontend `request.ts` auto-handles 401 with token refresh queue — concurrent requests wait and replay.
+前端 `request.ts` 自动处理 401，通过令牌刷新队列实现并发请求等待和重放。
 
-### Permission Format
-- Authority: `system:user:list`, `system:user:add`, `system:user:edit`, `system:user:delete`
-- Controller: `@PreAuthorize("hasAuthority('system:user:list')")`
-- Frontend template: `v-permission="'system:user:add'"` or `v-permission="['perm1', 'perm2']"` (any match)
-- Frontend script: `hasPermission('system:user:add')`, `hasAllPermissions([...])`
+### 权限格式
+- 权限标识：`system:user:list`、`system:user:add`、`system:user:edit`、`system:user:delete`
+- Controller：`@PreAuthorize("hasAuthority('system:user:list')")`
+- 前端模板：`v-permission="'system:user:add'"` 或 `v-permission="['perm1', 'perm2']"`（任一匹配）
+- 前端脚本：`hasPermission('system:user:add')`、`hasAllPermissions([...])`
 
-### Database Conventions
-- Prefix: `sys_` (e.g., `sys_user`, `sys_role`, `sys_menu`)
-- Common fields: `id` (auto), `create_time`, `update_time`, `create_by`, `update_by`, `deleted` (logical), `status`, `remark`
-- MyBatis Plus auto-fills `create_time`/`update_time`, handles logical delete and optimistic locking
+### 数据库约定
+- 表名前缀：`sys_`（如 `sys_user`、`sys_role`、`sys_menu`）
+- 公共字段：`id`（自增）、`create_time`、`update_time`、`create_by`、`update_by`、`deleted`（逻辑删除）、`status`、`remark`
+- MyBatis Plus 自动填充 `create_time`/`update_time`，处理逻辑删除和乐观锁
 
-### Database Migrations
-Location: `apps/forge-server/src/main/resources/db/migration/`
-Naming: `V{YYYYMMDD}{seq}__{description}.sql` (e.g., `V2026030501__file_config.sql`)
+### 数据库迁移
+位置：`apps/forge-server/src/main/resources/db/migration/`
+命名：`V{YYYYMMDD}{seq}__{description}.sql`（如 `V2026030501__file_config.sql`）
 
-### Excel Export
-Use `ExcelUtils.export(response, fileName, sheetName, DtoClass.class, dataList)` with EasyExcel `@ExcelProperty` annotated DTOs.
+### Excel 导出
+使用 `ExcelUtils.export(response, fileName, sheetName, DtoClass.class, dataList)`，配合 EasyExcel 的 `@ExcelProperty` 注解 DTO。
 
-### WebSocket (STOMP over SockJS)
-- Endpoint: `/ws` (SockJS fallback)
-- Broadcast: `/topic/notifications`
-- User-specific: `/user/{userId}/queue/notifications`
-- Frontend: `useWebSocket()` composable in `composables/useWebSocket.ts`
+### WebSocket（STOMP over SockJS）
+- 端点：`/ws`（SockJS 回退）
+- 广播：`/topic/notifications`
+- 用户专属：`/user/{userId}/queue/notifications`
+- 前端：`composables/useWebSocket.ts` 中的 `useWebSocket()` 组合式函数
 
-### Data Permission System
-SQL-level filtering via `@DataPermission` annotation + MyBatis interceptor:
-- Type 1: All data | Type 2: Custom depts | Type 3: Own dept | Type 4: Own dept + children | Type 5: Own data only
+### 数据权限系统
+通过 `@DataPermission` 注解 + MyBatis 拦截器实现 SQL 级数据过滤：
+- 类型 1：全部数据 | 类型 2：自定义部门 | 类型 3：本部门 | 类型 4：本部门及子部门 | 类型 5：仅本人
 
-## Git Commit Convention
+## Git 提交规范
 
-**Format:** `<type>(<scope>): <subject>`
+**格式：** `<type>(<scope>): <subject>`
 
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `revert`
+类型：`feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`chore`、`revert`
 
-**IMPORTANT:** Do NOT add `Co-Authored-By` in commit messages.
+**重要：** 禁止在提交信息中添加 `Co-Authored-By`。
 
-## Project Initialization
+## 项目初始化
 
-Use `scripts/init-project.js` to create new projects from this template:
+使用 `scripts/init-project.js` 基于此模板创建新项目：
 ```bash
-pnpm run init <project-name> "<description>" <java-package>
-# Example: pnpm run init my-admin "我的管理系统" com.mycompany
+pnpm run init <项目名称> "<项目描述>" <Java包名>
+# 示例：pnpm run init my-admin "我的管理系统" com.mycompany
 ```
-Renames packages, directories, classes, and updates all references.
+自动重命名包名、目录、类名，并更新所有引用。
 
-## Key Files
+## 关键文件
 
-| Purpose | Path |
-|---------|------|
-| Backend Config | `apps/forge-server/src/main/resources/application.yml` |
-| API Definitions | `apps/forge-server/src/main/java/com/forge/admin/modules/*/controller/` |
-| Frontend Request (Axios + token refresh) | `apps/forge-web/src/utils/request.ts` |
-| Route Guards & Dynamic Routes | `apps/forge-web/src/router/index.ts` |
-| Permission Directives | `apps/forge-web/src/directives/permission.ts` |
-| Pinia Stores | `apps/forge-web/src/stores/` |
+| 用途 | 路径 |
+|------|------|
+| 后端配置 | `apps/forge-server/src/main/resources/application.yml` |
+| API 定义 | `apps/forge-server/src/main/java/com/forge/admin/modules/*/controller/` |
+| 前端请求工具（Axios + 令牌刷新） | `apps/forge-web/src/utils/request.ts` |
+| 路由守卫与动态路由 | `apps/forge-web/src/router/index.ts` |
+| 权限指令 | `apps/forge-web/src/directives/permission.ts` |
+| Pinia 状态管理 | `apps/forge-web/src/stores/` |
 
-## Naming Conventions
+## 命名约定
 
-### Backend (Java)
+### 后端（Java）
 | 类型 | 约定 | 示例 |
 |------|------|------|
 | 包名 | 全小写，点分隔 | `com.forge.admin.modules.system` |
@@ -171,7 +171,7 @@ Renames packages, directories, classes, and updates all references.
 | 表名 | `sys_` 前缀 + 小写下划线 | `sys_user`, `sys_role` |
 | 字段名 | 小写下划线 | `create_time`, `user_name` |
 
-### Frontend (TypeScript/Vue)
+### 前端（TypeScript/Vue）
 | 类型 | 约定 | 示例 |
 |------|------|------|
 | 文件名 | kebab-case | `user-profile.vue` |
@@ -180,13 +180,13 @@ Renames packages, directories, classes, and updates all references.
 | 变量/函数 | camelCase | `getUserInfo` |
 | 常量 | UPPER_SNAKE_CASE | `API_BASE_URL` |
 
-### API Path Convention
+### API 路径约定
 ```
 /api/{module}/{entity}/{action}
 ```
-Examples: `/api/auth/login`, `/api/system/user/list`, `/api/system/menu/tree`
+示例：`/api/auth/login`、`/api/system/user/list`、`/api/system/menu/tree`
 
-### Business Modules
+### 业务模块
 | 模块 | 权限前缀 |
 |------|----------|
 | 用户管理 | `system:user` |
@@ -203,11 +203,31 @@ Examples: `/api/auth/login`, `/api/system/user/list`, `/api/system/menu/tree`
 | 操作日志 | `monitor:operation-log` |
 | 定时任务 | `monitor:job` |
 
-## Code Templates
+## 代码模板
 
-### Backend Controller
+### 后端 Controller 模板
 
 ```java
+package com.forge.admin.modules.system.controller;
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.forge.admin.common.annotation.OperationLog;
+import com.forge.admin.common.response.PageResult;
+import com.forge.admin.common.response.Result;
+import com.forge.admin.modules.system.dto.xxx.XxxQueryRequest;
+import com.forge.admin.modules.system.dto.xxx.XxxRequest;
+import com.forge.admin.modules.system.dto.xxx.XxxResponse;
+import com.forge.admin.modules.system.service.SysXxxService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
 @Slf4j
 @Tag(name = "{模块}管理")
 @RestController
@@ -222,7 +242,10 @@ public class SysXxxController {
     @PreAuthorize("hasAuthority('system:{entity}:list')")
     public Result<PageResult<XxxResponse>> list(XxxQueryRequest request) {
         Page<XxxResponse> page = sysXxxService.pageXxx(request);
-        return Result.success(PageResult.of(page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize()));
+        PageResult<XxxResponse> result = PageResult.of(
+                page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize()
+        );
+        return Result.success(result);
     }
 
     @Operation(summary = "根据ID查询")
@@ -261,9 +284,21 @@ public class SysXxxController {
 }
 ```
 
-### Backend Service
+### 后端 Service 模板
 
 ```java
+package com.forge.admin.modules.system.service.impl;
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.forge.admin.modules.system.entity.SysXxx;
+import com.forge.admin.modules.system.mapper.SysXxxMapper;
+import com.forge.admin.modules.system.service.SysXxxService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -271,38 +306,30 @@ public class SysXxxServiceImpl extends ServiceImpl<SysXxxMapper, SysXxx> impleme
 
     @Override
     public Page<XxxResponse> pageXxx(XxxQueryRequest request) {
-        Page<SysXxx> page = new Page<>(request.getPageNum(), request.getPageSize());
-        LambdaQueryWrapper<SysXxx> wrapper = new LambdaQueryWrapper<>();
-        // wrapper conditions...
-        Page<SysXxx> result = page(page, wrapper);
-        // convert and return
+        // 分页查询实现
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void addXxx(XxxRequest request) {
-        SysXxx entity = new SysXxx();
-        BeanUtil.copyProperties(request, entity);
-        save(entity);
+        // 新增实现
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateXxx(XxxRequest request) {
-        SysXxx entity = getById(request.getId());
-        BeanUtil.copyProperties(request, entity);
-        updateById(entity);
+        // 更新实现
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteXxx(List<Long> ids) {
-        removeByIds(ids);
+        // 删除实现
     }
 }
 ```
 
-### Frontend API Module
+### 前端 API 模板
 
 ```typescript
 import request from '@/utils/request'
@@ -331,7 +358,7 @@ export const xxxApi = {
 }
 ```
 
-### Frontend Vue Page (CRUD)
+### 前端 Vue 页面模板（CRUD）
 
 ```vue
 <template>
