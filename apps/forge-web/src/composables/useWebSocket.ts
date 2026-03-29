@@ -28,7 +28,7 @@ export function useWebSocket() {
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
-      debug: false,
+      debug: () => {},
     })
 
     client.onConnect = () => {

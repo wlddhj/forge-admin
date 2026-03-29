@@ -1,6 +1,6 @@
 package com.forge.admin.auth;
 
-import com.forge.admin.forge-adminApplication;
+import com.forge.admin.ForgeAdminApplication;
 import com.forge.admin.modules.system.entity.SysUser;
 import com.forge.admin.modules.system.mapper.SysUserMapper;
 import com.forge.admin.modules.system.service.SysUserService;
@@ -11,7 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 /**
  * 用户查询测试
  */
-@SpringBootTest(classes = forge-adminApplication.class)
+@SpringBootTest(classes = ForgeAdminApplication.class)
 public class UserQueryTest {
 
     @Autowired

@@ -7,6 +7,10 @@
     <title>ForgeAdmin - 聚能后台管理系统</title>
   </head>
   <body>
+    <script>
+      window.global = window;
+      window.process = window.process || { env: {}, browser: true };
+    </script>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
