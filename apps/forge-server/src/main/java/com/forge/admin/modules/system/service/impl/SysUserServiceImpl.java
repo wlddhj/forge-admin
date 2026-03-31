@@ -325,7 +325,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             export.setPhone(user.getPhone());
             export.setEmail(user.getEmail());
             export.setStatus(user.getStatus() == 1 ? "启用" : "禁用");
-            export.setCreateTime(user.getCreateTime() != null ? user.getCreateTime().toString() : "");
+            export.setCreateTime(user.getCreateTime());
             // 获取部门名称
             if (user.getDeptId() != null) {
                 SysDept dept = sysDeptService.getById(user.getDeptId());

@@ -81,7 +81,6 @@ public class SysUserController {
     @Operation(summary = "导出用户")
     @GetMapping("/export")
     @PreAuthorize("hasAuthority('system:user:export')")
-    @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.EXPORT)
     public void export(UserQueryRequest request, HttpServletResponse response) {
         List<UserExport> list = sysUserService.getExportList(request);
         ExcelUtils.export(response, "用户列表", "用户数据", UserExport.class, list);

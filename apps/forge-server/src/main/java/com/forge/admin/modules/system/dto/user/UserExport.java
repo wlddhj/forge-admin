@@ -1,8 +1,11 @@
 package com.forge.admin.modules.system.dto.user;
 
 import com.alibaba.excel.annotation.ExcelProperty;
+import com.alibaba.excel.annotation.format.DateTimeFormat;
 import com.alibaba.excel.annotation.write.style.ColumnWidth;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 
 /**
  * 用户导出 DTO
@@ -37,6 +40,6 @@ public class UserExport {
     private String status;
 
     @ExcelProperty("创建时间")
-    @ColumnWidth(20)
-    private String createTime;
+    @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime createTime;
 }
