@@ -97,19 +97,27 @@ for (const [globKey, loader] of Object.entries(viewModules)) {
  * 支持懒加载和错误处理
  *
  * @param componentPath 组件路径
+ * @param routeName 路由名称（用于 keep-alive :include 匹配）
  * @returns 组件加载函数
  */
-export function loadComponent(componentPath: string): () => Promise<any> {
+export function loadComponent(componentPath: string, routeName?: string): () => Promise<any> {
   if (componentPath === 'Layout') return LAYOUT_COMPONENT
 
   const normalizedPath = componentPath.replace(/\.vue$/, '')
-  if (COMPONENT_REGISTRY[normalizedPath]) return COMPONENT_REGISTRY[normalizedPath]
+  const loader = COMPONENT_REGISTRY[normalizedPath] || COMPONENT_REGISTRY[normalizedPath.startsWith('/') ? normalizedPath : '/views/' + normalizedPath]
 
-  const pathWithPrefix = normalizedPath.startsWith('/') ? normalizedPath : '/views/' + normalizedPath
-  if (COMPONENT_REGISTRY[pathWithPrefix]) return COMPONENT_REGISTRY[pathWithPrefix]
+  if (!loader) {
+    console.warn(`[路由] 组件未找到: ${componentPath}`)
+    return () => import('@/views/error/404.vue')
+  }
 
-  console.warn(`[路由] 组件未找到: ${componentPath}`)
-  return () => import('@/views/error/404.vue')
+  if (!routeName) return loader
+
+  // 设置组件 name 以匹配 keep-alive :include
+  return async () => {
+    const module = await loader()
+    return { ...module.default, name: routeName }
+  }
 }
 
 /**

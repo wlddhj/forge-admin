@@ -94,7 +94,7 @@ export const usePermissionStore = defineStore('permission', () => {
     childrenRoutes.push({
       path: '/dashboard',
       name: 'Dashboard',
-      component: loadComponent('/views/dashboard/index'),
+      component: loadComponent('/views/dashboard/index', 'Dashboard'),
       meta: { title: '首页', icon: 'HomeFilled', affix: true }
     } as RouteRecordRaw)
 
@@ -102,7 +102,7 @@ export const usePermissionStore = defineStore('permission', () => {
     childrenRoutes.push({
       path: '/profile',
       name: 'Profile',
-      component: loadComponent('/views/profile/index'),
+      component: loadComponent('/views/profile/index', 'Profile'),
       meta: { title: '个人中心', icon: 'User', hidden: true }
     } as RouteRecordRaw)
 
@@ -184,9 +184,10 @@ export const usePermissionStore = defineStore('permission', () => {
 
     // 动态加载组件
     if (menu.componentPath) {
-      route.component = loadComponent(menu.componentPath)
+      const routeName = menu.menuCode || `menu_${menu.id}`
+      route.component = loadComponent(menu.componentPath, routeName)
       if (import.meta.env.DEV) {
-        console.log(`[路由] 加载组件: ${menu.menuName} -> ${menu.componentPath}`)
+        console.log(`[路由] 加载组件: ${menu.menuName} -> ${menu.componentPath} (name: ${routeName})`)
       }
     } else {
       console.warn(`[路由] 菜单 ${menu.menuName} (id=${menu.id}) 没有组件路径`)

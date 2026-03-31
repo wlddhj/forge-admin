@@ -21,6 +21,7 @@ export interface PageConfig {
   // 其他设置
   showBreadcrumb: boolean
   showPageTransition: boolean
+  keepAlive: boolean // 页面缓存（切换标签页不刷新）
 }
 
 const LOCAL_STORAGE_KEY = 'forge_admin-page-config'
@@ -33,7 +34,8 @@ const defaultConfig: PageConfig = {
   theme: 'light',
   sidebarCollapsed: false,
   showBreadcrumb: true,
-  showPageTransition: true
+  showPageTransition: true,
+  keepAlive: true
 }
 
 export const usePageConfigStore = defineStore('pageConfig', () => {

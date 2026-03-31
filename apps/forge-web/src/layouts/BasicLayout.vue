@@ -116,9 +116,10 @@
       <!-- 主内容区 -->
       <el-main class="layout-content">
         <router-view v-slot="{ Component }">
-          <transition :name="pageConfigStore.config.showPageTransition ? 'fade' : ''" mode="out-in">
-            <component :is="Component" />
-          </transition>
+          <keep-alive v-if="pageConfigStore.config.keepAlive" :include="tabsStore.cachedViews">
+            <component :is="Component" :key="$route.path" />
+          </keep-alive>
+          <component v-else :is="Component" />
         </router-view>
       </el-main>
     </el-container>
@@ -231,7 +232,8 @@ watch(
         path,
         title: route.meta.title as string,
         icon: route.meta.icon as string,
-        closable: path !== '/dashboard' // 首页不可关闭
+        closable: path !== '/dashboard', // 首页不可关闭
+        routeName: route.name as string // 用于 keep-alive 缓存匹配
       })
     }
   },

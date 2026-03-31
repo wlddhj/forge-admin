@@ -2,13 +2,14 @@
  * Tabs 标签页状态管理
  */
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 export interface TabItem {
   path: string
   title: string
   icon?: string
   closable: boolean
+  routeName?: string // 路由名称，用于 keep-alive :include 匹配
 }
 
 const LOCAL_STORAGE_KEY = 'standadmin-tabs'
@@ -19,6 +20,13 @@ export const useTabsStore = defineStore('tabs', () => {
 
   // 当前激活的标签页
   const activeTab = ref('')
+
+  // 当前缓存的路由名称列表（用于 keep-alive :include）
+  const cachedViews = computed(() => {
+    return tabs.value
+      .map(t => t.routeName)
+      .filter((name): name is string => !!name)
+  })
 
   // 从 localStorage 加载标签页
   const loadTabs = () => {
@@ -56,8 +64,11 @@ export const useTabsStore = defineStore('tabs', () => {
     if (existIndex === -1) {
       tabs.value.push(tab)
     } else {
-      // 如果已存在，更新标题（可能动态变化）
+      // 如果已存在，更新标题和路由名称（可能动态变化，或从 localStorage 恢复时缺少 routeName）
       tabs.value[existIndex].title = tab.title
+      if (tab.routeName) {
+        tabs.value[existIndex].routeName = tab.routeName
+      }
     }
     activeTab.value = tab.path
   }
@@ -148,6 +159,7 @@ export const useTabsStore = defineStore('tabs', () => {
   return {
     tabs,
     activeTab,
+    cachedViews,
     addTab,
     removeTab,
     closeOtherTabs,
