@@ -431,6 +431,7 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 (16, '角色新增', 3, '', '', NULL, '', 2, 2, 'system:role:add', 1, 1, 0, 0),
 (17, '角色编辑', 3, '', '', NULL, '', 3, 2, 'system:role:edit', 1, 1, 0, 0),
 (18, '角色删除', 3, '', '', NULL, '', 4, 2, 'system:role:delete', 1, 1, 0, 0),
+(62, '角色导出', 3, '', '', NULL, '', 5, 2, 'system:role:export', 1, 1, 0, 0),
 -- 菜单管理按钮
 (19, '菜单查询', 4, '', '', NULL, '', 1, 2, 'system:menu:query', 1, 1, 0, 0),
 (20, '菜单新增', 4, '', '', NULL, '', 2, 2, 'system:menu:add', 1, 1, 0, 0),

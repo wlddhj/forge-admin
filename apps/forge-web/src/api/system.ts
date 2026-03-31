@@ -91,6 +91,17 @@ export function assignRoleMenus(id: number, menuIds: number[]) {
   return request.put(`/system/role/${id}/menus`, menuIds)
 }
 
+export function exportRoles(params: RoleQuery) {
+  return request.get('/system/role/export', { params, responseType: 'blob' }).then(res => {
+    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = '角色列表.xlsx'
+    link.click()
+    URL.revokeObjectURL(link.href)
+  })
+}
+
 // ==================== 菜单管理 ====================
 
 export function getMenuList(params?: { menuName?: string; status?: number }) {

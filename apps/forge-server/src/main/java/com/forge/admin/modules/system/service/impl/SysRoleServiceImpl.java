@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.forge.admin.common.exception.BusinessException;
 import com.forge.admin.common.response.ResultCode;
+import com.forge.admin.modules.system.dto.role.RoleExport;
 import com.forge.admin.modules.system.dto.role.RoleQueryRequest;
 import com.forge.admin.modules.system.dto.role.RoleRequest;
 import com.forge.admin.modules.system.dto.role.RoleResponse;
@@ -212,5 +213,26 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
                 })
                 .collect(Collectors.toList());
         sysRoleDeptMapper.batchInsert(roleDepts);
+    }
+
+    @Override
+    public List<RoleExport> getExportList(RoleQueryRequest request) {
+        LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(StrUtil.isNotBlank(request.getRoleName()), SysRole::getRoleName, request.getRoleName())
+                .like(StrUtil.isNotBlank(request.getRoleCode()), SysRole::getRoleCode, request.getRoleCode())
+                .eq(request.getStatus() != null, SysRole::getStatus, request.getStatus())
+                .orderByAsc(SysRole::getSortOrder);
+
+        List<SysRole> roles = list(wrapper);
+
+        return roles.stream().map(role -> {
+            RoleExport export = new RoleExport();
+            export.setRoleName(role.getRoleName());
+            export.setRoleCode(role.getRoleCode());
+            export.setDescription(role.getDescription());
+            export.setStatus(role.getStatus() == 1 ? "启用" : "禁用");
+            export.setCreateTime(role.getCreateTime());
+            return export;
+        }).collect(Collectors.toList());
     }
 }

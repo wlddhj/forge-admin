@@ -4,12 +4,15 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.admin.common.annotation.OperationLog;
 import com.forge.admin.common.response.PageResult;
 import com.forge.admin.common.response.Result;
+import com.forge.admin.common.utils.ExcelUtils;
+import com.forge.admin.modules.system.dto.role.RoleExport;
 import com.forge.admin.modules.system.dto.role.RoleQueryRequest;
 import com.forge.admin.modules.system.dto.role.RoleRequest;
 import com.forge.admin.modules.system.dto.role.RoleResponse;
 import com.forge.admin.modules.system.service.SysRoleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -104,5 +107,13 @@ public class SysRoleController {
     public Result<Void> assignMenus(@PathVariable Long id, @RequestBody List<Long> menuIds) {
         sysRoleService.assignMenus(id, menuIds);
         return Result.success();
+    }
+
+    @Operation(summary = "导出角色")
+    @GetMapping("/export")
+    @PreAuthorize("hasAuthority('system:role:export')")
+    public void export(RoleQueryRequest request, HttpServletResponse response) {
+        List<RoleExport> list = sysRoleService.getExportList(request);
+        ExcelUtils.export(response, "角色列表", "角色数据", RoleExport.class, list);
     }
 }

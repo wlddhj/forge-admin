@@ -76,6 +76,10 @@
               <el-icon><Plus /></el-icon>
               新增角色
             </el-button>
+            <el-button v-permission="'system:role:export'" type="success" @click="handleExport">
+              <el-icon><Download /></el-icon>
+              导出
+            </el-button>
           </div>
         </div>
       </template>
@@ -237,7 +241,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import {
   getRoleList, addRole, updateRole, deleteRole,
-  assignRoleMenus, getMenuTree, getRoleMenus, getDeptTree
+  assignRoleMenus, getMenuTree, getRoleMenus, getDeptTree, exportRoles
 } from '@/api/system'
 import type { Role, RoleRequest, MenuTree, DeptTree } from '@/types/system'
 import { DICT_TYPE } from '@/constants/dict'
@@ -493,6 +497,16 @@ const handleRowClick = (row: Role) => {
 // 取消选择
 const cancelSelection = () => {
   selectedRow.value = null
+}
+
+// 导出角色
+const handleExport = async () => {
+  try {
+    await exportRoles(queryParams)
+    ElMessage.success('导出成功')
+  } catch (e) {
+    console.error('导出失败', e)
+  }
 }
 
 onMounted(() => {

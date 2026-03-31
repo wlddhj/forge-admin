@@ -2,6 +2,7 @@ package com.forge.admin.modules.system.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.forge.admin.modules.system.dto.role.RoleExport;
 import com.forge.admin.modules.system.dto.role.RoleQueryRequest;
 import com.forge.admin.modules.system.dto.role.RoleRequest;
 import com.forge.admin.modules.system.dto.role.RoleResponse;
@@ -65,4 +66,9 @@ public interface SysRoleService extends IService<SysRole> {
      * 分配菜单权限
      */
     void assignMenus(Long roleId, List<Long> menuIds);
+
+    /**
+     * 获取角色导出列表
+     */
+    List<RoleExport> getExportList(RoleQueryRequest request);
 }
