@@ -122,6 +122,11 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   (response: AxiosResponse<Result>) => {
+    // blob 响应直接返回，不做统一处理
+    if (response.config.responseType === 'blob') {
+      return response as any
+    }
+
     const res = response.data
 
     // code 不是 200 则为错误
