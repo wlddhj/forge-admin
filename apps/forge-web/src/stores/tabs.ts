@@ -108,7 +108,6 @@ export const useTabsStore = defineStore('tabs', () => {
   const clearAllTabs = () => {
     tabs.value = []
     activeTab.value = ''
-    cachedViews.clear()
     saveTabs()
   }
 
