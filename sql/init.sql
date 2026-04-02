@@ -485,7 +485,11 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 (55, '配置查询', 54, NULL, NULL, NULL, NULL, 1, 2, 'system:file-config:query', 1, 1, 0, 0),
 (56, '配置新增', 54, NULL, NULL, NULL, NULL, 2, 2, 'system:file-config:add', 1, 1, 0, 0),
 (57, '配置编辑', 54, NULL, NULL, NULL, NULL, 3, 2, 'system:file-config:edit', 1, 1, 0, 0),
-(58, '配置删除', 54, NULL, NULL, NULL, NULL, 4, 2, 'system:file-config:delete', 1, 1, 0, 0);
+(58, '配置删除', 54, NULL, NULL, NULL, NULL, 4, 2, 'system:file-config:delete', 1, 1, 0, 0),
+-- 操作日志导出
+(63, '导出', 9, '', '', NULL, '', 3, 2, 'system:log:export', 1, 1, 0, 0),
+-- 登录日志导出
+(64, '导出', 44, NULL, NULL, NULL, NULL, 3, 2, 'system:login-log:export', 1, 1, 0, 0);
 
 -- 初始化角色菜单关联 (超级管理员拥有所有菜单)
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)
