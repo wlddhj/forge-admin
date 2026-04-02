@@ -182,7 +182,16 @@ const shouldShowTabs = computed(() => {
 const menuList = computed(() => {
   const menus = userStore.menus
   if (menus && menus.length > 0) {
-    return menus.filter((item: any) => item.visible !== 0 && item.menuType !== 2)
+    return menus
+      .filter((item: any) => item.visible !== 0 && item.menuType !== 2)
+      .map((item: any) => {
+        // 过滤子菜单中的按钮类型
+        if (item.children && item.children.length > 0) {
+          const filteredChildren = item.children.filter((c: any) => c.menuType !== 2 && c.visible !== 0)
+          return { ...item, children: filteredChildren.length > 0 ? filteredChildren : undefined }
+        }
+        return item
+      })
   }
   return permissionStore.routes
     .find((r: any) => r.path === '/')?.children

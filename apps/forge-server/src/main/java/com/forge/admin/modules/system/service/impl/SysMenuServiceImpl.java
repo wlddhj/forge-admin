@@ -103,6 +103,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
         List<MenuTreeResponse> tree = new ArrayList<>();
 
         Map<Long, List<SysMenu>> menuMap = menus.stream()
+                .filter(m -> m.getMenuType() != 2) // 过滤掉按钮类型
                 .collect(Collectors.groupingBy(SysMenu::getParentId));
 
         List<SysMenu> parentMenus = menuMap.getOrDefault(parentId, new ArrayList<>());

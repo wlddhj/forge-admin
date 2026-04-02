@@ -2,7 +2,7 @@
   <div class="dashboard">
     <!-- 轮播图区域 -->
     <el-card shadow="never" class="banner-card">
-      <el-carousel height="200px" :interval="5000" arrow="hover" indicator-position="inside">
+      <el-carousel height="200px" :interval="5000" arrow="hover" indicator-position="">
         <el-carousel-item v-for="banner in banners" :key="banner.id">
           <div class="banner-item" :style="{ background: banner.background }">
             <div class="banner-content">
@@ -117,8 +117,8 @@
                 数据对比
               </span>
               <el-radio-group v-model="comparePeriod" size="small">
-                <el-radio-button label="week">本周</el-radio-button>
-                <el-radio-button label="month">本月</el-radio-button>
+                <el-radio-button value="week">本周</el-radio-button>
+                <el-radio-button value="month">本月</el-radio-button>
               </el-radio-group>
             </div>
           </template>
