@@ -244,8 +244,8 @@ onUnmounted(() => {
   position: relative;
   display: flex;
   align-items: center;
-  background-color: #fff;
-  border-bottom: 1px solid #e6e6e6;
+  background-color: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-lighter);
   padding: 0 10px;
   gap: 8px;
 
@@ -279,11 +279,11 @@ onUnmounted(() => {
       }
 
       &::-webkit-scrollbar-thumb {
-        background-color: #dcdfe6;
+        background-color: var(--el-border-color);
         border-radius: 3px;
 
         &:hover {
-          background-color: #c0c4cc;
+          background-color: var(--el-border-color-darker);
         }
       }
 
@@ -303,26 +303,26 @@ onUnmounted(() => {
       line-height: 34px;
       padding: 0 16px;
       font-size: 13px;
-      color: #606266;
-      border: 1px solid #d8dce5;
+      color: var(--el-text-color-regular);
+      border: 1px solid var(--el-border-color-light);
       border-radius: 3px 3px 0 0;
       margin-right: 4px;
-      background-color: #f5f7fa;
+      background-color: var(--el-fill-color-lighter);
       transition: all 0.3s;
       position: relative;
       top: 1px;
 
       &:hover {
-        color: #409eff;
-        background-color: #fff;
-        border-color: #409eff;
+        color: var(--el-color-primary);
+        background-color: var(--el-bg-color);
+        border-color: var(--el-color-primary);
       }
 
       &.is-active {
-        color: #409eff;
-        background-color: #fff;
-        border-color: #409eff;
-        border-bottom-color: #fff;
+        color: var(--el-color-primary);
+        background-color: var(--el-bg-color);
+        border-color: var(--el-color-primary);
+        border-bottom-color: var(--el-bg-color);
       }
 
       .tab-label {
@@ -334,7 +334,7 @@ onUnmounted(() => {
       .el-icon {
         font-size: 12px;
         margin-left: 4px;
-        color: #909399;
+        color: var(--el-text-color-secondary);
 
         &:hover {
           color: #f56c6c;
@@ -349,13 +349,13 @@ onUnmounted(() => {
   padding: 6px 0 0 0;
 
   :deep(.el-button) {
-    background-color: #f5f7fa;
-    border-color: #dcdfe6;
+    background-color: var(--el-fill-color-lighter);
+    border-color: var(--el-border-color);
 
     &:hover {
-      background-color: #ecf5ff;
-      border-color: #409eff;
-      color: #409eff;
+      background-color: var(--el-color-primary-light-9);
+      border-color: var(--el-color-primary);
+      color: var(--el-color-primary);
     }
   }
 }
@@ -364,7 +364,8 @@ onUnmounted(() => {
 .context-menu {
   position: fixed;
   z-index: 9999;
-  background-color: #fff;
+  background-color: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 4px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   padding: 5px 0;
@@ -376,22 +377,22 @@ onUnmounted(() => {
     gap: 8px;
     padding: 8px 16px;
     font-size: 14px;
-    color: #606266;
+    color: var(--el-text-color-regular);
     cursor: pointer;
     transition: all 0.2s;
 
     &:hover {
-      background-color: #ecf5ff;
-      color: #409eff;
+      background-color: var(--el-color-primary-light-9);
+      color: var(--el-color-primary);
     }
 
     &.disabled {
-      color: #c0c4cc;
+      color: var(--el-text-color-disabled);
       cursor: not-allowed;
 
       &:hover {
         background-color: transparent;
-        color: #c0c4cc;
+        color: var(--el-text-color-disabled);
       }
     }
 

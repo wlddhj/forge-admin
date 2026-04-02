@@ -177,7 +177,7 @@ const handleReset = () => {
     .section-title {
       font-size: 16px;
       font-weight: 600;
-      color: #303133;
+      color: var(--el-text-color-primary);
       margin: 0 0 16px 0;
     }
 
@@ -186,7 +186,7 @@ const handleReset = () => {
       align-items: center;
       justify-content: space-between;
       padding: 12px 0;
-      border-bottom: 1px solid #f5f7fa;
+      border-bottom: 1px solid var(--el-border-color-lighter);
 
       &:last-child {
         border-bottom: none;
@@ -199,13 +199,13 @@ const handleReset = () => {
         span {
           display: block;
           font-size: 14px;
-          color: #303133;
+          color: var(--el-text-color-primary);
           margin-bottom: 4px;
         }
 
         .item-desc {
           font-size: 12px;
-          color: #909399;
+          color: var(--el-text-color-secondary);
           margin: 0;
           line-height: 1.5;
         }
@@ -218,7 +218,7 @@ const handleReset = () => {
     gap: 12px;
     margin-top: 24px;
     padding-top: 16px;
-    border-top: 1px solid #e6e6e6;
+    border-top: 1px solid var(--el-border-color-lighter);
 
     .el-button {
       flex: 1;
@@ -229,7 +229,7 @@ const handleReset = () => {
 :deep(.el-drawer__header) {
   margin-bottom: 20px;
   padding: 20px;
-  border-bottom: 1px solid #e6e6e6;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 :deep(.el-drawer__body) {

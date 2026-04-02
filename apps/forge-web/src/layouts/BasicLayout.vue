@@ -1,5 +1,5 @@
 <template>
-  <el-container class="layout-container" :class="{ 'dark-theme': pageConfigStore.config.theme === 'dark', 'is-mobile': isMobile }">
+  <el-container class="layout-container" :class="{ 'is-mobile': isMobile }">
     <!-- 侧边栏（移动端隐藏） -->
     <el-aside v-show="!isMobile" :width="isCollapse ? '64px' : '220px'" class="layout-aside">
       <div class="logo">
@@ -304,7 +304,7 @@ watch(() => userStore.token, (newToken) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
+  background: var(--el-bg-color);
   box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
   padding: 0 20px;
 
@@ -317,6 +317,7 @@ watch(() => userStore.token, (newToken) => {
     .collapse-btn {
       font-size: 20px;
       cursor: pointer;
+      color: var(--el-text-color-primary);
     }
   }
 
@@ -328,10 +329,10 @@ watch(() => userStore.token, (newToken) => {
     .header-icon {
       font-size: 20px;
       cursor: pointer;
-      color: #606266;
+      color: var(--el-text-color-regular);
 
       &:hover {
-        color: #409eff;
+        color: var(--el-color-primary);
       }
     }
 
@@ -342,14 +343,14 @@ watch(() => userStore.token, (newToken) => {
       cursor: pointer;
 
       .username {
-        color: #333;
+        color: var(--el-text-color-primary);
       }
     }
   }
 }
 
 .layout-content {
-  background: #f0f2f5;
+  background: var(--el-bg-color-page);
   padding: 20px;
   overflow: auto;
 }
@@ -364,46 +365,7 @@ watch(() => userStore.token, (newToken) => {
   opacity: 0;
 }
 
-// 暗黑主题
-.dark-theme {
-  .layout-header {
-    background: #1f1f1f;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-
-    .header-left {
-      .menu-btn,
-      .collapse-btn {
-        color: #e5eaf3;
-      }
-    }
-
-    .header-right {
-      .header-icon {
-        color: #e5eaf3;
-
-        &:hover {
-          color: #409eff;
-        }
-      }
-
-      .username {
-        color: #e5eaf3;
-      }
-    }
-
-    :deep(.el-breadcrumb__inner) {
-      color: #a3a6ad;
-    }
-
-    :deep(.el-breadcrumb__separator) {
-      color: #a3a6ad;
-    }
-  }
-
-  .layout-content {
-    background: #141414;
-  }
-}
+// 暗黑主题（已由 EP dark/css-vars + 全局样式接管）
 
 // 移动端适配
 .is-mobile {

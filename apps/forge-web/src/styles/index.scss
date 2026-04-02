@@ -45,5 +45,134 @@ body {
 
 // NProgress 样式
 #nprogress .bar {
-  background: #409eff !important;
+  background: var(--el-color-primary) !important;
+}
+
+// ============ 暗黑模式全局覆盖 ============
+html.dark {
+  // 滚动条
+  ::-webkit-scrollbar-thumb {
+    background-color: #4c4d4f;
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: #1d1e1f;
+  }
+
+  // 内容区背景
+  .layout-content {
+    background: var(--el-bg-color-page);
+  }
+
+  // 卡片边框微调
+  .el-card {
+    --el-card-border-color: var(--el-border-color-light);
+  }
+
+  // 对话框
+  .el-dialog {
+    --el-dialog-bg-color: var(--el-bg-color-overlay);
+  }
+
+  // 抽屉
+  .el-drawer {
+    --el-drawer-bg-color: var(--el-bg-color-overlay);
+  }
+
+  // 表格
+  .el-table {
+    --el-table-border-color: var(--el-border-color-lighter);
+    --el-table-header-bg-color: var(--el-fill-color-lighter);
+    --el-table-row-hover-bg-color: var(--el-fill-color);
+    --el-table-current-row-bg-color: var(--el-fill-color);
+  }
+
+  // NProgress
+  #nprogress .bar {
+    background: var(--el-color-primary) !important;
+  }
+
+  // 右键菜单
+  .context-menu {
+    background-color: var(--el-bg-color-overlay);
+    border: 1px solid var(--el-border-color-light);
+
+    .context-menu-item {
+      color: var(--el-text-color-regular);
+
+      &:hover {
+        background-color: var(--el-fill-color);
+        color: var(--el-color-primary);
+      }
+
+      &.disabled {
+        color: var(--el-text-color-disabled);
+      }
+    }
+  }
+
+  // TabsView 标签页
+  .tabs-view {
+    background-color: var(--el-bg-color);
+    border-bottom-color: var(--el-border-color-light);
+
+    :deep(.el-tabs__item) {
+      background-color: var(--el-fill-color-lighter);
+      border-color: var(--el-border-color);
+      color: var(--el-text-color-regular);
+
+      &:hover {
+        background-color: var(--el-bg-color);
+        color: var(--el-color-primary);
+        border-color: var(--el-color-primary);
+      }
+
+      &.is-active {
+        background-color: var(--el-bg-color);
+        color: var(--el-color-primary);
+        border-color: var(--el-color-primary);
+        border-bottom-color: var(--el-bg-color);
+      }
+    }
+
+    .tabs-actions :deep(.el-button) {
+      background-color: var(--el-fill-color-lighter);
+      border-color: var(--el-border-color);
+      color: var(--el-text-color-regular);
+
+      &:hover {
+        background-color: var(--el-color-primary-light-3);
+        border-color: var(--el-color-primary);
+        color: var(--el-color-primary);
+      }
+    }
+  }
+
+  // 搜索栏标题
+  .mobile-search-actions .title {
+    color: var(--el-text-color-primary);
+  }
+
+  // 设置面板
+  .settings-panel {
+    .section-title {
+      color: var(--el-text-color-primary);
+    }
+
+    .setting-item {
+      border-bottom-color: var(--el-border-color-lighter);
+
+      .item-label span {
+        color: var(--el-text-color-primary);
+      }
+    }
+
+    .setting-actions {
+      border-top-color: var(--el-border-color-lighter);
+    }
+  }
+
+  :deep(.el-drawer__header) {
+    border-bottom-color: var(--el-border-color-lighter);
+  }
 }

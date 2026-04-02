@@ -52,6 +52,11 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
       if (saved) {
         const parsed = JSON.parse(saved)
         config.value = { ...defaultConfig, ...parsed }
+      } else {
+        // 首次访问，跟随系统主题偏好
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          config.value.theme = 'dark'
+        }
       }
     } catch (error) {
       console.error('加载页面配置失败:', error)
