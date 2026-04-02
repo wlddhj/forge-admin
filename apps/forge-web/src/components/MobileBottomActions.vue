@@ -37,8 +37,8 @@ const handleCancel = () => {
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: #fff;
-  border-top: 1px solid #e6e6e6;
+  background-color: var(--el-bg-color);
+  border-top: 1px solid var(--el-border-color-lighter);
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
   z-index: 100;
 
@@ -48,7 +48,7 @@ const handleCancel = () => {
     .item-name {
       display: block;
       font-size: 13px;
-      color: #909399;
+      color: var(--el-text-color-secondary);
       margin-bottom: 8px;
       text-align: center;
       white-space: nowrap;

@@ -594,7 +594,7 @@ onMounted(() => {
   }
 
   .stat-card {
-    background: #fff;
+    background: var(--el-bg-color);
     border-radius: 8px;
     padding: 20px;
     display: flex;
@@ -634,12 +634,12 @@ onMounted(() => {
       .stat-value {
         font-size: 24px;
         font-weight: bold;
-        color: #303133;
+        color: var(--el-text-color-primary);
       }
 
       .stat-label {
         font-size: 14px;
-        color: #909399;
+        color: var(--el-text-color-secondary);
         margin-top: 4px;
       }
 
@@ -651,8 +651,8 @@ onMounted(() => {
         gap: 2px;
         height: 18px;
 
-        &.up { color: #67c23a; }
-        &.down { color: #f56c6c; }
+        &.up { color: var(--el-color-success); }
+        &.down { color: var(--el-color-danger); }
 
         .el-icon { font-size: 14px; }
       }
@@ -715,7 +715,7 @@ onMounted(() => {
       transition: all 0.3s;
 
       &:hover {
-        background: #f5f7fa;
+        background: var(--el-bg-color-page);
         transform: translateY(-2px);
       }
 
@@ -748,12 +748,12 @@ onMounted(() => {
     .compare-item {
       text-align: center;
       padding: 16px;
-      background: #f5f7fa;
+      background: var(--el-bg-color-page);
       border-radius: 8px;
 
       .compare-label {
         font-size: 13px;
-        color: #909399;
+        color: var(--el-text-color-secondary);
         margin-bottom: 8px;
       }
 
@@ -767,7 +767,7 @@ onMounted(() => {
         .current {
           font-size: 24px;
           font-weight: bold;
-          color: #303133;
+          color: var(--el-text-color-primary);
         }
 
         .compare-trend {
@@ -779,13 +779,13 @@ onMounted(() => {
           border-radius: 4px;
 
           &.up {
-            color: #67c23a;
-            background: #f0f9eb;
+            color: var(--el-color-success);
+            background: var(--el-color-success-light-9);
           }
 
           &.down {
-            color: #f56c6c;
-            background: #fef0f0;
+            color: var(--el-color-danger);
+            background: var(--el-color-danger-light-9);
           }
 
           .el-icon {
@@ -796,7 +796,7 @@ onMounted(() => {
 
       .compare-sub {
         font-size: 12px;
-        color: #c0c4cc;
+        color: var(--el-text-color-placeholder);
       }
     }
   }
@@ -845,7 +845,7 @@ onMounted(() => {
             top: -25px;
             left: 50%;
             transform: translateX(-50%);
-            background: #303133;
+            background: var(--el-bg-color-overlay);
             color: #fff;
             padding: 2px 8px;
             border-radius: 4px;
@@ -859,7 +859,7 @@ onMounted(() => {
         .bar-label {
           margin-top: 8px;
           font-size: 12px;
-          color: #909399;
+          color: var(--el-text-color-secondary);
         }
       }
     }
@@ -872,7 +872,7 @@ onMounted(() => {
       align-items: center;
       justify-content: space-between;
       padding: 10px 0;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid var(--el-border-color-lighter);
 
       &:last-child {
         border-bottom: none;
@@ -883,7 +883,7 @@ onMounted(() => {
 
         &.completed {
           text-decoration: line-through;
-          color: #c0c4cc;
+          color: var(--el-text-color-placeholder);
         }
       }
     }
@@ -895,7 +895,7 @@ onMounted(() => {
       display: flex;
       align-items: center;
       padding: 10px 0;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid var(--el-border-color-lighter);
       cursor: pointer;
       transition: background 0.3s;
 
@@ -904,7 +904,7 @@ onMounted(() => {
       }
 
       &:hover {
-        background: #f5f7fa;
+        background: var(--el-bg-color-page);
       }
 
       .notice-title {
@@ -918,7 +918,7 @@ onMounted(() => {
 
       .notice-time {
         font-size: 12px;
-        color: #909399;
+        color: var(--el-text-color-secondary);
       }
     }
   }
@@ -934,7 +934,7 @@ onMounted(() => {
         display: flex;
         align-items: center;
         padding: 12px;
-        border: 1px solid #dcdfe6;
+        border: 1px solid var(--el-border-color);
         border-radius: 8px;
         cursor: pointer;
         transition: all 0.3s;
@@ -945,14 +945,14 @@ onMounted(() => {
         }
 
         &.selected {
-          border-color: #67c23a;
-          background: #f0f9eb;
+          border-color: var(--el-color-success);
+          background: var(--el-color-success-light-9);
         }
 
         .item-icon {
           font-size: 20px;
           margin-right: 8px;
-          color: #909399;
+          color: var(--el-text-color-secondary);
         }
 
         .item-label {

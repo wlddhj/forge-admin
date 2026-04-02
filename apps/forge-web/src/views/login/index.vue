@@ -149,13 +149,13 @@ const handleLogin = async () => {
     margin: 15px 0 10px;
     font-size: 28px;
     // 高级灰
-    color: #5a5e66;
+    color: var(--el-text-color-primary);
     font-weight: 500;
     letter-spacing: 1px;
   }
 
   p {
-    color: #8395a7;
+    color: var(--el-text-color-secondary);
     font-size: 14px;
   }
 }
@@ -164,22 +164,22 @@ const handleLogin = async () => {
   :deep(.el-input) {
     .el-input__wrapper {
       border-radius: 8px;
-      box-shadow: 0 0 0 1px #e4e7ed inset;
+      box-shadow: 0 0 0 1px var(--el-border-color) inset;
       transition: all 0.3s ease;
 
       &:hover {
-        box-shadow: 0 0 0 1px #c0c4cc inset;
+        box-shadow: 0 0 0 1px var(--el-text-color-placeholder) inset;
       }
 
       &.is-focus {
-        box-shadow: 0 0 0 1px #8395a7 inset;
+        box-shadow: 0 0 0 1px var(--el-text-color-secondary) inset;
       }
     }
 
     .el-input__inner {
-      color: #5a5e66;
+      color: var(--el-text-color-primary);
       &::placeholder {
-        color: #a8abb2;
+        color: var(--el-text-color-placeholder);
       }
     }
   }
@@ -211,12 +211,12 @@ const handleLogin = async () => {
 
 .login-tips {
   text-align: center;
-  color: #a8abb2;
+  color: var(--el-text-color-placeholder);
   font-size: 12px;
   margin-top: 20px;
 
   p {
-    color: #8395a7;
+    color: var(--el-text-color-secondary);
   }
 }
 
@@ -261,7 +261,7 @@ const handleLogin = async () => {
   .login-container {
     padding: 20px;
     // 移动端简洁纯色背景
-    background: #f5f7fa;
+    background: var(--el-bg-color-page);
 
     // 移除装饰纹理
     &::before {

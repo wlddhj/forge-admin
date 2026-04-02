@@ -255,16 +255,16 @@ onMounted(() => {
       h2 {
         margin: 0 0 10px;
         font-size: 20px;
-        color: #333;
+        color: var(--el-text-color-primary);
       }
 
       .role {
-        color: #409eff;
+        color: var(--el-color-primary);
         margin: 5px 0;
       }
 
       .dept {
-        color: #999;
+        color: var(--el-text-color-secondary);
         font-size: 14px;
         margin: 5px 0;
       }

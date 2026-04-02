@@ -9,7 +9,7 @@
     >
       {{ item.label }}
     </el-tag>
-    <span v-if="displayItems.length === 0" style="color: #909399;">-</span>
+    <span v-if="displayItems.length === 0" style="color: var(--el-text-color-secondary);">-</span>
   </span>
 </template>
 

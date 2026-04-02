@@ -77,7 +77,7 @@ const handleReset = () => {
     display: flex;
     gap: 10px;
     padding: 10px 15px;
-    border-top: 1px solid #e6e6e6;
+    border-top: 1px solid var(--el-border-color-lighter);
 
     .el-button {
       flex: 1;
@@ -90,7 +90,7 @@ const handleReset = () => {
 :deep(.el-drawer__header) {
   padding: 15px 20px;
   margin-bottom: 0;
-  border-bottom: 1px solid #e6e6e6;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 :deep(.el-drawer__body) {

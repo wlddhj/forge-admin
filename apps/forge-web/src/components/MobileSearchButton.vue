@@ -37,7 +37,7 @@ const handleClick = () => {
   transition: background-color 0.2s;
 
   &:hover {
-    background-color: #f5f7fa;
+    background-color: var(--el-bg-color-page);
   }
 
   &:active {
@@ -46,7 +46,7 @@ const handleClick = () => {
 
   .search-icon {
     font-size: 18px;
-    color: #606266;
+    color: var(--el-text-color-regular);
   }
 
   .search-badge {
@@ -55,7 +55,7 @@ const handleClick = () => {
     right: -4px;
 
     :deep(.el-badge__content) {
-      background-color: #f56c6c;
+      background-color: var(--el-color-danger);
       border: 2px solid #fff;
     }
   }

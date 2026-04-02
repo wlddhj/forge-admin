@@ -194,11 +194,11 @@ const handleLogout = async () => {
 
     .close-btn {
       font-size: 22px;
-      color: #bfcbd9;
+      color: var(--el-text-color-secondary);
       cursor: pointer;
 
       &:hover {
-        color: #409eff;
+        color: var(--el-color-primary);
       }
     }
   }
@@ -238,7 +238,7 @@ const handleLogout = async () => {
         }
 
         .user-role {
-          color: #bfcbd9;
+          color: var(--el-text-color-secondary);
           font-size: 13px;
         }
       }
@@ -247,10 +247,10 @@ const handleLogout = async () => {
     .el-button {
       width: 100%;
       justify-content: flex-start;
-      color: #f56c6c;
+      color: var(--el-color-danger);
 
       &:hover {
-        background-color: rgba(245, 108, 108, 0.1);
+        background-color: var(--el-color-danger-light-9);
       }
 
       .el-icon {

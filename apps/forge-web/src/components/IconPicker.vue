@@ -210,7 +210,7 @@ watch(() => popoverVisible, (visible) => {
 
   .no-result {
     text-align: center;
-    color: #909399;
+    color: var(--el-text-color-secondary);
     padding: 20px 0;
   }
 
@@ -233,10 +233,10 @@ watch(() => popoverVisible, (visible) => {
 
 .clear-icon {
   cursor: pointer;
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
 
   &:hover {
-    color: #909399;
+    color: var(--el-text-color-secondary);
   }
 }
 </style>

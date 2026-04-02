@@ -28,7 +28,7 @@
         .title {
           font-size: 16px;
           font-weight: 500;
-          color: #303133;
+          color: var(--el-text-color-primary);
         }
 
         .actions {
@@ -78,7 +78,7 @@
       -webkit-overflow-scrolling: touch;
       // 给滚动条添加样式，使其更明显
       scrollbar-width: thin;
-      scrollbar-color: #c1c1c1 #f1f1f1;
+      scrollbar-color: var(--el-border-color) var(--el-bg-color-page);
 
       // Webkit 浏览器滚动条样式
       &::-webkit-scrollbar {
@@ -87,16 +87,16 @@
       }
 
       &::-webkit-scrollbar-track {
-        background: #f1f1f1;
+        background: var(--el-bg-color-page);
         border-radius: 3px;
       }
 
       &::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
+        background: var(--el-border-color);
         border-radius: 3px;
 
         &:hover {
-          background: #a8a8a8;
+          background: var(--el-border-color);
         }
       }
 
@@ -133,7 +133,7 @@
           cursor: pointer;
 
           &:active {
-            background-color: #f5f7fa;
+            background-color: var(--el-bg-color-page);
           }
         }
 
@@ -200,7 +200,7 @@
       // 选中状态
       :deep(.el-pager li.is-active) {
         .number {
-          background-color: #409eff;
+          background-color: var(--el-color-primary);
           color: #fff;
         }
       }
@@ -208,11 +208,11 @@
       // 禁用状态
       :deep(.btn-prev:disabled),
       :deep(.btn-next:disabled) {
-        background-color: #f4f4f5;
-        color: #c0c4cc;
+        background-color: var(--el-bg-color);
+        color: var(--el-text-color-placeholder);
 
         .el-icon {
-          color: #c0c4cc;
+          color: var(--el-text-color-placeholder);
         }
       }
     }
