@@ -520,17 +520,8 @@ const loadNotices = async () => {
   }
 }
 
-// 监听路由变化，记录访问历史
-watch(
-  () => route.path,
-  (newPath, oldPath) => {
-    if (oldPath && newPath !== '/dashboard' && newPath !== '/login') {
-      const title = route.meta.title as string || '未知页面'
-      const icon = route.meta.icon as string
-      addVisitHistory(title, newPath, icon)
-    }
-  }
-)
+// 路由变化时无特殊处理（收藏功能由用户手动操作）
+
 
 // 初始化
 onMounted(() => {
