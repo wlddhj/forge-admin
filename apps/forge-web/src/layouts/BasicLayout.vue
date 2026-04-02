@@ -215,7 +215,7 @@ const handleCommand = async (command: string) => {
       console.error('退出失败', e)
     } finally {
       permissionStore.resetRoutes()
-      tabsStore.closeAllTabs()
+      tabsStore.clearAllTabs()
       resetRouter()
       router.push('/login')
     }

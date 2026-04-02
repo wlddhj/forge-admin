@@ -104,6 +104,14 @@ export const useTabsStore = defineStore('tabs', () => {
     }
   }
 
+  // 清空所有标签页（退出登录时使用）
+  const clearAllTabs = () => {
+    tabs.value = []
+    activeTab.value = ''
+    cachedViews.clear()
+    saveTabs()
+  }
+
   // 关闭所有标签页
   const closeAllTabs = () => {
     // 保留首页
@@ -164,6 +172,7 @@ export const useTabsStore = defineStore('tabs', () => {
     removeTab,
     closeOtherTabs,
     closeAllTabs,
+    clearAllTabs,
     closeLeftTabs,
     closeRightTabs,
     setActiveTab,
