@@ -3,7 +3,7 @@
     :visible="popoverVisible"
     placement="bottom-start"
     :width="450"
-    trigger="click"
+    @update:visible="(val: boolean) => popoverVisible = val"
   >
     <template #reference>
       <el-input
@@ -11,7 +11,7 @@
         placeholder="请选择图标"
         readonly
         style="cursor: pointer"
-        @click="popoverVisible = true"
+        @click="popoverVisible = !popoverVisible"
       >
         <template #prefix>
           <IconPreview v-if="modelValue" :icon="modelValue" />
