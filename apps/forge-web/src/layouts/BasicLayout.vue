@@ -69,13 +69,40 @@
         </div>
         <div class="header-right">
           <!-- 通知铃铛 -->
-          <el-tooltip content="通知" placement="bottom">
-            <el-badge :value="wsUnreadCount" :hidden="wsUnreadCount === 0" :max="99">
-              <el-icon class="header-icon" @click="notificationVisible = !notificationVisible">
-                <Bell />
-              </el-icon>
-            </el-badge>
-          </el-tooltip>
+          <el-popover
+            :visible="notificationVisible"
+            placement="bottom-end"
+            :width="360"
+            trigger="click"
+            @update:visible="(val: boolean) => notificationVisible = val"
+          >
+            <template #reference>
+              <el-badge :value="wsUnreadCount" :hidden="wsUnreadCount === 0" :max="99">
+                <el-icon class="header-icon">
+                  <Bell />
+                </el-icon>
+              </el-badge>
+            </template>
+            <div class="notification-panel">
+              <div class="notification-header">
+                <span class="notification-title">通知</span>
+                <div class="notification-actions">
+                  <el-button v-if="wsNotifications.length > 0" type="primary" link size="small" @click="wsMarkAllRead">全部已读</el-button>
+                  <el-button type="primary" link size="small" @click="goToNoticePage">查看全部</el-button>
+                </div>
+              </div>
+              <el-scrollbar max-height="320px">
+                <div v-if="wsNotifications.length > 0" class="notification-list">
+                  <div v-for="item in wsNotifications" :key="item.timestamp" class="notification-item">
+                    <div class="notification-item-title">{{ item.title }}</div>
+                    <div class="notification-item-content">{{ item.content }}</div>
+                    <div class="notification-item-time">{{ formatNotificationTime(item.timestamp) }}</div>
+                  </div>
+                </div>
+                <el-empty v-else description="暂无通知" :image-size="60" />
+              </el-scrollbar>
+            </div>
+          </el-popover>
 
           <!-- 主题切换 -->
           <el-tooltip :content="pageConfigStore.config.theme === 'light' ? '切换暗黑模式' : '切换明亮模式'" placement="bottom">
@@ -155,7 +182,7 @@ const permissionStore = usePermissionStore()
 const tabsStore = useTabsStore()
 const pageConfigStore = usePageConfigStore()
 const { isMobile } = useResponsive()
-const { connect: wsConnect, disconnect: wsDisconnect, unreadCount: wsUnreadCount } = useWebSocket()
+const { connect: wsConnect, disconnect: wsDisconnect, unreadCount: wsUnreadCount, notifications: wsNotifications, markAllRead: wsMarkAllRead } = useWebSocket()
 const notificationVisible = ref(false)
 
 const isCollapse = ref(false)
@@ -222,6 +249,21 @@ const handleCommand = async (command: string) => {
   } else if (command === 'profile') {
     router.push('/profile')
   }
+}
+
+// 通知相关
+const formatNotificationTime = (timestamp: number) => {
+  const now = Date.now()
+  const diff = now - timestamp
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+  return new Date(timestamp).toLocaleDateString('zh-CN')
+}
+
+const goToNoticePage = () => {
+  notificationVisible.value = false
+  router.push('/system/notice')
 }
 
 // 监听路由变化，自动添加标签页
@@ -375,6 +417,68 @@ watch(() => userStore.token, (newToken) => {
 }
 
 // 暗黑主题（已由 EP dark/css-vars + 全局样式接管）
+
+// 通知面板
+.notification-panel {
+  .notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    margin-bottom: 8px;
+
+    .notification-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--el-text-color-primary);
+    }
+
+    .notification-actions {
+      display: flex;
+      gap: 8px;
+    }
+  }
+
+  .notification-list {
+    .notification-item {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--el-border-color-lighter);
+      cursor: pointer;
+      transition: background 0.3s;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      &:hover {
+        background: var(--el-bg-color-page);
+      }
+
+      .notification-item-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--el-text-color-primary);
+        margin-bottom: 4px;
+      }
+
+      .notification-item-content {
+        font-size: 13px;
+        color: var(--el-text-color-regular);
+        line-height: 1.5;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .notification-item-time {
+        font-size: 12px;
+        color: var(--el-text-color-placeholder);
+        margin-top: 4px;
+      }
+    }
+  }
+}
 
 // 移动端适配
 .is-mobile {

@@ -114,7 +114,7 @@
             </template>
           </el-table-column>
           <!-- 桌面端操作列 -->
-          <el-table-column v-if="!isMobile" label="操作" width="200" fixed="right">
+          <el-table-column v-if="!isMobile" label="操作" width="160" fixed="right">
             <template #default="{ row }">
               <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
               <el-button type="primary" link @click="handleAddChild(row)">新增</el-button>
