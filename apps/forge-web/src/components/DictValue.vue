@@ -4,6 +4,7 @@
       v-for="(item, index) in displayItems"
       :key="index"
       :type="item.tagType"
+      :class="item.cssClass || undefined"
       size="small"
       style="margin-right: 4px;"
     >
@@ -27,7 +28,7 @@ const props = withDefaults(defineProps<Props>(), {
   separator: ','
 })
 
-const { getDictLabel, getTagType } = useDict(props.dictType)
+const { getDictLabel, getTagType, getCssClass } = useDict(props.dictType)
 
 // 解析值数组
 const values = computed(() => {
@@ -59,10 +60,11 @@ const values = computed(() => {
 // 获取显示项列表
 const displayItems = computed(() => {
   return values.value.map(val => {
-    const label = getDictLabel(String(val))
+    const strVal = String(val)
     return {
-      label,
-      tagType: getTagType(String(val))
+      label: getDictLabel(strVal),
+      tagType: getTagType(strVal),
+      cssClass: getCssClass(strVal)
     }
   })
 })
@@ -73,5 +75,36 @@ const displayItems = computed(() => {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
+
+  // cssClass 自定义样式类
+  :deep(.el-tag.primary) {
+    --el-tag-bg-color: var(--el-color-primary-light-9);
+    --el-tag-border-color: var(--el-color-primary-light-7);
+    --el-tag-text-color: var(--el-color-primary);
+  }
+
+  :deep(.el-tag.success) {
+    --el-tag-bg-color: var(--el-color-success-light-9);
+    --el-tag-border-color: var(--el-color-success-light-7);
+    --el-tag-text-color: var(--el-color-success);
+  }
+
+  :deep(.el-tag.warning) {
+    --el-tag-bg-color: var(--el-color-warning-light-9);
+    --el-tag-border-color: var(--el-color-warning-light-7);
+    --el-tag-text-color: var(--el-color-warning);
+  }
+
+  :deep(.el-tag.danger) {
+    --el-tag-bg-color: var(--el-color-danger-light-9);
+    --el-tag-border-color: var(--el-color-danger-light-7);
+    --el-tag-text-color: var(--el-color-danger);
+  }
+
+  :deep(.el-tag.info) {
+    --el-tag-bg-color: var(--el-color-info-light-9);
+    --el-tag-border-color: var(--el-color-info-light-7);
+    --el-tag-text-color: var(--el-color-info);
+  }
 }
 </style>

@@ -56,11 +56,17 @@ export function useDict(dictType: string) {
     return typeMap[listClass] || 'info'
   }
 
+  const getCssClass = (value: string | number): string => {
+    const item = dictData.value.find(d => d.dictValue === String(value))
+    return item?.cssClass || ''
+  }
+
   return {
     dictData,
     loading,
     loadDictData,
     getDictLabel,
-    getTagType
+    getTagType,
+    getCssClass
   }
 }
