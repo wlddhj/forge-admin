@@ -547,7 +547,13 @@ INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dic
 (32, 'sys_storage_type', '本地存储', 'local', 1, 'primary', 1),
 (33, 'sys_storage_type', '阿里云OSS', 'aliyun_oss', 2, 'success', 1),
 (34, 'sys_storage_type', '腾讯云COS', 'tencent_cos', 3, 'warning', 1),
-(35, 'sys_storage_type', 'MinIO', 'minio', 4, 'info', 1);
+(35, 'sys_storage_type', 'MinIO', 'minio', 4, 'info', 1),
+	-- 通知类型
+	(36, 'sys_notice_type', '通知', '1', 1, 'primary', 1),
+	(37, 'sys_notice_type', '公告', '2', 2, 'success', 1),
+	-- 通知状态
+	(38, 'sys_notice_status', '关闭', '0', 1, 'danger', 1),
+	(39, 'sys_notice_status', '正常', '1', 2, 'success', 1);
 
 -- 初始化系统配置
 INSERT INTO `sys_config` (`id`, `config_name`, `config_key`, `config_value`, `config_type`, `config_group`, `is_system`, `status`, `remark`) VALUES
