@@ -94,7 +94,7 @@
           <el-table-column prop="menuName" label="菜单名称" width="200" />
           <el-table-column prop="icon" label="图标" width="80" align="center" v-if="!isMobile">
             <template #default="{ row }">
-              <el-icon v-if="row.icon"><component :is="row.icon" /></el-icon>
+              <IconPreview v-if="row.icon" :icon="row.icon" :size="16" />
             </template>
           </el-table-column>
           <el-table-column prop="menuType" label="类型" width="80">
@@ -218,6 +218,7 @@ import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
 import DictValue from '@/components/DictValue.vue'
 import IconPicker from '@/components/IconPicker.vue'
+import IconPreview from '@/components/IconPreview.vue'
 
 const { isMobile } = useResponsive()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)

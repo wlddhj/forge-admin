@@ -26,7 +26,7 @@
             <!-- 有子菜单 -->
             <el-sub-menu v-if="menu.children && menu.children.length > 0" :index="menu.routePath || menu.path">
               <template #title>
-                <el-icon><component :is="menu.icon" /></el-icon>
+                <IconPreview v-if="menu.icon" :icon="menu.icon" :size="18" />
                 <span>{{ menu.menuName || menu.meta?.title }}</span>
               </template>
               <el-menu-item
@@ -34,13 +34,13 @@
                 :key="child.id"
                 :index="getChildPath(menu.routePath || menu.path, child.routePath)"
               >
-                <el-icon><component :is="child.icon" /></el-icon>
+                <IconPreview v-if="child.icon" :icon="child.icon" :size="18" />
                 <span>{{ child.menuName }}</span>
               </el-menu-item>
             </el-sub-menu>
             <!-- 无子菜单 -->
             <el-menu-item v-else :index="menu.routePath || menu.path">
-              <el-icon><component :is="menu.icon" /></el-icon>
+              <IconPreview v-if="menu.icon" :icon="menu.icon" :size="18" />
               <span>{{ menu.menuName || menu.meta?.title }}</span>
             </el-menu-item>
           </template>
@@ -146,6 +146,7 @@ import { HomeFilled, Sunny, Moon, Setting, Menu, Fold, Expand, Bell } from '@ele
 import TabsView from '@/components/TabsView.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
 import MobileMenu from '@/components/MobileMenu.vue'
+import IconPreview from '@/components/IconPreview.vue'
 
 const route = useRoute()
 const router = useRouter()
