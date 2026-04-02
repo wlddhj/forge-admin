@@ -64,3 +64,4 @@ apps/forge-server/uploads/
 
 # Claude
 .claude/
+/.playwright-mcp/

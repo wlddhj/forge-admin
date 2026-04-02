@@ -51,14 +51,14 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
                 .eq(SysMenu::getStatus, 1)
                 .orderByAsc(SysMenu::getSortOrder)
                 .list();
-        return buildMenuTree(menus, 0L);
+        return buildMenuTree(menus, 0L, false);
     }
 
     @Override
     @Cacheable(value = "menu", key = "'user:' + #userId", unless = "#result == null || #result.isEmpty()")
     public List<MenuTreeResponse> getUserMenuTree(Long userId) {
         List<SysMenu> menus = sysMenuMapper.selectMenusByUserId(userId);
-        return buildMenuTree(menus, 0L);
+        return buildMenuTree(menus, 0L, true);
     }
 
     @Override
@@ -99,17 +99,17 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
         removeById(id);
     }
 
-    private List<MenuTreeResponse> buildMenuTree(List<SysMenu> menus, Long parentId) {
+    private List<MenuTreeResponse> buildMenuTree(List<SysMenu> menus, Long parentId, boolean excludeButtons) {
         List<MenuTreeResponse> tree = new ArrayList<>();
 
         Map<Long, List<SysMenu>> menuMap = menus.stream()
-                .filter(m -> m.getMenuType() != 2) // 过滤掉按钮类型
+                .filter(m -> !excludeButtons || m.getMenuType() != 2)
                 .collect(Collectors.groupingBy(SysMenu::getParentId));
 
         List<SysMenu> parentMenus = menuMap.getOrDefault(parentId, new ArrayList<>());
         for (SysMenu menu : parentMenus) {
             MenuTreeResponse node = convertToTreeResponse(menu);
-            node.setChildren(buildMenuTree(menus, menu.getId()));
+            node.setChildren(buildMenuTree(menus, menu.getId(), excludeButtons));
             tree.add(node);
         }
 

@@ -44,7 +44,7 @@ export function resetPassword(id: number) {
 
 export function exportUsers(params: UserQuery) {
   return request.get('/system/user/export', { params, responseType: 'blob' }).then(res => {
-    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = '用户列表.xlsx'
@@ -93,7 +93,7 @@ export function assignRoleMenus(id: number, menuIds: number[]) {
 
 export function exportRoles(params: RoleQuery) {
   return request.get('/system/role/export', { params, responseType: 'blob' }).then(res => {
-    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = '角色列表.xlsx'
@@ -170,7 +170,7 @@ export function clearOperationLogs() {
 
 export function exportOperationLogs(params: OperationLogQuery) {
   return request.get('/system/operation-log/export', { params, responseType: 'blob' }).then(res => {
-    const blob = new Blob([res as any], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = '操作日志.xlsx'
@@ -342,7 +342,7 @@ export function clearLoginLogs() {
 
 export function exportLoginLogs(params: LoginLogQuery) {
   return request.get('/system/login-log/export', { params, responseType: 'blob' }).then(res => {
-    const blob = new Blob([res as any], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = '登录日志.xlsx'
