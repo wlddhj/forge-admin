@@ -131,7 +131,19 @@
           <el-input-number v-model="formData.dictSort" :min="0" :max="999" />
         </el-form-item>
         <el-form-item label="CSS样式">
-          <el-input v-model="formData.cssClass" placeholder="如：primary、success、warning、danger" />
+          <el-select v-model="formData.cssClass" placeholder="请选择CSS样式" clearable style="width: 100%">
+            <el-option
+              v-for="item in cssClassOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            >
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <el-tag :type="item.tagType" :class="item.value" size="small">{{ item.label }}</el-tag>
+                <span style="color: var(--el-text-color-secondary); font-size: 12px;">{{ item.value }}</span>
+              </div>
+            </el-option>
+          </el-select>
         </el-form-item>
         <el-form-item label="表格样式">
           <el-select v-model="formData.listClass" placeholder="请选择表格样式" clearable style="width: 100%">
@@ -184,6 +196,37 @@ import DictValue from '@/components/DictValue.vue'
 
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
 const { dictData: tagTypeOptions } = useDict(DICT_TYPE.SYS_TAG_TYPE)
+
+// CSS 样式选项
+const cssClassOptions = [
+  // 基础色
+  { label: '默认', value: 'default', tagType: 'info' },
+  { label: '主要', value: 'primary', tagType: 'primary' },
+  { label: '成功', value: 'success', tagType: 'success' },
+  { label: '信息', value: 'info', tagType: 'info' },
+  { label: '警告', value: 'warning', tagType: 'warning' },
+  { label: '危险', value: 'danger', tagType: 'danger' },
+  // 圆角
+  { label: '圆角-主要', value: 'primary-round', tagType: 'primary' },
+  { label: '圆角-成功', value: 'success-round', tagType: 'success' },
+  { label: '圆角-警告', value: 'warning-round', tagType: 'warning' },
+  { label: '圆角-危险', value: 'danger-round', tagType: 'danger' },
+  // 纯文本色（无背景）
+  { label: '文本-主要', value: 'text-primary', tagType: 'primary' },
+  { label: '文本-成功', value: 'text-success', tagType: 'success' },
+  { label: '文本-警告', value: 'text-warning', tagType: 'warning' },
+  { label: '文本-危险', value: 'text-danger', tagType: 'danger' },
+  // 粗体
+  { label: '粗体-主要', value: 'bold-primary', tagType: 'primary' },
+  { label: '粗体-成功', value: 'bold-success', tagType: 'success' },
+  { label: '粗体-警告', value: 'bold-warning', tagType: 'warning' },
+  { label: '粗体-危险', value: 'bold-danger', tagType: 'danger' },
+  // 大号
+  { label: '大号-主要', value: 'large-primary', tagType: 'primary' },
+  { label: '大号-成功', value: 'large-success', tagType: 'success' },
+  { label: '大号-警告', value: 'large-warning', tagType: 'warning' },
+  { label: '大号-危险', value: 'large-danger', tagType: 'danger' },
+]
 
 const props = defineProps<{
   dictType: string

@@ -76,7 +76,7 @@ const displayItems = computed(() => {
   flex-wrap: wrap;
   align-items: center;
 
-  // cssClass 自定义样式类
+  // ========== 基础色 ==========
   :deep(.el-tag.primary) {
     --el-tag-bg-color: var(--el-color-primary-light-9);
     --el-tag-border-color: var(--el-color-primary-light-7);
@@ -105,6 +105,54 @@ const displayItems = computed(() => {
     --el-tag-bg-color: var(--el-color-info-light-9);
     --el-tag-border-color: var(--el-color-info-light-7);
     --el-tag-text-color: var(--el-color-info);
+  }
+
+  :deep(.el-tag.default) {
+    --el-tag-bg-color: var(--el-fill-color-light);
+    --el-tag-border-color: var(--el-border-color-light);
+    --el-tag-text-color: var(--el-text-color-regular);
+  }
+
+  // ========== 圆角样式 ==========
+  @each $color in (primary, success, warning, danger) {
+    :deep(.el-tag.#{$color}-round) {
+      --el-tag-bg-color: var(--el-color-#{$color}-light-9);
+      --el-tag-border-color: var(--el-color-#{$color}-light-5);
+      --el-tag-text-color: var(--el-color-#{$color});
+      border-radius: 999px !important;
+    }
+  }
+
+  // ========== 纯文本色（无背景边框） ==========
+  @each $color in (primary, success, warning, danger) {
+    :deep(.el-tag.text-#{$color}) {
+      --el-tag-bg-color: transparent;
+      --el-tag-border-color: transparent;
+      --el-tag-text-color: var(--el-color-#{$color});
+      font-weight: 500;
+    }
+  }
+
+  // ========== 粗体 ==========
+  @each $color in (primary, success, warning, danger) {
+    :deep(.el-tag.bold-#{$color}) {
+      --el-tag-bg-color: var(--el-color-#{$color}-light-9);
+      --el-tag-border-color: var(--el-color-#{$color}-light-5);
+      --el-tag-text-color: var(--el-color-#{$color});
+      font-weight: 600;
+    }
+  }
+
+  // ========== 大号 ==========
+  @each $color in (primary, success, warning, danger) {
+    :deep(.el-tag.large-#{$color}) {
+      --el-tag-bg-color: var(--el-color-#{$color}-light-9);
+      --el-tag-border-color: var(--el-color-#{$color}-light-5);
+      --el-tag-text-color: var(--el-color-#{$color});
+      font-size: 14px;
+      padding: 4px 12px;
+      height: auto;
+    }
   }
 }
 </style>
