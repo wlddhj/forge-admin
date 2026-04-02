@@ -169,8 +169,8 @@
         <el-form-item v-if="formData.menuType === 1" label="组件路径" prop="componentPath">
           <el-input v-model="formData.componentPath" placeholder="请输入组件路径，如：/views/system/user/index" />
         </el-form-item>
-        <el-form-item v-if="formData.menuType !== 2" label="图标名称">
-          <el-input v-model="formData.icon" placeholder="请输入图标名称，如：User" />
+        <el-form-item v-if="formData.menuType !== 2" label="图标">
+          <IconPicker v-model="formData.icon" />
         </el-form-item>
         <el-form-item v-if="formData.menuType === 2" label="权限标识">
           <el-input v-model="formData.permission" placeholder="请输入权限标识，如：system:user:list" />
@@ -217,6 +217,7 @@ import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
 import DictValue from '@/components/DictValue.vue'
+import IconPicker from '@/components/IconPicker.vue'
 
 const { isMobile } = useResponsive()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
