@@ -564,9 +564,11 @@ const isFavorite = (id: number) => {
 const toggleFavorite = (item: any) => {
   const index = favoriteIds.value.indexOf(item.id)
   if (index > -1) {
+    // 取消收藏
     favoriteIds.value.splice(index, 1)
   } else {
-    favoriteIds.value.push(item.id)
+    // 添加收藏，使用新数组确保响应式更新
+    favoriteIds.value = [...favoriteIds.value, item.id]
   }
 }
 
@@ -578,7 +580,13 @@ const openEditFavorites = () => {
 
 // 保存收藏
 const saveFavorites = () => {
-  localStorage.setItem('dashboard-favorites', JSON.stringify(favoriteIds.value))
+  const dataToSave = JSON.stringify(favoriteIds.value)
+  localStorage.setItem('dashboard-favorites', dataToSave)
+  console.log('保存收藏数据:', {
+    favoriteIds: favoriteIds.value,
+    savedData: dataToSave,
+    localStorageValue: localStorage.getItem('dashboard-favorites')
+  })
   editFavorites.value = false
   ElMessage.success('保存成功')
 }
@@ -650,6 +658,14 @@ const loadNotices = async () => {
 
 // 路由变化时无特殊处理（收藏功能由用户手动操作）
 
+// 监控 favoriteIds 变化
+watch(favoriteIds, (newVal, oldVal) => {
+  console.log('favoriteIds 变化:', {
+    oldVal,
+    newVal,
+    changed: JSON.stringify(newVal) !== JSON.stringify(oldVal)
+  })
+}, { deep: true })
 
 // 初始化
 onMounted(() => {
@@ -658,16 +674,24 @@ onMounted(() => {
 
   // 加载本地存储的数据
   const savedFavorites = localStorage.getItem('dashboard-favorites')
+  console.log('初始化加载收藏数据:', {
+    savedFavorites,
+    allFunctionsLength: allFunctions.value.length
+  })
+
   if (savedFavorites) {
     const parsed = JSON.parse(savedFavorites)
     // 兼容旧格式：旧数据是字符串ID，新数据是数字ID
     if (parsed.length > 0 && typeof parsed[0] === 'number') {
-      favoriteIds.value = parsed
+      favoriteIds.value = [...parsed]
+      console.log('从 localStorage 加载的收藏 ID:', favoriteIds.value)
     } else {
       favoriteIds.value = [...defaultFavoriteIds.value]
+      console.log('旧格式数据，使用默认收藏:', favoriteIds.value)
     }
   } else {
     favoriteIds.value = [...defaultFavoriteIds.value]
+    console.log('无保存数据，使用默认收藏:', favoriteIds.value)
   }
 
   const savedTodos = localStorage.getItem('dashboard-todos')
