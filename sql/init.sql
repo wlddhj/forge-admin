@@ -573,8 +573,8 @@ INSERT INTO `sys_config` (`id`, `config_name`, `config_key`, `config_value`, `co
 (5, '密码最小长度', 'sys.password.minLength', '6', 'number', 'security', 1, 1, '密码最小长度');
 
 -- 初始化文件存储配置
-INSERT INTO `sys_file_config` (`id`, `config_name`, `storage_type`, `base_path`, `is_default`, `status`, `remark`) VALUES
-(1, '本地存储', 'local', '/uploads', 1, 1, '默认本地存储配置');
+INSERT INTO `sys_file_config` (`id`, `config_name`, `storage_type`, `base_path`, `domain`, `is_default`, `status`, `remark`) VALUES
+(1, '本地存储', 'local', '/uploads', 'http://localhost:8181/api/uploads', 1, 1, '默认本地存储配置');
 
 -- 初始化定时任务
 INSERT INTO `sys_job` (`id`, `job_name`, `job_group`, `invoke_target`, `cron_expression`, `status`, `concurrent`, `remark`) VALUES

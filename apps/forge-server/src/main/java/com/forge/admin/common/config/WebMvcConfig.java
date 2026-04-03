@@ -1,6 +1,8 @@
 package com.forge.admin.common.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.forge.admin.modules.system.entity.SysFileConfig;
+import com.forge.admin.modules.system.service.SysFileConfigService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -9,27 +11,27 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * WebMvc配置
  */
 @Configuration
+@RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {
 
-    @Value("${file.upload-path:./uploads}")
-    private String uploadPath;
-
-    @Value("${file.base-url}")
-    private String baseUrl;
+    private final SysFileConfigService sysFileConfigService;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 映射上传文件目录（使用绝对路径确保兼容性）
+        // 从文件配置中获取默认本地存储路径
+        SysFileConfig config = sysFileConfigService.getDefaultConfig();
+        String uploadPath = "./uploads";
+        if (config != null && "local".equals(config.getStorageType()) && config.getBasePath() != null) {
+            uploadPath = config.getBasePath();
+        }
+
         String absolutePath = new java.io.File(uploadPath).getAbsolutePath();
 
-        // 由于 context-path 是 /api，静态资源需要注册在根路径下
-        // 但由于 Spring Boot 的限制，我们需要特殊处理
-        // 方案：将静态资源映射到 /api/uploads/** 下，并调整 base-url
-
+        // 由于 context-path 是 /api，静态资源需要注册在对应路径下
         registry.addResourceHandler("/api/uploads/**")
                 .addResourceLocations("file:" + absolutePath + "/");
 
-        // 同时也注册 /uploads/** 以支持直接访问（如果在根路径下）
+        // 同时也注册 /uploads/** 以支持直接访问
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:" + absolutePath + "/");
     }
