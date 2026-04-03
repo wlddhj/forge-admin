@@ -29,11 +29,9 @@ public class UserRequest {
     private String nickname;
 
     @Schema(description = "密码（新增时必填）", example = "123456")
-    @Size(min = 6, max = 20, message = "密码长度为6-20位")
     private String password;
 
     @Schema(description = "手机号", example = "13800138000")
-    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
     private String phone;
 
     @Schema(description = "邮箱", example = "zhangsan@example.com")
@@ -45,11 +43,10 @@ public class UserRequest {
     private String avatar;
 
     @Schema(description = "所属部门ID", example = "100")
-    @NotNull(message = "所属部门不能为空")
     private Long deptId;
 
-    @Schema(description = "所属岗位ID", example = "10")
-    private Long positionId;
+    @Schema(description = "岗位ID列表", example = "[1, 2]")
+    private List<Long> positionIds;
 
     @Schema(description = "账户类型（0:普通用户 1:管理员）", example = "0")
     private Integer accountType;

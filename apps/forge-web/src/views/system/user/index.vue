@@ -104,6 +104,17 @@
           <el-table-column prop="phone" label="手机号" width="130" />
           <el-table-column prop="email" label="邮箱" width="180" v-if="!isMobile" />
           <el-table-column prop="deptName" label="部门" width="120" />
+          <el-table-column label="岗位" width="150">
+            <template #default="{ row }">
+              <template v-if="row.positionNames && row.positionNames.length > 0">
+                <el-tag v-for="(name, index) in row.positionNames.slice(0, 2)" :key="index" size="small" style="margin-right: 4px;">
+                  {{ name }}
+                </el-tag>
+                <span v-if="row.positionNames.length > 2" style="color: #909399;">+{{ row.positionNames.length - 2 }}</span>
+              </template>
+              <span v-else style="color: #909399;">-</span>
+            </template>
+          </el-table-column>
           <el-table-column label="角色" width="150">
             <template #default="{ row }">
               <template v-if="row.roleNames && row.roleNames.length > 0">
@@ -189,6 +200,11 @@
             clearable
           />
         </el-form-item>
+        <el-form-item label="岗位" prop="positionIds">
+          <el-select v-model="form.positionIds" multiple placeholder="请选择岗位">
+            <el-option v-for="pos in positionList" :key="pos.id" :label="pos.positionName" :value="pos.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="角色" prop="roleIds">
           <el-select v-model="form.roleIds" multiple placeholder="请选择角色">
             <el-option v-for="role in roleList" :key="role.id" :label="role.roleName" :value="role.id" />
@@ -222,13 +238,14 @@ import {
   getUserList, getUser, addUser, updateUser, deleteUser, resetPassword, exportUsers
 } from '@/api/system'
 import { getAllRoles } from '@/api/system'
+import { getAllPositions } from '@/api/system'
 import { getDeptTree } from '@/api/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
-import type { User, UserQuery, UserRequest, Role, DeptTree } from '@/types/system'
+import type { User, UserQuery, UserRequest, Role, DeptTree, Position } from '@/types/system'
 import { DICT_TYPE } from '@/constants/dict'
 import DictValue from '@/components/DictValue.vue'
 import { useDict } from '@/composables/useDict'
@@ -280,6 +297,7 @@ const form = reactive<UserRequest>({
   phone: '',
   email: '',
   deptId: undefined,
+  positionIds: [],
   roleIds: [],
   status: 1
 })
@@ -294,6 +312,7 @@ const rules: FormRules = {
 // 部门树和角色列表
 const deptTree = ref<DeptTree[]>([])
 const roleList = ref<Role[]>([])
+const positionList = ref<Position[]>([])
 
 // 获取列表
 const getList = async () => {
@@ -418,6 +437,7 @@ const resetForm = () => {
   form.phone = ''
   form.email = ''
   form.deptId = undefined
+  form.positionIds = []
   form.roleIds = []
   form.status = 1
 }
@@ -449,6 +469,8 @@ onMounted(async () => {
   deptTree.value = await getDeptTree()
   // 获取角色列表
   roleList.value = await getAllRoles()
+  // 获取岗位列表
+  positionList.value = await getAllPositions()
 })
 </script>
 

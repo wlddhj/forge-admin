@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.forge.admin.modules.system.mapper.SysUserPositionMapper">
+
+    <delete id="deleteByUserId">
+        DELETE FROM sys_user_position WHERE user_id = #{userId}
+    </delete>
+
+    <insert id="batchInsert">
+        INSERT INTO sys_user_position (user_id, position_id) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId}, #{item.positionId})
+        </foreach>
+    </insert>
+
+    <select id="selectPositionIdsByUserId" resultType="java.lang.Long">
+        SELECT position_id FROM sys_user_position WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectPositionNamesByUserId" resultType="java.lang.String">
+        SELECT p.position_name
+        FROM sys_position p
+        INNER JOIN sys_user_position up ON p.id = up.position_id
+        WHERE up.user_id = #{userId} AND p.deleted = 0
+    </select>
+
+</mapper>

@@ -21,8 +21,8 @@ public class UserResponse {
     private String avatar;
     private Long deptId;
     private String deptName;
-    private Long positionId;
-    private String positionName;
+    private List<Long> positionIds;
+    private List<String> positionNames;
     private Integer accountType;
     private Integer status;
     private LocalDateTime lastLoginTime;

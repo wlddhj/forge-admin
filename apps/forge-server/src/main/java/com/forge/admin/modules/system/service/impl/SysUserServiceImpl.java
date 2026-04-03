@@ -13,9 +13,11 @@ import com.forge.admin.modules.system.dto.user.*;
 import com.forge.admin.modules.system.entity.SysDept;
 import com.forge.admin.modules.system.entity.SysRole;
 import com.forge.admin.modules.system.entity.SysUser;
+import com.forge.admin.modules.system.entity.SysUserPosition;
 import com.forge.admin.modules.system.entity.SysUserRole;
 import com.forge.admin.modules.system.mapper.SysRoleDeptMapper;
 import com.forge.admin.modules.system.mapper.SysUserMapper;
+import com.forge.admin.modules.system.mapper.SysUserPositionMapper;
 import com.forge.admin.modules.system.mapper.SysUserRoleMapper;
 import com.forge.admin.modules.system.service.SysDeptService;
 import com.forge.admin.modules.system.service.SysRoleService;
@@ -47,6 +49,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     private final SysUserMapper sysUserMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
+    private final SysUserPositionMapper sysUserPositionMapper;
     private final PasswordEncoder passwordEncoder;
     private final SysDeptService sysDeptService;
     private final SysRoleService sysRoleService;
@@ -124,6 +127,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 查询角色ID列表
         List<Long> roleIds = sysUserMapper.selectRoleIdsByUserId(id);
         response.setRoleIds(roleIds);
+        // 查询岗位ID列表
+        List<Long> positionIds = sysUserPositionMapper.selectPositionIdsByUserId(id);
+        response.setPositionIds(positionIds);
         return response;
     }
 
@@ -136,7 +142,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
 
         SysUser user = new SysUser();
-        BeanUtil.copyProperties(request, user, "password", "roleIds");
+        BeanUtil.copyProperties(request, user, "password", "roleIds", "positionIds");
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setStatus(1);
         save(user);
@@ -144,6 +150,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 保存用户角色关联
         log.debug("新增用户角色关联 - 用户ID: {}, 角色IDs: {}", user.getId(), request.getRoleIds());
         saveUserRoles(user.getId(), request.getRoleIds());
+        // 保存用户岗位关联
+        saveUserPositions(user.getId(), request.getPositionIds());
     }
 
     @Override
@@ -161,7 +169,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             }
         }
 
-        BeanUtil.copyProperties(request, user, "password", "roleIds");
+        BeanUtil.copyProperties(request, user, "password", "roleIds", "positionIds");
         if (StrUtil.isNotBlank(request.getPassword())) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
@@ -170,6 +178,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 更新用户角色关联
         sysUserRoleMapper.deleteByUserId(user.getId());
         saveUserRoles(user.getId(), request.getRoleIds());
+        // 更新用户岗位关联
+        sysUserPositionMapper.deleteByUserId(user.getId());
+        saveUserPositions(user.getId(), request.getPositionIds());
     }
 
     @Override
@@ -177,13 +188,17 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     public void deleteUser(Long id) {
         removeById(id);
         sysUserRoleMapper.deleteByUserId(id);
+        sysUserPositionMapper.deleteByUserId(id);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteUsers(List<Long> ids) {
         removeByIds(ids);
-        ids.forEach(sysUserRoleMapper::deleteByUserId);
+        ids.forEach(id -> {
+            sysUserRoleMapper.deleteByUserId(id);
+            sysUserPositionMapper.deleteByUserId(id);
+        });
     }
 
     @Override
@@ -237,6 +252,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 查询并设置角色名称
         List<String> roleNames = sysUserMapper.selectRoleNamesByUserId(user.getId());
         response.setRoleNames(roleNames);
+        // 查询并设置岗位名称
+        List<String> positionNames = sysUserPositionMapper.selectPositionNamesByUserId(user.getId());
+        response.setPositionNames(positionNames);
         return response;
     }
 
@@ -251,6 +269,20 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                     })
                     .collect(Collectors.toList());
             sysUserRoleMapper.batchInsert(userRoles);
+        }
+    }
+
+    private void saveUserPositions(Long userId, List<Long> positionIds) {
+        if (positionIds != null && !positionIds.isEmpty()) {
+            List<SysUserPosition> userPositions = positionIds.stream()
+                    .map(positionId -> {
+                        SysUserPosition userPosition = new SysUserPosition();
+                        userPosition.setUserId(userId);
+                        userPosition.setPositionId(positionId);
+                        return userPosition;
+                    })
+                    .collect(Collectors.toList());
+            sysUserPositionMapper.batchInsert(userPositions);
         }
     }
 

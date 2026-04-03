@@ -8,8 +8,8 @@ export interface User {
   avatar: string
   deptId: number
   deptName: string
-  positionId: number
-  positionName: string
+  positionIds: number[]
+  positionNames: string[]
   accountType: number
   status: number
   lastLoginTime: string
@@ -40,7 +40,7 @@ export interface UserRequest {
   email?: string
   avatar?: string
   deptId?: number
-  positionId?: number
+  positionIds?: number[]
   accountType?: number
   status?: number
   roleIds?: number[]
