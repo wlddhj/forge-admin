@@ -98,13 +98,13 @@
               v-for="(item, index) in favoriteItems"
               :key="item.id"
               class="favorite-item"
-              :class="{ dragging: dragItem?.index === index, 'drag-over': dragOverItem?.index === index }"
+              :class="{ dragging: dragItemId === item.id }"
               draggable="true"
               @click="$router.push(item.path)"
-              @dragstart="handleDragStart(index, item)"
-              @dragover="handleDragOver($event, index, item)"
-              @dragend="() => { dragItem = null; dragOverItem = null }"
-              @drop="handleDrop"
+              @dragstart="handleDragStart(item.id)"
+              @dragover="handleDragOver($event, item.id)"
+              @dragend="() => { dragItemId = null }"
+              @drop="handleDrop(item.id)"
             >
               <div class="drag-handle">
                 <el-icon><Rank /></el-icon>
@@ -499,44 +499,47 @@ const favoriteIds = ref<number[]>([])
 const defaultFavoriteIds = computed(() => allFunctions.value.slice(0, 4).map(item => item.id))
 
 // 拖拽相关
-const dragItem = ref<{ index: number; item: any } | null>(null)
-const dragOverItem = ref<{ index: number; item: any } | null>(null)
+const dragItemId = ref<number | null>(null)
 
 // 拖拽开始
-const handleDragStart = (index: number, item: any) => {
-  dragItem.value = { index, item }
+const handleDragStart = (itemId: number) => {
+  dragItemId.value = itemId
 }
 
 // 拖拽经过
-const handleDragOver = (e: DragEvent, index: number, item: any) => {
+const handleDragOver = (e: DragEvent, targetItemId: number) => {
   e.preventDefault()
-  if (!dragItem.value) return
-  dragOverItem.value = { index, item }
 }
 
 // 放置
-const handleDrop = () => {
-  if (!dragItem.value || !dragOverItem.value) return
-
-  const oldIndex = dragItem.value.index
-  const newIndex = dragOverItem.value.index
-
-  if (oldIndex === newIndex) {
-    dragItem.value = null
-    dragOverItem.value = null
+const handleDrop = (targetItemId: number) => {
+  if (!dragItemId.value || dragItemId.value === targetItemId) {
+    dragItemId.value = null
     return
   }
 
-  // 更新收藏ID的顺序
-  const movedItem = favoriteIds.value[oldIndex]
-  favoriteIds.value.splice(oldIndex, 1)
-  favoriteIds.value.splice(newIndex, 0, movedItem)
+  // 在 favoriteIds 中找到两个项目的位置
+  const oldIndex = favoriteIds.value.indexOf(dragItemId.value)
+  const newIndex = favoriteIds.value.indexOf(targetItemId)
 
-  // 保存排序到本地存储
-  localStorage.setItem('dashboard-favorites', JSON.stringify(favoriteIds.value))
+  if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+    dragItemId.value = null
+    return
+  }
 
-  dragItem.value = null
-  dragOverItem.value = null
+  // 创建新数组并移动元素
+  const newFavoriteIds = [...favoriteIds.value]
+  const movedItem = newFavoriteIds[oldIndex]
+  newFavoriteIds.splice(oldIndex, 1)
+  newFavoriteIds.splice(newIndex, 0, movedItem)
+
+  // 更新 favoriteIds
+  favoriteIds.value = newFavoriteIds
+
+  // 保存到本地存储
+  localStorage.setItem('dashboard-favorites', JSON.stringify(newFavoriteIds))
+
+  dragItemId.value = null
   ElMessage.success('排序已更新')
 }
 
@@ -847,11 +850,6 @@ onMounted(() => {
       &.dragging {
         opacity: 0.5;
         transform: scale(1.05);
-      }
-
-      &.drag-over {
-        border: 2px dashed var(--el-color-primary);
-        background: var(--el-color-primary-light-9);
       }
 
       .drag-handle {
