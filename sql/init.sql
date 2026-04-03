@@ -489,7 +489,12 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 -- 操作日志导出
 (63, '导出', 9, '', '', NULL, '', 3, 2, 'system:log:export', 1, 1, 0, 0),
 -- 登录日志导出
-(64, '导出', 44, NULL, NULL, NULL, NULL, 3, 2, 'system:login-log:export', 1, 1, 0, 0);
+(64, '导出', 44, NULL, NULL, NULL, NULL, 3, 2, 'system:login-log:export', 1, 1, 0, 0),
+-- 附件管理
+(66, '附件管理', 1, '/system/attachment', '/views/system/attachment/index', NULL, 'Upload', 15, 1, 'system:attachment:list', 1, 1, 0, 0),
+(67, '附件查询', 66, '', '', NULL, '', 1, 2, 'system:attachment:query', 1, 1, 0, 0),
+(68, '附件上传', 66, '', '', NULL, '', 2, 2, 'system:attachment:upload', 1, 1, 0, 0),
+(69, '附件删除', 66, '', '', NULL, '', 3, 2, 'system:attachment:delete', 1, 1, 0, 0);
 
 -- 初始化角色菜单关联 (超级管理员拥有所有菜单)
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)

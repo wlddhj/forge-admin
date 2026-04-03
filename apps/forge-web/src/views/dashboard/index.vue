@@ -87,7 +87,7 @@
                 <el-icon><Star /></el-icon>
                 常用功能
               </span>
-              <el-button type="primary" link @click="editFavorites = true">
+              <el-button type="primary" link @click="openEditFavorites">
                 <el-icon><Edit /></el-icon>
                 编辑
               </el-button>
@@ -265,19 +265,34 @@
     <!-- 编辑收藏对话框 -->
     <el-dialog v-model="editFavorites" title="编辑常用功能" width="600px">
       <div class="edit-favorites">
-        <div class="available-functions">
-          <div
-            v-for="item in allFunctions"
-            :key="item.id"
-            class="function-item"
-            :class="{ selected: isFavorite(item.id) }"
-            @click="toggleFavorite(item)"
+        <el-collapse v-model="expandedGroups">
+          <el-collapse-item
+            v-for="group in groupedFunctions"
+            :key="group.groupId"
+            :name="String(group.groupId)"
           >
-            <el-icon class="item-icon"><component :is="item.icon" /></el-icon>
-            <span class="item-label">{{ item.label }}</span>
-            <el-icon v-if="isFavorite(item.id)" class="check-icon" color="#67c23a"><Check /></el-icon>
-          </div>
-        </div>
+            <template #title>
+              <div class="group-title">
+                <el-icon><component :is="group.icon" /></el-icon>
+                <span>{{ group.groupName }}</span>
+                <el-tag size="small" type="info" round>{{ group.items.length }}</el-tag>
+              </div>
+            </template>
+            <div class="available-functions">
+              <div
+                v-for="item in group.items"
+                :key="item.id"
+                class="function-item"
+                :class="{ selected: isFavorite(item.id) }"
+                @click="toggleFavorite(item)"
+              >
+                <el-icon class="item-icon"><component :is="item.icon" /></el-icon>
+                <span class="item-label">{{ item.label }}</span>
+                <el-icon v-if="isFavorite(item.id)" class="check-icon" color="#67c23a"><Check /></el-icon>
+              </div>
+            </div>
+          </el-collapse-item>
+        </el-collapse>
       </div>
       <template #footer>
         <el-button @click="editFavorites = false">取消</el-button>
@@ -337,6 +352,32 @@ const extractMenuItems = (menus: MenuTree[]): { id: number; label: string; icon:
   traverse(menus)
   return items
 }
+
+// 按目录分组的功能（用于编辑弹窗）
+const groupedFunctions = computed(() => {
+  const groups: { groupName: string; groupId: number; icon: string; items: { id: number; label: string; icon: string; path: string }[] }[] = []
+  for (const menu of userStore.menus) {
+    if (menu.menuType === 0 && menu.children?.length) {
+      const children = menu.children
+        .filter(child => child.menuType === 1 && child.routePath)
+        .map(child => ({
+          id: child.id,
+          label: child.menuName,
+          icon: child.icon || 'Menu',
+          path: child.routePath
+        }))
+      if (children.length > 0) {
+        groups.push({
+          groupId: menu.id,
+          groupName: menu.menuName,
+          icon: menu.icon || 'Folder',
+          items: children
+        })
+      }
+    }
+  }
+  return groups
+})
 
 // 轮播图数据
 const banners = ref([
@@ -449,6 +490,7 @@ const defaultFavoriteIds = computed(() => allFunctions.value.slice(0, 4).map(ite
 
 // 编辑收藏状态
 const editFavorites = ref(false)
+const expandedGroups = ref<string[]>([])
 
 // 收藏的功能项
 const favoriteItems = computed(() => {
@@ -468,6 +510,12 @@ const toggleFavorite = (item: any) => {
   } else {
     favoriteIds.value.push(item.id)
   }
+}
+
+// 打开编辑弹窗
+const openEditFavorites = () => {
+  expandedGroups.value = groupedFunctions.value.map(g => String(g.groupId))
+  editFavorites.value = true
 }
 
 // 保存收藏
@@ -945,15 +993,30 @@ onMounted(() => {
 
   // 编辑收藏
   .edit-favorites {
+    max-height: 500px;
+    overflow-y: auto;
+
+    .group-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+
+      .el-tag {
+        margin-left: 4px;
+      }
+    }
+
     .available-functions {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      padding: 4px 0;
 
       .function-item {
         display: flex;
         align-items: center;
-        padding: 12px;
+        padding: 10px 12px;
         border: 1px solid var(--el-border-color);
         border-radius: 8px;
         cursor: pointer;
@@ -970,20 +1033,18 @@ onMounted(() => {
         }
 
         .item-icon {
-          font-size: 20px;
+          font-size: 18px;
           margin-right: 8px;
           color: var(--el-text-color-secondary);
         }
 
         .item-label {
           font-size: 14px;
+          flex: 1;
         }
 
         .check-icon {
-          position: absolute;
-          right: 8px;
-          top: 50%;
-          transform: translateY(-50%);
+          font-size: 16px;
         }
       }
     }
