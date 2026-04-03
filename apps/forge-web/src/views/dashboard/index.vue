@@ -98,13 +98,13 @@
               v-for="(item, index) in favoriteItems"
               :key="item.id"
               class="favorite-item"
-              :class="{ dragging: dragItemId === item.id }"
+              :class="{ dragging: dragItemId === (typeof item.id === 'string' ? parseInt(item.id, 10) : item.id) }"
               draggable="true"
               @click="$router.push(item.path)"
-              @dragstart="handleDragStart(item.id)"
-              @dragover="handleDragOver($event, item.id)"
+              @dragstart="handleDragStart(typeof item.id === 'string' ? parseInt(item.id, 10) : item.id)"
+              @dragover="handleDragOver($event, typeof item.id === 'string' ? parseInt(item.id, 10) : item.id)"
               @dragend="() => { dragItemId = null }"
-              @drop="handleDrop(item.id)"
+              @drop="handleDrop(typeof item.id === 'string' ? parseInt(item.id, 10) : item.id)"
             >
               <div class="drag-handle">
                 <el-icon><Rank /></el-icon>
@@ -347,8 +347,10 @@ const extractMenuItems = (menus: MenuTree[]): { id: number; label: string; icon:
   const traverse = (list: MenuTree[]) => {
     for (const menu of list) {
       if (menu.menuType === 1 && menu.routePath) {
+        // 确保 ID 是数字类型
+        const id = typeof menu.id === 'string' ? parseInt(menu.id, 10) : menu.id
         items.push({
-          id: menu.id,
+          id,
           label: menu.menuName,
           icon: menu.icon || 'Menu',
           path: menu.routePath
@@ -371,14 +373,14 @@ const groupedFunctions = computed(() => {
       const children = menu.children
         .filter(child => child.menuType === 1 && child.routePath)
         .map(child => ({
-          id: child.id,
+          id: typeof child.id === 'string' ? parseInt(child.id, 10) : child.id,
           label: child.menuName,
           icon: child.icon || 'Menu',
           path: child.routePath
         }))
       if (children.length > 0) {
         groups.push({
-          groupId: menu.id,
+          groupId: typeof menu.id === 'string' ? parseInt(menu.id, 10) : menu.id,
           groupName: menu.menuName,
           icon: menu.icon || 'Folder',
           items: children
@@ -556,19 +558,22 @@ const favoriteItems = computed(() => {
 })
 
 // 判断是否已收藏
-const isFavorite = (id: number) => {
-  return favoriteIds.value.includes(id)
+const isFavorite = (id: number | string) => {
+  // 兼容字符串和数字类型的 ID
+  return favoriteIds.value.includes(typeof id === 'string' ? parseInt(id, 10) : id)
 }
 
 // 切换收藏状态
 const toggleFavorite = (item: any) => {
-  const index = favoriteIds.value.indexOf(item.id)
+  // 统一转换为数字类型
+  const id = typeof item.id === 'string' ? parseInt(item.id, 10) : item.id
+  const index = favoriteIds.value.indexOf(id)
   if (index > -1) {
     // 取消收藏
     favoriteIds.value.splice(index, 1)
   } else {
     // 添加收藏，使用新数组确保响应式更新
-    favoriteIds.value = [...favoriteIds.value, item.id]
+    favoriteIds.value = [...favoriteIds.value, id]
   }
 }
 
@@ -580,6 +585,7 @@ const openEditFavorites = () => {
 
 // 保存收藏
 const saveFavorites = () => {
+  // 确保保存的是数字类型的 ID
   const dataToSave = JSON.stringify(favoriteIds.value)
   localStorage.setItem('dashboard-favorites', dataToSave)
   console.log('保存收藏数据:', {
@@ -681,13 +687,15 @@ onMounted(() => {
 
   if (savedFavorites) {
     const parsed = JSON.parse(savedFavorites)
-    // 兼容旧格式：旧数据是字符串ID，新数据是数字ID
-    if (parsed.length > 0 && typeof parsed[0] === 'number') {
-      favoriteIds.value = [...parsed]
+    // 兼容字符串和数字类型的 ID
+    if (parsed.length > 0) {
+      // 确保所有 ID 转换为数字类型（如果需要）
+      const normalizedIds = parsed.map((id: any) => typeof id === 'string' ? parseInt(id, 10) : id)
+      favoriteIds.value = normalizedIds
       console.log('从 localStorage 加载的收藏 ID:', favoriteIds.value)
     } else {
       favoriteIds.value = [...defaultFavoriteIds.value]
-      console.log('旧格式数据，使用默认收藏:', favoriteIds.value)
+      console.log('空数据，使用默认收藏:', favoriteIds.value)
     }
   } else {
     favoriteIds.value = [...defaultFavoriteIds.value]
