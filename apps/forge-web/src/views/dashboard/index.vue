@@ -95,11 +95,20 @@
           </template>
           <div class="favorites-grid">
             <div
-              v-for="item in favoriteItems"
+              v-for="(item, index) in favoriteItems"
               :key="item.id"
               class="favorite-item"
+              :class="{ dragging: dragItem?.index === index, 'drag-over': dragOverItem?.index === index }"
+              draggable="true"
               @click="$router.push(item.path)"
+              @dragstart="handleDragStart(index, item)"
+              @dragover="handleDragOver($event, index, item)"
+              @dragend="() => { dragItem = null; dragOverItem = null }"
+              @drop="handleDrop"
             >
+              <div class="drag-handle">
+                <el-icon><Rank /></el-icon>
+              </div>
               <div class="favorite-icon" :style="{ background: item.color }">
                 <el-icon><component :is="item.icon" /></el-icon>
               </div>
@@ -324,6 +333,7 @@ import { useUserStore } from '@/stores/user'
 import { useRoute } from 'vue-router'
 import { getDashboardStats, getLatestNotices, type DashboardStats, type Notice } from '@/api/system'
 import type { MenuTree } from '@/types/system'
+import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -488,13 +498,58 @@ const favoriteIds = ref<number[]>([])
 // 默认收藏前4个菜单
 const defaultFavoriteIds = computed(() => allFunctions.value.slice(0, 4).map(item => item.id))
 
+// 拖拽相关
+const dragItem = ref<{ index: number; item: any } | null>(null)
+const dragOverItem = ref<{ index: number; item: any } | null>(null)
+
+// 拖拽开始
+const handleDragStart = (index: number, item: any) => {
+  dragItem.value = { index, item }
+}
+
+// 拖拽经过
+const handleDragOver = (e: DragEvent, index: number, item: any) => {
+  e.preventDefault()
+  if (!dragItem.value) return
+  dragOverItem.value = { index, item }
+}
+
+// 放置
+const handleDrop = () => {
+  if (!dragItem.value || !dragOverItem.value) return
+
+  const oldIndex = dragItem.value.index
+  const newIndex = dragOverItem.value.index
+
+  if (oldIndex === newIndex) {
+    dragItem.value = null
+    dragOverItem.value = null
+    return
+  }
+
+  // 更新收藏ID的顺序
+  const movedItem = favoriteIds.value[oldIndex]
+  favoriteIds.value.splice(oldIndex, 1)
+  favoriteIds.value.splice(newIndex, 0, movedItem)
+
+  // 保存排序到本地存储
+  localStorage.setItem('dashboard-favorites', JSON.stringify(favoriteIds.value))
+
+  dragItem.value = null
+  dragOverItem.value = null
+  ElMessage.success('排序已更新')
+}
+
 // 编辑收藏状态
 const editFavorites = ref(false)
 const expandedGroups = ref<string[]>([])
 
 // 收藏的功能项
 const favoriteItems = computed(() => {
-  return allFunctions.value.filter(item => favoriteIds.value.includes(item.id))
+  // 按照 favoriteIds 的顺序返回收藏的项目
+  return allFunctions.value
+    .filter(item => favoriteIds.value.includes(item.id))
+    .sort((a, b) => favoriteIds.value.indexOf(a.id) - favoriteIds.value.indexOf(b.id))
 })
 
 // 判断是否已收藏
@@ -522,6 +577,7 @@ const openEditFavorites = () => {
 const saveFavorites = () => {
   localStorage.setItem('dashboard-favorites', JSON.stringify(favoriteIds.value))
   editFavorites.value = false
+  ElMessage.success('保存成功')
 }
 
 // 待办事项
@@ -781,10 +837,46 @@ onMounted(() => {
       border-radius: 8px;
       cursor: pointer;
       transition: all 0.3s;
+      position: relative;
 
       &:hover {
         background: var(--el-bg-color-page);
         transform: translateY(-2px);
+      }
+
+      &.dragging {
+        opacity: 0.5;
+        transform: scale(1.05);
+      }
+
+      &.drag-over {
+        border: 2px dashed var(--el-color-primary);
+        background: var(--el-color-primary-light-9);
+      }
+
+      .drag-handle {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        cursor: move;
+        background: var(--el-bg-color);
+
+        .el-icon {
+          font-size: 14px;
+          color: var(--el-text-color-placeholder);
+        }
+      }
+
+      &:hover .drag-handle {
+        opacity: 1;
       }
 
       .favorite-icon {
