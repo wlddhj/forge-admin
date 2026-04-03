@@ -308,9 +308,35 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRoute } from 'vue-router'
 import { getDashboardStats, getLatestNotices, type DashboardStats, type Notice } from '@/api/system'
+import type { MenuTree } from '@/types/system'
 
 const route = useRoute()
 const userStore = useUserStore()
+
+// 颜色循环列表
+const iconColors = ['#e8f4ff', '#f0f9eb', '#fdf6ec', '#f4f4f5', '#fef0f0', '#fdf6ec', '#e8f4ff', '#f4f4f5', '#fef0f0', '#f0f9eb']
+
+// 从菜单树中提取菜单项（menuType=1 的叶子菜单）
+const extractMenuItems = (menus: MenuTree[]): { id: number; label: string; icon: string; path: string }[] => {
+  const items: { id: number; label: string; icon: string; path: string }[] = []
+  const traverse = (list: MenuTree[]) => {
+    for (const menu of list) {
+      if (menu.menuType === 1 && menu.routePath) {
+        items.push({
+          id: menu.id,
+          label: menu.menuName,
+          icon: menu.icon || 'Menu',
+          path: menu.routePath
+        })
+      }
+      if (menu.children?.length) {
+        traverse(menu.children)
+      }
+    }
+  }
+  traverse(menus)
+  return items
+}
 
 // 轮播图数据
 const banners = ref([
@@ -406,36 +432,31 @@ const compareData = computed(() => {
   }
 })
 
-// 所有可收藏的功能
-const allFunctions = ref([
-  { id: 'user', label: '用户管理', icon: 'User', path: '/system/user', color: '#e8f4ff' },
-  { id: 'role', label: '角色管理', icon: 'UserFilled', path: '/system/role', color: '#f0f9eb' },
-  { id: 'menu', label: '菜单管理', icon: 'Menu', path: '/system/menu', color: '#fdf6ec' },
-  { id: 'dept', label: '部门管理', icon: 'OfficeBuilding', path: '/system/dept', color: '#f4f4f5' },
-  { id: 'position', label: '岗位管理', icon: 'Briefcase', path: '/system/position', color: '#fef0f0' },
-  { id: 'dict', label: '字典管理', icon: 'Notebook', path: '/system/dict-type', color: '#fdf6ec' },
-  { id: 'config', label: '系统配置', icon: 'Tools', path: '/system/config', color: '#e8f4ff' },
-  { id: 'notice', label: '通知公告', icon: 'Bell', path: '/system/notice', color: '#f4f4f5' },
-  { id: 'oplog', label: '操作日志', icon: 'Document', path: '/system/operation-log', color: '#fef0f0' },
-  { id: 'loginlog', label: '登录日志', icon: 'Monitor', path: '/system/login-log', color: '#f0f9eb' },
-  { id: 'online', label: '在线用户', icon: 'User', path: '/system/online-user', color: '#fdf6ec' },
-  { id: 'job', label: '定时任务', icon: 'Timer', path: '/system/job', color: '#e8f4ff' }
-])
+// 所有可收藏的功能（从菜单数据动态生成）
+const allFunctions = computed(() => {
+  const items = extractMenuItems(userStore.menus)
+  return items.map((item, index) => ({
+    ...item,
+    color: iconColors[index % iconColors.length]
+  }))
+})
 
 // 收藏的功能ID列表
-const favoriteIds = ref<string[]>(['user', 'role', 'menu', 'config'])
+const favoriteIds = ref<number[]>([])
+
+// 默认收藏前4个菜单
+const defaultFavoriteIds = computed(() => allFunctions.value.slice(0, 4).map(item => item.id))
 
 // 编辑收藏状态
 const editFavorites = ref(false)
 
 // 收藏的功能项
 const favoriteItems = computed(() => {
-  return allFunctions.value
-    .filter(item => favoriteIds.value.includes(item.id))
+  return allFunctions.value.filter(item => favoriteIds.value.includes(item.id))
 })
 
 // 判断是否已收藏
-const isFavorite = (id: string) => {
+const isFavorite = (id: number) => {
   return favoriteIds.value.includes(id)
 }
 
@@ -531,7 +552,15 @@ onMounted(() => {
   // 加载本地存储的数据
   const savedFavorites = localStorage.getItem('dashboard-favorites')
   if (savedFavorites) {
-    favoriteIds.value = JSON.parse(savedFavorites)
+    const parsed = JSON.parse(savedFavorites)
+    // 兼容旧格式：旧数据是字符串ID，新数据是数字ID
+    if (parsed.length > 0 && typeof parsed[0] === 'number') {
+      favoriteIds.value = parsed
+    } else {
+      favoriteIds.value = [...defaultFavoriteIds.value]
+    }
+  } else {
+    favoriteIds.value = [...defaultFavoriteIds.value]
   }
 
   const savedTodos = localStorage.getItem('dashboard-todos')
