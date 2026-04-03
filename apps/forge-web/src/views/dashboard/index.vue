@@ -263,7 +263,7 @@
     </el-row>
 
     <!-- 编辑收藏对话框 -->
-    <el-dialog v-model="editFavorites" title="编辑常用功能" width="600px">
+    <el-dialog v-model="editFavorites" title="编辑常用功能" width="800px">
       <div class="edit-favorites">
         <el-collapse v-model="expandedGroups">
           <el-collapse-item
@@ -1009,7 +1009,7 @@ onMounted(() => {
 
     .available-functions {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 10px;
       padding: 4px 0;
 
