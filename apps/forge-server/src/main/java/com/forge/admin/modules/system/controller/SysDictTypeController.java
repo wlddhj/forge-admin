@@ -7,6 +7,7 @@ import com.forge.admin.common.response.Result;
 import com.forge.admin.modules.system.dto.dict.DictTypeQueryRequest;
 import com.forge.admin.modules.system.dto.dict.DictTypeRequest;
 import com.forge.admin.modules.system.dto.dict.DictTypeResponse;
+import com.forge.admin.modules.system.service.SysDictDataService;
 import com.forge.admin.modules.system.service.SysDictTypeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +28,7 @@ import java.util.List;
 public class SysDictTypeController {
 
     private final SysDictTypeService sysDictTypeService;
+    private final SysDictDataService sysDictDataService;
 
     @Operation(summary = "分页查询字典类型")
     @GetMapping("/list")
@@ -85,6 +87,15 @@ public class SysDictTypeController {
     @OperationLog(title = "字典类型管理", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysDictTypeService.updateStatus(id, status);
+        return Result.success();
+    }
+
+    @Operation(summary = "刷新字典缓存")
+    @DeleteMapping("/cache")
+    @PreAuthorize("hasAuthority('system:dict:edit')")
+    @OperationLog(title = "字典类型管理", businessType = OperationLog.BusinessType.CLEAN)
+    public Result<Void> refreshCache() {
+        sysDictDataService.refreshCache();
         return Result.success();
     }
 }

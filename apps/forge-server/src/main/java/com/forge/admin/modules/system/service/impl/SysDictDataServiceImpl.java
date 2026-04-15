@@ -13,6 +13,7 @@ import com.forge.admin.modules.system.entity.SysDictData;
 import com.forge.admin.modules.system.mapper.SysDictDataMapper;
 import com.forge.admin.modules.system.service.SysDictDataService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDictData> implements SysDictDataService {
@@ -112,6 +114,12 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
         }
         dictData.setStatus(status);
         updateById(dictData);
+    }
+
+    @Override
+    @CacheEvict(value = "dictData", allEntries = true)
+    public void refreshCache() {
+        log.info("刷新字典数据缓存");
     }
 
     private DictDataResponse convertToResponse(SysDictData dictData) {

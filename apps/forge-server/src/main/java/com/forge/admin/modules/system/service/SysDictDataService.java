@@ -25,4 +25,6 @@ public interface SysDictDataService {
     void deleteDictData(List<Long> ids);
 
     void updateStatus(Long id, Integer status);
+
+    void refreshCache();
 }

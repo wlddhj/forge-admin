@@ -66,6 +66,10 @@
         <div class="card-header">
           <span v-if="!isMobile">字典类型列表</span>
           <div v-if="!isMobile" class="header-btns">
+            <el-button v-permission="'system:dict:edit'" @click="handleRefreshCache">
+              <el-icon><Refresh /></el-icon>
+              刷新缓存
+            </el-button>
             <el-button v-permission="'system:dict:add'" type="primary" @click="handleAdd">
               <el-icon><Plus /></el-icon>
               新增字典
@@ -167,7 +171,7 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getDictTypeList, addDictType, updateDictType, deleteDictType } from '@/api/system'
+import { getDictTypeList, addDictType, updateDictType, deleteDictType, refreshDictCache } from '@/api/system'
 import type { DictType } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
@@ -273,6 +277,13 @@ const handleDelete = async (row: DictType) => {
     ElMessage.success('删除成功')
     cancelSelection()
     getList()
+  } catch (e) { }
+}
+const handleRefreshCache = async () => {
+  try {
+    await ElMessageBox.confirm('确定刷新字典缓存？', '提示', { type: 'warning' })
+    await refreshDictCache()
+    ElMessage.success('刷新缓存成功')
   } catch (e) { }
 }
 

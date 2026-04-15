@@ -205,6 +205,10 @@ export function deleteDictType(ids: number[]) {
   return request.delete(`/system/dict-type/${ids.join(',')}`)
 }
 
+export function refreshDictCache() {
+  return request.delete('/system/dict-type/cache')
+}
+
 export function getDictDataByType(dictType: string) {
   return request.get<DictData[]>(`/system/dict-data/type/${dictType}`).then(res => res.data)
 }
