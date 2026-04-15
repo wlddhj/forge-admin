@@ -1,6 +1,7 @@
 package com.forge.admin.modules.system.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -367,5 +368,55 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             }
             return export;
         }).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UserImportResultDTO importUsers(List<UserImportDTO> importUsers, boolean updateSupport) {
+        if (CollUtil.isEmpty(importUsers)) {
+            throw new BusinessException("导入数据不能为空");
+        }
+
+        UserImportResultDTO result = UserImportResultDTO.builder().build();
+
+        for (UserImportDTO importUser : importUsers) {
+            try {
+                // 校验必填字段
+                if (StrUtil.isBlank(importUser.getUsername())) {
+                    result.getFailureUsernames().put("", "用户名不能为空");
+                    continue;
+                }
+                if (StrUtil.isBlank(importUser.getNickname())) {
+                    result.getFailureUsernames().put(importUser.getUsername(), "昵称不能为空");
+                    continue;
+                }
+
+                // 判断用户名是否已存在
+                SysUser existUser = sysUserMapper.selectByUsernameSimple(importUser.getUsername());
+
+                if (existUser == null) {
+                    // 新增用户
+                    SysUser user = new SysUser();
+                    BeanUtil.copyProperties(importUser, user);
+                    user.setPassword(passwordEncoder.encode("123456"));
+                    if (user.getStatus() == null) {
+                        user.setStatus(1);
+                    }
+                    save(user);
+                    result.getCreateUsernames().add(importUser.getUsername());
+                } else if (updateSupport) {
+                    // 更新已有用户
+                    BeanUtil.copyProperties(importUser, existUser, "id", "password");
+                    updateById(existUser);
+                    result.getUpdateUsernames().add(importUser.getUsername());
+                } else {
+                    result.getFailureUsernames().put(importUser.getUsername(), "用户名已存在");
+                }
+            } catch (Exception e) {
+                result.getFailureUsernames().put(importUser.getUsername(), e.getMessage());
+            }
+        }
+
+        return result;
     }
 }

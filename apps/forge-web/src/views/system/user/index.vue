@@ -78,6 +78,10 @@
         <div class="card-header">
           <span v-if="!isMobile">用户列表</span>
           <div v-if="!isMobile" class="header-btns">
+            <el-button v-permission="'system:user:import'" type="warning" @click="handleImport">
+              <el-icon><Upload /></el-icon>
+              导入
+            </el-button>
             <el-button v-permission="'system:user:export'" type="success" @click="handleExport">
               <el-icon><Download /></el-icon>
               导出
@@ -227,6 +231,9 @@
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 导入对话框 -->
+    <UserImportDialog ref="importDialogRef" @success="getList" />
   </div>
 </template>
 
@@ -245,6 +252,7 @@ import { useResponsive } from '@/composables/useResponsive'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
+import UserImportDialog from './UserImportDialog.vue'
 import type { User, UserQuery, UserRequest, Role, DeptTree, Position } from '@/types/system'
 import { DICT_TYPE } from '@/constants/dict'
 import DictValue from '@/components/DictValue.vue'
@@ -287,6 +295,9 @@ const dialogVisible = ref(false)
 const dialogTitle = computed(() => (form.id ? '编辑用户' : '新增用户'))
 const formRef = ref<FormInstance>()
 const submitLoading = ref(false)
+
+// 导入对话框
+const importDialogRef = ref<InstanceType<typeof UserImportDialog>>()
 
 // 表单数据
 const form = reactive<UserRequest>({
@@ -398,6 +409,11 @@ const handleExport = async () => {
   } catch (e) {
     console.error('导出失败', e)
   }
+}
+
+// 导入
+const handleImport = () => {
+  importDialogRef.value?.open()
 }
 
 // 提交表单

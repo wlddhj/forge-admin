@@ -4,6 +4,7 @@ import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.write.style.column.LongestMatchColumnWidthStyleStrategy;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.net.URLEncoder;
@@ -57,6 +58,24 @@ public class ExcelUtils {
             }
             throw new RuntimeException("导出Excel失败: " + e.getMessage()
                     + (e.getCause() != null ? ", 原因: " + e.getCause().getMessage() : ""));
+        }
+    }
+
+    /**
+     * 从上传文件中读取 Excel 数据
+     *
+     * @param file  上传的 Excel 文件
+     * @param clazz 数据类
+     * @return 数据列表
+     */
+    public static <T> List<T> read(MultipartFile file, Class<T> clazz) {
+        try {
+            return EasyExcel.read(file.getInputStream(), clazz, null)
+                    .autoCloseStream(false)
+                    .doReadAllSync();
+        } catch (Exception e) {
+            log.error("读取Excel失败", e);
+            throw new RuntimeException("读取Excel失败: " + e.getMessage());
         }
     }
 

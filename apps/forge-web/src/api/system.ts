@@ -53,6 +53,32 @@ export function exportUsers(params: UserQuery) {
   })
 }
 
+export function downloadImportTemplate() {
+  return request.get('/system/user/import-template', { responseType: 'blob' }).then(res => {
+    const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = '用户导入模板.xlsx'
+    link.click()
+    URL.revokeObjectURL(link.href)
+  })
+}
+
+export interface UserImportResult {
+  createUsernames: string[]
+  updateUsernames: string[]
+  failureUsernames: Record<string, string>
+}
+
+export function importUsers(file: File, updateSupport: boolean = false) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('updateSupport', String(updateSupport))
+  return request.post<UserImportResult>('/system/user/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }).then(res => res.data)
+}
+
 // ==================== 角色管理 ====================
 
 export function getRoleList(params: RoleQuery) {

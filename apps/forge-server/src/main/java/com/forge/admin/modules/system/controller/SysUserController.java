@@ -5,10 +5,7 @@ import com.forge.admin.common.annotation.OperationLog;
 import com.forge.admin.common.response.PageResult;
 import com.forge.admin.common.response.Result;
 import com.forge.admin.common.utils.ExcelUtils;
-import com.forge.admin.modules.system.dto.user.UserExport;
-import com.forge.admin.modules.system.dto.user.UserQueryRequest;
-import com.forge.admin.modules.system.dto.user.UserRequest;
-import com.forge.admin.modules.system.dto.user.UserResponse;
+import com.forge.admin.modules.system.dto.user.*;
 import com.forge.admin.modules.system.service.SysUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,7 +14,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -84,6 +83,43 @@ public class SysUserController {
     public void export(UserQueryRequest request, HttpServletResponse response) {
         List<UserExport> list = sysUserService.getExportList(request);
         ExcelUtils.export(response, "用户列表", "用户数据", UserExport.class, list);
+    }
+
+    @Operation(summary = "下载导入模板")
+    @GetMapping("/import-template")
+    @PreAuthorize("hasAuthority('system:user:import')")
+    public void importTemplate(HttpServletResponse response) {
+        List<UserImportDTO> list = Arrays.asList(
+                new UserImportDTO() {{
+                    setUsername("zhangsan");
+                    setNickname("张三");
+                    setPhone("13800138000");
+                    setEmail("zhangsan@example.com");
+                    setDeptId(1L);
+                    setStatus(1);
+                }},
+                new UserImportDTO() {{
+                    setUsername("lisi");
+                    setNickname("李四");
+                    setPhone("13900139000");
+                    setEmail("lisi@example.com");
+                    setDeptId(2L);
+                    setStatus(1);
+                }}
+        );
+        ExcelUtils.export(response, "用户导入模板", "用户列表", UserImportDTO.class, list);
+    }
+
+    @Operation(summary = "导入用户")
+    @PostMapping("/import")
+    @PreAuthorize("hasAuthority('system:user:import')")
+    @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.IMPORT)
+    public Result<UserImportResultDTO> importExcel(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "updateSupport", required = false, defaultValue = "false") Boolean updateSupport
+    ) {
+        List<UserImportDTO> list = ExcelUtils.read(file, UserImportDTO.class);
+        return Result.success(sysUserService.importUsers(list, updateSupport));
     }
 
     @Operation(summary = "更新用户状态")

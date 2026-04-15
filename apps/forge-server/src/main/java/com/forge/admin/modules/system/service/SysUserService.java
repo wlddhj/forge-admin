@@ -99,4 +99,13 @@ public interface SysUserService extends IService<SysUser> {
      * 获取用户导出列表
      */
     List<UserExport> getExportList(UserQueryRequest request);
+
+    /**
+     * 导入用户
+     *
+     * @param importUsers    导入的用户数据列表
+     * @param updateSupport  是否更新已存在的用户
+     * @return 导入结果
+     */
+    UserImportResultDTO importUsers(List<UserImportDTO> importUsers, boolean updateSupport);
 }
