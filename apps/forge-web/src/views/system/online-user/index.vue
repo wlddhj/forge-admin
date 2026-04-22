@@ -117,7 +117,7 @@ import MobileBottomActions from '@/components/MobileBottomActions.vue'
 const { isMobile } = useResponsive()
 
 // 表格高度自适应
-const { tableHeight } = useTableHeight()
+const { tableHeight } = useTableHeight({hasPagination:false})
 
 // 表格实例
 const tableRef = ref<VxeTableInstance | null>(null)
