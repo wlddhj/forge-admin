@@ -99,6 +99,8 @@
       <vxe-table
         ref="tableRef"
         :data="tableData"
+        id="sysUserTable"
+        :custom-config="{mode: 'modal'}"
         :height="tableHeight"
         :loading="loading"
         :row-config="{ isCurrent: true, isHover: true }"

@@ -82,6 +82,8 @@
       <!-- vxe-table 表格 -->
       <vxe-table
         ref="tableRef"
+        id="sysMenuTable"
+        :custom-config="{mode: 'modal'}"
         :data="tableData"
         :loading="loading"
         :height="tableHeight"

@@ -124,6 +124,8 @@
       <!-- vxe-table 表格 -->
       <vxe-table
         ref="tableRef"
+        id="sysOperationLogTable"
+        :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"
         :loading="loading"
