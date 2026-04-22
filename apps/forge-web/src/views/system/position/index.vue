@@ -56,48 +56,67 @@
 
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span v-if="!isMobile">岗位列表</span>
-          <div v-if="!isMobile" class="header-btns">
-            <el-button v-permission="'system:position:add'" type="primary" @click="handleAdd">
-              <el-icon><Plus /></el-icon>
-              新增岗位
-            </el-button>
-          </div>
-        </div>
-      </template>
+      <!-- vxe-toolbar 工具栏（桌面端） -->
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
+        <template #buttons>
+          <el-button v-permission="'system:position:add'" type="primary" @click="handleAdd">
+            <el-icon><Plus /></el-icon>
+            新增岗位
+          </el-button>
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
+        </template>
+      </vxe-toolbar>
 
-      <div class="table-responsive">
-        <el-table
-          v-loading="loading"
-          :data="tableData"
-          border
-          stripe
-          :row-class-name="getRowClassName"
-          @row-click="handleRowClick"
-        >
-          <el-table-column prop="id" label="ID" width="80" v-if="!isMobile" />
-          <el-table-column prop="positionName" label="岗位名称" width="150" />
-          <el-table-column prop="positionCode" label="岗位编码" width="150" />
-          <el-table-column prop="sortOrder" label="排序" width="80" v-if="!isMobile" />
-          <el-table-column label="状态" width="80">
-            <template #default="{ row }">
-              <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="createTime" label="创建时间" width="180" v-if="!isMobile">
-            <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
-          </el-table-column>
-          <!-- 桌面端操作列 -->
-          <el-table-column v-if="!isMobile" label="操作" width="150" fixed="right">
-            <template #default="{ row }">
-              <el-button v-permission="'system:position:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
-              <el-button v-permission="'system:position:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        id="sysPositionTable"
+        :custom-config="{mode: 'modal'}"
+        :data="tableData"
+        :height="tableHeight"
+        :loading="loading"
+        :row-config="{ isCurrent: true, isHover: true }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
+        @current-change="handleCurrentChange"
+      >
+        <!-- 序号列（桌面端） -->
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+
+        <!-- 岗位名称 -->
+        <vxe-column field="positionName" title="岗位名称" width="150" />
+
+        <!-- 岗位编码 -->
+        <vxe-column field="positionCode" title="岗位编码" width="150" />
+
+        <!-- 排序（桌面端） -->
+        <vxe-column v-if="!isMobile" field="sortOrder" title="排序" width="80" />
+
+        <!-- 状态 -->
+        <vxe-column title="状态" width="80">
+          <template #default="{ row }">
+            <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
+          </template>
+        </vxe-column>
+
+        <!-- 创建时间（桌面端） -->
+        <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="180">
+          <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+        </vxe-column>
+
+        <!-- 桌面端操作列 -->
+        <vxe-column v-if="!isMobile" title="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button v-permission="'system:position:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'system:position:delete'" type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
+          </template>
+        </vxe-column>
+      </vxe-table>
 
       <el-pagination
         v-model:current-page="queryParams.pageNum"
@@ -154,10 +173,13 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { getPositionList, addPosition, updatePosition, deletePosition } from '@/api/system'
 import type { Position, PositionRequest } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
 import { useDict } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
@@ -168,6 +190,13 @@ import DictValue from '@/components/DictValue.vue'
 const { isMobile } = useResponsive()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
 
+// 表格高度自适应
+const { tableHeight } = useTableHeight()
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
+
 const loading = ref(false)
 const tableData = ref<Position[]>([])
 const total = ref(0)
@@ -177,6 +206,11 @@ const searchDrawerVisible = ref(false)
 const selectedRow = ref<Position | null>(null)
 
 const queryParams = reactive({ positionName: '', status: undefined as number | undefined, pageNum: 1, pageSize: 10 })
+
+// 序号计算
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
 
 // 计算激活的搜索条件数量
 const activeConditionsCount = computed(() => {
@@ -196,6 +230,13 @@ const formRules: FormRules = {
   positionName: [{ required: true, message: '请输入岗位名称', trigger: 'blur' }],
   positionCode: [{ required: true, message: '请输入岗位编码', trigger: 'blur' }]
 }
+
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
+})
 
 const getList = async () => {
   loading.value = true
@@ -255,24 +296,19 @@ const handleDelete = async (row: Position) => {
   } catch (e) { }
 }
 
-// 获取行样式名
-const getRowClassName = ({ row }: { row: Position }) => {
-  if (isMobile.value && selectedRow.value?.id === row.id) {
-    return 'selected-row'
-  }
-  return ''
-}
-
-// 处理行点击（移动端）
-const handleRowClick = (row: Position) => {
+// 当前行变化（移动端选中）
+const handleCurrentChange = ({ row }: { row: Position | null }) => {
   if (isMobile.value) {
-    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+    selectedRow.value = row
   }
 }
 
 // 取消选择
 const cancelSelection = () => {
   selectedRow.value = null
+  if (tableRef.value) {
+    tableRef.value.clearCurrentRow()
+  }
 }
 
 onMounted(() => getList())
@@ -284,7 +320,6 @@ onMounted(() => getList())
 
   .search-card { margin-bottom: 15px; }
   .table-card {
-    .card-header { display: flex; justify-content: space-between; align-items: center; }
     .el-pagination { margin-top: 15px; justify-content: flex-end; }
   }
 }

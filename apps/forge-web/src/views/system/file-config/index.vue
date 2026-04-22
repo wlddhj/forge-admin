@@ -1,7 +1,7 @@
 <template>
-  <div class="file-config-container">
+  <div class="app-container">
     <!-- 搜索表单 -->
-    <el-card class="search-card">
+    <el-card shadow="never" class="search-card">
       <el-form :model="queryParams" inline>
         <el-form-item label="配置名称">
           <el-input
@@ -45,41 +45,67 @@
     </el-card>
 
     <!-- 数据表格 -->
-    <el-card class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">文件存储配置列表</span>
-          <div class="toolbar">
-            <el-button type="primary" @click="handleAdd" v-permission="['system:file-config:add']">
-              <el-icon><Plus /></el-icon>
-              新增配置
-            </el-button>
-          </div>
-        </div>
-      </template>
+    <el-card shadow="never"  class="table-card">
+      <!-- vxe-toolbar 工具栏 -->
+      <vxe-toolbar ref="toolbarRef" custom>
+        <template #buttons>
+          <el-button type="primary" @click="handleAdd" v-permission="['system:file-config:add']">
+            <el-icon><Plus /></el-icon>
+            新增配置
+          </el-button>
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-refresh" style="margin-right: 10px" @click="handleQuery"></vxe-button>
+        </template>
+      </vxe-toolbar>
 
-      <el-table
-        v-loading="loading"
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        id="sysFileConfigTable"
+        :custom-config="{mode: 'modal'}"
         :data="tableData"
-        border
+        :height="tableHeight"
+        :loading="loading"
+        :row-config="{ isCurrent: true, isHover: true }"
+        :column-config="{ resizable: true }"
+        border="none"
         stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
       >
-        <el-table-column prop="configName" label="配置名称" min-width="150" />
-        <el-table-column prop="storageType" label="存储类型" width="120">
+        <!-- 序号列 -->
+        <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
+
+        <!-- 配置名称 -->
+        <vxe-column field="configName" title="配置名称" min-width="150" />
+
+        <!-- 存储类型 -->
+        <vxe-column title="存储类型" width="120">
           <template #default="{ row }">
             <dict-value :dict-type="DICT_TYPE.SYS_STORAGE_TYPE" :value="row.storageType" />
           </template>
-        </el-table-column>
-        <el-table-column prop="endpoint" label="服务端点" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="bucketName" label="存储桶" width="150" show-overflow-tooltip />
-        <el-table-column prop="basePath" label="基础路径" width="150" show-overflow-tooltip />
-        <el-table-column prop="isDefault" label="默认" width="100" align="center">
+        </vxe-column>
+
+        <!-- 服务端点 -->
+        <vxe-column field="endpoint" title="服务端点" min-width="200" />
+
+        <!-- 存储桶 -->
+        <vxe-column field="bucketName" title="存储桶" width="150" />
+
+        <!-- 基础路径 -->
+        <vxe-column field="basePath" title="基础路径" width="150" />
+
+        <!-- 默认 -->
+        <vxe-column title="默认" width="100" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.isDefault === 1" type="success">默认</el-tag>
             <el-link v-else type="primary" @click="handleSetDefault(row)">设为默认</el-link>
           </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="80" align="center">
+        </vxe-column>
+
+        <!-- 状态 -->
+        <vxe-column title="状态" width="80" align="center">
           <template #default="{ row }">
             <el-switch
               v-model="row.status"
@@ -88,9 +114,13 @@
               @change="handleStatusChange(row)"
             />
           </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="180" fixed="right">
+        </vxe-column>
+
+        <!-- 创建时间 -->
+        <vxe-column field="createTime" title="创建时间" width="180" />
+
+        <!-- 操作列 -->
+        <vxe-column title="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="handleEdit(row)" v-permission="['system:file-config:edit']">
               编辑
@@ -102,8 +132,8 @@
               删除
             </el-button>
           </template>
-        </el-table-column>
-      </el-table>
+        </vxe-column>
+      </vxe-table>
 
       <!-- 分页 -->
       <div class="pagination-container">
@@ -199,8 +229,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import {
   getFileConfigList,
   addFileConfig,
@@ -211,6 +242,8 @@ import {
   testFileConfig
 } from '@/api/system/file-config'
 import { useDict } from '@/composables/useDict'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
 import { DICT_TYPE } from '@/constants/dict'
 import DictValue from '@/components/DictValue.vue'
 
@@ -221,6 +254,13 @@ defineOptions({
 const { dictData: storageTypeOptions } = useDict(DICT_TYPE.SYS_STORAGE_TYPE)
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
 
+// 表格高度自适应
+const { tableHeight } = useTableHeight()
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
+
 // 查询参数
 const queryParams = reactive({
   pageNum: 1,
@@ -229,6 +269,11 @@ const queryParams = reactive({
   storageType: '',
   status: undefined as number | undefined
 })
+
+// 序号计算
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
 
 // 表格数据
 const tableData = ref<any[]>([])
@@ -284,6 +329,13 @@ const getStorageTypeLabel = (type: string) => {
   }
   return map[type] || type
 }
+
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
+})
 
 // 查询列表
 const getList = async () => {
@@ -419,30 +471,18 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.file-config-container {
-  padding: 20px;
+.app-container {
+  padding: 0;
 
   .search-card {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
   }
 
-  .table-card{
-    .card-header{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-
-      .title{
-        font-size: 16px;
-        font-weight: 500;
-      }
+  .table-card {
+    .el-pagination {
+      margin-top: 15px;
+      justify-content: flex-end;
     }
-  }
-
-  .pagination-container{
-    margin-top: 20px;
-    display: flex;
-    justify-content: flex-end;
   }
 }
 </style>

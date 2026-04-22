@@ -18,8 +18,14 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleQuery">搜索</el-button>
-          <el-button @click="handleReset">重置</el-button>
+          <el-button type="primary" @click="handleQuery">
+            <el-icon><Search /></el-icon>
+            搜索
+          </el-button>
+          <el-button @click="handleReset">
+            <el-icon><Refresh /></el-icon>
+            重置
+          </el-button>
         </el-form-item>
       </el-form>
 
@@ -56,60 +62,78 @@
 
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span v-if="!isMobile">部门列表</span>
-          <div v-if="!isMobile" class="header-btns">
-            <el-button type="primary" @click="handleAdd">
-              <el-icon><Plus /></el-icon>
-              新增部门
-            </el-button>
-            <el-button @click="handleToggleExpand">
-              <el-icon><Fold v-if="allExpanded" /><Expand v-else /></el-icon>
-              {{ allExpanded ? '全部折叠' : '全部展开' }}
-            </el-button>
-          </div>
-        </div>
-      </template>
+      <!-- vxe-toolbar 工具栏（桌面端） -->
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
+        <template #buttons>
+          <el-button type="primary" @click="handleAdd">
+            <el-icon><Plus /></el-icon>
+            新增部门
+          </el-button>
+          <el-button @click="handleToggleExpand">
+            <el-icon><component :is="allExpanded ? 'Fold' : 'Expand'" /></el-icon>
+            {{ allExpanded ? '全部折叠' : '全部展开' }}
+          </el-button>
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
+        </template>
+      </vxe-toolbar>
 
-      <div class="table-responsive">
-        <el-table
-          ref="tableRef"
-          v-loading="loading"
-          :data="tableData"
-          border
-          stripe
-          row-key="id"
-          :tree-props="{ children: 'children' }"
-          :default-expand-all="!isMobile"
-          :row-class-name="getRowClassName"
-          @row-click="handleRowClick"
-        >
-          <el-table-column prop="deptName" label="部门名称" width="200" />
-          <el-table-column prop="leader" label="负责人" width="120" v-if="!isMobile" />
-          <el-table-column prop="phone" label="联系电话" width="150" v-if="!isMobile" />
-          <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="sortOrder" label="排序" width="80" v-if="!isMobile" />
-          <el-table-column label="状态" width="80">
-            <template #default="{ row }">
-              <DictValue :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="createTime" label="创建时间" width="180" v-if="!isMobile">
-            <template #default="{ row }">
-              {{ formatDateTime(row.createTime) }}
-            </template>
-          </el-table-column>
-          <!-- 桌面端操作列 -->
-          <el-table-column v-if="!isMobile" label="操作" width="200" fixed="right">
-            <template #default="{ row }">
-              <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-              <el-button type="primary" link @click="handleAddChild(row)">新增</el-button>
-              <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        id="sysDeptTable"
+        :custom-config="{mode: 'modal'}"
+        :data="tableData"
+        :loading="loading"
+        :height="tableHeight"
+        :row-config="{ isCurrent: true, isHover: true, keyField: 'id' }"
+        :tree-config="{ childrenField: 'children', expandAll: !isMobile, indent: 20 }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
+        @current-change="handleCurrentChange"
+      >
+        <!-- 部门名称 -->
+        <vxe-column field="deptName" title="部门名称" width="200" tree-node />
+
+        <!-- 负责人（桌面端） -->
+        <vxe-column v-if="!isMobile" field="leader" title="负责人" width="120" />
+
+        <!-- 联系电话（桌面端） -->
+        <vxe-column v-if="!isMobile" field="phone" title="联系电话" width="150" />
+
+        <!-- 邮箱（桌面端） -->
+        <vxe-column v-if="!isMobile" field="email" title="邮箱" min-width="200" />
+
+        <!-- 排序（桌面端） -->
+        <vxe-column v-if="!isMobile" field="sortOrder" title="排序" width="80" />
+
+        <!-- 状态 -->
+        <vxe-column title="状态" width="80">
+          <template #default="{ row }">
+            <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
+          </template>
+        </vxe-column>
+
+        <!-- 创建时间（桌面端） -->
+        <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="180">
+          <template #default="{ row }">
+            {{ formatDateTime(row.createTime) }}
+          </template>
+        </vxe-column>
+
+        <!-- 桌面端操作列 -->
+        <vxe-column v-if="!isMobile" title="操作" width="200" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
+            <el-button type="primary" link size="small" @click.stop="handleAddChild(row)">新增</el-button>
+            <el-button type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
+          </template>
+        </vxe-column>
+      </vxe-table>
     </el-card>
 
     <!-- 移动端底部操作栏 -->
@@ -179,11 +203,13 @@
 import { reactive, ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { Plus, Fold, Expand } from '@element-plus/icons-vue'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
+import { Plus, Fold, Expand, Search, Refresh } from '@element-plus/icons-vue'
 import { getDeptList, getDeptTree, addDept, updateDept, deleteDept } from '@/api/system'
 import type { Dept, DeptTree, DeptRequest } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
 import { useDict } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
@@ -194,9 +220,15 @@ import DictValue from '@/components/DictValue.vue'
 const { isMobile } = useResponsive()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
 
+// 表格高度自适应（树形表格无分页）
+const { tableHeight } = useTableHeight({ hasPagination: false })
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
+
 const loading = ref(false)
 const tableData = ref<DeptTree[]>([])
-const tableRef = ref()
 const allExpanded = ref(true)
 
 // 移动端状态
@@ -239,13 +271,24 @@ const formRules: FormRules = {
 
 const deptTreeOptions = ref<DeptTree[]>([])
 
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
+})
+
 const getList = async () => {
   loading.value = true
   try {
     const res = await getDeptList(queryParams)
     tableData.value = buildDeptTree(res)
-    allExpanded.value = true
-    nextTick(() => expandAll())
+    allExpanded.value = !isMobile.value
+    nextTick(() => {
+      if (!isMobile.value && tableRef.value) {
+        tableRef.value.setAllTreeExpand(true)
+      }
+    })
   } finally {
     loading.value = false
   }
@@ -286,38 +329,14 @@ const buildDeptTree = (flatList: Dept[]): DeptTree[] => {
   return tree
 }
 
-const expandAll = () => {
-  if (!tableRef.value) return
-  const expandRows = (rows: DeptTree[]) => {
-    rows.forEach(row => {
-      if (row.children && row.children.length > 0) {
-        tableRef.value?.toggleRowExpansion(row, true)
-        expandRows(row.children)
-      }
-    })
-  }
-  expandRows(tableData.value)
-}
-
-const collapseAll = () => {
-  if (!tableRef.value) return
-  const collapseRows = (rows: DeptTree[]) => {
-    rows.forEach(row => {
-      if (row.children && row.children.length > 0) {
-        tableRef.value?.toggleRowExpansion(row, false)
-        collapseRows(row.children)
-      }
-    })
-  }
-  collapseRows(tableData.value)
-}
-
 const handleToggleExpand = () => {
   allExpanded.value = !allExpanded.value
-  if (allExpanded.value) {
-    expandAll()
-  } else {
-    collapseAll()
+  if (tableRef.value) {
+    if (allExpanded.value) {
+      tableRef.value.setAllTreeExpand(true)
+    } else {
+      tableRef.value.clearTreeExpand()
+    }
   }
 }
 
@@ -330,7 +349,7 @@ const handleReset = () => {
 
 // 移动端抽屉搜索
 const handleSearchFromDrawer = () => {
-  handleQuery()
+  getList()
 }
 
 // 移动端抽屉重置
@@ -409,24 +428,19 @@ const handleDelete = async (row: DeptTree) => {
   }
 }
 
-// 获取行样式名
-const getRowClassName = ({ row }: { row: DeptTree }) => {
-  if (isMobile.value && selectedRow.value?.id === row.id) {
-    return 'selected-row'
-  }
-  return ''
-}
-
-// 处理行点击（移动端）
-const handleRowClick = (row: DeptTree) => {
+// 当前行变化（移动端选中）
+const handleCurrentChange = ({ row }: { row: DeptTree | null }) => {
   if (isMobile.value) {
-    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+    selectedRow.value = row
   }
 }
 
 // 取消选择
 const cancelSelection = () => {
   selectedRow.value = null
+  if (tableRef.value) {
+    tableRef.value.clearCurrentRow()
+  }
 }
 
 onMounted(() => {
@@ -437,16 +451,10 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .app-container {
+  padding: 0;
+
   .search-card {
     margin-bottom: 15px;
-  }
-
-  .table-card {
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
   }
 }
 </style>

@@ -76,49 +76,74 @@
 
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span v-if="!isMobile">通知公告列表</span>
-          <div v-if="!isMobile" class="header-btns">
-            <el-button type="primary" @click="handleAdd">新增公告</el-button>
-          </div>
-        </div>
-      </template>
+      <!-- vxe-toolbar 工具栏（桌面端） -->
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
+        <template #buttons>
+          <el-button type="primary" @click="handleAdd">
+            <el-icon><Plus /></el-icon>
+            新增公告
+          </el-button>
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
+        </template>
+      </vxe-toolbar>
 
-      <div class="table-responsive">
-        <el-table
-          v-loading="loading"
-          :data="tableData"
-          border
-          stripe
-          :row-class-name="getRowClassName"
-          @row-click="handleRowClick"
-        >
-          <el-table-column prop="id" label="ID" width="80" v-if="!isMobile" />
-          <el-table-column prop="noticeTitle" label="公告标题" min-width="200" show-overflow-tooltip />
-          <el-table-column label="公告类型" width="100">
-            <template #default="{ row }">
-              <dict-value :dict-type="DICT_TYPE.SYS_NOTICE_TYPE" :value="row.noticeType" />
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="80">
-            <template #default="{ row }">
-              <dict-value :dict-type="DICT_TYPE.SYS_COMMON_STATUS" :value="row.status" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="createByName" label="创建者" width="120" v-if="!isMobile" />
-          <el-table-column prop="createTime" label="创建时间" width="180" v-if="!isMobile">
-            <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
-          </el-table-column>
-          <!-- 桌面端操作列 -->
-          <el-table-column v-if="!isMobile" label="操作" width="150" fixed="right">
-            <template #default="{ row }">
-              <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-              <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        id="sysNoticeTable"
+        :custom-config="{mode: 'modal'}"
+        :data="tableData"
+        :height="tableHeight"
+        :loading="loading"
+        :row-config="{ isCurrent: true, isHover: true }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
+        @current-change="handleCurrentChange"
+      >
+        <!-- 序号列（桌面端） -->
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+
+        <!-- ID（桌面端） -->
+        <vxe-column v-if="!isMobile" field="id" title="ID" width="80" />
+
+        <!-- 公告标题 -->
+        <vxe-column field="noticeTitle" title="公告标题" min-width="200" />
+
+        <!-- 公告类型 -->
+        <vxe-column title="公告类型" width="100">
+          <template #default="{ row }">
+            <dict-value :dict-type="DICT_TYPE.SYS_NOTICE_TYPE" :value="row.noticeType" />
+          </template>
+        </vxe-column>
+
+        <!-- 状态 -->
+        <vxe-column title="状态" width="80">
+          <template #default="{ row }">
+            <dict-value :dict-type="DICT_TYPE.SYS_COMMON_STATUS" :value="row.status" />
+          </template>
+        </vxe-column>
+
+        <!-- 创建者（桌面端） -->
+        <vxe-column v-if="!isMobile" field="createByName" title="创建者" width="120" />
+
+        <!-- 创建时间（桌面端） -->
+        <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="180">
+          <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+        </vxe-column>
+
+        <!-- 桌面端操作列 -->
+        <vxe-column v-if="!isMobile" title="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
+            <el-button type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
+          </template>
+        </vxe-column>
+      </vxe-table>
 
       <el-pagination
         v-model:current-page="queryParams.pageNum"
@@ -208,10 +233,13 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { Plus } from '@element-plus/icons-vue'
 import { getNoticeList, addNotice, updateNotice, deleteNotice } from '@/api/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
 import { useDict } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
@@ -222,6 +250,13 @@ import DictValue from '@/components/DictValue.vue'
 const { isMobile } = useResponsive()
 const { dictData: noticeTypeOptions } = useDict(DICT_TYPE.SYS_NOTICE_TYPE)
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_COMMON_STATUS)
+
+// 表格高度自适应
+const { tableHeight } = useTableHeight()
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
 
 interface Notice {
   id: number
@@ -258,6 +293,11 @@ const activeConditionsCount = computed(() => {
   if (queryParams.status !== undefined) count++
   return count
 })
+
+// 序号计算
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
@@ -357,36 +397,46 @@ const handleDelete = async (row: Notice) => {
   } catch (e) {}
 }
 
-// 获取行样式名
-const getRowClassName = ({ row }: { row: Notice }) => {
-  if (isMobile.value && selectedRow.value?.id === row.id) {
-    return 'selected-row'
-  }
-  return ''
-}
-
-// 处理行点击（移动端）
-const handleRowClick = (row: Notice) => {
+// 当前行变化（移动端选中）
+const handleCurrentChange = ({ row }: { row: Notice | null }) => {
   if (isMobile.value) {
-    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+    selectedRow.value = row
   }
 }
 
 // 取消选择
 const cancelSelection = () => {
   selectedRow.value = null
+  if (tableRef.value) {
+    tableRef.value.clearCurrentRow()
+  }
 }
+
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
+})
 
 onMounted(() => getList())
 </script>
 
 <style scoped lang="scss">
 .app-container {
-  .search-card { margin-bottom: 15px; }
-  .table-card {
-    .card-header { display: flex; justify-content: space-between; align-items: center; }
-    .el-pagination { margin-top: 15px; justify-content: flex-end; }
+  padding: 0;
+
+  .search-card {
+    margin-bottom: 15px;
   }
+
+  .table-card {
+    .el-pagination {
+      margin-top: 15px;
+      justify-content: flex-end;
+    }
+  }
+
   .notice-content {
     white-space: pre-wrap;
     word-break: break-all;

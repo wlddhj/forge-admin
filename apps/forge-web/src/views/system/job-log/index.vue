@@ -57,48 +57,80 @@
 
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span>任务执行日志</span>
-        </div>
-      </template>
+      <!-- vxe-toolbar 工具栏（桌面端） -->
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
+        <template #buttons>
+          <el-button type="danger" @click="handleClear">
+            <el-icon><Delete /></el-icon>
+            清空日志
+          </el-button>
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
+        </template>
+      </vxe-toolbar>
 
-      <div class="table-responsive">
-        <el-table
-          v-loading="loading"
-          :data="tableData"
-          border
-          stripe
-        >
-          <el-table-column prop="jobName" label="任务名称" width="150" />
-          <el-table-column prop="jobGroup" label="任务分组" width="100" v-if="!isMobile">
-            <template #default="{ row }">
-              <el-tag v-if="row.jobGroup === 'SYSTEM'" type="danger" size="small">系统</el-tag>
-              <el-tag v-else size="small">默认</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="invokeTarget" label="调用目标" min-width="200" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="jobMessage" label="日志信息" width="120" />
-          <el-table-column label="执行状态" width="90">
-            <template #default="{ row }">
-              <DictValue :dict-type="DICT_TYPE.SYS_SUCCESS_FAIL" :value="row.status" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="duration" label="耗时(毫秒)" width="110" v-if="!isMobile">
-            <template #default="{ row }">
-              <span :class="{ 'text-danger': row.duration > 5000 }">{{ row.duration }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="startTime" label="执行时间" width="180" v-if="!isMobile">
-            <template #default="{ row }">{{ formatDateTime(row.startTime) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="100" fixed="right">
-            <template #default="{ row }">
-              <el-button type="primary" link @click="handleViewDetail(row)">详情</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        id="sysJobLogTable"
+        :custom-config="{mode: 'modal'}"
+        :data="tableData"
+        :height="tableHeight"
+        :loading="loading"
+        :row-config="{ isCurrent: true, isHover: true }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
+      >
+        <!-- 序号列（桌面端） -->
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+
+        <!-- 任务名称 -->
+        <vxe-column field="jobName" title="任务名称" width="150" />
+
+        <!-- 任务分组（桌面端） -->
+        <vxe-column v-if="!isMobile" field="jobGroup" title="任务分组" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.jobGroup === 'SYSTEM'" type="danger" size="small">系统</el-tag>
+            <el-tag v-else size="small">默认</el-tag>
+          </template>
+        </vxe-column>
+
+        <!-- 调用目标（桌面端） -->
+        <vxe-column v-if="!isMobile" field="invokeTarget" title="调用目标" min-width="200" />
+
+        <!-- 日志信息 -->
+        <vxe-column field="jobMessage" title="日志信息" width="120" />
+
+        <!-- 执行状态 -->
+        <vxe-column title="执行状态" width="90">
+          <template #default="{ row }">
+            <DictValue :dict-type="DICT_TYPE.SYS_SUCCESS_FAIL" :value="row.status" />
+          </template>
+        </vxe-column>
+
+        <!-- 耗时（桌面端） -->
+        <vxe-column v-if="!isMobile" field="duration" title="耗时(毫秒)" width="110">
+          <template #default="{ row }">
+            <span :class="{ 'text-danger': row.duration > 5000 }">{{ row.duration }}</span>
+          </template>
+        </vxe-column>
+
+        <!-- 执行时间（桌面端） -->
+        <vxe-column v-if="!isMobile" field="startTime" title="执行时间" width="180">
+          <template #default="{ row }">{{ formatDateTime(row.startTime) }}</template>
+        </vxe-column>
+
+        <!-- 操作列 -->
+        <vxe-column title="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" link @click="handleViewDetail(row)">详情</el-button>
+          </template>
+        </vxe-column>
+      </vxe-table>
 
       <!-- 分页 -->
       <el-pagination
@@ -141,11 +173,14 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { Delete } from '@element-plus/icons-vue'
 import { getJobLogList, clearJobLogs } from '@/api/system'
 import type { JobLog } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
 import { useDict } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import { useRoute } from 'vue-router'
@@ -156,6 +191,13 @@ import DictValue from '@/components/DictValue.vue'
 const { isMobile } = useResponsive()
 const route = useRoute()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_SUCCESS_FAIL)
+
+// 表格高度自适应
+const { tableHeight } = useTableHeight()
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
 
 const loading = ref(false)
 const tableData = ref<JobLog[]>([])
@@ -171,6 +213,11 @@ const queryParams = reactive({
   jobName: (route.query.jobName as string) || '',
   status: undefined as number | undefined
 })
+
+// 序号计算
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
 
 // 计算激活的搜索条件数量
 const activeConditionsCount = computed(() => {
@@ -229,7 +276,11 @@ const handleViewDetail = (row: JobLog) => {
   detailDialogVisible.value = true
 }
 
+// 关联工具栏与表格
 onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
   getList()
 })
 </script>
@@ -241,12 +292,6 @@ onMounted(() => {
   }
 
   .table-card {
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
     .el-pagination {
       margin-top: 15px;
       justify-content: flex-end;

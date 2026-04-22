@@ -57,66 +57,88 @@
 
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span v-if="!isMobile">附件列表</span>
-          <div v-if="!isMobile" class="header-btns">
-            <el-upload
-              :action="uploadUrl"
-              :headers="uploadHeaders"
-              :show-file-list="false"
-              :on-success="handleUploadSuccess"
-              :on-error="handleUploadError"
-              :before-upload="beforeUpload"
-            >
-              <el-button type="primary">上传文件</el-button>
-            </el-upload>
-          </div>
-        </div>
-      </template>
+      <!-- vxe-toolbar 工具栏（桌面端） -->
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
+        <template #buttons>
+          <el-upload
+            :action="uploadUrl"
+            :headers="uploadHeaders"
+            :show-file-list="false"
+            :on-success="handleUploadSuccess"
+            :on-error="handleUploadError"
+            :before-upload="beforeUpload"
+          >
+            <el-button type="primary">上传文件</el-button>
+          </el-upload>
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-refresh" style="margin-right: 10px" @click="handleQuery"></vxe-button>
+        </template>
+      </vxe-toolbar>
 
-      <div class="table-responsive">
-        <el-table
-          v-loading="loading"
-          :data="tableData"
-          border
-          stripe
-          :row-class-name="getRowClassName"
-          @row-click="handleRowClick"
-        >
-          <el-table-column prop="originalName" label="文件名" min-width="200" show-overflow-tooltip>
-            <template #default="{ row }">
-              <div class="file-name">
-                <el-icon v-if="isImage(row.fileExtension)" class="file-icon"><Picture /></el-icon>
-                <el-icon v-else-if="isDocument(row.fileExtension)" class="file-icon"><Document /></el-icon>
-                <el-icon v-else class="file-icon"><Folder /></el-icon>
-                <span>{{ row.originalName }}</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="文件大小" width="120">
-            <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
-          </el-table-column>
-          <el-table-column prop="fileType" label="文件类型" width="150" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="storageType" label="存储方式" width="100" v-if="!isMobile">
-            <template #default="{ row }">
-              <el-tag>{{ row.storageType === 'local' ? '本地存储' : row.storageType }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="uploaderName" label="上传者" width="100" v-if="!isMobile" />
-          <el-table-column prop="createTime" label="上传时间" width="180" v-if="!isMobile">
-            <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
-          </el-table-column>
-          <!-- 桌面端操作列 -->
-          <el-table-column v-if="!isMobile" label="操作" width="230" fixed="right">
-            <template #default="{ row }">
-              <el-button v-if="isImage(row.fileExtension)" type="primary" link @click="handlePreview(row)">预览</el-button>
-              <el-button type="primary" link @click="handleDownload(row)">下载</el-button>
-              <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        id="sysAttachmentTable"
+        :custom-config="{mode: 'modal'}"
+        :data="tableData"
+        :height="tableHeight"
+        :loading="loading"
+        :row-config="{ isCurrent: true, isHover: true }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
+        @current-change="handleCurrentChange"
+      >
+        <!-- 序号列（桌面端） -->
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+
+        <!-- 文件名 -->
+        <vxe-column field="originalName" title="文件名" min-width="200">
+          <template #default="{ row }">
+            <div class="file-name">
+              <el-icon v-if="isImage(row.fileExtension)" class="file-icon"><Picture /></el-icon>
+              <el-icon v-else-if="isDocument(row.fileExtension)" class="file-icon"><Document /></el-icon>
+              <el-icon v-else class="file-icon"><Folder /></el-icon>
+              <span>{{ row.originalName }}</span>
+            </div>
+          </template>
+        </vxe-column>
+
+        <!-- 文件大小 -->
+        <vxe-column title="文件大小" width="120">
+          <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
+        </vxe-column>
+
+        <!-- 文件类型（桌面端） -->
+        <vxe-column v-if="!isMobile" field="fileType" title="文件类型" width="150" />
+
+        <!-- 存储方式（桌面端） -->
+        <vxe-column v-if="!isMobile" field="storageType" title="存储方式" width="100">
+          <template #default="{ row }">
+            <el-tag>{{ row.storageType === 'local' ? '本地存储' : row.storageType }}</el-tag>
+          </template>
+        </vxe-column>
+
+        <!-- 上传者（桌面端） -->
+        <vxe-column v-if="!isMobile" field="uploaderName" title="上传者" width="100" />
+
+        <!-- 上传时间（桌面端） -->
+        <vxe-column v-if="!isMobile" field="createTime" title="上传时间" width="180">
+          <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+        </vxe-column>
+
+        <!-- 桌面端操作列 -->
+        <vxe-column v-if="!isMobile" title="操作" width="230" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="isImage(row.fileExtension)" type="primary" link @click="handlePreview(row)">预览</el-button>
+            <el-button type="primary" link @click="handleDownload(row)">下载</el-button>
+            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+          </template>
+        </vxe-column>
+      </vxe-table>
 
       <el-pagination
         v-model:current-page="queryParams.pageNum"
@@ -153,18 +175,28 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { Picture, Document, Folder, Upload } from '@element-plus/icons-vue'
 import { getAttachmentList, deleteAttachment } from '@/api/system'
 import type { Attachment } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useUserStore } from '@/stores/user'
 import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
 
 const userStore = useUserStore()
 const { isMobile } = useResponsive()
+
+// 表格高度自适应
+const { tableHeight } = useTableHeight()
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
 
 const loading = ref(false)
 const tableData = ref<Attachment[]>([])
@@ -182,6 +214,11 @@ const queryParams = reactive({
   pageSize: 10
 })
 
+// 序号计算
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
+
 // 计算激活的搜索条件数量
 const activeConditionsCount = computed(() => {
   let count = 0
@@ -196,6 +233,13 @@ const previewUrl = ref('')
 
 const uploadUrl = computed(() => import.meta.env.VITE_API_BASE_URL + '/system/attachment/upload')
 const uploadHeaders = computed(() => ({ Authorization: `Bearer ${userStore.token}` }))
+
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
+})
 
 const getList = async () => {
   loading.value = true
@@ -264,24 +308,19 @@ const handleDelete = async (row: Attachment) => {
   } catch (e) {}
 }
 
-// 获取行样式名
-const getRowClassName = ({ row }: { row: Attachment }) => {
-  if (isMobile.value && selectedRow.value?.id === row.id) {
-    return 'selected-row'
-  }
-  return ''
-}
-
-// 处理行点击（移动端）
-const handleRowClick = (row: Attachment) => {
+// 当前行变化（移动端选中）
+const handleCurrentChange = ({ row }: { row: Attachment | null }) => {
   if (isMobile.value) {
-    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+    selectedRow.value = row
   }
 }
 
 // 取消选择
 const cancelSelection = () => {
   selectedRow.value = null
+  if (tableRef.value) {
+    tableRef.value.clearCurrentRow()
+  }
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -307,15 +346,13 @@ onMounted(() => getList())
 
 <style scoped lang="scss">
 .app-container {
+  padding: 0;
+
   .search-card {
     margin-bottom: 15px;
   }
+
   .table-card {
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
     .file-name {
       display: flex;
       align-items: center;

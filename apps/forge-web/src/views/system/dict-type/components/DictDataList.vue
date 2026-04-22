@@ -52,47 +52,79 @@
       </template>
     </MobileSearchDrawer>
 
-    <!-- 操作按钮 -->
-    <div v-if="!isMobile" class="action-bar">
-      <el-button type="primary" @click="handleAdd">新增数据</el-button>
-    </div>
+    <!-- vxe-toolbar 工具栏（桌面端） -->
+    <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
+      <template #buttons>
+        <el-button type="primary" @click="handleAdd">新增数据</el-button>
+      </template>
+      <template #tools>
+        <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
+      </template>
+    </vxe-toolbar>
 
-    <!-- 数据表格 -->
-    <el-table
-      v-loading="loading"
+    <!-- vxe-table 表格 -->
+    <vxe-table
+      ref="tableRef"
+      id="sysDictDataTable"
+      :custom-config="{mode: 'modal'}"
       :data="tableData"
-      border
+      :height="tableHeight"
+      :loading="loading"
+      :row-config="{ isCurrent: true, isHover: true }"
+      :column-config="{ resizable: true }"
+      border="none"
       stripe
-      :row-class-name="getRowClassName"
-      @row-click="handleRowClick"
+      show-overflow="tooltip"
+      show-header-overflow="tooltip"
+      @current-change="handleCurrentChange"
     >
-      <el-table-column prop="id" label="ID" width="80" v-if="!isMobile" />
-      <el-table-column prop="dictLabel" label="字典标签" width="150" />
-      <el-table-column prop="dictValue" label="字典值" width="120" />
-      <el-table-column prop="dictSort" label="排序" width="80" v-if="!isMobile" />
-      <el-table-column prop="cssClass" label="CSS样式" width="120" v-if="!isMobile" show-overflow-tooltip />
-      <el-table-column label="表格样式" width="120" v-if="!isMobile">
+      <!-- 序号列（桌面端） -->
+      <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+
+      <!-- 字典标签 -->
+      <vxe-column field="dictLabel" title="字典标签" width="150" />
+
+      <!-- 字典值 -->
+      <vxe-column field="dictValue" title="字典值" width="120" />
+
+      <!-- 排序（桌面端） -->
+      <vxe-column v-if="!isMobile" field="dictSort" title="排序" width="80" />
+
+      <!-- CSS样式（桌面端） -->
+      <vxe-column v-if="!isMobile" field="cssClass" title="CSS样式" width="120" />
+
+      <!-- 表格样式（桌面端） -->
+      <vxe-column v-if="!isMobile" title="表格样式" width="120">
         <template #default="{ row }">
           <dict-value v-if="row.listClass" :dict-type="DICT_TYPE.SYS_TAG_TYPE" :value="row.listClass" />
         </template>
-      </el-table-column>
-      <el-table-column label="状态" width="80">
+      </vxe-column>
+
+      <!-- 状态 -->
+      <vxe-column title="状态" width="80">
         <template #default="{ row }">
           <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
         </template>
-      </el-table-column>
-      <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip v-if="!isMobile" />
-      <el-table-column prop="createTime" label="创建时间" width="180" v-if="!isMobile">
-        <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
-      </el-table-column>
-      <!-- 桌面端操作列 -->
-      <el-table-column v-if="!isMobile" label="操作" width="150" fixed="right">
+      </vxe-column>
+
+      <!-- 备注（桌面端） -->
+      <vxe-column v-if="!isMobile" field="remark" title="备注" min-width="120" />
+
+      <!-- 创建时间（桌面端） -->
+      <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="180">
         <template #default="{ row }">
-          <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-          <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+          {{ formatDateTime(row.createTime) }}
         </template>
-      </el-table-column>
-    </el-table>
+      </vxe-column>
+
+      <!-- 桌面端操作列 -->
+      <vxe-column v-if="!isMobile" title="操作" width="150" fixed="right">
+        <template #default="{ row }">
+          <el-button type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
+          <el-button type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
+        </template>
+      </vxe-column>
+    </vxe-table>
 
     <!-- 分页 -->
     <el-pagination
@@ -182,11 +214,14 @@
 import { reactive, ref, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { Plus } from '@element-plus/icons-vue'
 import { getDictDataList, addDictData, updateDictData, deleteDictData } from '@/api/system'
 import type { DictData } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
 import { useDict } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
@@ -259,6 +294,13 @@ const props = defineProps<{
 
 const { isMobile } = useResponsive()
 
+// 表格高度自适应（抽屉场景使用较小的默认高度）
+const { tableHeight } = useTableHeight({ extraOffset: 20 })
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
+
 const loading = ref(false)
 const tableData = ref<DictData[]>([])
 const total = ref(0)
@@ -274,6 +316,11 @@ const queryParams = reactive({
   pageNum: 1,
   pageSize: 10
 })
+
+// 序号计算
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
 
 // 计算激活的搜索条件数量
 const activeConditionsCount = computed(() => {
@@ -304,6 +351,13 @@ const formRules: FormRules = {
   dictLabel: [{ required: true, message: '请输入字典标签', trigger: 'blur' }],
   dictValue: [{ required: true, message: '请输入字典值', trigger: 'blur' }]
 }
+
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
+})
 
 const getList = async () => {
   if (!queryParams.dictType) return
@@ -413,37 +467,19 @@ const handleDelete = async (row: DictData) => {
   } catch (e) {}
 }
 
-// 获取行样式名
-const getRowClassName = ({ row }: { row: DictData }) => {
-  if (isMobile.value && selectedRow.value?.id === row.id) {
-    return 'selected-row'
-  }
-  return ''
-}
-
-// 处理行点击（移动端）
-const handleRowClick = (row: DictData) => {
+// 当前行变化（移动端选中）
+const handleCurrentChange = ({ row }: { row: DictData | null }) => {
   if (isMobile.value) {
-    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+    selectedRow.value = row
   }
 }
 
 // 取消选择
 const cancelSelection = () => {
   selectedRow.value = null
-}
-
-// 获取表格样式标签
-const getListClassLabel = (value: string) => {
-  const map: Record<string, string> = {
-    default: '默认',
-    primary: '主要',
-    success: '成功',
-    warning: '警告',
-    danger: '危险',
-    info: '信息'
+  if (tableRef.value) {
+    tableRef.value.clearCurrentRow()
   }
-  return map[value] || value
 }
 
 watch(
@@ -461,9 +497,6 @@ watch(
 <style scoped lang="scss">
 .dict-data-container {
   .search-form {
-    margin-bottom: 15px;
-  }
-  .action-bar {
     margin-bottom: 15px;
   }
   .el-pagination {

@@ -68,60 +68,81 @@
 
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span v-if="!isMobile">角色列表</span>
-          <div v-if="!isMobile" class="header-btns">
-            <el-button type="primary" @click="handleAdd">
-              <el-icon><Plus /></el-icon>
-              新增角色
-            </el-button>
-            <el-button v-permission="'system:role:export'" type="success" @click="handleExport">
-              <el-icon><Download /></el-icon>
-              导出
-            </el-button>
-          </div>
-        </div>
-      </template>
+      <!-- vxe-toolbar 工具栏（桌面端） -->
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
+        <template #buttons>
+          <el-button type="primary" @click="handleAdd">
+            <el-icon><Plus /></el-icon>
+            新增角色
+          </el-button>
+          <el-button v-permission="'system:role:export'" type="success" @click="handleExport">
+            <el-icon><Download /></el-icon>
+            导出
+          </el-button>
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
+        </template>
+      </vxe-toolbar>
 
-      <div class="table-responsive">
-        <el-table
-          v-loading="loading"
-          :data="tableData"
-          border
-          stripe
-          :row-class-name="getRowClassName"
-          @row-click="handleRowClick"
-        >
-          <el-table-column prop="id" label="ID" width="80" v-if="!isMobile" />
-          <el-table-column prop="roleName" label="角色名称" width="180" />
-          <el-table-column prop="roleCode" label="角色编码" width="180" />
-          <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column label="数据权限" width="140">
-            <template #default="{ row }">
-              <dict-value :dict-type="DICT_TYPE.SYS_DATA_SCOPE" :value="row.dataScope" />
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="createTime" label="创建时间" width="180" v-if="!isMobile">
-            <template #default="{ row }">
-              {{ formatDateTime(row.createTime) }}
-            </template>
-          </el-table-column>
-          <!-- 桌面端操作列 -->
-          <el-table-column v-if="!isMobile" label="操作" width="180" fixed="right">
-            <template #default="{ row }">
-              <el-button type="primary" link @click.stop="handleEdit(row)">编辑</el-button>
-              <el-button type="primary" link @click.stop="handleAssignMenus(row)">分配菜单</el-button>
-              <el-button type="danger" link @click.stop="handleDelete(row)" :disabled="row.isFixed === 1">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        id="sysRoleTable"
+        :custom-config="{mode: 'modal'}"
+        :data="tableData"
+        :height="tableHeight"
+        :loading="loading"
+        :row-config="{ isCurrent: true, isHover: true }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
+        @current-change="handleCurrentChange"
+      >
+        <!-- 序号列（桌面端） -->
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+
+        <!-- 角色名称 -->
+        <vxe-column field="roleName" title="角色名称" width="180" />
+
+        <!-- 角色编码 -->
+        <vxe-column field="roleCode" title="角色编码" width="180" />
+
+        <!-- 描述（桌面端） -->
+        <vxe-column v-if="!isMobile" field="description" title="描述" min-width="200" />
+
+        <!-- 数据权限 -->
+        <vxe-column title="数据权限" width="140">
+          <template #default="{ row }">
+            <dict-value :dict-type="DICT_TYPE.SYS_DATA_SCOPE" :value="row.dataScope" />
+          </template>
+        </vxe-column>
+
+        <!-- 状态 -->
+        <vxe-column title="状态" width="100">
+          <template #default="{ row }">
+            <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
+          </template>
+        </vxe-column>
+
+        <!-- 创建时间（桌面端） -->
+        <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="180">
+          <template #default="{ row }">
+            {{ formatDateTime(row.createTime) }}
+          </template>
+        </vxe-column>
+
+        <!-- 桌面端操作列 -->
+        <vxe-column v-if="!isMobile" title="操作" width="180" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
+            <el-button type="primary" link size="small" @click.stop="handleAssignMenus(row)">分配菜单</el-button>
+            <el-button type="danger" link size="small" @click.stop="handleDelete(row)" :disabled="row.isFixed === 1">删除</el-button>
+          </template>
+        </vxe-column>
+      </vxe-table>
 
       <el-pagination
         v-model:current-page="queryParams.pageNum"
@@ -239,6 +260,7 @@
 import { reactive, ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import {
   getRoleList, addRole, updateRole, deleteRole,
   assignRoleMenus, getMenuTree, getRoleMenus, getDeptTree, exportRoles
@@ -247,6 +269,8 @@ import type { Role, RoleRequest, MenuTree, DeptTree } from '@/types/system'
 import { DICT_TYPE } from '@/constants/dict'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
 import { useDict } from '@/composables/useDict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
@@ -256,6 +280,13 @@ import DictValue from '@/components/DictValue.vue'
 const { isMobile } = useResponsive()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
 const { dictData: dataScopeOptions } = useDict(DICT_TYPE.SYS_DATA_SCOPE)
+
+// 表格高度自适应
+const { tableHeight } = useTableHeight()
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
 
 const loading = ref(false)
 const tableData = ref<Role[]>([])
@@ -272,6 +303,11 @@ const queryParams = reactive({
   pageNum: 1,
   pageSize: 10
 })
+
+// 序号计算
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
 
 // 计算激活的搜索条件数量
 const activeConditionsCount = computed(() => {
@@ -313,6 +349,13 @@ const currentRoleId = ref(0)
 // 部门树相关
 const deptTree = ref<DeptTree[]>([])
 const deptTreeRef = ref()
+
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
+})
 
 const getList = async () => {
   loading.value = true
@@ -441,6 +484,7 @@ const handleDialogClose = () => {
 }
 
 const handleAssignMenus = async (row: Role) => {
+  cancelSelection()
   currentRoleId.value = row.id
   menuDialogVisible.value = true
   try {
@@ -479,24 +523,19 @@ const handleDelete = async (row: Role) => {
   }
 }
 
-// 获取行样式名
-const getRowClassName = ({ row }: { row: Role }) => {
-  if (isMobile.value && selectedRow.value?.id === row.id) {
-    return 'selected-row'
-  }
-  return ''
-}
-
-// 处理行点击（移动端）
-const handleRowClick = (row: Role) => {
+// 当前行变化（移动端选中）
+const handleCurrentChange = ({ row }: { row: Role | null }) => {
   if (isMobile.value) {
-    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+    selectedRow.value = row
   }
 }
 
 // 取消选择
 const cancelSelection = () => {
   selectedRow.value = null
+  if (tableRef.value) {
+    tableRef.value.clearCurrentRow()
+  }
 }
 
 // 导出角色
@@ -525,12 +564,6 @@ onMounted(() => {
   }
 
   .table-card {
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
     .el-pagination {
       margin-top: 15px;
       justify-content: flex-end;
