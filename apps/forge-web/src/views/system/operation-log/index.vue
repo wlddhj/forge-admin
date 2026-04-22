@@ -104,57 +104,93 @@
 
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span v-if="!isMobile">操作日志列表</span>
-          <div v-if="!isMobile">
-            <el-button type="success" @click="handleExport">导出</el-button>
-            <el-button type="danger" @click="handleClear">清空日志</el-button>
-          </div>
-        </div>
-      </template>
+      <!-- vxe-toolbar 工具栏（桌面端） -->
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom >
+        <template #buttons>
+          <el-button type="success" @click="handleExport">
+            <el-icon><Download /></el-icon>
+            导出
+          </el-button>
+          <el-button type="danger" @click="handleClear">
+            <el-icon><Delete /></el-icon>
+            清空日志
+          </el-button>
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
+        </template>
+      </vxe-toolbar>
 
-      <div class="table-responsive">
-        <el-table
-          v-loading="loading"
-          :data="tableData"
-          border
-          stripe
-          :row-class-name="getRowClassName"
-          @row-click="handleRowClick"
-        >
-          <el-table-column prop="title" label="操作标题" width="120" />
-          <el-table-column label="业务类型" width="90">
-            <template #default="{ row }">
-              <dict-value :dict-type="DICT_TYPE.SYS_OPERATION_TYPE" :value="row.businessType" />
-            </template>
-          </el-table-column>
-          <el-table-column label="请求方式" width="100" v-if="!isMobile">
-            <template #default="{ row }">
-              <el-tag :type="getMethodTag(row.requestMethod)" size="small">{{ row.requestMethod }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="operatorName" label="操作人" width="100" />
-          <el-table-column prop="deptName" label="部门" width="120" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="operateIp" label="操作IP" width="130" v-if="!isMobile" />
-          <el-table-column prop="operateLocation" label="操作地点" width="100" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column label="状态" width="70">
-            <template #default="{ row }">
-              <dict-value :dict-type="DICT_TYPE.SYS_SUCCESS_FAIL" :value="row.status" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="operateTime" label="操作时间" width="180" v-if="!isMobile">
-            <template #default="{ row }">{{ formatDateTime(row.operateTime) }}</template>
-          </el-table-column>
-          <el-table-column prop="costTime" label="耗时(ms)" width="85" v-if="!isMobile" />
-          <!-- 桌面端操作列 -->
-          <el-table-column v-if="!isMobile" label="操作" width="70" fixed="right">
-            <template #default="{ row }">
-              <el-button type="primary" link @click="handleView(row)">详情</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        :data="tableData"
+        :height="tableHeight"
+        :loading="loading"
+        :row-config="{ isCurrent: true, isHover: true }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
+        @current-change="handleCurrentChange"
+      >
+        <!-- 序号列（桌面端） -->
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+
+        <!-- 操作标题 -->
+        <vxe-column field="title" title="操作标题" width="120" />
+
+        <!-- 业务类型 -->
+        <vxe-column title="业务类型" width="90">
+          <template #default="{ row }">
+            <dict-value :dict-type="DICT_TYPE.SYS_OPERATION_TYPE" :value="row.businessType" />
+          </template>
+        </vxe-column>
+
+        <!-- 请求方式（桌面端） -->
+        <vxe-column v-if="!isMobile" title="请求方式" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getMethodTag(row.requestMethod)" size="small">{{ row.requestMethod }}</el-tag>
+          </template>
+        </vxe-column>
+
+        <!-- 操作人 -->
+        <vxe-column field="operatorName" title="操作人" width="100" />
+
+        <!-- 部门（桌面端） -->
+        <vxe-column v-if="!isMobile" field="deptName" title="部门" width="120" />
+
+        <!-- 操作IP（桌面端） -->
+        <vxe-column v-if="!isMobile" field="operateIp" title="操作IP" width="130" />
+
+        <!-- 操作地点（桌面端） -->
+        <vxe-column v-if="!isMobile" field="operateLocation" title="操作地点" width="100" />
+
+        <!-- 状态 -->
+        <vxe-column title="状态" width="70">
+          <template #default="{ row }">
+            <dict-value :dict-type="DICT_TYPE.SYS_SUCCESS_FAIL" :value="row.status" />
+          </template>
+        </vxe-column>
+
+        <!-- 操作时间（桌面端） -->
+        <vxe-column v-if="!isMobile" field="operateTime" title="操作时间" width="180">
+          <template #default="{ row }">
+            {{ formatDateTime(row.operateTime) }}
+          </template>
+        </vxe-column>
+
+        <!-- 耗时（桌面端） -->
+        <vxe-column v-if="!isMobile" field="costTime" title="耗时(ms)" width="85" />
+
+        <!-- 桌面端操作列 -->
+        <vxe-column v-if="!isMobile" title="操作" width="70" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click.stop="handleView(row)">详情</el-button>
+          </template>
+        </vxe-column>
+      </vxe-table>
 
       <el-pagination
         v-model:current-page="queryParams.pageNum"
@@ -245,10 +281,13 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { getOperationLogList, getOperationLog, clearOperationLogs, exportOperationLogs } from '@/api/system'
 import type { OperationLog } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
 import { useDict } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
@@ -259,6 +298,13 @@ import DictValue from '@/components/DictValue.vue'
 const { isMobile } = useResponsive()
 const { dictData: operationTypeOptions } = useDict(DICT_TYPE.SYS_OPERATION_TYPE)
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_SUCCESS_FAIL)
+
+// 表格高度自适应
+const { tableHeight } = useTableHeight()
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
 
 const loading = ref(false)
 const tableData = ref<OperationLog[]>([])
@@ -278,6 +324,11 @@ const queryParams = reactive({
   pageNum: 1,
   pageSize: 10
 })
+
+// 序号计算
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
 
 const dateRange = ref<[string, string] | null>(null)
 
@@ -306,19 +357,12 @@ watch(dateRange, (val) => {
 const detailVisible = ref(false)
 const currentLog = ref<OperationLog | null>(null)
 
-// 业务类型映射
-const businessTypeMap: Record<string, { label: string; type: string }> = {
-  INSERT: { label: '新增', type: 'success' },
-  UPDATE: { label: '修改', type: 'warning' },
-  DELETE: { label: '删除', type: 'danger' },
-  GRANT: { label: '授权', type: 'primary' },
-  EXPORT: { label: '导出', type: 'info' },
-  IMPORT: { label: '导入', type: 'info' },
-  OTHER: { label: '其他', type: 'info' }
-}
-
-const getBusinessTypeLabel = (type: string) => businessTypeMap[type]?.label || type
-const getBusinessTypeTag = (type: string) => businessTypeMap[type]?.type || 'info'
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
+})
 
 // 请求方式标签颜色
 const getMethodTag = (method: string) => {
@@ -403,24 +447,19 @@ const handleClear = async () => {
   } catch (e) {}
 }
 
-// 获取行样式名
-const getRowClassName = ({ row }: { row: OperationLog }) => {
-  if (isMobile.value && selectedRow.value?.id === row.id) {
-    return 'selected-row'
-  }
-  return ''
-}
-
-// 处理行点击（移动端）
-const handleRowClick = (row: OperationLog) => {
+// 当前行变化（移动端选中）
+const handleCurrentChange = ({ row }: { row: OperationLog | null }) => {
   if (isMobile.value) {
-    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+    selectedRow.value = row
   }
 }
 
 // 取消选择
 const cancelSelection = () => {
   selectedRow.value = null
+  if (tableRef.value) {
+    tableRef.value.clearCurrentRow()
+  }
 }
 
 onMounted(() => getList())
@@ -433,12 +472,8 @@ onMounted(() => getList())
   .search-card {
     margin-bottom: 15px;
   }
+
   .table-card {
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
     .el-pagination {
       margin-top: 15px;
       justify-content: flex-end;

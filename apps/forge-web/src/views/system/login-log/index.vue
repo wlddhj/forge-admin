@@ -60,42 +60,75 @@
 
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span v-if="!isMobile">登录日志列表</span>
-          <div v-if="!isMobile">
-            <el-button type="success" @click="handleExport">导出</el-button>
-            <el-button type="danger" @click="handleClear">清空日志</el-button>
-          </div>
-        </div>
-      </template>
+      <!-- vxe-toolbar 工具栏（桌面端） -->
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom >
+        <template #buttons>
+          <el-button type="success" @click="handleExport">
+            <el-icon><Download /></el-icon>
+            导出
+          </el-button>
+          <el-button type="danger" @click="handleClear">
+            <el-icon><Delete /></el-icon>
+            清空日志
+          </el-button>
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
+        </template>
+      </vxe-toolbar>
 
-      <div class="table-responsive">
-        <el-table
-          v-loading="loading"
-          :data="tableData"
-          border
-          stripe
-          :row-class-name="getRowClassName"
-          @row-click="handleRowClick"
-        >
-          <el-table-column prop="id" label="ID" width="80" v-if="!isMobile" />
-          <el-table-column prop="username" label="用户名" width="120" />
-          <el-table-column prop="loginIp" label="登录IP" width="140" />
-          <el-table-column prop="loginLocation" label="登录地点" width="150" v-if="!isMobile" />
-          <el-table-column prop="browser" label="浏览器" width="120" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="os" label="操作系统" width="120" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column label="状态" width="80">
-            <template #default="{ row }">
-              <dict-value :dict-type="DICT_TYPE.SYS_SUCCESS_FAIL" :value="row.status" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="msg" label="提示消息" min-width="150" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="loginTime" label="登录时间" width="180" v-if="!isMobile">
-            <template #default="{ row }">{{ formatDateTime(row.loginTime) }}</template>
-          </el-table-column>
-        </el-table>
-      </div>
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        id="sysLoginLogTable"
+        :custom-config="{mode: 'modal'}"
+        :data="tableData"
+        :height="tableHeight"
+        :loading="loading"
+        :row-config="{ isCurrent: true, isHover: true }"
+        :checkbox-config="{ highlight: true, range: true }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
+        @current-change="handleCurrentChange"
+      >
+        <!-- 序号列（桌面端） -->
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+
+        <!-- 用户名 -->
+        <vxe-column field="username" title="用户名" width="120" />
+
+        <!-- 登录IP -->
+        <vxe-column field="loginIp" title="登录IP" width="140" />
+
+        <!-- 登录地点（桌面端） -->
+        <vxe-column v-if="!isMobile" field="loginLocation" title="登录地点" width="150" />
+
+        <!-- 浏览器（桌面端） -->
+        <vxe-column v-if="!isMobile" field="browser" title="浏览器" width="120" />
+
+        <!-- 操作系统（桌面端） -->
+        <vxe-column v-if="!isMobile" field="os" title="操作系统" width="120" />
+
+        <!-- 状态 -->
+        <vxe-column title="状态" width="80">
+          <template #default="{ row }">
+            <dict-value :dict-type="DICT_TYPE.SYS_SUCCESS_FAIL" :value="row.status" />
+          </template>
+        </vxe-column>
+
+        <!-- 提示消息（桌面端） -->
+        <vxe-column v-if="!isMobile" field="msg" title="提示消息" min-width="150" />
+
+        <!-- 登录时间（桌面端） -->
+        <vxe-column v-if="!isMobile" field="loginTime" title="登录时间" width="180">
+          <template #default="{ row }">
+            {{ formatDateTime(row.loginTime) }}
+          </template>
+        </vxe-column>
+      </vxe-table>
 
       <el-pagination
         v-model:current-page="queryParams.pageNum"
@@ -113,9 +146,12 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { getLoginLogList, clearLoginLogs, exportLoginLogs } from '@/api/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
 import { useDict } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
@@ -124,6 +160,13 @@ import DictValue from '@/components/DictValue.vue'
 
 const { isMobile } = useResponsive()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_SUCCESS_FAIL)
+
+// 表格高度自适应
+const { tableHeight } = useTableHeight()
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
 
 interface LoginLog {
   id: number
@@ -153,6 +196,11 @@ const queryParams = reactive({
   pageSize: 10
 })
 
+// 序号计算
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
+
 // 计算激活的搜索条件数量
 const activeConditionsCount = computed(() => {
   let count = 0
@@ -160,6 +208,13 @@ const activeConditionsCount = computed(() => {
   if (queryParams.loginIp) count++
   if (queryParams.status !== undefined) count++
   return count
+})
+
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
 })
 
 const getList = async () => {
@@ -212,18 +267,10 @@ const handleClear = async () => {
   } catch (e) {}
 }
 
-// 获取行样式名
-const getRowClassName = ({ row }: { row: LoginLog }) => {
-  if (isMobile.value && selectedRow.value?.id === row.id) {
-    return 'selected-row'
-  }
-  return ''
-}
-
-// 处理行点击（移动端）
-const handleRowClick = (row: LoginLog) => {
+// 当前行变化（移动端选中）
+const handleCurrentChange = ({ row }: { row: LoginLog | null }) => {
   if (isMobile.value) {
-    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+    selectedRow.value = row
   }
 }
 
@@ -237,12 +284,8 @@ onMounted(() => getList())
   .search-card {
     margin-bottom: 15px;
   }
+
   .table-card {
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
     .el-pagination {
       margin-top: 15px;
       justify-content: flex-end;

@@ -102,7 +102,8 @@ VxeUI.setConfig({
         lockView: true,
         resize: true,
         escClosable: true
-      }
+      },
+      storage:{visible:true,resizable:true,sort:true,fixed:true},
     },
 
     // 排序配置
