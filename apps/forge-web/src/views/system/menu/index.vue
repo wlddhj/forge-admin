@@ -62,67 +62,85 @@
 
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span v-if="!isMobile">菜单列表</span>
-          <div v-if="!isMobile" class="header-btns">
-            <el-button type="primary" @click="handleAdd">
-              <el-icon><Plus /></el-icon>
-              新增菜单
-            </el-button>
-            <el-button @click="handleToggleExpand">
-              <el-icon><component :is="allExpanded ? 'Fold' : 'Expand'" /></el-icon>
-              {{ allExpanded ? '全部折叠' : '全部展开' }}
-            </el-button>
-          </div>
-        </div>
-      </template>
+      <!-- vxe-toolbar 工具栏（桌面端） -->
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
+        <template #buttons>
+          <el-button type="primary" @click="handleAdd">
+            <el-icon><Plus /></el-icon>
+            新增菜单
+          </el-button>
+          <el-button @click="handleToggleExpand">
+            <el-icon><component :is="allExpanded ? 'Fold' : 'Expand'" /></el-icon>
+            {{ allExpanded ? '全部折叠' : '全部展开' }}
+          </el-button>
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
+        </template>
+      </vxe-toolbar>
 
-      <div class="table-responsive">
-        <el-table
-          ref="tableRef"
-          v-loading="loading"
-          :data="tableData"
-          border
-          stripe
-          row-key="id"
-          :tree-props="{ children: 'children' }"
-          :default-expand-all="!isMobile"
-          :row-class-name="getRowClassName"
-          @row-click="handleRowClick"
-        >
-          <el-table-column prop="menuName" label="菜单名称" width="200" />
-          <el-table-column prop="icon" label="图标" width="80" align="center" v-if="!isMobile">
-            <template #default="{ row }">
-              <IconPreview v-if="row.icon" :icon="row.icon" :size="16" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="menuType" label="类型" width="80">
-            <template #default="{ row }">
-              <el-tag :type="getMenuTypeColor(row.menuType)" size="small">
-                {{ getMenuTypeText(row.menuType) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="routePath" label="路由路径" min-width="180" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="componentPath" label="组件路径" min-width="180" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="permission" label="权限标识" width="150" show-overflow-tooltip v-if="!isMobile" />
-          <el-table-column prop="sortOrder" label="排序" width="80" v-if="!isMobile" />
-          <el-table-column label="状态" width="80">
-            <template #default="{ row }">
-              <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
-            </template>
-          </el-table-column>
-          <!-- 桌面端操作列 -->
-          <el-table-column v-if="!isMobile" label="操作" width="160" fixed="right">
-            <template #default="{ row }">
-              <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-              <el-button type="primary" link @click="handleAddChild(row)">新增</el-button>
-              <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        :data="tableData"
+        :loading="loading"
+        :height="tableHeight"
+        :row-config="{ isCurrent: true, isHover: true, keyField: 'id' }"
+        :tree-config="{ childrenField: 'children', expandAll: !isMobile, indent: 20 }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
+        @current-change="handleCurrentChange"
+      >
+        <!-- 菜单名称 -->
+        <vxe-column field="menuName" title="菜单名称" width="200" tree-node />
+
+        <!-- 图标（桌面端） -->
+        <vxe-column v-if="!isMobile" field="icon" title="图标" width="80" align="center">
+          <template #default="{ row }">
+            <IconPreview v-if="row.icon" :icon="row.icon" :size="16" />
+          </template>
+        </vxe-column>
+
+        <!-- 类型 -->
+        <vxe-column field="menuType" title="类型" width="80">
+          <template #default="{ row }">
+            <el-tag :type="getMenuTypeColor(row.menuType)" size="small">
+              {{ getMenuTypeText(row.menuType) }}
+            </el-tag>
+          </template>
+        </vxe-column>
+
+        <!-- 路由路径（桌面端） -->
+        <vxe-column v-if="!isMobile" field="routePath" title="路由路径" min-width="180" />
+
+        <!-- 组件路径（桌面端） -->
+        <vxe-column v-if="!isMobile" field="componentPath" title="组件路径" min-width="180" />
+
+        <!-- 权限标识（桌面端） -->
+        <vxe-column v-if="!isMobile" field="permission" title="权限标识" width="150" />
+
+        <!-- 排序（桌面端） -->
+        <vxe-column v-if="!isMobile" field="sortOrder" title="排序" width="80" />
+
+        <!-- 状态 -->
+        <vxe-column title="状态" width="80">
+          <template #default="{ row }">
+            <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
+          </template>
+        </vxe-column>
+
+        <!-- 桌面端操作列 -->
+        <vxe-column v-if="!isMobile" title="操作" width="160" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
+            <el-button type="primary" link size="small" @click.stop="handleAddChild(row)">新增</el-button>
+            <el-button type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
+          </template>
+        </vxe-column>
+      </vxe-table>
     </el-card>
 
     <!-- 移动端底部操作栏 -->
@@ -208,9 +226,11 @@
 import { reactive, ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { getMenuList, getMenuTree, addMenu, updateMenu, deleteMenu } from '@/api/system'
 import type { Menu, MenuTree, MenuRequest } from '@/types/system'
 import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
 import { useDict } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
@@ -223,9 +243,15 @@ import IconPreview from '@/components/IconPreview.vue'
 const { isMobile } = useResponsive()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
 
+// 表格高度自适应（树形表格无分页）
+const { tableHeight } = useTableHeight({ hasPagination: false })
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
+
 const loading = ref(false)
 const tableData = ref<MenuTree[]>([])
-const tableRef = ref()
 const allExpanded = ref(true)
 
 // 移动端状态
@@ -272,6 +298,13 @@ const formRules: FormRules = {
 
 const menuTreeOptions = ref<MenuTree[]>([])
 
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
+})
+
 const getList = async () => {
   loading.value = true
   try {
@@ -279,7 +312,9 @@ const getList = async () => {
     tableData.value = buildMenuTree(res)
     allExpanded.value = !isMobile.value
     nextTick(() => {
-      if (!isMobile.value) expandAll()
+      if (!isMobile.value && tableRef.value) {
+        tableRef.value.setAllTreeExpand(true)
+      }
     })
   } finally {
     loading.value = false
@@ -321,38 +356,14 @@ const buildMenuTree = (flatList: Menu[]): MenuTree[] => {
   return tree
 }
 
-const expandAll = () => {
-  if (!tableRef.value) return
-  const expandRows = (rows: MenuTree[]) => {
-    rows.forEach(row => {
-      if (row.children && row.children.length > 0) {
-        tableRef.value?.toggleRowExpansion(row, true)
-        expandRows(row.children)
-      }
-    })
-  }
-  expandRows(tableData.value)
-}
-
-const collapseAll = () => {
-  if (!tableRef.value) return
-  const collapseRows = (rows: MenuTree[]) => {
-    rows.forEach(row => {
-      if (row.children && row.children.length > 0) {
-        tableRef.value?.toggleRowExpansion(row, false)
-        collapseRows(row.children)
-      }
-    })
-  }
-  collapseRows(tableData.value)
-}
-
 const handleToggleExpand = () => {
   allExpanded.value = !allExpanded.value
-  if (allExpanded.value) {
-    expandAll()
-  } else {
-    collapseAll()
+  if (tableRef.value) {
+    if (allExpanded.value) {
+      tableRef.value.setAllTreeExpand(true)
+    } else {
+      tableRef.value.clearTreeExpand()
+    }
   }
 }
 
@@ -455,24 +466,19 @@ const getMenuTypeText = (type: number) => {
   return map[type] || '未知'
 }
 
-// 获取行样式名
-const getRowClassName = ({ row }: { row: MenuTree }) => {
-  if (isMobile.value && selectedRow.value?.id === row.id) {
-    return 'selected-row'
-  }
-  return ''
-}
-
-// 处理行点击（移动端）
-const handleRowClick = (row: MenuTree) => {
+// 当前行变化（移动端选中）
+const handleCurrentChange = ({ row }: { row: MenuTree | null }) => {
   if (isMobile.value) {
-    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+    selectedRow.value = row
   }
 }
 
 // 取消选择
 const cancelSelection = () => {
   selectedRow.value = null
+  if (tableRef.value) {
+    tableRef.value.clearCurrentRow()
+  }
 }
 
 onMounted(() => {
@@ -487,14 +493,6 @@ onMounted(() => {
 
   .search-card {
     margin-bottom: 15px;
-  }
-
-  .table-card {
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
   }
 }
 </style>

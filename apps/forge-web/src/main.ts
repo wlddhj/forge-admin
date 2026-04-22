@@ -13,6 +13,9 @@ import router from './router'
 import './styles/index.scss'
 import { permission, role } from './directives/permission'
 
+// 导入 vxe-table 插件
+import { setupVxe } from './plugins/vxe'
+
 const app = createApp(App)
 
 // 注册所有图标
@@ -27,5 +30,8 @@ app.directive('role', role)
 app.use(createPinia())
 app.use(router)
 app.use(ElementPlus, { locale: zhCn })
+
+// 注册 vxe-table
+setupVxe(app)
 
 app.mount('#app')

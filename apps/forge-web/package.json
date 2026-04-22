@@ -21,7 +21,10 @@
     "nprogress": "^0.2.0",
     "pinia": "^2.1.0",
     "vue": "^3.4.0",
-    "vue-router": "^4.2.0"
+    "vue-router": "^4.2.0",
+    "vxe-pc-ui": "4.6.31",
+    "vxe-table": "4.9.34",
+    "xe-utils": "3.5.31"
   },
   "devDependencies": {
     "@pinia/testing": "^0.1.7",

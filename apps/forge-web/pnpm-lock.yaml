@@ -32,6 +32,15 @@ dependencies:
   vue-router:
     specifier: ^4.2.0
     version: 4.6.4(vue@3.5.29)
+  vxe-pc-ui:
+    specifier: 4.6.31
+    version: 4.6.31(vue@3.5.29)
+  vxe-table:
+    specifier: 4.9.34
+    version: 4.9.34(vue@3.5.29)
+  xe-utils:
+    specifier: 3.5.31
+    version: 3.5.31
 
 devDependencies:
   '@pinia/testing':
@@ -1085,6 +1094,16 @@ packages:
       - vue
     dev: false
 
+  /@vxe-ui/core@4.4.5(vue@3.5.29):
+    resolution: {integrity: sha512-YOVR8EilEGV89A6Gf1FyJsuKMaUq0pV2eqcZMI1//7VBiAcYyjk96LxMjdElSYGuCnD5jDg3vdOXH+oo2NBUSA==}
+    peerDependencies:
+      vue: ^3.2.0
+    dependencies:
+      dom-zindex: 1.0.6
+      vue: 3.5.29(typescript@5.3.3)
+      xe-utils: 4.0.4
+    dev: false
+
   /abbrev@2.0.0:
     resolution: {integrity: sha512-6/mh1E2u2YgEsCHdY0Yx5oW+61gZU+1vXaoiHHrpKeuRNNgFvS+/jrwHiQhB5apAf5oB7UB7E19ol2R2LKH8hQ==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
@@ -1352,6 +1371,10 @@ packages:
     resolution: {integrity: sha512-EjePK1srD3P08o2j4f0ExnylqRs5B9tJjcp9t1krH2qRi8CCdsYfwe9JgSLurFBWwq4uOlipzfk5fHNvwFKr8Q==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dev: true
+
+  /dom-zindex@1.0.6:
+    resolution: {integrity: sha512-FKWIhiU96bi3xpP9ewRMgANsoVmMUBnMnmpCT6dPMZOunVYJQmJhSRruoI0XSPoHeIif3kyEuiHbFrOJwEJaEA==}
+    dev: false
 
   /dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -2651,6 +2674,22 @@ packages:
       '@vue/shared': 3.5.29
       typescript: 5.3.3
 
+  /vxe-pc-ui@4.6.31(vue@3.5.29):
+    resolution: {integrity: sha512-94ohRderCQwvsKqHIaYgMfapovBWNO6QkE4fGB1YuD0/P0zsBLVa4gYkb5RaWpp+pa5KqRXEJm7dot5nhJUXIA==}
+    dependencies:
+      '@vxe-ui/core': 4.4.5(vue@3.5.29)
+    transitivePeerDependencies:
+      - vue
+    dev: false
+
+  /vxe-table@4.9.34(vue@3.5.29):
+    resolution: {integrity: sha512-U40ulm/n7E3v+BMT+R3gOOnnSiGtwn5XrLwlVhqyqSEIaBPqKpX9YvROT1ESExuYmFV/HNYXHQ68TSDjcMlZGg==}
+    dependencies:
+      vxe-pc-ui: 4.6.31(vue@3.5.29)
+    transitivePeerDependencies:
+      - vue
+    dev: false
+
   /webpack-virtual-modules@0.6.2:
     resolution: {integrity: sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ==}
     dev: true
@@ -2716,6 +2755,14 @@ packages:
       utf-8-validate:
         optional: true
     dev: true
+
+  /xe-utils@3.5.31:
+    resolution: {integrity: sha512-oS4yv8qktvlE0wc9yYkitDidEmThc5qN0UTRvKCvrWnejxbTyIxbwfrdZmPKdKGZtB+/U8cEAMFywLJjHtD11A==}
+    dev: false
+
+  /xe-utils@4.0.4:
+    resolution: {integrity: sha512-1IUuTZRHa5w88Y3kEf0O4Y/99O0hIdh5o8EXqmgqyhY3MaT1xWZgS5iuD7pys6v+9JrJOzECb07+6gxRahDsyw==}
+    dev: false
 
   /y18n@5.0.8:
     resolution: {integrity: sha512-0pfFzegeDWJHJIAmTLRP2DwHjdF5s7jo9tuztdQxAhINCdvS+3nGINqPd00AphqJR/0LhANUS6/+7SCb98YOfA==}

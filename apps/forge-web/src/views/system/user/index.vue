@@ -74,82 +74,109 @@
 
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span v-if="!isMobile">用户列表</span>
-          <div v-if="!isMobile" class="header-btns">
-            <el-button v-permission="'system:user:import'" type="warning" @click="handleImport">
-              <el-icon><Upload /></el-icon>
-              导入
-            </el-button>
-            <el-button v-permission="'system:user:export'" type="success" @click="handleExport">
-              <el-icon><Download /></el-icon>
-              导出
-            </el-button>
-            <el-button v-permission="'system:user:add'" type="primary" @click="handleAdd">
-              <el-icon><Plus /></el-icon>
-              新增
-            </el-button>
-          </div>
-        </div>
-      </template>
+      <!-- vxe-toolbar 工具栏（桌面端） -->
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom >
+        <template #buttons>
+          <el-button v-permission="'system:user:import'" type="warning" @click="handleImport">
+            <el-icon><Upload /></el-icon>
+            导入
+          </el-button>
+          <el-button v-permission="'system:user:export'" type="success" @click="handleExport">
+            <el-icon><Download /></el-icon>
+            导出
+          </el-button>
+          <el-button v-permission="'system:user:add'" type="primary" @click="handleAdd">
+            <el-icon><Plus /></el-icon>
+            新增
+          </el-button>
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
+        </template>
+      </vxe-toolbar>
 
-      <div class="table-responsive">
-        <el-table
-          v-loading="loading"
-          :data="tableData"
-          border
-          stripe
-          :row-class-name="getRowClassName"
-          @row-click="handleRowClick"
-        >
-          <el-table-column prop="username" label="用户名" width="120" />
-          <el-table-column prop="nickname" label="昵称" width="120" />
-          <el-table-column prop="phone" label="手机号" width="130" />
-          <el-table-column prop="email" label="邮箱" width="180" v-if="!isMobile" />
-          <el-table-column prop="deptName" label="部门" width="120" />
-          <el-table-column label="岗位" width="150">
-            <template #default="{ row }">
-              <template v-if="row.positionNames && row.positionNames.length > 0">
-                <el-tag v-for="(name, index) in row.positionNames.slice(0, 2)" :key="index" size="small" style="margin-right: 4px;">
-                  {{ name }}
-                </el-tag>
-                <span v-if="row.positionNames.length > 2" style="color: #909399;">+{{ row.positionNames.length - 2 }}</span>
-              </template>
-              <span v-else style="color: #909399;">-</span>
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        :data="tableData"
+        :height="tableHeight"
+        :loading="loading"
+        :row-config="{ isCurrent: true, isHover: true }"
+        :checkbox-config="{ highlight: true, range: true }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
+        @current-change="handleCurrentChange"
+      >
+        <!-- 序号列（桌面端） -->
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+
+        <!-- 用户名 -->
+        <vxe-column field="username" title="用户名" width="120" />
+
+        <!-- 昵称 -->
+        <vxe-column field="nickname" title="昵称" width="120" />
+
+        <!-- 手机号 -->
+        <vxe-column field="phone" title="手机号" width="130" />
+
+        <!-- 部门 -->
+        <vxe-column field="deptName" title="部门" width="120" />
+
+        <!-- 邮箱（桌面端） -->
+        <vxe-column v-if="!isMobile" field="email" title="邮箱" width="180" />
+
+        <!-- 岗位 -->
+        <vxe-column title="岗位" width="150">
+          <template #default="{ row }">
+            <template v-if="row.positionNames && row.positionNames.length > 0">
+              <el-tag v-for="(name, index) in row.positionNames.slice(0, 2)" :key="index" size="small" style="margin-right: 4px;">
+                {{ name }}
+              </el-tag>
+              <span v-if="row.positionNames.length > 2" style="color: #909399;">+{{ row.positionNames.length - 2 }}</span>
             </template>
-          </el-table-column>
-          <el-table-column label="角色" width="150">
-            <template #default="{ row }">
-              <template v-if="row.roleNames && row.roleNames.length > 0">
-                <el-tag v-for="(name, index) in row.roleNames.slice(0, 2)" :key="index" size="small" style="margin-right: 4px;">
-                  {{ name }}
-                </el-tag>
-                <span v-if="row.roleNames.length > 2" style="color: #909399;">+{{ row.roleNames.length - 2 }}</span>
-              </template>
-              <span v-else style="color: #909399;">-</span>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </vxe-column>
+
+        <!-- 角色 -->
+        <vxe-column title="角色" width="150">
+          <template #default="{ row }">
+            <template v-if="row.roleNames && row.roleNames.length > 0">
+              <el-tag v-for="(name, index) in row.roleNames.slice(0, 2)" :key="index" size="small" style="margin-right: 4px;">
+                {{ name }}
+              </el-tag>
+              <span v-if="row.roleNames.length > 2" style="color: #909399;">+{{ row.roleNames.length - 2 }}</span>
             </template>
-          </el-table-column>
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="createTime" label="创建时间" width="180" v-if="!isMobile">
-            <template #default="{ row }">
-              {{ formatDateTime(row.createTime) }}
-            </template>
-          </el-table-column>
-          <!-- 桌面端操作列 -->
-          <el-table-column v-if="!isMobile" label="操作" width="200" fixed="right">
-            <template #default="{ row }">
-              <el-button v-permission="'system:user:edit'" type="primary" link @click.stop="handleEdit(row)">编辑</el-button>
-              <el-button v-permission="'system:user:resetPwd'" type="warning" link @click.stop="handleResetPwd(row)">重置密码</el-button>
-              <el-button v-permission="'system:user:delete'" type="danger" link @click.stop="handleDelete(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </vxe-column>
+
+        <!-- 状态 -->
+        <vxe-column title="状态" width="100">
+          <template #default="{ row }">
+            <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
+          </template>
+        </vxe-column>
+
+        <!-- 创建时间（桌面端） -->
+        <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="180">
+          <template #default="{ row }">
+            {{ formatDateTime(row.createTime) }}
+          </template>
+        </vxe-column>
+
+        <!-- 桌面端操作列 -->
+        <vxe-column v-if="!isMobile" title="操作" width="200" fixed="right">
+          <template #default="{ row }">
+            <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'system:user:resetPwd'" type="warning" link size="small" @click.stop="handleResetPwd(row)">重置密码</el-button>
+            <el-button v-permission="'system:user:delete'" type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
+          </template>
+        </vxe-column>
+      </vxe-table>
 
       <el-pagination
         v-model:current-page="queryParams.pageNum"
@@ -241,6 +268,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import {
   getUserList, getUser, addUser, updateUser, deleteUser, resetPassword, exportUsers
 } from '@/api/system'
@@ -249,6 +277,8 @@ import { getAllPositions } from '@/api/system'
 import { getDeptTree } from '@/api/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
@@ -261,6 +291,13 @@ import { useDict } from '@/composables/useDict'
 const { isMobile } = useResponsive()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
 
+// 表格高度自适应
+const { tableHeight, updateHeight } = useTableHeight()
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
+
 // 查询参数
 const queryParams = reactive<UserQuery>({
   pageNum: 1,
@@ -270,6 +307,11 @@ const queryParams = reactive<UserQuery>({
   phone: '',
   status: undefined
 })
+
+// 序号计算
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
 
 // 表格数据
 const loading = ref(false)
@@ -324,6 +366,13 @@ const rules: FormRules = {
 const deptTree = ref<DeptTree[]>([])
 const roleList = ref<Role[]>([])
 const positionList = ref<Position[]>([])
+
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
+})
 
 // 获取列表
 const getList = async () => {
@@ -458,24 +507,19 @@ const resetForm = () => {
   form.status = 1
 }
 
-// 获取行样式名
-const getRowClassName = ({ row }: { row: User }) => {
-  if (isMobile.value && selectedRow.value?.id === row.id) {
-    return 'selected-row'
-  }
-  return ''
-}
-
-// 处理行点击（移动端）
-const handleRowClick = (row: User) => {
+// 当前行变化（移动端选中）
+const handleCurrentChange = ({ row }: { row: User | null }) => {
   if (isMobile.value) {
-    selectedRow.value = selectedRow.value?.id === row.id ? null : row
+    selectedRow.value = row
   }
 }
 
 // 取消选择
 const cancelSelection = () => {
   selectedRow.value = null
+  if (tableRef.value) {
+    tableRef.value.clearCurrentRow()
+  }
 }
 
 // 初始化
