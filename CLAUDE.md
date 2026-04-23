@@ -7,7 +7,7 @@
 forge-admin 是一个基于 RBAC（基于角色的访问控制）的企业级后台管理系统，采用 monorepo 结构，前后端分离。
 
 **技术栈：**
-- 前端：Vue 3.4 + TypeScript + Element Plus + Pinia + Vite 5
+- 前端：Vue 3.4 + TypeScript + Element Plus + vxe-table + Pinia + Vite 5
 - 后端：Spring Boot 3.2.0 + MyBatis Plus + MySQL + Redis
 - 认证：JWT Token（访问令牌 2 小时，刷新令牌 7 天）
 - API 文档：Knife4j，地址 `/api/doc.html`
@@ -80,9 +80,10 @@ modules/
 
 ```
 api/           # API 模块，带类型的请求/响应接口
-composables/   # Vue 组合式函数（useWebSocket, useDict, useResponsive）
+composables/   # Vue 组合式函数（useWebSocket, useDict, useResponsive, useTableHeight, useTableSeq）
 directives/    # v-permission, v-role（无权限时移除 DOM 元素）
 layouts/       # BasicLayout：侧边栏、头部、标签页、通知
+plugins/       # vxe-table 全局配置和插件注册
 router/        # 基于后端菜单树动态生成路由
 stores/        # Pinia 状态（user, permission, tabs, pageConfig）
 utils/         # request.ts（Axios + 自动令牌刷新）
@@ -94,6 +95,44 @@ views/         # 页面组件（通过 import.meta.glob 自动发现）
 - Element Plus 组件 — 通过 `unplugin-vue-components`
 
 **动态路由：** 后端返回菜单树 → `permissionStore.setRoutes()` 转换为 Vue Router 配置 → 通过 `import.meta.glob('/src/views/**/*.vue')` 注册表解析组件 → `router.addRoute()` 添加路由，404 最后添加。
+
+### vxe-table 表格组件
+
+所有列表页面统一使用 vxe-table 替代 el-table，提供更强的表格功能（列自定义、导出、打印等）。
+
+**全局配置：** `src/plugins/vxe/vxe-table-config.ts`
+**插件注册：** `src/plugins/vxe/index.ts`
+
+**表格命名约定：**
+| 模块 | 表格 id |
+|------|---------|
+| 用户管理 | sysUserTable |
+| 角色管理 | sysRoleTable |
+| 菜单管理（树形） | sysMenuTable |
+| 部门管理（树形） | sysDeptTable |
+| 岗位管理 | sysPositionTable |
+| 字典类型管理 | sysDictTypeTable |
+| 字典数据列表 | sysDictDataTable |
+| 系统配置管理 | sysConfigTable |
+| 文件配置管理 | sysFileConfigTable |
+| 附件管理 | sysAttachmentTable |
+| 通知公告管理 | sysNoticeTable |
+| 在线用户管理 | sysOnlineUserTable |
+| 定时任务管理 | sysJobTable |
+| 任务日志管理 | sysJobLogTable |
+| 登录日志管理 | loginLogTable |
+| 操作日志管理 | sysOperationLogTable |
+
+**表格 composables：**
+- `useTableHeight` — 表格高度自适应，铺满屏幕剩余区域
+- `useTableSeq` — 分页序号计算，支持全局序号
+- `useTableSort` — 远程排序处理（可选）
+
+**树形表格配置：**
+```typescript
+:tree-config="{ childrenField: 'children', expandAll: !isMobile, indent: 20 }"
+```
+树形列添加 `tree-node` 属性，展开/折叠使用 `setAllTreeExpand()` 和 `clearTreeExpand()`。
 
 ## 重要模式
 
@@ -158,6 +197,10 @@ pnpm run init <项目名称> "<项目描述>" <Java包名>
 | 路由守卫与动态路由 | `apps/forge-web/src/router/index.ts` |
 | 权限指令 | `apps/forge-web/src/directives/permission.ts` |
 | Pinia 状态管理 | `apps/forge-web/src/stores/` |
+| vxe-table 全局配置 | `apps/forge-web/src/plugins/vxe/vxe-table-config.ts` |
+| vxe-table 插件注册 | `apps/forge-web/src/plugins/vxe/index.ts` |
+| 表格高度自适应 Hook | `apps/forge-web/src/composables/useTableHeight.ts` |
+| 表格序号计算 Hook | `apps/forge-web/src/composables/useTableSeq.ts` |
 
 ## 命名约定
 
@@ -358,7 +401,7 @@ export const xxxApi = {
 }
 ```
 
-### 前端 Vue 页面模板（CRUD）
+### 前端 Vue 页面模板（CRUD + vxe-table）
 
 ```vue
 <template>
@@ -378,23 +421,44 @@ export const xxxApi = {
 
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <span>列表</span>
+      <!-- vxe-toolbar 工具栏 -->
+      <vxe-toolbar ref="toolbarRef" custom>
+        <template #buttons>
           <el-button type="primary" @click="handleAdd"><el-icon><Plus /></el-icon>新增</el-button>
-        </div>
-      </template>
-      <el-table v-loading="loading" :data="tableData" border stripe>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="名称" min-width="150" />
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="180" fixed="right">
+        </template>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-repeat" @click="handleReset"></vxe-button>
+        </template>
+      </vxe-toolbar>
+
+      <!-- vxe-table 表格 -->
+      <vxe-table
+        ref="tableRef"
+        id="sysXxxTable"
+        :custom-config="{mode: 'modal'}"
+        :data="tableData"
+        :height="tableHeight"
+        :loading="loading"
+        :row-config="{ isCurrent: true, isHover: true }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        @current-change="handleCurrentChange"
+      >
+        <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
+        <vxe-column field="name" title="名称" min-width="150" />
+        <vxe-column field="createTime" title="创建时间" width="180">
+          <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+        </vxe-column>
+        <vxe-column title="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
           </template>
-        </el-table-column>
-      </el-table>
+        </vxe-column>
+      </vxe-table>
+
       <el-pagination
         v-model:current-page="queryParams.pageNum"
         v-model:page-size="queryParams.pageSize"
@@ -420,9 +484,33 @@ export const xxxApi = {
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-// ... 组件实现
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
+import { formatDateTime } from '@/utils/dateFormat'
+
+// 表格高度自适应
+const { tableHeight } = useTableHeight()
+
+// 表格实例
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
+
+// 序号计算
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
+
+// 关联工具栏与表格
+onMounted(() => {
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
+})
+
+// ... 其他业务逻辑
 </script>
 
 <style scoped lang="scss">
@@ -430,7 +518,6 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
   padding: 0;
   .search-card { margin-bottom: 15px; }
   .table-card {
-    .card-header { display: flex; justify-content: space-between; align-items: center; }
     .el-pagination { margin-top: 15px; justify-content: flex-end; }
   }
 }
