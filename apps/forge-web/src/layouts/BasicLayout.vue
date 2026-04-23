@@ -323,9 +323,13 @@ watch(() => userStore.token, (newToken) => {
 .layout-aside {
   background-color: #304156;
   transition: width 0.3s;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 
   .logo {
     height: 60px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -340,6 +344,11 @@ watch(() => userStore.token, (newToken) => {
     }
   }
 
+  .el-scrollbar {
+    flex: 1;
+    overflow: hidden;
+  }
+
   .el-menu {
     border-right: none;
   }
@@ -351,7 +360,7 @@ watch(() => userStore.token, (newToken) => {
 }
 
 .layout-header {
-  height: 60px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;
