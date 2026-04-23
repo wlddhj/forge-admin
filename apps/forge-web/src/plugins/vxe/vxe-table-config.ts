@@ -2,7 +2,6 @@ import { VxeUI } from 'vxe-pc-ui'
 
 /**
  * vxe-table 全局配置
- * 参考 shi9-ui-admin-vue3 的配置，适配 forge-admin 项目
  */
 VxeUI.setConfig({
   table: {

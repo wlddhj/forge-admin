@@ -88,10 +88,8 @@
         :loading="loading"
         :height="tableHeight"
         :row-config="{ isCurrent: true, isHover: true, keyField: 'id' }"
-        :tree-config="{ childrenField: 'children', expandAll: !isMobile, indent: 20 }"
+        :tree-config="{ expandAll: !isMobile, indent: 20,transform: true, rowField: 'id', parentField: 'parentId'}"
         :column-config="{ resizable: true }"
-        border="none"
-        stripe
         show-overflow="tooltip"
         show-header-overflow="tooltip"
         @current-change="handleCurrentChange"
@@ -282,7 +280,7 @@ const getList = async () => {
   loading.value = true
   try {
     const res = await getDeptList(queryParams)
-    tableData.value = buildDeptTree(res)
+    tableData.value = res//buildDeptTree(res)
     allExpanded.value = !isMobile.value
     nextTick(() => {
       if (!isMobile.value && tableRef.value) {

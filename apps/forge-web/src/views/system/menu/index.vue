@@ -88,14 +88,13 @@
         :loading="loading"
         :height="tableHeight"
         :row-config="{ isCurrent: true, isHover: true, keyField: 'id' }"
-        :tree-config="{ childrenField: 'children', expandAll: !isMobile, indent: 20 }"
+        :tree-config="{ expandAll: !isMobile, indent: 20,transform: true, rowField: 'id', parentField: 'parentId'}"
         :column-config="{ resizable: true }"
-        border="none"
-        stripe
         show-overflow="tooltip"
         show-header-overflow="tooltip"
         @current-change="handleCurrentChange"
       >
+        <vxe-column title="序号" type="seq" align="left" width="70"/>
         <!-- 菜单名称 -->
         <vxe-column field="menuName" title="菜单名称" width="200" tree-node />
 
@@ -311,7 +310,7 @@ const getList = async () => {
   loading.value = true
   try {
     const res = await getMenuList(queryParams)
-    tableData.value = buildMenuTree(res)
+    tableData.value = res//buildMenuTree(res)
     allExpanded.value = !isMobile.value
     nextTick(() => {
       if (!isMobile.value && tableRef.value) {
