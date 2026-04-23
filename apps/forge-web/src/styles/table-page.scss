@@ -7,8 +7,10 @@
 @use './responsive.scss' as *;
 
 .app-container {
+  padding: 0;
   // 搜索卡片响应式
   .search-card {
+    margin-bottom: 5px;
     @include mobile {
       :deep(.el-card__body) {
         padding: 12px;
@@ -41,6 +43,10 @@
 
   // 表格卡片响应式
   .table-card {
+    .el-pagination {
+      margin-top: 15px;
+      justify-content: flex-end;
+    }
     @include mobile {
       :deep(.el-card__header) {
         padding: 12px 15px;

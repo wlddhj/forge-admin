@@ -347,14 +347,3 @@ const cancelSelection = () => {
 
 onMounted(() => getList())
 </script>
-
-<style scoped lang="scss">
-.app-container {
-  padding: 0;
-
-  .search-card { margin-bottom: 15px; }
-  .table-card {
-    .el-pagination { margin-top: 15px; justify-content: flex-end; }
-  }
-}
-</style>

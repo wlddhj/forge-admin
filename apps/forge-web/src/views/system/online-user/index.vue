@@ -188,24 +188,3 @@ onMounted(() => {
 
 onMounted(() => getList())
 </script>
-
-<style scoped lang="scss">
-.app-container {
-  padding: 0;
-
-  .table-card {
-    .mobile-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 15px;
-
-      .title {
-        font-size: 16px;
-        font-weight: 500;
-        color: #303133;
-      }
-    }
-  }
-}
-</style>

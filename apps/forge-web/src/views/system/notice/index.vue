@@ -423,25 +423,10 @@ onMounted(() => getList())
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
-
-  .search-card {
-    margin-bottom: 15px;
-  }
-
-  .table-card {
-    .el-pagination {
-      margin-top: 15px;
-      justify-content: flex-end;
-    }
-  }
-
-  .notice-content {
-    white-space: pre-wrap;
-    word-break: break-all;
-    max-height: 300px;
-    overflow-y: auto;
-  }
+.notice-content {
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
 }
 </style>

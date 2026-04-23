@@ -446,13 +446,3 @@ onMounted(() => {
   getDeptTreeData()
 })
 </script>
-
-<style scoped lang="scss">
-.app-container {
-  padding: 0;
-
-  .search-card {
-    margin-bottom: 15px;
-  }
-}
-</style>

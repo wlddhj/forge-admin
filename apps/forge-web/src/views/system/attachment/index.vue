@@ -345,27 +345,13 @@ onMounted(() => getList())
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
-
-  .search-card {
-    margin-bottom: 15px;
-  }
-
-  .table-card {
-    .file-name {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      .file-icon {
-        font-size: 18px;
-        color: var(--el-color-primary);
-      }
-    }
-    .el-pagination {
-      margin-top: 15px;
-      justify-content: flex-end;
-    }
+.file-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  .file-icon {
+    font-size: 18px;
+    color: var(--el-color-primary);
   }
 }
 </style>

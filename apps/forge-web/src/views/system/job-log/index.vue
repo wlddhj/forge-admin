@@ -286,33 +286,20 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  .search-card {
-    margin-bottom: 15px;
-  }
+.text-danger {
+  color: #f56c6c;
+  font-weight: bold;
+}
 
-  .table-card {
-    .el-pagination {
-      margin-top: 15px;
-      justify-content: flex-end;
-    }
-  }
-
-  .text-danger {
-    color: #f56c6c;
-    font-weight: bold;
-  }
-
-  .exception-info {
-    max-height: 300px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
-    font-size: 12px;
-    color: #f56c6c;
-    background-color: #fef0f0;
-    padding: 10px;
-    border-radius: 4px;
-  }
+.exception-info {
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 12px;
+  color: #f56c6c;
+  background-color: #fef0f0;
+  padding: 10px;
+  border-radius: 4px;
 }
 </style>

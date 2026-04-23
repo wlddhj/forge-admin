@@ -523,27 +523,18 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
+.form-tip {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
+}
 
-  .search-card { margin-bottom: 15px; }
-  .table-card {
-    .el-pagination { margin-top: 15px; justify-content: flex-end; }
-  }
-
-  .form-tip {
-    margin-top: 5px;
-    font-size: 12px;
-    color: #909399;
-    line-height: 1.5;
-  }
-
-  .cron-builder {
-    .cron-common {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-    }
+.cron-builder {
+  .cron-common {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 }
 </style>

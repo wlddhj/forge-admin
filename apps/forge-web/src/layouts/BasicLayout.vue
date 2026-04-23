@@ -402,7 +402,7 @@ watch(() => userStore.token, (newToken) => {
 
 .layout-content {
   background: var(--el-bg-color-page);
-  padding: 20px;
+  padding: 10px;
   overflow: auto;
 }
 

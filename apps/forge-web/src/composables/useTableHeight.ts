@@ -18,7 +18,7 @@ export interface UseTableHeightOptions {
 export function useTableHeight(options: UseTableHeightOptions = {}) {
   const {
     searchCardSelector = '.search-card',
-    extraOffset = 20,
+    extraOffset = 0,
     hasPagination = true
   } = options
 
@@ -61,18 +61,18 @@ export function useTableHeight(options: UseTableHeightOptions = {}) {
     const paginationHeight = hasPagination ? getElementHeight('.el-pagination') || 52 : 0
 
     // 卡片内边距 (el-card__body padding)
-    const cardPadding = 32
+    const cardPadding = 5
 
     // 计算表格高度
     const height = viewportHeight
-      - headerHeight
-      - tabsViewHeight
-      - contentPadding
-      - searchCardHeight
-      - toolbarHeight
-      - paginationHeight
-      - cardPadding
-      - extraOffset
+        - headerHeight
+        - tabsViewHeight
+        - contentPadding
+        - searchCardHeight
+        - toolbarHeight
+        - paginationHeight
+        - cardPadding
+        - extraOffset
 
     // 确保最小高度
     tableHeight.value = Math.max(height, 200)

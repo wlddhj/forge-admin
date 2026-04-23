@@ -537,24 +537,5 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
 
-  .search-card {
-    margin-bottom: 15px;
-  }
-
-  .table-card {
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .el-pagination {
-      margin-top: 15px;
-      justify-content: flex-end;
-    }
-  }
-}
 </style>
