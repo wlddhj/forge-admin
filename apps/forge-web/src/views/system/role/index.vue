@@ -236,8 +236,14 @@
         type="info"
         :closable="false"
         show-icon
-        style="margin-bottom: 16px"
+        style="margin-bottom: 12px"
       />
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+        <el-checkbox v-model="menuCheckAll" @change="handleMenuCheckAll">全选</el-checkbox>
+        <el-button link type="primary" @click="handleMenuExpandToggle(!menuExpandAll)">
+          {{ menuExpandAll ? '折叠全部' : '展开全部' }}
+        </el-button>
+      </div>
       <el-tree
         ref="treeRef"
         :data="menuTree"
@@ -245,6 +251,7 @@
         node-key="id"
         show-checkbox
         default-expand-all
+        @check="handleMenuCheck"
       />
       <template #footer>
         <div style="display: flex; gap: 12px">
@@ -345,6 +352,8 @@ const assignLoading = ref(false)
 const menuTree = ref<MenuTree[]>([])
 const treeRef = ref()
 const currentRoleId = ref(0)
+const menuCheckAll = ref(false)
+const menuExpandAll = ref(true)
 
 // 部门树相关
 const deptTree = ref<DeptTree[]>([])
@@ -506,6 +515,46 @@ const handleConfirmAssignMenus = async () => {
     menuDialogVisible.value = false
   } finally {
     assignLoading.value = false
+  }
+}
+
+// 获取所有菜单节点 ID
+const getAllMenuIds = (tree: MenuTree[]): number[] => {
+  const ids: number[] = []
+  const traverse = (nodes: MenuTree[]) => {
+    for (const node of nodes) {
+      ids.push(node.id)
+      if (node.children?.length) traverse(node.children)
+    }
+  }
+  traverse(tree)
+  return ids
+}
+
+// 全选/取消全选
+const handleMenuCheckAll = (val: boolean) => {
+  if (val) {
+    treeRef.value?.setCheckedKeys(getAllMenuIds(menuTree.value))
+  } else {
+    treeRef.value?.setCheckedKeys([])
+  }
+}
+
+// 节点勾选变化时同步全选状态
+const handleMenuCheck = () => {
+  const checkedKeys = treeRef.value?.getCheckedKeys() || []
+  const allIds = getAllMenuIds(menuTree.value)
+  menuCheckAll.value = allIds.length > 0 && checkedKeys.length === allIds.length
+}
+
+// 展开/折叠全部
+const handleMenuExpandToggle = (expand: boolean) => {
+  const tree = treeRef.value
+  if (!tree) return
+  menuExpandAll.value = expand
+  const nodes = tree.store.nodesMap
+  for (const key in nodes) {
+    nodes[key].expanded = expand
   }
 }
 
