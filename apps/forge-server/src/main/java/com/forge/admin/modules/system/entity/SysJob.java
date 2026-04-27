@@ -5,15 +5,17 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * 定时任务实体
  */
 @Data
-@TableName("sys_job")
+@TableName(value = "sys_job", autoResultMap = true)
 public class SysJob {
 
     @TableId(type = IdType.AUTO)
@@ -39,6 +41,41 @@ public class SysJob {
 
     /** 备注 */
     private String remark;
+
+    /** 超时时间(秒) */
+    private Integer timeout;
+
+    /** 失败重试次数 */
+    private Integer retryCount;
+
+    /** 重试间隔(秒) */
+    private Integer retryInterval;
+
+    /** 通知配置 */
+    @TableField(typeHandler = JacksonTypeHandler.class)
+    private Map<String, Object> notifyConfig;
+
+    /** 任务参数 */
+    @TableField(typeHandler = JacksonTypeHandler.class)
+    private Map<String, Object> jobParams;
+
+    /** 最后执行时间 */
+    private LocalDateTime lastExecuteAt;
+
+    /** 最后执行状态(SUCCESS/FAIL/TIMEOUT) */
+    private String lastExecuteStatus;
+
+    /** 最后执行耗时(毫秒) */
+    private Long lastExecuteDuration;
+
+    /** 总执行次数 */
+    private Integer totalExecuteCount;
+
+    /** 成功次数 */
+    private Integer successCount;
+
+    /** 失败次数 */
+    private Integer failureCount;
 
     /** 创建时间 */
     @TableField(fill = FieldFill.INSERT)

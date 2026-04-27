@@ -8,14 +8,7 @@
           <el-input v-model="queryParams.jobName" placeholder="请输入任务名称" clearable />
         </el-form-item>
         <el-form-item label="任务分组">
-          <el-select v-model="queryParams.jobGroup" placeholder="请选择任务分组" clearable style="width: 150px">
-            <el-option
-              v-for="item in jobGroupOptions"
-              :key="item.dictValue"
-              :label="item.dictLabel"
-              :value="item.dictValue"
-            />
-          </el-select>
+          <el-input v-model="queryParams.jobGroup" placeholder="请输入任务分组" clearable style="width: 150px" />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 120px">
@@ -52,14 +45,7 @@
           <el-input v-model="queryParams.jobName" placeholder="请输入任务名称" clearable />
         </el-form-item>
         <el-form-item label="任务分组">
-          <el-select v-model="queryParams.jobGroup" placeholder="请选择任务分组" clearable style="width: 100%">
-            <el-option
-              v-for="item in jobGroupOptions"
-              :key="item.dictValue"
-              :label="item.dictLabel"
-              :value="item.dictValue"
-            />
-          </el-select>
+          <el-input v-model="queryParams.jobGroup" placeholder="请输入任务分组" clearable style="width: 100%" />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 100%">
@@ -108,9 +94,6 @@
         <!-- 序号列（桌面端） -->
         <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
 
-        <!-- ID（桌面端） -->
-        <vxe-column v-if="!isMobile" field="id" title="ID" width="80" />
-
         <!-- 任务名称 -->
         <vxe-column field="jobName" title="任务名称" width="150" />
 
@@ -127,6 +110,45 @@
         <vxe-column title="状态" width="80">
           <template #default="{ row }">
             <el-switch v-model="row.status" :active-value="1" :inactive-value="0" @change="handleStatusChange(row)" />
+          </template>
+        </vxe-column>
+
+        <!-- 超时 -->
+        <vxe-column v-if="!isMobile" title="超时" width="80" align="center">
+          <template #default="{ row }">{{ row.timeout ? row.timeout + 's' : '-' }}</template>
+        </vxe-column>
+
+        <!-- 重试 -->
+        <vxe-column v-if="!isMobile" title="重试" width="80" align="center">
+          <template #default="{ row }">{{ row.retryCount || 0 }}次</template>
+        </vxe-column>
+
+        <!-- 最后执行 -->
+        <vxe-column v-if="!isMobile" title="最后执行" width="170">
+          <template #default="{ row }">
+            <span v-if="row.lastExecuteAt">{{ formatDateTime(row.lastExecuteAt) }}</span>
+            <span v-else style="color: var(--el-text-color-placeholder)">-</span>
+          </template>
+        </vxe-column>
+
+        <!-- 执行状态 -->
+        <vxe-column v-if="!isMobile" title="执行状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.lastExecuteStatus === 'SUCCESS'" type="success" size="small">成功</el-tag>
+            <el-tag v-else-if="row.lastExecuteStatus === 'FAIL'" type="danger" size="small">失败</el-tag>
+            <el-tag v-else-if="row.lastExecuteStatus === 'TIMEOUT'" type="warning" size="small">超时</el-tag>
+            <span v-else style="color: var(--el-text-color-placeholder)">-</span>
+          </template>
+        </vxe-column>
+
+        <!-- 执行统计 -->
+        <vxe-column v-if="!isMobile" title="执行统计" width="130" align="center">
+          <template #default="{ row }">
+            <span v-if="row.totalExecuteCount">
+              {{ row.successCount || 0 }}<span style="color: var(--el-color-success)">✓</span> /
+              {{ row.failureCount || 0 }}<span style="color: var(--el-color-danger)">✗</span>
+            </span>
+            <span v-else style="color: var(--el-text-color-placeholder)">-</span>
           </template>
         </vxe-column>
 
@@ -179,19 +201,18 @@
     <!-- 对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" class="dialog-form-responsive">
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="120px">
-        <el-form-item label="任务名称" prop="jobName">
-          <el-input v-model="formData.jobName" placeholder="请输入任务名称" />
-        </el-form-item>
-        <el-form-item label="任务分组" prop="jobGroup">
-          <el-select v-model="formData.jobGroup" style="width: 100%">
-            <el-option
-              v-for="item in jobGroupOptions"
-              :key="item.dictValue"
-              :label="item.dictLabel"
-              :value="item.dictValue"
-            />
-          </el-select>
-        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="任务名称" prop="jobName">
+              <el-input v-model="formData.jobName" placeholder="请输入任务名称" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="任务分组" prop="jobGroup">
+              <el-input v-model="formData.jobGroup" placeholder="请输入任务分组" />
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="调用目标" prop="invokeTarget">
           <el-input v-model="formData.invokeTarget" placeholder="如: demoTask.execute('test')" />
           <div class="form-tip">
@@ -210,22 +231,58 @@
             <p>示例：0 0/5 * * * ? - 每5分钟执行一次</p>
           </div>
         </el-form-item>
-        <el-form-item label="是否并发">
-          <el-radio-group v-model="formData.concurrent">
-            <el-radio :value="0">禁止</el-radio>
-            <el-radio :value="1">允许</el-radio>
-          </el-radio-group>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="是否并发" label-width="120px">
+              <el-radio-group v-model="formData.concurrent">
+                <el-radio :value="0">禁止</el-radio>
+                <el-radio :value="1">允许</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="状态" label-width="120px">
+              <el-radio-group v-model="formData.status">
+                <el-radio
+                  v-for="item in statusOptions"
+                  :key="item.dictValue"
+                  :value="Number(item.dictValue)"
+                >
+                  {{ item.dictLabel }}
+                </el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="超时时间(秒)" label-width="120px">
+              <el-input-number v-model="formData.timeout" :min="0" :max="3600" placeholder="0=不限" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="失败重试次数" label-width="120px">
+              <el-input-number v-model="formData.retryCount" :min="0" :max="10" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="重试间隔(秒)" label-width="120px">
+              <el-input-number v-model="formData.retryInterval" :min="10" :max="3600" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="任务参数">
+          <el-input v-model="jobParamsJson" type="textarea" :rows="3" placeholder='JSON格式，如: {"key": "value"}' />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-radio-group v-model="formData.status">
-            <el-radio
-              v-for="item in statusOptions"
-              :key="item.dictValue"
-              :value="Number(item.dictValue)"
-            >
-              {{ item.dictLabel }}
-            </el-radio>
-          </el-radio-group>
+        <el-form-item label="通知配置">
+          <el-input v-model="notifyConfigJson" type="textarea" :rows="3" placeholder='{"emails": ["admin@example.com"]}' />
+          <div class="form-tip">
+            <p>可选字段：notifyOnFailure(失败通知，默认true)、notifyOnSuccess(成功通知，默认false)</p>
+            <p>emails(邮件列表)、webhookUrl(Webhook地址)</p>
+            <p>示例：{"notifyOnFailure": true, "emails": ["admin@example.com"], "webhookUrl": "https://hooks.example.com/job"}</p>
+          </div>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入备注" />
@@ -289,8 +346,7 @@ import MobileBottomActions from '@/components/MobileBottomActions.vue'
 
 const { isMobile } = useResponsive()
 const router = useRouter()
-const { dictData: jobGroupOptions } = useDict(DICT_TYPE.SYS_JOB_GROUP)
-const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_COMMON_STATUS)
+const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
 
 // 表格高度自适应
 const { tableHeight } = useTableHeight()
@@ -308,6 +364,17 @@ interface Job {
   status: number
   concurrent: number
   remark: string
+  timeout?: number
+  retryCount?: number
+  retryInterval?: number
+  notifyConfig?: Record<string, unknown>
+  jobParams?: Record<string, unknown>
+  lastExecuteAt?: string
+  lastExecuteStatus?: string
+  lastExecuteDuration?: number
+  totalExecuteCount?: number
+  successCount?: number
+  failureCount?: number
   createTime: string
 }
 
@@ -359,8 +426,17 @@ const formData = reactive({
   cronExpression: '',
   status: 1,
   concurrent: 0,
-  remark: ''
+  remark: '',
+  timeout: undefined as number | undefined,
+  retryCount: 0,
+  retryInterval: 60,
+  notifyConfig: undefined as Record<string, unknown> | undefined,
+  jobParams: undefined as Record<string, unknown> | undefined,
 })
+
+// JSON 字段编辑用的字符串
+const jobParamsJson = ref('')
+const notifyConfigJson = ref('')
 
 const formRules: FormRules = {
   jobName: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
@@ -401,7 +477,9 @@ const handleResetFromDrawer = () => {
 const handleAdd = () => {
   isEdit.value = false
   dialogTitle.value = '新增任务'
-  Object.assign(formData, { id: undefined, jobName: '', jobGroup: 'DEFAULT', invokeTarget: '', cronExpression: '', status: 1, concurrent: 0, remark: '' })
+  Object.assign(formData, { id: undefined, jobName: '', jobGroup: 'DEFAULT', invokeTarget: '', cronExpression: '', status: 1, concurrent: 0, remark: '', timeout: undefined, retryCount: 0, retryInterval: 60, notifyConfig: undefined, jobParams: undefined })
+  jobParamsJson.value = ''
+  notifyConfigJson.value = ''
   dialogVisible.value = true
 }
 
@@ -410,12 +488,37 @@ const handleEdit = (row: Job) => {
   isEdit.value = true
   dialogTitle.value = '编辑任务'
   Object.assign(formData, row)
+  jobParamsJson.value = row.jobParams ? JSON.stringify(row.jobParams, null, 2) : ''
+  notifyConfigJson.value = row.notifyConfig ? JSON.stringify(row.notifyConfig, null, 2) : ''
   dialogVisible.value = true
 }
 
 const handleSubmit = async () => {
   if (!formRef.value) return
   await formRef.value.validate()
+
+  // 解析 JSON 字段
+  if (jobParamsJson.value.trim()) {
+    try {
+      formData.jobParams = JSON.parse(jobParamsJson.value)
+    } catch {
+      ElMessage.warning('任务参数 JSON 格式不正确')
+      return
+    }
+  } else {
+    formData.jobParams = undefined
+  }
+  if (notifyConfigJson.value.trim()) {
+    try {
+      formData.notifyConfig = JSON.parse(notifyConfigJson.value)
+    } catch {
+      ElMessage.warning('通知配置 JSON 格式不正确')
+      return
+    }
+  } else {
+    formData.notifyConfig = undefined
+  }
+
   submitLoading.value = true
   try {
     if (isEdit.value) {

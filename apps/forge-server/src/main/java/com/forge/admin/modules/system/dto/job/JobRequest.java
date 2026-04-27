@@ -3,6 +3,7 @@ package com.forge.admin.modules.system.dto.job;
 import lombok.Data;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
 
 @Data
 public class JobRequest {
@@ -24,4 +25,14 @@ public class JobRequest {
     private Integer concurrent = 0;
 
     private String remark;
+
+    private Integer timeout;
+
+    private Integer retryCount;
+
+    private Integer retryInterval;
+
+    private Map<String, Object> notifyConfig;
+
+    private Map<String, Object> jobParams;
 }
