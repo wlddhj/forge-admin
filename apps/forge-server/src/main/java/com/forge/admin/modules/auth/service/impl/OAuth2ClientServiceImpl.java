@@ -9,6 +9,7 @@ import com.forge.admin.modules.auth.dto.oauth2.ClientUpdateRequest;
 import com.forge.admin.modules.auth.service.OAuth2ClientService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -34,20 +35,29 @@ public class OAuth2ClientServiceImpl implements OAuth2ClientService {
 
     private final RegisteredClientRepository registeredClientRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     @Override
     public List<ClientResponse> listClients(ClientQueryRequest request) {
-        // RegisteredClientRepository 没有分页查询方法，这里使用 findByClientId 做简化
-        // 生产环境可考虑自定义实现支持分页
-        List<ClientResponse> result = new ArrayList<>();
-        // 如果有 clientId 过滤条件
+        StringBuilder sql = new StringBuilder("SELECT id FROM oauth2_registered_client WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+
         if (StringUtils.hasText(request.getClientId())) {
-            RegisteredClient client = registeredClientRepository.findByClientId(request.getClientId());
-            if (client != null) {
-                result.add(toResponse(client));
-            }
+            sql.append(" AND client_id LIKE ?");
+            params.add("%" + request.getClientId() + "%");
         }
-        return result;
+        if (StringUtils.hasText(request.getClientName())) {
+            sql.append(" AND client_name LIKE ?");
+            params.add("%" + request.getClientName() + "%");
+        }
+        sql.append(" ORDER BY client_id_issued_at DESC");
+
+        List<String> ids = jdbcTemplate.queryForList(sql.toString(), params.toArray(), String.class);
+        return ids.stream()
+                .map(id -> registeredClientRepository.findById(id))
+                .filter(java.util.Objects::nonNull)
+                .map(this::toResponse)
+                .toList();
     }
 
     @Override
@@ -94,11 +104,19 @@ public class OAuth2ClientServiceImpl implements OAuth2ClientService {
             builder.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN);
         }
 
-        // 重定向URI
+        // 重定向URI（authorization_code 模式必须提供）
         if (request.getRedirectUris() != null) {
             for (String uri : request.getRedirectUris()) {
-                builder.redirectUri(uri);
+                if (uri != null && !uri.isBlank()) {
+                    builder.redirectUri(uri);
+                }
             }
+        }
+        // 如果授权类型包含 authorization_code 但未提供 redirectUri，设置默认值
+        boolean hasAuthCode = request.getAuthorizationGrantTypes() != null
+                && request.getAuthorizationGrantTypes().contains("authorization_code");
+        if (hasAuthCode && (request.getRedirectUris() == null || request.getRedirectUris().stream().allMatch(u -> u == null || u.isBlank()))) {
+            builder.redirectUri("http://localhost:8080/callback");
         }
 
         // Scopes
@@ -134,29 +152,63 @@ public class OAuth2ClientServiceImpl implements OAuth2ClientService {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND);
         }
 
+        // 重建完整的 RegisteredClient（from 会复制所有字段，然后覆盖修改项）
         RegisteredClient.Builder builder = RegisteredClient.from(existing);
 
         if (StringUtils.hasText(request.getClientName())) {
             builder.clientName(request.getClientName());
         }
 
-        if (request.getRedirectUris() != null) {
-            // 清除旧的，设置新的
-            // RegisteredClient.from 会复制所有属性，需要重新设置 redirectUris
-            // 注意：builder 模式下 redirectUris 是累加的
+        // 授权类型
+        if (request.getAuthorizationGrantTypes() != null) {
+            builder.authorizationGrantTypes(grantTypes -> {
+                grantTypes.clear();
+                for (String grantType : request.getAuthorizationGrantTypes()) {
+                    grantTypes.add(new AuthorizationGrantType(grantType));
+                }
+            });
         }
 
+        // 认证方法
+        if (request.getClientAuthenticationMethods() != null) {
+            builder.clientAuthenticationMethods(methods -> {
+                methods.clear();
+                for (String method : request.getClientAuthenticationMethods()) {
+                    methods.add(new ClientAuthenticationMethod(method));
+                }
+            });
+        }
+
+        // Scopes
+        if (request.getScopes() != null) {
+            builder.scopes(scopes -> {
+                scopes.clear();
+                scopes.addAll(request.getScopes());
+            });
+        }
+
+        // 重定向URI
+        if (request.getRedirectUris() != null) {
+            builder.redirectUris(uris -> {
+                uris.clear();
+                for (String uri : request.getRedirectUris()) {
+                    if (uri != null && !uri.isBlank()) {
+                        uris.add(uri);
+                    }
+                }
+            });
+        }
+
+        // Token 设置
         TokenSettings.Builder tokenSettingsBuilder = TokenSettings.builder();
-        if (request.getAccessTokenTimeToLive() != null) {
-            tokenSettingsBuilder.accessTokenTimeToLive(Duration.ofSeconds(request.getAccessTokenTimeToLive()));
-        } else {
-            tokenSettingsBuilder.accessTokenTimeToLive(existing.getTokenSettings().getAccessTokenTimeToLive());
-        }
-        if (request.getRefreshTokenTimeToLive() != null) {
-            tokenSettingsBuilder.refreshTokenTimeToLive(Duration.ofSeconds(request.getRefreshTokenTimeToLive()));
-        } else {
-            tokenSettingsBuilder.refreshTokenTimeToLive(existing.getTokenSettings().getRefreshTokenTimeToLive());
-        }
+        tokenSettingsBuilder.accessTokenTimeToLive(
+                request.getAccessTokenTimeToLive() != null
+                        ? Duration.ofSeconds(request.getAccessTokenTimeToLive())
+                        : existing.getTokenSettings().getAccessTokenTimeToLive());
+        tokenSettingsBuilder.refreshTokenTimeToLive(
+                request.getRefreshTokenTimeToLive() != null
+                        ? Duration.ofSeconds(request.getRefreshTokenTimeToLive())
+                        : existing.getTokenSettings().getRefreshTokenTimeToLive());
         builder.tokenSettings(tokenSettingsBuilder.build());
 
         registeredClientRepository.save(builder.build());
@@ -165,9 +217,12 @@ public class OAuth2ClientServiceImpl implements OAuth2ClientService {
 
     @Override
     public void deleteClients(List<String> ids) {
-        // RegisteredClientRepository 没有删除方法，需要通过 JDBC 直接删除
+        for (String id : ids) {
+            jdbcTemplate.update("DELETE FROM oauth2_authorization_consent WHERE registered_client_id = ?", id);
+            jdbcTemplate.update("DELETE FROM oauth2_authorization WHERE registered_client_id = ?", id);
+            jdbcTemplate.update("DELETE FROM oauth2_registered_client WHERE id = ?", id);
+        }
         log.info("删除OAuth2客户端: ids={}", ids);
-        // 实际项目中需要自定义 JDBC 删除逻辑
     }
 
     @Override

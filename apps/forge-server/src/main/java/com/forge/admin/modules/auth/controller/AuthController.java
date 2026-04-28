@@ -20,7 +20,9 @@ import com.forge.admin.modules.system.service.SysMenuService;
 import com.forge.admin.modules.system.service.SysUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +58,7 @@ public class AuthController {
         @Operation(summary = "登录")
     @PostMapping("/login")
     @RateLimiter(keyType = RateLimiter.KeyType.USERNAME, time = 60, count = 20, message = "登录请求过于频繁，请稍后再试")
-        public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         try {
             // 认证
             Authentication authentication = authenticationManager.authenticate(
@@ -115,6 +117,13 @@ public class AuthController {
                     .refreshExpiresIn(jwtProperties.getRefreshExpiration())
                     .build();
 
+            // 设置 access_token Cookie（支持 OAuth2 授权码流程的浏览器重定向）
+            Cookie tokenCookie = new Cookie("access_token", accessToken);
+            tokenCookie.setHttpOnly(true);
+            tokenCookie.setPath("/");
+            tokenCookie.setMaxAge(jwtProperties.getExpiration().intValue());
+            httpResponse.addCookie(tokenCookie);
+
             return Result.success(response);
         } catch (BadCredentialsException e) {
             // 记录登录失败日志
@@ -169,7 +178,7 @@ public class AuthController {
 
     @Operation(summary = "退出登录")
     @PostMapping("/logout")
-    public Result<Void> logout(HttpServletRequest request) {
+    public Result<Void> logout(HttpServletRequest request, HttpServletResponse httpResponse) {
         // 从 Authorization header 获取 Access Token
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -194,6 +203,14 @@ public class AuthController {
 
         // 清除用户上下文
         UserContext.clear();
+
+        // 清除 access_token Cookie
+        Cookie tokenCookie = new Cookie("access_token", null);
+        tokenCookie.setHttpOnly(true);
+        tokenCookie.setPath("/");
+        tokenCookie.setMaxAge(0);
+        httpResponse.addCookie(tokenCookie);
+
         return Result.success();
     }
 
