@@ -391,6 +391,111 @@ CREATE TABLE `sys_user_role` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户角色关联表';
 
 -- ========================================
+-- 19. 社交账号绑定表
+-- ========================================
+DROP TABLE IF EXISTS `sys_social_user`;
+CREATE TABLE `sys_social_user` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `user_id` bigint NOT NULL COMMENT '系统用户ID',
+  `source` varchar(32) NOT NULL COMMENT '平台标识: wechat/dingtalk',
+  `open_id` varchar(128) NOT NULL COMMENT '第三方open_id',
+  `union_id` varchar(128) DEFAULT NULL COMMENT 'union_id(微信多应用绑定)',
+  `access_token` varchar(512) DEFAULT NULL COMMENT '加密存储的access_token',
+  `refresh_token` varchar(512) DEFAULT NULL COMMENT '加密存储的refresh_token',
+  `token_expire_time` datetime DEFAULT NULL COMMENT 'token过期时间',
+  `nickname` varchar(128) DEFAULT NULL COMMENT '第三方昵称',
+  `avatar` varchar(512) DEFAULT NULL COMMENT '第三方头像URL',
+  `raw_user_info` text DEFAULT NULL COMMENT '原始用户信息JSON',
+  `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态(0:禁用 1:启用)',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `create_by` varchar(64) DEFAULT NULL COMMENT '创建者',
+  `update_by` varchar(64) DEFAULT NULL COMMENT '更新者',
+  `deleted` tinyint NOT NULL DEFAULT 0 COMMENT '逻辑删除(0:正常 1:已删除)',
+  `remark` varchar(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_source_openid` (`source`, `open_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_union_id` (`union_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='社交账号绑定表';
+
+-- ========================================
+-- 20. OAuth2 注册客户端表
+-- ========================================
+DROP TABLE IF EXISTS `oauth2_registered_client`;
+CREATE TABLE `oauth2_registered_client` (
+  `id` varchar(100) NOT NULL,
+  `client_id` varchar(100) NOT NULL,
+  `client_id_issued_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `client_secret` varchar(200) DEFAULT NULL,
+  `client_secret_expires_at` timestamp DEFAULT NULL,
+  `client_name` varchar(200) NOT NULL,
+  `client_authentication_methods` varchar(1000) NOT NULL,
+  `authorization_grant_types` varchar(1000) NOT NULL,
+  `redirect_uris` varchar(1000) DEFAULT NULL,
+  `post_logout_redirect_uris` varchar(1000) DEFAULT NULL,
+  `scopes` varchar(1000) NOT NULL,
+  `client_settings` varchar(2000) NOT NULL,
+  `token_settings` varchar(2000) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_client_id` (`client_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='OAuth2注册客户端';
+
+-- ========================================
+-- 21. OAuth2 授权信息表
+-- ========================================
+DROP TABLE IF EXISTS `oauth2_authorization`;
+CREATE TABLE `oauth2_authorization` (
+  `id` varchar(100) NOT NULL,
+  `registered_client_id` varchar(100) NOT NULL,
+  `principal_name` varchar(200) NOT NULL,
+  `authorization_grant_type` varchar(100) NOT NULL,
+  `authorized_scopes` varchar(1000) DEFAULT NULL,
+  `attributes` blob DEFAULT NULL,
+  `state` varchar(500) DEFAULT NULL,
+  `authorization_code_value` blob DEFAULT NULL,
+  `authorization_code_issued_at` timestamp DEFAULT NULL,
+  `authorization_code_expires_at` timestamp DEFAULT NULL,
+  `authorization_code_metadata` blob DEFAULT NULL,
+  `access_token_value` blob DEFAULT NULL,
+  `access_token_issued_at` timestamp DEFAULT NULL,
+  `access_token_expires_at` timestamp DEFAULT NULL,
+  `access_token_metadata` blob DEFAULT NULL,
+  `access_token_type` varchar(100) DEFAULT NULL,
+  `access_token_scopes` varchar(1000) DEFAULT NULL,
+  `oidc_id_token_value` blob DEFAULT NULL,
+  `oidc_id_token_issued_at` timestamp DEFAULT NULL,
+  `oidc_id_token_expires_at` timestamp DEFAULT NULL,
+  `oidc_id_token_metadata` blob DEFAULT NULL,
+  `refresh_token_value` blob DEFAULT NULL,
+  `refresh_token_issued_at` timestamp DEFAULT NULL,
+  `refresh_token_expires_at` timestamp DEFAULT NULL,
+  `refresh_token_metadata` blob DEFAULT NULL,
+  `user_code_value` blob DEFAULT NULL,
+  `user_code_issued_at` timestamp DEFAULT NULL,
+  `user_code_expires_at` timestamp DEFAULT NULL,
+  `user_code_metadata` blob DEFAULT NULL,
+  `device_code_value` blob DEFAULT NULL,
+  `device_code_issued_at` timestamp DEFAULT NULL,
+  `device_code_expires_at` timestamp DEFAULT NULL,
+  `device_code_metadata` blob DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_registered_client_id` (`registered_client_id`),
+  KEY `idx_principal_name` (`principal_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='OAuth2授权信息';
+
+-- ========================================
+-- 22. OAuth2 授权同意表
+-- ========================================
+DROP TABLE IF EXISTS `oauth2_authorization_consent`;
+CREATE TABLE `oauth2_authorization_consent` (
+  `registered_client_id` varchar(100) NOT NULL,
+  `principal_name` varchar(200) NOT NULL,
+  `authorities` varchar(1000) NOT NULL,
+  PRIMARY KEY (`registered_client_id`, `principal_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='OAuth2授权同意';
+
+-- ========================================
 -- 初始化数据
 -- ========================================
 
@@ -505,7 +610,13 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 (66, '附件管理', 1, '/system/attachment', '/views/system/attachment/index', NULL, 'Upload', 15, 1, 'system:attachment:list', 1, 1, 0, 0),
 (67, '附件查询', 66, '', '', NULL, '', 1, 2, 'system:attachment:query', 1, 1, 0, 0),
 (68, '附件上传', 66, '', '', NULL, '', 2, 2, 'system:attachment:upload', 1, 1, 0, 0),
-(69, '附件删除', 66, '', '', NULL, '', 3, 2, 'system:attachment:delete', 1, 1, 0, 0);
+(69, '附件删除', 66, '', '', NULL, '', 3, 2, 'system:attachment:delete', 1, 1, 0, 0),
+-- OAuth2客户端管理
+(70, 'OAuth2客户端', 1, '/system/oauth2-client', '/views/system/oauth2-client/index', NULL, 'Key', 16, 1, 'system:oauth2-client:list', 1, 1, 0, 0),
+(71, '客户端查询', 70, '', '', NULL, '', 1, 2, 'system:oauth2-client:query', 1, 1, 0, 0),
+(72, '客户新增', 70, '', '', NULL, '', 2, 2, 'system:oauth2-client:add', 1, 1, 0, 0),
+(73, '客户端修改', 70, '', '', NULL, '', 3, 2, 'system:oauth2-client:edit', 1, 1, 0, 0),
+(74, '客户端删除', 70, '', '', NULL, '', 4, 2, 'system:oauth2-client:delete', 1, 1, 0, 0);
 
 -- 初始化角色菜单关联 (超级管理员拥有所有菜单)
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)
