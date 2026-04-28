@@ -170,16 +170,84 @@ forge-admin 作为 OAuth2 授权服务器，支持标准 OAuth2 / OIDC 协议，
 | 重置密钥 | 生成新密钥，旧密钥立即失效 |
 | 删除 | 删除客户端 |
 
+#### 权限范围（Scope）说明
+
+权限范围（Scope）在不同授权模式下作用不同：
+
+**authorization_code 模式：** Scope 表示请求的用户信息范围，使用标准 OIDC scope：
+
+| Scope | 说明 |
+|-------|------|
+| `openid` | 必须，表示这是一个 OpenID Connect 请求 |
+| `profile` | 请求用户基本信息（用户名、昵称、头像等） |
+| `email` | 请求用户邮箱 |
+
+**client_credentials 模式：** Scope 仅作为 JWT 声明写入 token，**不参与实际 API 鉴权**。实际 API 访问权限由**服务账号的系统角色**决定。
+
+鉴权链路：
+
+```
+OAuth2 token (scope: openid, profile) → 提取 sub (client_id)
+    → 查找同名系统用户（服务账号）
+    → 加载服务账号的角色权限（system:user:list, system:dict:list, ...）
+    → 用系统权限鉴权（@PreAuthorize）
+```
+
+如需精确控制不同客户端的 API 访问范围，可通过为不同服务账号分配不同角色实现。
+
 ### 2.4 接入示例
 
 #### client_credentials 模式（服务间调用）
 
+适用于微服务间调用、后台定时任务等**无用户参与**的场景。
+
+**流程：**
+
+```
+┌──────────────┐                         ┌──────────────────┐
+│  服务 A       │                         │  forge-admin      │
+│ (第三方应用)   │                         │  (授权服务器)      │
+└──────┬───────┘                         └────────┬─────────┘
+       │  1. POST /api/oauth2/token                │
+       │     grant_type=client_credentials         │
+       │     Authorization: Basic base64(id:secret) │
+       │───────────────────────────────────────────→│
+       │                                           │
+       │                                           │ 验证 client_id + client_secret
+       │                                           │ 颁发 access_token（无 refresh_token）
+       │                                           │
+       │  2. 返回 access_token                      │
+       │←───────────────────────────────────────────│
+       │                                           │
+       │  3. 调用业务 API（携带 access_token）        │
+       │     Authorization: Bearer <access_token>   │
+       │───────────────────────────────────────────→│
+       │                                           │
+       │  4. 返回业务数据                             │
+       │←───────────────────────────────────────────│
+```
+
+**Step 1：在 forge-admin 中创建客户端**
+
+在「系统管理 → OAuth2客户端」新增，授权类型勾选 `client_credentials`，记录返回的客户端密钥。
+
+**Step 2：创建服务账号**
+
+client_credentials 模式需要将 OAuth2 客户端映射到系统用户。在「系统管理 → 用户管理」中创建一个用户名与客户端ID相同的用户（即**服务账号**），并分配相应角色和权限。
+
+例如客户端ID为 `service-api`，则创建用户名为 `service-api` 的系统用户，分配超级管理员角色。
+
+> **原理：** 当收到 OAuth2 access_token 时，系统自动以 token 中的 `sub`（即 client_id）作为用户名查找对应的系统用户，加载其角色和权限。因此服务账号拥有其所分配角色的全部权限。
+
+**Step 3：获取 access_token**
+
 ```bash
-# 获取 token
 curl -X POST http://localhost:8181/api/oauth2/token \
-  -u "test-client:3d668d67-24d3-4774-9946-307700ad61f2" \
+  -u "your-client-id:your-client-secret" \
   -d "grant_type=client_credentials&scope=openid profile"
 ```
+
+> `-u` 是 HTTP Basic Auth，等价于 `Authorization: Basic base64(client_id:client_secret)`
 
 响应：
 
@@ -192,15 +260,110 @@ curl -X POST http://localhost:8181/api/oauth2/token \
 }
 ```
 
+**Step 3：用 access_token 调用 API**
+
+OAuth2 access_token 可用于调用本系统的任意业务 API（只要服务账号拥有对应权限）：
+
+```bash
+# 查询字典列表
+curl "http://localhost:8181/api/system/dict-type/list?pageNum=1&pageSize=10" \
+  -H "Authorization: Bearer <access_token>"
+
+# 查询角色列表
+curl "http://localhost:8181/api/system/role/list?pageNum=1&pageSize=10" \
+  -H "Authorization: Bearer <access_token>"
+
+# Token 自省（验证 token 是否有效）
+curl -X POST http://localhost:8181/api/oauth2/introspect \
+  -u "your-client-id:your-client-secret" \
+  --data-urlencode "token=<access_token>"
+```
+
+**Step 4：撤销令牌**
+
+```bash
+curl -X POST http://localhost:8181/api/oauth2/revoke \
+  -u "your-client-id:your-client-secret" \
+  --data-urlencode "token=<access_token>"
+```
+
+撤销后通过 Introspection 验证：
+
+```bash
+curl -X POST http://localhost:8181/api/oauth2/introspect \
+  -u "your-client-id:your-client-secret" \
+  --data-urlencode "token=<access_token>"
+# 返回 {"active": false}
+```
+
+**关键特点：**
+
+| 特性 | 说明 |
+|------|------|
+| 参与方 | 只有客户端（服务），没有用户 |
+| 认证方式 | client_id + client_secret |
+| 返回内容 | 仅 access_token |
+| 不返回 | refresh_token、id_token |
+| token 过期 | 直接重新请求获取新 token（无需 refresh_token） |
+| 权限控制 | 通过服务账号（与 client_id 同名的系统用户）的角色权限控制 |
+| 适用场景 | 微服务间调用、后台定时任务、API 网关 |
+
 #### authorization_code 模式（Web 应用）
+
+适用于有用户参与的 Web 应用，用户在 forge-admin 登录并授权后，第三方应用获取用户信息。
+
+> **注意：** 以下示例中 `redirect_uri=http://127.0.0.1:8080/callback` 是**第三方应用**的回调地址，需与创建客户端时配置的重定向 URI 一致。`localhost:8181` 是本系统（授权服务器）的地址。
+
+**流程：**
+
+```
+┌──────────┐     ┌──────────────┐     ┌──────────────────┐
+│  用户浏览器 │     │  第三方应用     │     │  forge-admin      │
+└─────┬────┘     └──────┬───────┘     └────────┬─────────┘
+      │  1. 点击「使用 forge-admin 登录」 │               │
+      │──────────────────────────────→│               │
+      │                               │               │
+      │  2. 302 重定向到授权服务器        │               │
+      │←──────────────────────────────│               │
+      │                               │               │
+      │  3. GET /api/oauth2/authorize?response_type=code&client_id=xxx&redirect_uri=xxx
+      │──────────────────────────────────────────────→│
+      │                                               │
+      │  4. 用户未登录 → 302 重定向到登录页              │
+      │←──────────────────────────────────────────────│
+      │                                               │
+      │  5. 用户输入用户名密码登录                       │
+      │──────────────────────────────────────────────→│
+      │                                               │
+      │  6. 登录成功，自动授权，302 重定向到 redirect_uri │
+      │←──────────────────────────────────────────────│
+      │  Location: http://127.0.0.1:8080/callback?code=xxxxx
+      │                               │               │
+      │  7. 浏览器携带 code 回到第三方应用  │               │
+      │──────────────────────────────→│               │
+      │                               │               │
+      │                               │  8. POST /api/oauth2/token（服务端直接调用，不经浏览器）
+      │                               │    grant_type=authorization_code&code=xxxxx
+      │                               │    Authorization: Basic base64(client_id:secret)
+      │                               │──────────────→│
+      │                               │               │
+      │                               │  9. 返回 access_token + refresh_token + id_token
+      │                               │←──────────────│
+      │                               │               │
+      │                               │  10. 用 access_token 调用 /api/userinfo 获取用户信息
+      │                               │──────────────→│
+      │                               │               │
+      │  11. 登录成功，显示用户信息       │←──────────────│
+      │←──────────────────────────────│               │
+```
 
 **Step 1：引导用户到授权页面**
 
 ```
-GET /api/oauth2/authorize?response_type=code&client_id=test-client&scope=openid profile&redirect_uri=http://127.0.0.1:8080/callback
+GET http://localhost:8181/api/oauth2/authorize?response_type=code&client_id=test-client&scope=openid profile&redirect_uri=http://127.0.0.1:8080/callback
 ```
 
-**Step 2：用户登录并授权后，回调到 redirect_uri**
+**Step 2：用户登录并授权后，回调到第三方应用的 redirect_uri**
 
 ```
 http://127.0.0.1:8080/callback?code=xxxxx
@@ -234,6 +397,8 @@ curl http://localhost:8181/api/userinfo \
 
 配置：
 
+> **注意：** 由于本系统使用了 context-path `/api`，无法直接使用 `issuer-uri` 自动发现，需要手动配置各端点 URL。
+
 ```yaml
 spring:
   security:
@@ -250,7 +415,11 @@ spring:
               - profile
         provider:
           forge-admin:
-            issuer-uri: http://localhost:8181
+            authorization-uri: http://localhost:8181/api/oauth2/authorize
+            token-uri: http://localhost:8181/api/oauth2/token
+            jwk-set-uri: http://localhost:8181/api/oauth2/jwks
+            user-info-uri: http://localhost:8181/api/userinfo
+            user-name-attribute: sub
 ```
 
 ### 2.5 数据库表
@@ -269,6 +438,8 @@ OAuth2 授权服务器使用以下数据库表（由 Spring Authorization Server
 
 ### sys_social_user（社交账号绑定）
 
+> 以下为核心业务字段，完整表结构还包括 `access_token`、`refresh_token`、`token_expire_time`、`raw_user_info` 等令牌存储字段，以及 `create_time`、`update_time`、`create_by`、`update_by`、`deleted`、`remark` 等公共审计字段。
+
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | bigint | 主键 |
@@ -276,11 +447,16 @@ OAuth2 授权服务器使用以下数据库表（由 Spring Authorization Server
 | source | varchar(32) | 平台标识（wechat/dingtalk） |
 | open_id | varchar(128) | 第三方 open_id |
 | union_id | varchar(128) | union_id（微信多应用） |
+| access_token | varchar(512) | 加密存储的 access_token |
+| refresh_token | varchar(512) | 加密存储的 refresh_token |
+| token_expire_time | datetime | 令牌过期时间 |
 | nickname | varchar(128) | 第三方昵称 |
 | avatar | varchar(512) | 第三方头像 |
+| raw_user_info | text | 原始用户信息 JSON |
 | status | tinyint | 状态（0:禁用 1:启用） |
 
 唯一约束：`(source, open_id)` — 每个社交账号只能绑定一个系统用户
+索引：`idx_user_id(user_id)`、`idx_union_id(union_id)`
 
 ---
 

@@ -8,6 +8,7 @@ import com.forge.admin.modules.system.entity.SysUser;
 import com.forge.admin.modules.system.mapper.SysRoleDeptMapper;
 import com.forge.admin.modules.system.mapper.SysUserMapper;
 import com.forge.admin.modules.system.service.LoginUserSessionService;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import com.forge.admin.modules.system.service.SysRoleService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -48,6 +49,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final SysRoleService sysRoleService;
     private final SysRoleDeptMapper sysRoleDeptMapper;
     private final LoginUserSessionService loginUserSessionService;
+    private final JwtDecoder oauth2JwtDecoder;
 
     public JwtAuthenticationFilter(
             JwtTokenProvider jwtTokenProvider,
@@ -55,13 +57,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SysUserMapper sysUserMapper,
             @Lazy SysRoleService sysRoleService,
             SysRoleDeptMapper sysRoleDeptMapper,
-            LoginUserSessionService loginUserSessionService) {
+            LoginUserSessionService loginUserSessionService,
+            @Lazy JwtDecoder oauth2JwtDecoder) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.userDetailsService = userDetailsService;
         this.sysUserMapper = sysUserMapper;
         this.sysRoleService = sysRoleService;
         this.sysRoleDeptMapper = sysRoleDeptMapper;
         this.loginUserSessionService = loginUserSessionService;
+        this.oauth2JwtDecoder = oauth2JwtDecoder;
     }
 
     @Override
@@ -101,12 +105,51 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 // 设置到 SecurityContext
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+            } else if (StringUtils.hasText(token)) {
+                // 系统 JWT 验证失败，尝试作为 OAuth2 token 处理
+                handleOAuth2Token(token);
             }
         } catch (Exception e) {
             logger.error("无法设置用户认证", e);
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * 处理 OAuth2 token：尝试用 OAuth2 JWT 解码器验证 RS256 token，
+     * 验证成功后根据 sub（client_id）映射系统用户并设置完整权限
+     */
+    private boolean handleOAuth2Token(String token) {
+        try {
+            var jwt = oauth2JwtDecoder.decode(token);
+            String clientId = jwt.getClaimAsString("sub");
+            if (clientId == null) {
+                return false;
+            }
+
+            // 尝试用 client_id 作为用户名查找系统用户（服务账号）
+            SysUser user = sysUserMapper.selectByUsernameSimple(clientId);
+            if (user == null) {
+                log.warn("[OAuth2认证] 未找到服务账号用户: clientId={}", clientId);
+                return false;
+            }
+
+            // 设置用户上下文
+            setUserContext(clientId);
+
+            // 加载系统用户的完整权限
+            UserDetails userDetails = userDetailsService.loadUserByUsername(clientId);
+            UsernamePasswordAuthenticationToken systemAuth =
+                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+            SecurityContextHolder.getContext().setAuthentication(systemAuth);
+
+            log.debug("[OAuth2认证] 服务账号映射成功: clientId={}, authorities={}", clientId, userDetails.getAuthorities().size());
+            return true;
+        } catch (Exception e) {
+            // 不是有效的 OAuth2 JWT token，忽略
+            return false;
+        }
     }
 
     /**
