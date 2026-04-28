@@ -45,6 +45,8 @@
       <div class="login-tips">
         <p>默认账号: admin / password</p>
       </div>
+
+      <SocialLogin />
     </div>
   </div>
 </template>
@@ -55,6 +57,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import SocialLogin from './components/social-login.vue'
 
 const router = useRouter()
 const route = useRoute()

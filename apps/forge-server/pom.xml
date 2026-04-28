@@ -23,6 +23,8 @@
         <knife4j.version>4.5.0</knife4j.version>
         <jjwt.version>0.12.3</jjwt.version>
         <hutool.version>5.8.25</hutool.version>
+        <justauth.version>1.16.6</justauth.version>
+        <spring-authorization-server.version>1.2.0</spring-authorization-server.version>
         <lombok.version>1.18.38</lombok.version>
     </properties>
 
@@ -148,6 +150,20 @@
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
             <version>8.5.9</version>
+        </dependency>
+
+        <!-- JustAuth 第三方登录 -->
+        <dependency>
+            <groupId>me.zhyd.oauth</groupId>
+            <artifactId>JustAuth</artifactId>
+            <version>${justauth.version}</version>
+        </dependency>
+
+        <!-- Spring Authorization Server -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-authorization-server</artifactId>
+            <version>${spring-authorization-server.version}</version>
         </dependency>
 
         <!-- Lombok -->

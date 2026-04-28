@@ -45,7 +45,6 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     }
 
     @Override
-    @Cacheable(value = "menu", key = "'tree:all'", unless = "#result == null || #result.isEmpty()")
     public List<MenuTreeResponse> getMenuTree() {
         List<SysMenu> menus = lambdaQuery()
                 .eq(SysMenu::getStatus, 1)

@@ -32,7 +32,12 @@ public enum ResultCode {
     ROLE_EXISTS(5201, "角色已存在"),
     MENU_HAS_CHILDREN(5301, "存在子菜单，不允许删除"),
     DEPT_HAS_CHILDREN(5401, "存在子部门，不允许删除"),
-    DEPT_HAS_USERS(5402, "部门下存在用户，不允许删除");
+    DEPT_HAS_USERS(5402, "部门下存在用户，不允许删除"),
+
+    // 社交登录错误 55xx
+    SOCIAL_USER_NOT_BOUND(5501, "该第三方账号未绑定系统账号"),
+    SOCIAL_USER_ALREADY_BOUND(5502, "该第三方账号已被绑定"),
+    SOCIAL_LOGIN_FAILED(5504, "第三方登录失败");
 
     private final Integer code;
     private final String message;

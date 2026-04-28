@@ -8,6 +8,7 @@
  */
 export const WHITE_LIST = [
   '/login',
+  '/login/callback',
   '/404',
   '/403',
   '/500',
@@ -27,6 +28,16 @@ export const CONSTANT_ROUTES = [
     component: () => import('@/views/login/index.vue'),
     meta: {
       title: '登录',
+      hidden: true,
+      noAuth: true
+    }
+  },
+  {
+    path: '/login/callback',
+    name: 'LoginCallback',
+    component: () => import('@/views/login/callback.vue'),
+    meta: {
+      title: '登录回调',
       hidden: true,
       noAuth: true
     }

@@ -24,6 +24,18 @@ file:
       path: /tmp/forge-admin/upload
       url-prefix: http://localhost:8181/api/file/
 
+# JustAuth 第三方登录配置
+justauth:
+  type:
+    wechat:
+      client-id: ${WECHAT_APP_ID:}
+      client-secret: ${WECHAT_APP_SECRET:}
+      redirect-uri: ${WECHAT_REDIRECT_URI:http://localhost:3003/api/auth/social/callback/wechat}
+    dingtalk:
+      client-id: ${DINGTALK_APP_KEY:}
+      client-secret: ${DINGTALK_APP_SECRET:}
+      redirect-uri: ${DINGTALK_REDIRECT_URI:http://localhost:3003/api/auth/social/callback/dingtalk}
+
 # 日志级别
 logging:
   level:

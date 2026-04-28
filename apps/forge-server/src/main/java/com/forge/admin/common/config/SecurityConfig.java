@@ -5,6 +5,7 @@ import com.forge.admin.modules.auth.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -54,6 +55,14 @@ public class SecurityConfig {
             "/auth/register",
             "/auth/captcha",
             "/auth/refresh",
+            "/auth/social/authorize/**",
+            "/auth/social/callback/**",
+            "/oauth2/token",
+            "/oauth2/jwks",
+            "/oauth2/authorization-server",
+            "/.well-known/**",
+            "/userinfo",
+            "/connect/logout",
             "/ws/**",
             "/app/**",
             "/doc.html",
@@ -72,6 +81,7 @@ public class SecurityConfig {
     };
 
     @Bean
+    @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http, @Lazy JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
                 // 禁用 CSRF

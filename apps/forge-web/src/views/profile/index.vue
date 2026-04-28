@@ -75,6 +75,11 @@
                 </el-form-item>
               </el-form>
             </el-tab-pane>
+
+            <!-- 账号绑定 -->
+            <el-tab-pane label="账号绑定" name="binding">
+              <SocialBindings />
+            </el-tab-pane>
           </el-tabs>
         </el-card>
       </el-col>
@@ -91,6 +96,7 @@ import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/dateFormat'
 import { updateUserInfo, updatePassword, updateAvatar } from '@/api/user'
 import type { User as UserType } from '@/types/system'
+import SocialBindings from './components/SocialBindings.vue'
 
 const userStore = useUserStore()
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'

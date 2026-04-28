@@ -20,6 +20,7 @@ import com.forge.admin.modules.system.mapper.SysRoleMenuMapper;
 import com.forge.admin.modules.system.mapper.SysUserRoleMapper;
 import com.forge.admin.modules.system.service.SysRoleService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -169,6 +170,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = "menu", allEntries = true)
     public void assignMenus(Long roleId, List<Long> menuIds) {
         // 删除原有菜单关联
         sysRoleMenuMapper.deleteByRoleId(roleId);
