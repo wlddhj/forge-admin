@@ -73,6 +73,10 @@
             <el-icon><component :is="allExpanded ? 'Fold' : 'Expand'" /></el-icon>
             {{ allExpanded ? '全部折叠' : '全部展开' }}
           </el-button>
+          <el-button @click="handleToggleButtons">
+            <el-icon><component :is="buttonsExpanded ? 'Hide' : 'View'" /></el-icon>
+            {{ buttonsExpanded ? '折叠按钮' : '展开按钮' }}
+          </el-button>
         </template>
         <template #tools>
           <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
@@ -88,7 +92,7 @@
         :loading="loading"
         :height="tableHeight"
         :row-config="{ isCurrent: true, isHover: true, keyField: 'id' }"
-        :tree-config="{ expandAll: !isMobile, indent: 20,transform: true, rowField: 'id', parentField: 'parentId'}"
+        :tree-config="{ expandAll: false, indent: 20,transform: true, rowField: 'id', parentField: 'parentId'}"
         :column-config="{ resizable: true }"
         show-overflow="tooltip"
         show-header-overflow="tooltip"
@@ -188,14 +192,14 @@
         <el-form-item v-if="formData.menuType === 1" label="组件路径" prop="componentPath">
           <el-input v-model="formData.componentPath" placeholder="请输入组件路径，如：/views/system/user/index" />
         </el-form-item>
+        <el-form-item v-if="formData.menuType === 2" label="权限标识">
+          <el-input v-model="formData.permission" placeholder="请输入权限标识，如：system:user:list" />
+        </el-form-item>
         <!-- 图标/权限标识 + 排序 -->
         <el-row>
           <el-col :span="12" v-if="formData.menuType !== 2" >
             <el-form-item label="图标">
               <IconPicker v-model="formData.icon" />
-            </el-form-item>
-            <el-form-item v-else label="权限标识">
-              <el-input v-model="formData.permission" placeholder="请输入权限标识，如：system:user:list" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -265,6 +269,7 @@ const toolbarRef = ref<VxeToolbarInstance | null>(null)
 const loading = ref(false)
 const tableData = ref<MenuTree[]>([])
 const allExpanded = ref(true)
+const buttonsExpanded = ref(false)
 
 // 移动端状态
 const searchDrawerVisible = ref(false)
@@ -322,15 +327,45 @@ const getList = async () => {
   try {
     const res = await getMenuList(queryParams)
     tableData.value = res//buildMenuTree(res)
-    allExpanded.value = !isMobile.value
+    // 默认展开目录和菜单，折叠按钮
     nextTick(() => {
-      if (!isMobile.value && tableRef.value) {
-        tableRef.value.setAllTreeExpand(true)
+      if (tableRef.value) {
+        // 找到所有包含按钮子节点的父节点
+        const parentIdsWithButtons = new Set<number>()
+        tableData.value.forEach(item => {
+          if (item.menuType === 2 && item.parentId) {
+            parentIdsWithButtons.add(item.parentId)
+          }
+        })
+        // 展开非按钮父节点的节点，不展开包含按钮的父节点
+        tableData.value.forEach(item => {
+          if (item.menuType !== 2 && !parentIdsWithButtons.has(item.id!)) {
+            tableRef.value!.setTreeExpand(item, true)
+          }
+        })
       }
     })
   } finally {
     loading.value = false
   }
+}
+
+// 折叠按钮节点
+const collapseButtons = () => {
+  if (!tableRef.value) return
+  // 找到所有包含按钮子节点的父节点
+  const parentIdsWithButtons = new Set<number>()
+  tableData.value.forEach(item => {
+    if (item.menuType === 2 && item.parentId) {
+      parentIdsWithButtons.add(item.parentId)
+    }
+  })
+  // 折叠这些父节点
+  tableData.value.forEach(item => {
+    if (parentIdsWithButtons.has(item.id!)) {
+      tableRef.value!.setTreeExpand(item, false)
+    }
+  })
 }
 
 const getMenuTreeData = async () => {
@@ -373,9 +408,35 @@ const handleToggleExpand = () => {
   if (tableRef.value) {
     if (allExpanded.value) {
       tableRef.value.setAllTreeExpand(true)
+      buttonsExpanded.value = true
     } else {
       tableRef.value.clearTreeExpand()
+      buttonsExpanded.value = false
     }
+  }
+}
+
+const handleToggleButtons = () => {
+  buttonsExpanded.value = !buttonsExpanded.value
+  if (!tableRef.value) return
+
+  // 找到所有包含按钮子节点的父节点
+  const parentIdsWithButtons = new Set<number>()
+  tableData.value.forEach(item => {
+    if (item.menuType === 2 && item.parentId) {
+      parentIdsWithButtons.add(item.parentId)
+    }
+  })
+
+  if (buttonsExpanded.value) {
+    // 展开包含按钮的父节点
+    tableData.value.forEach(item => {
+      if (parentIdsWithButtons.has(item.id!)) {
+        tableRef.value!.setTreeExpand(item, true)
+      }
+    })
+  } else {
+    collapseButtons()
   }
 }
 

@@ -109,8 +109,10 @@ public class SocialAuthServiceImpl implements SocialAuthService {
         LoginResponse loginResponse = issueToken(sysUser, httpRequest);
 
         // 记录登录日志
+        String loginIp = IpUtils.getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
         sysLoginLogService.recordLoginLog(sysUser.getUsername(), 1,
-                SocialSource.fromCode(source).getDisplayName() + "登录", httpRequest);
+                SocialSource.fromCode(source).getDisplayName() + "登录", loginIp, userAgent);
 
         log.info("社交登录成功: source={}, openId={}, username={}", source, openId, sysUser.getUsername());
         return loginResponse;
