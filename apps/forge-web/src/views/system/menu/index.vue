@@ -188,32 +188,43 @@
         <el-form-item v-if="formData.menuType === 1" label="组件路径" prop="componentPath">
           <el-input v-model="formData.componentPath" placeholder="请输入组件路径，如：/views/system/user/index" />
         </el-form-item>
-        <el-form-item v-if="formData.menuType !== 2" label="图标">
-          <IconPicker v-model="formData.icon" />
-        </el-form-item>
-        <el-form-item v-if="formData.menuType === 2" label="权限标识">
-          <el-input v-model="formData.permission" placeholder="请输入权限标识，如：system:user:list" />
-        </el-form-item>
-        <el-form-item label="排序" prop="sortOrder">
-          <el-input-number v-model="formData.sortOrder" :min="0" controls-position="right" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="formData.status">
-            <el-radio
-              v-for="item in statusOptions"
-              :key="item.dictValue"
-              :value="Number(item.dictValue)"
-            >
-              {{ item.dictLabel }}
-            </el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item v-if="formData.menuType !== 2" label="显示状态">
-          <el-radio-group v-model="formData.visible">
-            <el-radio :value="1">显示</el-radio>
-            <el-radio :value="0">隐藏</el-radio>
-          </el-radio-group>
-        </el-form-item>
+        <!-- 图标/权限标识 + 排序 -->
+        <el-row>
+          <el-col :span="12" v-if="formData.menuType !== 2" >
+            <el-form-item label="图标">
+              <IconPicker v-model="formData.icon" />
+            </el-form-item>
+            <el-form-item v-else label="权限标识">
+              <el-input v-model="formData.permission" placeholder="请输入权限标识，如：system:user:list" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="排序" prop="sortOrder">
+              <el-input-number v-model="formData.sortOrder" :min="0" controls-position="right" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="状态" prop="status">
+              <el-radio-group v-model="formData.status">
+                <el-radio
+                  v-for="item in statusOptions"
+                  :key="item.dictValue"
+                  :value="Number(item.dictValue)"
+                >
+                  {{ item.dictLabel }}
+                </el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12" v-if="formData.menuType !== 2">
+            <el-form-item label="显示状态">
+              <el-radio-group v-model="formData.visible">
+                <el-radio :value="1">显示</el-radio>
+                <el-radio :value="0">隐藏</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
