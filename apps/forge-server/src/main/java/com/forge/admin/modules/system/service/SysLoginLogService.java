@@ -6,8 +6,6 @@ import com.forge.admin.modules.system.dto.log.LoginLogExport;
 import com.forge.admin.modules.system.dto.log.LoginLogQueryRequest;
 import com.forge.admin.modules.system.dto.log.LoginLogResponse;
 import com.forge.admin.modules.system.entity.SysLoginLog;
-import jakarta.servlet.http.HttpServletRequest;
-
 import java.util.List;
 
 /**
@@ -21,13 +19,14 @@ public interface SysLoginLogService extends IService<SysLoginLog> {
     Page<LoginLogResponse> pageLogs(LoginLogQueryRequest request);
 
     /**
-     * 记录登录日志
+     * 记录登录日志（异步）
      * @param username 用户名
      * @param status 状态(0:失败 1:成功)
      * @param msg 消息
-     * @param request HTTP请求
+     * @param loginIp 客户端IP
+     * @param userAgent 浏览器User-Agent
      */
-    void recordLoginLog(String username, Integer status, String msg, HttpServletRequest request);
+    void recordLoginLog(String username, Integer status, String msg, String loginIp, String userAgent);
 
     /**
      * 清空登录日志

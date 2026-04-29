@@ -10,7 +10,6 @@ import com.forge.admin.modules.system.entity.SysLoginLog;
 import com.forge.admin.modules.system.mapper.SysLoginLogMapper;
 import com.forge.admin.modules.system.service.SysLoginLogService;
 import com.forge.admin.common.utils.IpUtils;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -64,27 +63,17 @@ public class SysLoginLogServiceImpl extends ServiceImpl<SysLoginLogMapper, SysLo
 
     @Override
     @Async
-    public void recordLoginLog(String username, Integer status, String msg, HttpServletRequest request) {
+    public void recordLoginLog(String username, Integer status, String msg, String loginIp, String userAgent) {
         try {
             SysLoginLog loginLog = new SysLoginLog();
             loginLog.setUsername(username);
             loginLog.setStatus(status);
             loginLog.setMsg(msg);
             loginLog.setLoginTime(LocalDateTime.now());
-
-            if (request != null) {
-                // 获取客户端IP
-                String ip = IpUtils.getClientIp(request);
-                loginLog.setLoginIp(ip);
-
-                // 获取登录地点（简化处理，实际可对接IP地址库）
-                loginLog.setLoginLocation(IpUtils.getLocationByIp(ip));
-
-                // 获取浏览器信息
-                String userAgent = request.getHeader("User-Agent");
-                loginLog.setBrowser(IpUtils.getBrowser(userAgent));
-                loginLog.setOs(IpUtils.getOs(userAgent));
-            }
+            loginLog.setLoginIp(loginIp);
+            loginLog.setLoginLocation(loginIp != null ? IpUtils.getLocationByIp(loginIp) : null);
+            loginLog.setBrowser(IpUtils.getBrowser(userAgent));
+            loginLog.setOs(IpUtils.getOs(userAgent));
 
             save(loginLog);
         } catch (Exception e) {

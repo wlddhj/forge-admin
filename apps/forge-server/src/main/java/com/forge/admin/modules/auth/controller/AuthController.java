@@ -59,6 +59,10 @@ public class AuthController {
     @PostMapping("/login")
     @RateLimiter(keyType = RateLimiter.KeyType.USERNAME, time = 60, count = 20, message = "登录请求过于频繁，请稍后再试")
         public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+        // 在 try 之前提取客户端信息，确保 catch 中也能访问
+        String loginIp = com.forge.admin.common.utils.IpUtils.getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+
         try {
             // 认证
             Authentication authentication = authenticationManager.authenticate(
@@ -83,9 +87,7 @@ public class AuthController {
                     jwtProperties.getRefreshExpiration()
             );
 
-            // 获取客户端信息
-            String loginIp = com.forge.admin.common.utils.IpUtils.getClientIp(httpRequest);
-            String userAgent = httpRequest.getHeader("User-Agent");
+            // 解析客户端信息
             String browser = com.forge.admin.common.utils.IpUtils.getBrowser(userAgent);
             String os = com.forge.admin.common.utils.IpUtils.getOs(userAgent);
             String loginLocation = com.forge.admin.common.utils.IpUtils.getLocationByIp(loginIp);
@@ -107,7 +109,7 @@ public class AuthController {
             loginUserSessionService.saveSession(session, jwtProperties.getRefreshExpiration());
 
             // 记录登录成功日志
-            sysLoginLogService.recordLoginLog(request.getUsername(), 1, "登录成功", httpRequest);
+            sysLoginLogService.recordLoginLog(request.getUsername(), 1, "登录成功", loginIp, userAgent);
 
             LoginResponse response = LoginResponse.builder()
                     .accessToken(accessToken)
@@ -127,11 +129,11 @@ public class AuthController {
             return Result.success(response);
         } catch (BadCredentialsException e) {
             // 记录登录失败日志
-            sysLoginLogService.recordLoginLog(request.getUsername(), 0, "用户名或密码错误", httpRequest);
+            sysLoginLogService.recordLoginLog(request.getUsername(), 0, "用户名或密码错误", loginIp, userAgent);
             throw e;
         } catch (Exception e) {
             // 记录登录失败日志
-            sysLoginLogService.recordLoginLog(request.getUsername(), 0, "登录失败：" + e.getMessage(), httpRequest);
+            sysLoginLogService.recordLoginLog(request.getUsername(), 0, "登录失败：" + e.getMessage(), loginIp, userAgent);
             throw e;
         }
     }
