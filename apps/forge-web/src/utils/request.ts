@@ -1,7 +1,9 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import router from '@/router'
+import { usePermissionStore } from '@/stores/permission'
+import { useTabsStore } from '@/stores/tabs'
+import router, { resetRouter } from '@/router'
 
 // 响应数据结构
 export interface Result<T = any> {
@@ -91,9 +93,14 @@ const onRefreshFailed = (errorMessage?: string) => {
   // 显示错误提示
   ElMessage.error(errorMessage || '登录已过期，请重新登录')
 
-  // 执行登出和跳转
+  // 执行登出和跳转（完整清理状态，避免重新登录后菜单/路由异常）
   const userStore = useUserStore()
+  const permissionStore = usePermissionStore()
+  const tabsStore = useTabsStore()
   userStore.logoutAction().finally(() => {
+    permissionStore.resetRoutes()
+    tabsStore.clearAllTabs()
+    resetRouter()
     isHandlingExpired = false
     router.push('/login')
   })
@@ -191,7 +198,12 @@ const handleTokenExpired = (error: any, errorMessage?: string) => {
     if (!isHandlingExpired) {
       isHandlingExpired = true
       ElMessage.error(errorMessage || '未登录或登录已过期')
+      const permissionStore = usePermissionStore()
+      const tabsStore = useTabsStore()
       userStore.logoutAction().finally(() => {
+        permissionStore.resetRoutes()
+        tabsStore.clearAllTabs()
+        resetRouter()
         isHandlingExpired = false
         router.push('/login')
       })
