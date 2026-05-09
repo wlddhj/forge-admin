@@ -91,7 +91,20 @@
       <vxe-column v-if="!isMobile" field="dictSort" title="排序" width="80" />
 
       <!-- CSS样式（桌面端） -->
-      <vxe-column v-if="!isMobile" field="cssClass" title="CSS样式" width="120" />
+      <vxe-column v-if="!isMobile" title="CSS样式" width="120">
+        <template #default="{ row }">
+          <span v-if="row.cssClass" class="dict-value-container">
+            <el-tag
+              :type="getCssClassTagType(row.cssClass)"
+              :class="row.cssClass || undefined"
+              size="small"
+            >
+              {{ row.cssClass }}
+            </el-tag>
+          </span>
+          <span v-else style="color: var(--el-text-color-secondary);">-</span>
+        </template>
+      </vxe-column>
 
       <!-- 表格样式（桌面端） -->
       <vxe-column v-if="!isMobile" title="表格样式" width="120">
@@ -163,17 +176,17 @@
           <el-input-number v-model="formData.dictSort" :min="0" :max="999" />
         </el-form-item>
         <el-form-item label="CSS样式">
-          <el-select v-model="formData.cssClass" placeholder="请选择CSS样式" clearable style="width: 100%">
+          <el-select v-model="formData.cssClass" placeholder="请选择CSS样式" clearable style="width: 100%" :teleported="false" popper-class="css-class-popper">
             <el-option
               v-for="item in cssClassOptions"
               :key="item.value"
               :label="item.label"
               :value="item.value"
             >
-              <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="dict-value-container" style="display: inline-flex; align-items: center; gap: 8px;">
                 <el-tag :type="item.tagType" :class="item.value" size="small">{{ item.label }}</el-tag>
                 <span style="color: var(--el-text-color-secondary); font-size: 12px;">{{ item.value }}</span>
-              </div>
+              </span>
             </el-option>
           </el-select>
         </el-form-item>
@@ -287,6 +300,10 @@ const cssClassOptions = [
   { label: '大号-橙色', value: 'large-orange', tagType: 'warning' },
   { label: '大号-粉色', value: 'large-pink', tagType: 'danger' },
 ]
+
+// 根据 cssClass 值查找对应的 tagType
+const cssClassMap = new Map(cssClassOptions.map(opt => [opt.value, opt.tagType]))
+const getCssClassTagType = (cssClass: string) => cssClassMap.get(cssClass) || 'info'
 
 const props = defineProps<{
   dictType: string
@@ -495,6 +512,8 @@ watch(
 </script>
 
 <style scoped lang="scss">
+@use '@/styles/dict-tag.scss' as *;
+
 .dict-data-container {
   .search-form {
     margin-bottom: 15px;
@@ -503,5 +522,20 @@ watch(
     margin-top: 15px;
     justify-content: flex-end;
   }
+}
+
+.dict-value-container {
+  @include dict-tag-styles;
+}
+
+html.dark .dict-value-container {
+  @include dict-tag-dark-styles;
+}
+</style>
+
+<style lang="scss">
+// CSS样式下拉框面板高度
+.css-class-popper .el-select-dropdown__wrap {
+  max-height: 420px;
 }
 </style>

@@ -35,7 +35,7 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
         Page<SysDictData> page = new Page<>(request.getPageNum(), request.getPageSize());
 
         LambdaQueryWrapper<SysDictData> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(StrUtil.isNotBlank(request.getDictType()), SysDictData::getDictType, request.getDictType())
+        wrapper.like(StrUtil.isNotBlank(request.getDictType()), SysDictData::getDictType, request.getDictType())
                 .like(StrUtil.isNotBlank(request.getDictLabel()), SysDictData::getDictLabel, request.getDictLabel())
                 .eq(request.getStatus() != null, SysDictData::getStatus, request.getStatus())
                 .orderByAsc(SysDictData::getDictSort)
