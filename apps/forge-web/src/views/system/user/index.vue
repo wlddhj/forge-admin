@@ -180,14 +180,11 @@
         </vxe-column>
       </vxe-table>
 
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
+      <TablePagination
+        v-model:page-num="queryParams.pageNum"
         v-model:page-size="queryParams.pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
-        @size-change="getList"
-        @current-change="getList"
+        @change="getList"
       />
     </el-card>
 
@@ -303,7 +300,7 @@ const toolbarRef = ref<VxeToolbarInstance | null>(null)
 // 查询参数
 const queryParams = reactive<UserQuery>({
   pageNum: 1,
-  pageSize: 10,
+  pageSize: 20,
   username: '',
   nickname: '',
   phone: '',

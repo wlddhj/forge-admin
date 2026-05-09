@@ -75,6 +75,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SettingsPanel: typeof import('./components/SettingsPanel.vue')['default']
+    TablePagination: typeof import('./components/TablePagination.vue')['default']
     TabsView: typeof import('./components/TabsView.vue')['default']
   }
   export interface ComponentCustomProperties {

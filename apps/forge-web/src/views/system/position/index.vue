@@ -118,14 +118,11 @@
         </vxe-column>
       </vxe-table>
 
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
+      <TablePagination
+        v-model:page-num="queryParams.pageNum"
         v-model:page-size="queryParams.pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50]"
-        :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
-        @size-change="getList"
-        @current-change="getList"
+        @change="getList"
       />
     </el-card>
 
@@ -205,7 +202,7 @@ const total = ref(0)
 const searchDrawerVisible = ref(false)
 const selectedRow = ref<Position | null>(null)
 
-const queryParams = reactive({ positionName: '', status: undefined as number | undefined, pageNum: 1, pageSize: 10 })
+const queryParams = reactive({ positionName: '', status: undefined as number | undefined, pageNum: 1, pageSize: 20 })
 
 // 序号计算
 const pageNumRef = computed(() => queryParams.pageNum)

@@ -137,14 +137,11 @@
 
       <!-- 分页 -->
       <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="queryParams.pageNum"
+        <TablePagination
+          v-model:page-num="queryParams.pageNum"
           v-model:page-size="queryParams.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
           :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleQuery"
-          @current-change="handleQuery"
+          @change="handleQuery"
         />
       </div>
     </el-card>
@@ -264,7 +261,7 @@ const toolbarRef = ref<VxeToolbarInstance | null>(null)
 // 查询参数
 const queryParams = reactive({
   pageNum: 1,
-  pageSize: 10,
+  pageSize: 20,
   configName: '',
   storageType: '',
   status: undefined as number | undefined
