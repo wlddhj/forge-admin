@@ -1,5 +1,5 @@
 <template>
-  <div class="dict-data-container">
+  <div ref="containerRef" class="dict-data-container" style="height: 100%">
     <!-- 搜索栏 -->
     <!-- 桌面端搜索表单 -->
     <el-form v-if="!isMobile" :model="queryParams" inline class="search-form">
@@ -222,7 +222,7 @@ import { getDictDataList, addDictData, updateDictData, deleteDictData } from '@/
 import type { DictData } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
-import { useTableHeight } from '@/composables/useTableHeight'
+import { useDrawerTableHeight } from '@/composables/useDrawerTableHeight'
 import { useDict } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
@@ -299,8 +299,12 @@ const props = defineProps<{
 
 const { isMobile } = useResponsive()
 
-// 表格高度自适应（抽屉场景使用较小的默认高度）
-const { tableHeight } = useTableHeight({ extraOffset: 20 })
+// 表格高度自适应（基于容器高度）
+const containerRef = ref<HTMLElement>()
+const { tableHeight } = useDrawerTableHeight({
+  containerRef,
+  excludeSelectors: ['.search-form', '.vxe-toolbar', '.mobile-search-actions'],
+})
 
 // 表格实例
 const tableRef = ref<VxeTableInstance | null>(null)
