@@ -78,6 +78,7 @@
         :data="tableData"
         :height="tableHeight"
         :loading="loading"
+        :seq-config="{seqMethod}"
         :row-config="{ isCurrent: true, isHover: true }"
         :column-config="{ resizable: true }"
         border="none"
@@ -86,7 +87,7 @@
         show-header-overflow="tooltip"
       >
         <!-- 序号列（桌面端） -->
-        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" />
 
         <!-- 任务名称 -->
         <vxe-column field="jobName" title="任务名称" width="150" />

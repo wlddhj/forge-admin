@@ -33,13 +33,14 @@
         :data="tableData"
         :height="tableHeight"
         :loading="loading"
+        :seq-config="{seqMethod}"
         :row-config="{ isCurrent: true, isHover: true }"
         :column-config="{ resizable: true }"
         border="none"
         stripe
         show-overflow="tooltip"
       >
-        <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
+        <vxe-column type="seq" title="序号" width="60" />
         <vxe-column field="clientId" title="客户端ID" min-width="180" />
         <vxe-column field="clientName" title="客户端名称" min-width="150" />
         <vxe-column field="authorizationGrantTypes" title="授权类型" min-width="200">

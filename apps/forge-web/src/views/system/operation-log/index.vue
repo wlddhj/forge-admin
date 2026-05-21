@@ -129,6 +129,7 @@
         :data="tableData"
         :height="tableHeight"
         :loading="loading"
+        :seq-config="{seqMethod}"
         :row-config="{ isCurrent: true, isHover: true }"
         :column-config="{ resizable: true }"
         border="none"
@@ -138,7 +139,7 @@
         @current-change="handleCurrentChange"
       >
         <!-- 序号列（桌面端） -->
-        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" />
 
         <!-- 操作标题 -->
         <vxe-column field="title" title="操作标题" width="120" />

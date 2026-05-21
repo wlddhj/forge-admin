@@ -103,6 +103,7 @@
         :custom-config="{mode: 'modal'}"
         :height="tableHeight"
         :loading="loading"
+        :seq-config="{seqMethod}"
         :row-config="{ isCurrent: true, isHover: true }"
         :checkbox-config="{ highlight: true, range: true }"
         :column-config="{ resizable: true }"
@@ -113,7 +114,7 @@
         @current-change="handleCurrentChange"
       >
         <!-- 序号列（桌面端） -->
-        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" />
 
         <!-- 用户名 -->
         <vxe-column field="username" title="用户名" width="120" />

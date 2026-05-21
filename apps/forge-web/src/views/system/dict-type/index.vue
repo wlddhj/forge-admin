@@ -89,6 +89,7 @@
         :loading="loading"
         :row-config="{ isCurrent: true, isHover: true }"
         :column-config="{ resizable: true }"
+        :seq-config="{seqMethod}"
         border="none"
         stripe
         show-overflow="tooltip"
@@ -96,7 +97,7 @@
         @current-change="handleCurrentChange"
       >
         <!-- 序号列（桌面端） -->
-        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" />
 
         <!-- 字典名称 -->
         <vxe-column field="dictName" title="字典名称" width="150" />
@@ -229,7 +230,7 @@ const queryParams = reactive({ dictName: '', dictType: '', status: undefined as 
 // 序号计算
 const pageNumRef = computed(() => queryParams.pageNum)
 const pageSizeRef = computed(() => queryParams.pageSize)
-const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef }) as any
 
 // 计算激活的搜索条件数量
 const activeConditionsCount = computed(() => {

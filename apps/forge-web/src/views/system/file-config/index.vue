@@ -67,6 +67,7 @@
         :data="tableData"
         :height="tableHeight"
         :loading="loading"
+        :seq-config="{seqMethod}"
         :row-config="{ isCurrent: true, isHover: true }"
         :column-config="{ resizable: true }"
         border="none"
@@ -75,7 +76,7 @@
         show-header-overflow="tooltip"
       >
         <!-- 序号列 -->
-        <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
+        <vxe-column type="seq" title="序号" width="60" />
 
         <!-- 配置名称 -->
         <vxe-column field="configName" title="配置名称" min-width="150" />
