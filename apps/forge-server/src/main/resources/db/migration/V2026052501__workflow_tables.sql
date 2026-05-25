@@ -117,10 +117,16 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
 (123, '已办任务', 100, '/workflow/task/done', '/views/workflow/task/DoneTask', NULL, 'Finished', 5, 1, 'workflow:task:list', 1, 1, 0, 0);
 
+-- 隐藏菜单（设计器、详情页面，visible=0 不在侧边栏显示）
+INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(124, '流程设计器', 101, '/workflow/process/designer', '/views/workflow/process/ProcessDesigner', NULL, '', 10, 1, NULL, 1, 0, 0, 0),
+(125, '实例详情', 112, '/workflow/instance/detail', '/views/workflow/instance/InstanceDetail', NULL, '', 10, 1, NULL, 1, 0, 0, 0),
+(126, '任务详情', 116, '/workflow/task/detail', '/views/workflow/task/TaskDetail', NULL, '', 10, 1, NULL, 1, 0, 0, 0);
+
 -- 超级管理员角色授予所有新菜单权限
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 (1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 105), (1, 106),
 (1, 107), (1, 108), (1, 109), (1, 110), (1, 111),
 (1, 112), (1, 113), (1, 114), (1, 115),
 (1, 116), (1, 117), (1, 118), (1, 119), (1, 120), (1, 121), (1, 122),
-(1, 123);
+(1, 123), (1, 124), (1, 125), (1, 126);

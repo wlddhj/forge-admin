@@ -2,6 +2,7 @@ package com.forge.admin.modules.workflow.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -38,8 +39,8 @@ public class WfCategoryServiceImpl extends ServiceImpl<WfCategoryMapper, WfCateg
         Page<WfCategory> page = new Page<>(request.getPageNum(), request.getPageSize());
 
         LambdaQueryWrapper<WfCategory> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(request.getCategoryName() != null, WfCategory::getCategoryName, request.getCategoryName())
-                .eq(request.getCategoryCode() != null, WfCategory::getCategoryCode, request.getCategoryCode())
+        wrapper.like(StrUtil.isNotBlank(request.getCategoryName()), WfCategory::getCategoryName, request.getCategoryName())
+                .eq(StrUtil.isNotBlank(request.getCategoryCode()), WfCategory::getCategoryCode, request.getCategoryCode())
                 .eq(request.getStatus() != null, WfCategory::getStatus, request.getStatus())
                 .orderByAsc(WfCategory::getSortOrder)
                 .orderByDesc(WfCategory::getCreateTime);
