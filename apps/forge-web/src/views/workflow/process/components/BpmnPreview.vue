@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import LogicFlow from '@logicflow/core'
-import '@logicflow/core/dist/style/index.css'
+import '@logicflow/core/dist/index.css'
 import '@logicflow/extension/lib/style/index.css'
 import { BPMNElements, BPMNAdapter } from '@logicflow/extension'
 

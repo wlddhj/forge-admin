@@ -4,7 +4,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import '@logicflow/core/dist/style/index.css'
+import '@logicflow/core/dist/index.css'
 import '@logicflow/extension/lib/style/index.css'
 import { useBpmnDesigner } from '@/composables/useBpmnDesigner'
 
