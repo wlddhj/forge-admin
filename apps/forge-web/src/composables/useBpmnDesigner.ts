@@ -207,15 +207,31 @@ export function useBpmnDesigner(containerRef: Ref<HTMLElement | null>) {
         'targetNamespace="http://logic-flow.org"\n         xmlns:flowable="http://flowable.org/bpmn"'
       )
     }
+    // 确保每个 bpmn:userTask 都有 xmlns:flowable 命名空间声明（用于候选人策略）
+    if (result.includes('candidateStrategy') || result.includes('candidateParam')) {
+      if (!result.includes('xmlns:flowable')) {
+        result = result.replace(
+          /targetNamespace="[^"]*"/,
+          'targetNamespace="http://logic-flow.org"\n         xmlns:flowable="http://flowable.org/bpmn"'
+        )
+      }
+    }
     // 清理 BPMN 流程元素上的 width/height 属性（Flowable 校验不允许），
     // 但保留 dc:Bounds 上的 width/height（图形坐标需要）
     // 同时清理 isDefaultFlow 等非标准 BPMN 属性
     result = result.split('\n').map(line => {
       if (/<bpmn:\w+/.test(line)) {
-        return line
+        let cleaned = line
           .replace(/\s+width="[^"]*"/g, '')
           .replace(/\s+height="[^"]*"/g, '')
           .replace(/\s+isDefaultFlow="[^"]*"/g, '')
+        // 将 candidateStrategy/candidateParam 转换为 flowable: 前缀属性
+        if (/<bpmn:userTask/.test(cleaned)) {
+          cleaned = cleaned
+            .replace(/\s+candidateStrategy="([^"]*)"/g, ' flowable:candidateStrategy="$1"')
+            .replace(/\s+candidateParam="([^"]*)"/g, ' flowable:candidateParam="$1"')
+        }
+        return cleaned
       }
       return line
     }).join('\n')

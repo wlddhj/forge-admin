@@ -10,6 +10,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 用户 Mapper
@@ -85,4 +86,20 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             @Param("status") Integer status,
             @Param("deptId") Long deptId
     );
+
+    /**
+     * 根据角色ID集合查询用户ID集合
+     *
+     * @param roleIds 角色ID集合
+     * @return 用户ID集合
+     */
+    Set<Long> selectUserIdsByRoleIds(@Param("roleIds") Set<Long> roleIds);
+
+    /**
+     * 根据部门ID集合查询用户ID集合
+     *
+     * @param deptIds 部门ID集合
+     * @return 用户ID集合
+     */
+    Set<Long> selectUserIdsByDeptIds(@Param("deptIds") Set<Long> deptIds);
 }

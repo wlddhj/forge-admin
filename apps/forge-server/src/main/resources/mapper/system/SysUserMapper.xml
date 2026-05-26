@@ -78,4 +78,25 @@
         ORDER BY u.create_time DESC
     </select>
 
+    <select id="selectUserIdsByRoleIds" resultType="java.lang.Long">
+        SELECT DISTINCT ur.user_id
+        FROM sys_user_role ur
+        INNER JOIN sys_user u ON ur.user_id = u.id
+        WHERE ur.role_id IN
+        <foreach collection="roleIds" item="roleId" open="(" separator="," close=")">
+            #{roleId}
+        </foreach>
+        AND u.deleted = 0 AND u.status = 1
+    </select>
+
+    <select id="selectUserIdsByDeptIds" resultType="java.lang.Long">
+        SELECT DISTINCT u.id
+        FROM sys_user u
+        WHERE u.dept_id IN
+        <foreach collection="deptIds" item="deptId" open="(" separator="," close=")">
+            #{deptId}
+        </foreach>
+        AND u.deleted = 0 AND u.status = 1
+    </select>
+
 </mapper>
