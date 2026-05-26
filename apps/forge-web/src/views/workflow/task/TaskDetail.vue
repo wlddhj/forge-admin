@@ -21,6 +21,16 @@
         <!-- 审批表单 -->
         <el-tab-pane label="审批表单" name="approval">
           <el-card shadow="never">
+            <!-- 流程表单渲染 -->
+            <template v-if="formRule.length > 0">
+              <el-divider content-position="left">流程表单</el-divider>
+              <form-create
+                v-model="fApi"
+                :rule="formRule"
+                :option="formOption"
+              />
+              <el-divider />
+            </template>
             <el-form label-width="80px">
               <el-form-item label="审批意见">
                 <el-input
@@ -215,10 +225,12 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { taskApi } from '@/api/workflow/task'
 import { processInstanceApi } from '@/api/workflow/process-instance'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
+import { formApi } from '@/api/workflow/form'
 import { getUserList } from '@/api/system'
 import type { TaskInfo, ApprovalComment } from '@/types/workflow'
 import type { User } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
+import { decodeFields } from '@/utils/formCreate'
 import { useResponsive } from '@/composables/useResponsive'
 import BpmnPreview from '@/views/workflow/process/components/BpmnPreview.vue'
 
@@ -241,6 +253,11 @@ const taskInfo = ref<TaskInfo | null>(null)
 const comments = ref<ApprovalComment[]>([])
 const bpmnXml = ref('')
 const comment = ref('')
+
+// 表单相关
+const fApi = ref<any>(null)
+const formRule = ref<any[]>([])
+const formOption = ref({ submitBtn: false, resetBtn: false } as any)
 
 // 委派相关
 const delegateDialogVisible = ref(false)
@@ -316,11 +333,25 @@ const getTaskDetail = async () => {
       ])
 
       if (instanceData.status === 'fulfilled' && instanceData.value?.processDefinitionId) {
-        // 通过流程定义ID获取 BPMN XML
+        const processDefId = instanceData.value.processDefinitionId
+        // 通过流程定义ID获取 BPMN XML 和表单
         try {
-          bpmnXml.value = await processDefinitionApi.getXml(instanceData.value.processDefinitionId) || ''
+          bpmnXml.value = await processDefinitionApi.getXml(processDefId) || ''
+          // 加载流程定义详情获取表单ID
+          const processDef = await processDefinitionApi.getById(processDefId)
+          if (processDef.formId) {
+            const formData = await formApi.getById(processDef.formId)
+            if (formData.conf && formData.fields) {
+              formRule.value = decodeFields(formData.fields)
+              try {
+                formOption.value = JSON.parse(formData.conf)
+              } catch { /* ignore */ }
+              formOption.value.submitBtn = false
+              formOption.value.resetBtn = false
+            }
+          }
         } catch {
-          // BPMN XML 获取失败不影响页面展示
+          // BPMN XML 或表单获取失败不影响页面展示
         }
       }
 
@@ -344,7 +375,11 @@ const handleApprove = async () => {
   }
   actionLoading.value = true
   try {
-    await taskApi.approve(taskId, { comment: comment.value })
+    const variables = fApi.value ? fApi.value.formData() : undefined
+    await taskApi.approve(taskId, {
+      comment: comment.value,
+      variables: variables && Object.keys(variables).length > 0 ? variables : undefined
+    })
     ElMessage.success('审批通过')
     router.back()
   } catch (error) {
@@ -364,7 +399,11 @@ const handleReject = async () => {
     await ElMessageBox.confirm('确定要驳回该任务吗？', '提示', { type: 'warning' })
     actionLoading.value = true
     try {
-      await taskApi.reject(taskId, { comment: comment.value })
+      const variables = fApi.value ? fApi.value.formData() : undefined
+      await taskApi.reject(taskId, {
+        comment: comment.value,
+        variables: variables && Object.keys(variables).length > 0 ? variables : undefined
+      })
       ElMessage.success('驳回成功')
       router.back()
     } finally {
