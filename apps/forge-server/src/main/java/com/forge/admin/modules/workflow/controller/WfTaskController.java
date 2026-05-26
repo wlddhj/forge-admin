@@ -78,6 +78,15 @@ public class WfTaskController {
         return Result.success();
     }
 
+    @Operation(summary = "取消签收任务")
+    @PostMapping("/{taskId}/unclaim")
+    @PreAuthorize("hasAuthority('workflow:task:claim')")
+    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
+    public Result<Void> unclaim(@PathVariable String taskId) {
+        wfTaskService.unclaimTask(taskId);
+        return Result.success();
+    }
+
     @Operation(summary = "完成任务")
     @PostMapping("/{taskId}/complete")
     @PreAuthorize("hasAuthority('workflow:task:complete')")

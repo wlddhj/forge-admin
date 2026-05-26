@@ -13,9 +13,7 @@ export const processDefinitionApi = {
     request.get<string>(`/workflow/process-definition/${id}/xml`).then(res => res.data),
   getDiagram: (id: string) =>
     request.get(`/workflow/process-definition/${id}/diagram`, { responseType: 'blob' }),
-  getBpmnModel: (id: string) =>
-    request.get(`/workflow/process-definition/${id}/bpmn-model`).then(res => res.data),
-  suspend: (id: string) =>
+suspend: (id: string) =>
     request.put(`/workflow/process-definition/${id}/suspend`),
   activate: (id: string) =>
     request.put(`/workflow/process-definition/${id}/activate`),

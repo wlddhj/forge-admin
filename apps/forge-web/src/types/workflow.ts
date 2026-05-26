@@ -115,6 +115,7 @@ export interface TaskInfo {
   dueDate: string | null
   category: string
   variables: Record<string, any>
+  endTime: string | null
 }
 
 export interface TaskQuery {
@@ -155,8 +156,14 @@ export interface ApprovalComment {
   taskName: string
   userId: number
   userName: string
-  actionType: 'approve' | 'reject' | 'delegate' | 'transfer' | 'return' | 'claim'
+  actionType: 'approve' | 'reject' | 'delegate' | 'transfer' | 'return' | 'claim' | 'submit' | 'cancel'
   commentText: string
   attachmentIds: string
   createTime: string
+}
+
+// 可退回节点
+export interface ReturnNode {
+  taskDefKey: string
+  taskName: string
 }

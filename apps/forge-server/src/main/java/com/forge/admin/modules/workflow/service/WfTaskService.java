@@ -53,6 +53,13 @@ public interface WfTaskService {
     void claimTask(String taskId);
 
     /**
+     * 取消签收任务
+     *
+     * @param taskId 任务ID
+     */
+    void unclaimTask(String taskId);
+
+    /**
      * 完成任务（普通提交）
      *
      * @param taskId  任务ID

@@ -8,8 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.flowable.engine.IdentityService;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Flowable 身份桥接服务
@@ -65,6 +65,15 @@ public class FlowableIdentityService {
         if (roleId == null) return "未知角色";
         SysRole role = sysRoleMapper.selectById(roleId);
         return role != null ? role.getRoleName() : "未知角色";
+    }
+
+    /**
+     * 批量获取用户名称
+     */
+    public Map<Long, String> getUserNames(Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) return Collections.emptyMap();
+        List<SysUser> users = sysUserMapper.selectBatchIds(userIds);
+        return users.stream().collect(Collectors.toMap(SysUser::getId, SysUser::getNickname, (a, b) -> a));
     }
 
     /**

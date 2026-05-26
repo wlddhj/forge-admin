@@ -164,6 +164,12 @@ public class WfTaskServiceImpl implements WfTaskService {
     }
 
     @Override
+    public void unclaimTask(String taskId) {
+        taskService.unclaim(taskId);
+        log.info("取消签收成功：taskId={}", taskId);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void completeTask(String taskId, TaskCompleteRequest request) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
