@@ -9,6 +9,8 @@ import org.flowable.bpmn.model.UserTask;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.delegate.TaskListener;
 import org.flowable.task.service.delegate.DelegateTask;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.util.Set;
@@ -22,13 +24,22 @@ import java.util.Set;
  */
 @Slf4j
 @Component("bpmTaskCandidateListener")
-@RequiredArgsConstructor
 public class BpmTaskCandidateListener implements TaskListener {
 
     private final BpmTaskCandidateInvoker candidateInvoker;
-    private final RepositoryService repositoryService;
+    private RepositoryService repositoryService;
 
     private static final String FLOWABLE_NS = "http://flowable.org/bpmn";
+
+    public BpmTaskCandidateListener(BpmTaskCandidateInvoker candidateInvoker) {
+        this.candidateInvoker = candidateInvoker;
+    }
+
+    @Autowired
+    @Lazy
+    public void setRepositoryService(RepositoryService repositoryService) {
+        this.repositoryService = repositoryService;
+    }
 
     @Override
     public void notify(DelegateTask delegateTask) {
