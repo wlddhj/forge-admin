@@ -2,6 +2,7 @@ package com.forge.admin.modules.workflow.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.admin.modules.workflow.dto.comment.ApprovalCommentResponse;
+import com.forge.admin.modules.workflow.dto.instance.ApprovalDetailResponse;
 import com.forge.admin.modules.workflow.dto.instance.ProcessInstanceQueryRequest;
 import com.forge.admin.modules.workflow.dto.instance.ProcessInstanceResponse;
 import com.forge.admin.modules.workflow.dto.instance.ProcessStartRequest;
@@ -78,4 +79,12 @@ public interface WfProcessInstanceService {
      * @return 流程变量Map
      */
     Map<String, Object> getProcessVariables(String processInstanceId);
+
+    /**
+     * 获取审批详情（包含审批时间线）
+     *
+     * @param processInstanceId 流程实例ID
+     * @return 审批详情
+     */
+    ApprovalDetailResponse getApprovalDetail(String processInstanceId);
 }

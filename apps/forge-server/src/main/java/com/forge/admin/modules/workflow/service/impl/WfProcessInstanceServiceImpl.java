@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.admin.common.exception.BusinessException;
 import com.forge.admin.common.utils.SecurityUtils;
 import com.forge.admin.modules.workflow.dto.comment.ApprovalCommentResponse;
+import com.forge.admin.modules.workflow.dto.instance.ApprovalDetailResponse;
 import com.forge.admin.modules.workflow.dto.instance.ProcessInstanceQueryRequest;
 import com.forge.admin.modules.workflow.dto.instance.ProcessInstanceResponse;
 import com.forge.admin.modules.workflow.dto.instance.ProcessStartRequest;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -648,5 +650,119 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         } catch (Exception e) {
             throw new BusinessException(400, "日期格式错误，正确格式：yyyy-MM-dd HH:mm:ss");
         }
+    }
+
+    @Override
+    public ApprovalDetailResponse getApprovalDetail(String processInstanceId) {
+        HistoricProcessInstance instance = historyService.createHistoricProcessInstanceQuery()
+                .processInstanceId(processInstanceId)
+                .singleResult();
+        if (instance == null) {
+            throw new BusinessException(404, "流程实例不存在");
+        }
+
+        ApprovalDetailResponse detail = new ApprovalDetailResponse();
+        detail.setProcessInstanceId(processInstanceId);
+        detail.setProcessInstanceName(instance.getName());
+        detail.setProcessDefinitionId(instance.getProcessDefinitionId());
+        detail.setCategory(instance.getProcessDefinitionCategory());
+        detail.setStartTime(instance.getStartTime() != null ?
+                instance.getStartTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime() : null);
+        detail.setEndTime(instance.getEndTime() != null ?
+                instance.getEndTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime() : null);
+        detail.setStatus(instance.getEndTime() != null ? 2 : 1);
+
+        if (StrUtil.isNotBlank(instance.getStartUserId())) {
+            try {
+                detail.setStartUserId(Long.parseLong(instance.getStartUserId()));
+            } catch (NumberFormatException ignored) {}
+        }
+
+        // 获取发起人名称
+        Set<Long> userIds = new HashSet<>();
+        if (detail.getStartUserId() != null) {
+            userIds.add(detail.getStartUserId());
+        }
+
+        // 获取 BPMN XML
+        ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionId(instance.getProcessDefinitionId())
+                .singleResult();
+        if (pd != null) {
+            try {
+                InputStream bpmnStream = repositoryService.getResourceAsStream(
+                        pd.getDeploymentId(), pd.getResourceName());
+                if (bpmnStream != null) {
+                    detail.setBpmnXml(new String(bpmnStream.readAllBytes(), StandardCharsets.UTF_8));
+                }
+            } catch (Exception e) {
+                log.warn("读取BPMN XML失败: {}", e.getMessage());
+            }
+        }
+
+        // 构建审批节点时间线
+        List<HistoricActivityInstance> activities = historyService.createHistoricActivityInstanceQuery()
+                .processInstanceId(processInstanceId)
+                .orderByHistoricActivityInstanceStartTime().asc()
+                .list();
+
+        // 获取所有审批人 ID
+        for (HistoricActivityInstance activity : activities) {
+            if (StrUtil.isNotBlank(activity.getAssignee())) {
+                try { userIds.add(Long.parseLong(activity.getAssignee())); } catch (NumberFormatException ignored) {}
+            }
+        }
+        Map<Long, String> userNames = flowableIdentityService.getUserNames(userIds);
+        detail.setStartUserName(userNames.getOrDefault(detail.getStartUserId(), ""));
+
+        // 按活动节点分组
+        Map<String, ApprovalDetailResponse.ApprovalNode> nodeMap = new LinkedHashMap<>();
+        for (HistoricActivityInstance activity : activities) {
+            String activityId = activity.getActivityId();
+            ApprovalDetailResponse.ApprovalNode node = nodeMap.get(activityId);
+            if (node == null) {
+                node = new ApprovalDetailResponse.ApprovalNode();
+                node.setActivityId(activityId);
+                node.setActivityName(activity.getActivityName());
+                node.setActivityType(activity.getActivityType());
+                node.setStartTime(activity.getStartTime() != null ?
+                        activity.getStartTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime() : null);
+                node.setEndTime(activity.getEndTime() != null ?
+                        activity.getEndTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime() : null);
+                node.setStatus(activity.getEndTime() != null ? 2 : 1);
+                node.setTasks(new ArrayList<>());
+                nodeMap.put(activityId, node);
+            }
+
+            // 如果有审批人，添加到任务的列表
+            if (StrUtil.isNotBlank(activity.getAssignee())) {
+                ApprovalDetailResponse.ApprovalTask task = new ApprovalDetailResponse.ApprovalTask();
+                task.setTaskId(activity.getTaskId());
+                try { task.setUserId(Long.parseLong(activity.getAssignee())); } catch (NumberFormatException ignored) {}
+                task.setUserName(userNames.getOrDefault(task.getUserId(), ""));
+                task.setStatus(activity.getEndTime() != null ? 2 : 1);
+                task.setCreateTime(activity.getStartTime() != null ?
+                        activity.getStartTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime() : null);
+                task.setEndTime(activity.getEndTime() != null ?
+                        activity.getEndTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime() : null);
+
+                // 查找审批意见
+                if (StrUtil.isNotBlank(activity.getTaskId())) {
+                    LambdaQueryWrapper<WfApprovalComment> commentWrapper = new LambdaQueryWrapper<>();
+                    commentWrapper.eq(WfApprovalComment::getTaskId, activity.getTaskId())
+                            .orderByDesc(WfApprovalComment::getCreateTime)
+                            .last("LIMIT 1");
+                    WfApprovalComment comment = wfApprovalCommentMapper.selectOne(commentWrapper);
+                    if (comment != null) {
+                        task.setComment(comment.getCommentText());
+                    }
+                }
+
+                node.getTasks().add(task);
+            }
+        }
+
+        detail.setNodes(new ArrayList<>(nodeMap.values()));
+        return detail;
     }
 }

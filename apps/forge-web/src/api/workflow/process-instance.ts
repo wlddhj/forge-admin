@@ -18,5 +18,7 @@ export const processInstanceApi = {
   getComments: (id: string) =>
     request.get<ApprovalComment[]>(`/workflow/instance/${id}/comments`).then(res => res.data),
   getVariables: (id: string) =>
-    request.get<Record<string, any>>(`/workflow/instance/${id}/variables`).then(res => res.data)
+    request.get<Record<string, any>>(`/workflow/instance/${id}/variables`).then(res => res.data),
+  getApprovalDetail: (id: string) =>
+    request.get(`/workflow/instance/${id}/approval-detail`).then(res => res.data)
 }

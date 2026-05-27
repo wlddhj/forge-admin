@@ -5,6 +5,7 @@ import com.forge.admin.common.annotation.OperationLog;
 import com.forge.admin.common.response.PageResult;
 import com.forge.admin.common.response.Result;
 import com.forge.admin.modules.workflow.dto.comment.ApprovalCommentResponse;
+import com.forge.admin.modules.workflow.dto.instance.ApprovalDetailResponse;
 import com.forge.admin.modules.workflow.dto.instance.ProcessInstanceQueryRequest;
 import com.forge.admin.modules.workflow.dto.instance.ProcessInstanceResponse;
 import com.forge.admin.modules.workflow.dto.instance.ProcessStartRequest;
@@ -109,5 +110,12 @@ public class WfProcessInstanceController {
     @PreAuthorize("hasAuthority('workflow:instance:query')")
     public Result<Map<String, Object>> getVariables(@PathVariable String id) {
         return Result.success(wfProcessInstanceService.getProcessVariables(id));
+    }
+
+    @Operation(summary = "获取审批详情（时间线）")
+    @GetMapping("/{id}/approval-detail")
+    @PreAuthorize("hasAuthority('workflow:instance:query')")
+    public Result<ApprovalDetailResponse> getApprovalDetail(@PathVariable String id) {
+        return Result.success(wfProcessInstanceService.getApprovalDetail(id));
     }
 }
