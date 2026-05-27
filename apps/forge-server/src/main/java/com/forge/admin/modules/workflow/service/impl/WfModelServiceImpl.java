@@ -186,21 +186,27 @@ public class WfModelServiceImpl implements WfModelService {
         String processName = escapeXml(model.getName());
 
         // 先移除已有的 name 属性（非贪婪匹配，避免跳过 name）
+        String beforeRemove = bpmnXml;
         bpmnXml = bpmnXml.replaceFirst(
                 "(<bpmn:process[^>]*?)\\s+name=\"[^\"]*\"",
                 "$1"
         );
 
         // 替换 <bpmn:process ... id="xxx" ...> 中的 id 并添加 name
-        bpmnXml = bpmnXml.replaceFirst(
+        String afterStep2 = bpmnXml.replaceFirst(
                 "<bpmn:process([^>]*?)\\s+id=\"[^\"]*\"",
                 "<bpmn:process$1 id=\"" + processKey + "\" name=\"" + processName + "\""
         );
-        // 如果上面没匹配到，尝试 id 在最前面的情况
-        bpmnXml = bpmnXml.replaceFirst(
-                "<bpmn:process\\s+id=\"[^\"]*\"",
-                "<bpmn:process id=\"" + processKey + "\" name=\"" + processName + "\""
-        );
+
+        // 如果 Step 2 成功替换，使用结果；否则尝试 id 在最前面的情况
+        if (!afterStep2.equals(bpmnXml)) {
+            bpmnXml = afterStep2;
+        } else {
+            bpmnXml = bpmnXml.replaceFirst(
+                    "<bpmn:process\\s+id=\"[^\"]*\"",
+                    "<bpmn:process id=\"" + processKey + "\" name=\"" + processName + "\""
+            );
+        }
 
         // 设置 Flowable 认证用户
         Long currentUserId = SecurityUtils.getCurrentUserId();
