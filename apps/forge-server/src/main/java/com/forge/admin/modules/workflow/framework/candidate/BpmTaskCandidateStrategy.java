@@ -1,5 +1,7 @@
 package com.forge.admin.modules.workflow.framework.candidate;
 
+import org.flowable.task.service.delegate.DelegateTask;
+
 import java.util.Set;
 
 /**
@@ -11,7 +13,6 @@ public interface BpmTaskCandidateStrategy {
 
     /**
      * 策略代码
-     * 10=角色, 20=部门成员, 21=部门负责人, 30=指定用户, 60=表达式
      *
      * @return 策略代码
      */
@@ -31,4 +32,16 @@ public interface BpmTaskCandidateStrategy {
      * @return 用户ID集合
      */
     Set<Long> calculateUsers(String param);
+
+    /**
+     * 根据参数和任务上下文计算候选人用户ID集合
+     * 需要运行时上下文（如发起人信息）的策略应重写此方法
+     *
+     * @param param        策略参数
+     * @param delegateTask 当前任务
+     * @return 用户ID集合
+     */
+    default Set<Long> calculateUsers(String param, DelegateTask delegateTask) {
+        return calculateUsers(param);
+    }
 }

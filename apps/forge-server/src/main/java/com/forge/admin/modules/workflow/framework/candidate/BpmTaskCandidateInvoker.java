@@ -49,6 +49,26 @@ public class BpmTaskCandidateInvoker {
     }
 
     /**
+     * 根据策略代码、参数和任务上下文计算候选人
+     *
+     * @param strategyCode 策略代码
+     * @param param        策略参数
+     * @param delegateTask 当前任务
+     * @return 候选人用户ID集合
+     */
+    public Set<Long> calculateUsers(Integer strategyCode, String param, org.flowable.task.service.delegate.DelegateTask delegateTask) {
+        if (strategyCode == null) {
+            return Collections.emptySet();
+        }
+        BpmTaskCandidateStrategy strategy = strategyMap.get(strategyCode);
+        if (strategy == null) {
+            log.warn("未找到候选人策略: {}", strategyCode);
+            return Collections.emptySet();
+        }
+        return strategy.calculateUsers(param, delegateTask);
+    }
+
+    /**
      * 获取所有已注册的策略
      *
      * @return 策略映射

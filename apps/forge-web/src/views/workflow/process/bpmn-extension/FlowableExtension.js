@@ -17,7 +17,13 @@ const CANDIDATE_STRATEGIES = [
   { value: '10', label: '指定角色' },
   { value: '20', label: '部门成员' },
   { value: '21', label: '部门负责人' },
+  { value: '22', label: '指定岗位' },
   { value: '30', label: '指定用户' },
+  { value: '34', label: '审批人自选' },
+  { value: '35', label: '发起人自选' },
+  { value: '36', label: '发起人自己' },
+  { value: '37', label: '发起人部门负责人' },
+  { value: '38', label: '连续多级部门负责人' },
   { value: '60', label: '表达式' },
 ]
 
@@ -28,6 +34,7 @@ const referenceData = {
   roles: [],
   departments: [],
   users: [],
+  positions: [],
 }
 
 /**
@@ -42,6 +49,9 @@ export function setReferenceData(data) {
   }
   if (data.users) {
     referenceData.users = data.users.map(u => ({ value: String(u.id), label: u.nickname }))
+  }
+  if (data.positions) {
+    referenceData.positions = data.positions.map(p => ({ value: String(p.id), label: p.positionName }))
   }
 }
 
@@ -110,11 +120,23 @@ function createFlowableGroup(element, injector) {
       component: CandidateParamDeptSelect,
       isEdited: isSelectEntryEdited,
     })
+  } else if (strategyStr === '22') {
+    entries.push({
+      id: 'candidateParam',
+      component: CandidateParamPositionSelect,
+      isEdited: isSelectEntryEdited,
+    })
   } else if (strategyStr === '30') {
     entries.push({
       id: 'candidateParam',
       component: CandidateParamUserSelect,
       isEdited: isSelectEntryEdited,
+    })
+  } else if (strategyStr === '38') {
+    entries.push({
+      id: 'candidateParam',
+      component: CandidateParamDeptLeaderMultiField,
+      isEdited: isTextFieldEntryEdited,
     })
   } else if (strategyStr === '60') {
     entries.push({
@@ -123,7 +145,7 @@ function createFlowableGroup(element, injector) {
       isEdited: isTextFieldEntryEdited,
     })
   }
-  // 策略为空时不显示参数字段
+  // 34=审批人自选, 35=发起人自选, 36=发起人自己, 37=发起人部门负责人 无需参数
 
   entries.push({
     id: 'formKey',
@@ -258,6 +280,59 @@ function CandidateParamUserSelect(props) {
     getValue,
     setValue,
     getOptions: () => [{ value: '', label: '<无>' }, ...referenceData.users],
+  })
+}
+
+// ========== 策略参数：岗位选择 ==========
+
+function CandidateParamPositionSelect(props) {
+  const { element } = props
+
+  const getValue = () => {
+    return element.businessObject.get('flowable:candidateParam') || ''
+  }
+
+  const setValue = (value) => {
+    const modeler = window.bpmnModeler
+    if (!modeler) return
+    modeler.get('modeling').updateModdleProperties(element, element.businessObject, {
+      'flowable:candidateParam': value || undefined
+    })
+  }
+
+  return SelectEntry({
+    id: 'candidateParam',
+    label: '指定岗位',
+    getValue,
+    setValue,
+    getOptions: () => [{ value: '', label: '<无>' }, ...referenceData.positions],
+  })
+}
+
+// ========== 策略参数：连续多级部门负责人 ==========
+
+function CandidateParamDeptLeaderMultiField(props) {
+  const { element } = props
+
+  const getValue = () => {
+    return element.businessObject.get('flowable:candidateParam') || ''
+  }
+
+  const setValue = (value) => {
+    const modeler = window.bpmnModeler
+    if (!modeler) return
+    modeler.get('modeling').updateModdleProperties(element, element.businessObject, {
+      'flowable:candidateParam': value || undefined
+    })
+  }
+
+  return TextFieldEntry({
+    id: 'candidateParam',
+    label: '部门与层级',
+    description: '格式：部门ID:层级数，如 1:2 表示从部门1向上2级',
+    getValue,
+    setValue,
+    debounce: (fn) => fn,
   })
 }
 

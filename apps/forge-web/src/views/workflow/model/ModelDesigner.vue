@@ -63,7 +63,7 @@ import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css'
 import { modelApi } from '@/api/workflow/model'
 import type { WfModel } from '@/api/workflow/model'
 import { createInitialBpmnXml } from '@/composables/useBpmnJsDesigner'
-import { getAllRoles, getDeptList, getAllUsersSimple } from '@/api/system'
+import { getAllRoles, getDeptList, getAllUsersSimple, getAllPositions } from '@/api/system'
 
 const router = useRouter()
 const route = useRoute()
@@ -252,6 +252,7 @@ const loadReferenceData = async () => {
     getAllRoles().then(res => { data.roles = res }),
     getDeptList().then(res => { data.departments = res }),
     getAllUsersSimple().then(res => { data.users = res }),
+    getAllPositions().then(res => { data.positions = res }),
   ])
   setReferenceData(data)
 }

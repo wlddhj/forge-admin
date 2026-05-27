@@ -117,7 +117,7 @@ public class BpmTaskCandidateListener implements TaskListener {
             return;
         }
 
-        Set<Long> userIds = candidateInvoker.calculateUsers(strategyCode, param);
+        Set<Long> userIds = candidateInvoker.calculateUsers(strategyCode, param, delegateTask);
         if (userIds.isEmpty()) {
             log.warn("任务 {} 候选人计算结果为空, strategy={}, param={}",
                     delegateTask.getId(), strategyCode, param);

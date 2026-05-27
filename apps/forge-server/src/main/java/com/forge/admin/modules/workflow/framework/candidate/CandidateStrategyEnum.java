@@ -12,47 +12,21 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum CandidateStrategyEnum {
 
-    /**
-     * 角色策略
-     */
     ROLE(10, "指定角色"),
-
-    /**
-     * 部门成员策略
-     */
     DEPT_MEMBER(20, "部门成员"),
-
-    /**
-     * 部门负责人策略
-     */
     DEPT_LEADER(21, "部门负责人"),
-
-    /**
-     * 指定用户策略
-     */
+    POST(22, "指定岗位"),
     USER(30, "指定用户"),
-
-    /**
-     * 表达式策略
-     */
+    APPROVE_USER_SELECT(34, "审批人自选"),
+    START_USER_SELECT(35, "发起人自选"),
+    START_USER(36, "发起人自己"),
+    START_USER_DEPT_LEADER(37, "发起人部门负责人"),
+    DEPT_LEADER_MULTI(38, "连续多级部门负责人"),
     EXPRESSION(60, "表达式");
 
-    /**
-     * 策略代码
-     */
     private final int code;
-
-    /**
-     * 策略描述
-     */
     private final String description;
 
-    /**
-     * 根据代码获取枚举
-     *
-     * @param code 策略代码
-     * @return 枚举值，如果不存在返回 null
-     */
     public static CandidateStrategyEnum getByCode(int code) {
         for (CandidateStrategyEnum strategy : values()) {
             if (strategy.getCode() == code) {
@@ -62,12 +36,6 @@ public enum CandidateStrategyEnum {
         return null;
     }
 
-    /**
-     * 检查代码是否有效
-     *
-     * @param code 策略代码
-     * @return 是否有效
-     */
     public static boolean isValidCode(int code) {
         return getByCode(code) != null;
     }

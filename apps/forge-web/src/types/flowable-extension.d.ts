@@ -21,6 +21,7 @@ declare module '@/views/workflow/process/bpmn-extension/FlowableExtension.js' {
     roles?: Array<{ id: number; roleName: string }>
     departments?: Array<{ id: number; deptName: string }>
     users?: Array<{ id: number; nickname: string }>
+    positions?: Array<{ id: number; positionName: string }>
   }): void
 
   export default function FlowablePropertiesProvider(
