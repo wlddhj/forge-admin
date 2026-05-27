@@ -6,8 +6,10 @@ import com.forge.admin.common.exception.BusinessException;
 import com.forge.admin.common.utils.SecurityUtils;
 import com.forge.admin.modules.workflow.dto.task.*;
 import com.forge.admin.modules.workflow.entity.WfApprovalComment;
+import com.forge.admin.modules.workflow.entity.WfProcessInstanceCopy;
 import com.forge.admin.modules.workflow.identity.FlowableIdentityService;
 import com.forge.admin.modules.workflow.mapper.WfApprovalCommentMapper;
+import com.forge.admin.modules.workflow.mapper.WfProcessInstanceCopyMapper;
 import com.forge.admin.modules.workflow.service.WfTaskService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +49,7 @@ public class WfTaskServiceImpl implements WfTaskService {
     private final RepositoryService repositoryService;
     private final FlowableIdentityService flowableIdentityService;
     private final WfApprovalCommentMapper wfApprovalCommentMapper;
+    private final WfProcessInstanceCopyMapper wfProcessInstanceCopyMapper;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -655,5 +658,182 @@ public class WfTaskServiceImpl implements WfTaskService {
             return null;
         }
         return date.toInstant().atZone(ZoneId.systemDefault()).format(DATE_FORMATTER);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void signCreateTask(String taskId, TaskSignCreateRequest request) {
+        Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
+        if (task == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        String currentUsername = SecurityUtils.getCurrentUsername();
+
+        for (String userId : request.getUserIds()) {
+            // 通过 newTask + saveTask 创建子任务
+            org.flowable.task.service.impl.persistence.entity.TaskEntity subTask =
+                    (org.flowable.task.service.impl.persistence.entity.TaskEntity) taskService.newTask();
+            subTask.setParentTaskId(taskId);
+            subTask.setName(task.getName() + "（加签）");
+            subTask.setAssignee(userId);
+            subTask.setOwner(String.valueOf(currentUserId));
+            subTask.setProcessInstanceId(task.getProcessInstanceId());
+            subTask.setProcessDefinitionId(task.getProcessDefinitionId());
+            subTask.setTaskDefinitionKey(task.getTaskDefinitionKey());
+            taskService.saveTask(subTask);
+
+            taskService.addComment(taskId, task.getProcessInstanceId(), "SIGN_" + request.getType().toUpperCase(),
+                    "加签给用户[" + userId + "]，原因：" + request.getReason());
+        }
+
+        saveApprovalComment(task, currentUserId, currentUsername, "SIGN_CREATE",
+                "加签操作，类型：" + request.getType() + "，原因：" + request.getReason());
+        log.info("任务加签成功：taskId={}, type={}, userIds={}", taskId, request.getType(), request.getUserIds());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void signDeleteTask(String taskId, TaskSignDeleteRequest request) {
+        Task parentTask = taskService.createTaskQuery().taskId(taskId).singleResult();
+        if (parentTask == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+
+        Task childTask = taskService.createTaskQuery().taskId(request.getChildTaskId()).singleResult();
+        if (childTask == null) {
+            throw new BusinessException(400, "子任务不存在");
+        }
+
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        String currentUsername = SecurityUtils.getCurrentUsername();
+
+        taskService.deleteTask(request.getChildTaskId(), "减签：" + request.getReason());
+        saveApprovalComment(parentTask, currentUserId, currentUsername, "SIGN_DELETE",
+                "减签操作，移除子任务[" + request.getChildTaskId() + "]，原因：" + request.getReason());
+        log.info("任务减签成功：taskId={}, childTaskId={}", taskId, request.getChildTaskId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void copyTask(String taskId, TaskCopyRequest request) {
+        Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
+        if (task == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+
+        ProcessInstance processInstance = runtimeService.createProcessInstanceQuery()
+                .processInstanceId(task.getProcessInstanceId())
+                .singleResult();
+        if (processInstance == null) {
+            throw new BusinessException(404, "流程实例不存在");
+        }
+
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        for (Long copyUserId : request.getCopyUserIds()) {
+            WfProcessInstanceCopy copy = new WfProcessInstanceCopy();
+            copy.setStartUserId(currentUserId);
+            copy.setProcessInstanceName(processInstance.getName());
+            copy.setProcessInstanceId(processInstance.getId());
+            copy.setProcessDefinitionId(processInstance.getProcessDefinitionId());
+            copy.setCategory(processInstance.getProcessDefinitionCategory());
+            copy.setActivityId(task.getTaskDefinitionKey());
+            copy.setActivityName(task.getName());
+            copy.setTaskId(taskId);
+            copy.setUserId(copyUserId);
+            copy.setReason(request.getReason());
+            copy.setCreateTime(LocalDateTime.now());
+            copy.setCreateBy(currentUserId);
+            wfProcessInstanceCopyMapper.insert(copy);
+        }
+
+        String currentUsername = SecurityUtils.getCurrentUsername();
+        saveApprovalComment(task, currentUserId, currentUsername, "COPY",
+                "抄送给用户[" + request.getCopyUserIds() + "]，原因：" + request.getReason());
+        log.info("任务抄送成功：taskId={}, copyUserIds={}", taskId, request.getCopyUserIds());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void withdrawTask(String taskId) {
+        HistoricTaskInstance historicTask = historyService.createHistoricTaskInstanceQuery()
+                .taskId(taskId)
+                .singleResult();
+        if (historicTask == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+        if (historicTask.getEndTime() == null) {
+            throw new BusinessException(400, "任务尚未完成，无法撤回");
+        }
+
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (!String.valueOf(currentUserId).equals(historicTask.getAssignee())) {
+            throw new BusinessException(403, "只能撤回自己完成的任务");
+        }
+
+        // 查找流程实例当前是否有运行中的任务
+        List<Task> runningTasks = taskService.createTaskQuery()
+                .processInstanceId(historicTask.getProcessInstanceId())
+                .list();
+
+        if (runningTasks.isEmpty()) {
+            throw new BusinessException(400, "流程已结束，无法撤回");
+        }
+
+        // 检查下一个任务是否就是当前活动任务（仅允许撤回到下一步）
+        String processInstanceId = historicTask.getProcessInstanceId();
+
+        // 使用 Flowable 的跳转功能将流程退回到原任务节点
+        runtimeService.createChangeActivityStateBuilder()
+                .processInstanceId(processInstanceId)
+                .moveActivityIdTo(runningTasks.get(0).getTaskDefinitionKey(),
+                        historicTask.getTaskDefinitionKey())
+                .changeState();
+
+        String currentUsername = SecurityUtils.getCurrentUsername();
+        Task newTask = taskService.createTaskQuery()
+                .processInstanceId(processInstanceId)
+                .taskDefinitionKey(historicTask.getTaskDefinitionKey())
+                .singleResult();
+        if (newTask != null) {
+            taskService.setAssignee(newTask.getId(), String.valueOf(currentUserId));
+            saveApprovalComment(newTask, currentUserId, currentUsername, "WITHDRAW", "撤回任务");
+        }
+
+        log.info("任务撤回成功：taskId={}, processInstanceId={}", taskId, processInstanceId);
+    }
+
+    @Override
+    public List<Map<String, String>> getChildTasks(String parentTaskId) {
+        // 使用 native query 查询子任务，因为 Flowable TaskQuery 没有 taskParentTaskId 方法
+        List<Task> allTasks = taskService.createTaskQuery()
+                .processInstanceId(
+                        taskService.createTaskQuery().taskId(parentTaskId).singleResult() != null
+                                ? taskService.createTaskQuery().taskId(parentTaskId).singleResult().getProcessInstanceId()
+                                : "")
+                .list();
+
+        Set<Long> userIds = new HashSet<>();
+        for (Task task : allTasks) {
+            if (StrUtil.isNotBlank(task.getAssignee())) {
+                try { userIds.add(Long.parseLong(task.getAssignee())); } catch (NumberFormatException ignored) {}
+            }
+        }
+        Map<Long, String> userNames = flowableIdentityService.getUserNames(userIds);
+
+        return allTasks.stream()
+                .filter(t -> parentTaskId.equals(t.getParentTaskId()))
+                .map(task -> {
+                    Map<String, String> map = new LinkedHashMap<>();
+                    map.put("id", task.getId());
+                    map.put("name", task.getName());
+                    map.put("assignee", task.getAssignee());
+                    map.put("assigneeName", task.getAssignee() != null ?
+                            userNames.getOrDefault(Long.parseLong(task.getAssignee()), task.getAssignee()) : "");
+                    map.put("createTime", formatDate(task.getCreateTime()));
+                    return map;
+                }).collect(Collectors.toList());
     }
 }

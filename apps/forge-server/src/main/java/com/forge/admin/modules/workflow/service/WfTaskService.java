@@ -114,4 +114,43 @@ public interface WfTaskService {
      * @return 可退回节点列表
      */
     List<Map<String, String>> getReturnNodes(String taskId);
+
+    /**
+     * 加签（在当前任务前后增加审批人）
+     *
+     * @param taskId  任务ID
+     * @param request 加签请求
+     */
+    void signCreateTask(String taskId, TaskSignCreateRequest request);
+
+    /**
+     * 减签（移除加签的审批人）
+     *
+     * @param taskId  任务ID
+     * @param request 减签请求
+     */
+    void signDeleteTask(String taskId, TaskSignDeleteRequest request);
+
+    /**
+     * 抄送任务
+     *
+     * @param taskId  任务ID
+     * @param request 抄送请求
+     */
+    void copyTask(String taskId, TaskCopyRequest request);
+
+    /**
+     * 撤回任务（发起人撤回已提交的任务）
+     *
+     * @param taskId 任务ID
+     */
+    void withdrawTask(String taskId);
+
+    /**
+     * 获取子任务列表（用于减签场景）
+     *
+     * @param parentTaskId 父任务ID
+     * @return 子任务列表
+     */
+    List<Map<String, String>> getChildTasks(String parentTaskId);
 }

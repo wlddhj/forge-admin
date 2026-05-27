@@ -28,5 +28,15 @@ export const taskApi = {
   return: (id: string, data: TaskReturnRequest) =>
     request.post(`/workflow/task/${id}/return`, data),
   getReturnNodes: (id: string) =>
-    request.get(`/workflow/task/${id}/return-nodes`).then(res => res.data)
+    request.get(`/workflow/task/${id}/return-nodes`).then(res => res.data),
+  signCreate: (id: string, data: { type: string; userIds: string[]; reason?: string }) =>
+    request.post(`/workflow/task/${id}/sign-create`, data),
+  signDelete: (id: string, data: { childTaskId: string; reason?: string }) =>
+    request.post(`/workflow/task/${id}/sign-delete`, data),
+  copy: (id: string, data: { copyUserIds: number[]; reason?: string }) =>
+    request.post(`/workflow/task/${id}/copy`, data),
+  withdraw: (id: string) =>
+    request.post(`/workflow/task/${id}/withdraw`),
+  getChildTasks: (id: string) =>
+    request.get(`/workflow/task/${id}/child-tasks`).then(res => res.data)
 }

@@ -147,4 +147,50 @@ public class WfTaskController {
     public Result<List<Map<String, String>>> getReturnNodes(@PathVariable String taskId) {
         return Result.success(wfTaskService.getReturnNodes(taskId));
     }
+
+    @Operation(summary = "加签")
+    @PostMapping("/{taskId}/sign-create")
+    @PreAuthorize("hasAuthority('workflow:task:complete')")
+    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
+    public Result<Void> signCreate(@PathVariable String taskId, @Valid @RequestBody TaskSignCreateRequest request) {
+        request.setTaskId(taskId);
+        wfTaskService.signCreateTask(taskId, request);
+        return Result.success();
+    }
+
+    @Operation(summary = "减签")
+    @PostMapping("/{taskId}/sign-delete")
+    @PreAuthorize("hasAuthority('workflow:task:complete')")
+    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
+    public Result<Void> signDelete(@PathVariable String taskId, @Valid @RequestBody TaskSignDeleteRequest request) {
+        request.setTaskId(taskId);
+        wfTaskService.signDeleteTask(taskId, request);
+        return Result.success();
+    }
+
+    @Operation(summary = "抄送")
+    @PostMapping("/{taskId}/copy")
+    @PreAuthorize("hasAuthority('workflow:task:complete')")
+    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
+    public Result<Void> copy(@PathVariable String taskId, @Valid @RequestBody TaskCopyRequest request) {
+        request.setTaskId(taskId);
+        wfTaskService.copyTask(taskId, request);
+        return Result.success();
+    }
+
+    @Operation(summary = "撤回")
+    @PostMapping("/{taskId}/withdraw")
+    @PreAuthorize("hasAuthority('workflow:task:complete')")
+    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
+    public Result<Void> withdraw(@PathVariable String taskId) {
+        wfTaskService.withdrawTask(taskId);
+        return Result.success();
+    }
+
+    @Operation(summary = "获取子任务列表")
+    @GetMapping("/{taskId}/child-tasks")
+    @PreAuthorize("hasAuthority('workflow:task:query')")
+    public Result<List<Map<String, String>>> getChildTasks(@PathVariable String taskId) {
+        return Result.success(wfTaskService.getChildTasks(taskId));
+    }
 }
