@@ -82,4 +82,9 @@ public class TaskResponse {
      * 任务变量
      */
     private Map<String, Object> variables;
+
+    /**
+     * 结束时间（历史任务）
+     */
+    private Date endTime;
 }

@@ -28,7 +28,24 @@ export const usePermissionStore = defineStore('permission', () => {
       meta: { title: '个人中心', icon: 'User', hidden: true }
     } as RouteRecordRaw)
 
-    // 3. 递归提取所有有组件路径的菜单，生成平级路由
+    // 3. 添加隐藏路由（没有对应菜单的页面）
+    // 模型设计器
+    childrenRoutes.push({
+      path: '/workflow/model/designer',
+      name: 'ModelDesigner',
+      component: loadComponent('/views/workflow/model/ModelDesigner', 'ModelDesigner'),
+      meta: { title: '模型设计', hidden: true }
+    } as RouteRecordRaw)
+
+    // 流程设计器
+    childrenRoutes.push({
+      path: '/workflow/process/designer',
+      name: 'ProcessDesigner',
+      component: loadComponent('/views/workflow/process/ProcessDesigner', 'ProcessDesigner'),
+      meta: { title: '流程设计', hidden: true }
+    } as RouteRecordRaw)
+
+    // 4. 递归提取所有有组件路径的菜单，生成平级路由
     const extractRoutes = (menus: MenuTree[]) => {
       for (const menu of menus) {
         if (menu.menuType === 2) continue // 跳过按钮

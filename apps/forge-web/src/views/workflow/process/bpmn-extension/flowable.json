@@ -1,0 +1,536 @@
+{
+  "name": "Flowable",
+  "uri": "http://flowable.org/bpmn",
+  "prefix": "flowable",
+  "xml": {
+    "tagAlias": "lowerCase"
+  },
+  "associations": [],
+  "types": [
+    {
+      "name": "FormSupported",
+      "isAbstract": true,
+      "extends": [
+        "bpmn:StartEvent",
+        "bpmn:UserTask"
+      ],
+      "properties": [
+        {
+          "name": "formKey",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "formFieldValidation",
+          "isAttr": true,
+          "type": "Boolean"
+        }
+      ]
+    },
+    {
+      "name": "UserTaskCandidateStrategy",
+      "extends": [
+        "bpmn:UserTask"
+      ],
+      "properties": [
+        {
+          "name": "candidateStrategy",
+          "isAttr": true,
+          "type": "Integer"
+        },
+        {
+          "name": "candidateParam",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "Assignable",
+      "extends": [
+        "bpmn:UserTask"
+      ],
+      "properties": [
+        {
+          "name": "assignee",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "candidateUsers",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "candidateGroups",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "dueDate",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "category",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "priority",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "skipExpression",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "ServiceTaskLike",
+      "extends": [
+        "bpmn:ServiceTask",
+        "bpmn:BusinessRuleTask",
+        "bpmn:SendTask",
+        "bpmn:MessageEventDefinition"
+      ],
+      "properties": [
+        {
+          "name": "class",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "expression",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "delegateExpression",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "resultVariable",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "type",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "operationRef",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "extensionId",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "skipExpression",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "SequenceFlow",
+      "extends": [
+        "bpmn:SequenceFlow"
+      ],
+      "properties": [
+        {
+          "name": "skipExpression",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "Process",
+      "extends": [
+        "bpmn:Process"
+      ],
+      "properties": [
+        {
+          "name": "candidateStarterUsers",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "candidateStarterGroups",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "historyTimeToLive",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "isStartableInTasklist",
+          "isAttr": true,
+          "type": "Boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "name": "MultiInstanceLoopCharacteristics",
+      "extends": [
+        "bpmn:MultiInstanceLoopCharacteristics"
+      ],
+      "properties": [
+        {
+          "name": "collection",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "elementVariable",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "completionCondition",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "ExecutionListener",
+      "superClass": [
+        "Element"
+      ],
+      "meta": {
+        "allowedIn": [
+          "bpmn:Task",
+          "bpmn:ServiceTask",
+          "bpmn:UserTask",
+          "bpmn:BusinessRuleTask",
+          "bpmn:ScriptTask",
+          "bpmn:ReceiveTask",
+          "bpmn:ManualTask",
+          "bpmn:ExclusiveGateway",
+          "bpmn:SequenceFlow",
+          "bpmn:ParallelGateway",
+          "bpmn:InclusiveGateway",
+          "bpmn:EventBasedGateway",
+          "bpmn:StartEvent",
+          "bpmn:IntermediateCatchEvent",
+          "bpmn:IntermediateThrowEvent",
+          "bpmn:EndEvent",
+          "bpmn:BoundaryEvent",
+          "bpmn:CallActivity",
+          "bpmn:SubProcess",
+          "bpmn:Process"
+        ]
+      },
+      "properties": [
+        {
+          "name": "class",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "expression",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "delegateExpression",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "event",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "TaskListener",
+      "superClass": [
+        "Element"
+      ],
+      "meta": {
+        "allowedIn": [
+          "bpmn:UserTask"
+        ]
+      },
+      "properties": [
+        {
+          "name": "class",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "expression",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "delegateExpression",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "event",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "InOutBinding",
+      "superClass": [
+        "Element"
+      ],
+      "isAbstract": true,
+      "properties": [
+        {
+          "name": "source",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "sourceExpression",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "target",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "businessKey",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "local",
+          "isAttr": true,
+          "type": "Boolean",
+          "default": false
+        },
+        {
+          "name": "variables",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "In",
+      "superClass": [
+        "InOutBinding"
+      ],
+      "meta": {
+        "allowedIn": [
+          "bpmn:CallActivity"
+        ]
+      }
+    },
+    {
+      "name": "Out",
+      "superClass": [
+        "InOutBinding"
+      ],
+      "meta": {
+        "allowedIn": [
+          "bpmn:CallActivity"
+        ]
+      }
+    },
+    {
+      "name": "Field",
+      "superClass": [
+        "Element"
+      ],
+      "meta": {
+        "allowedIn": [
+          "flowable:ServiceTaskLike",
+          "flowable:ExecutionListener",
+          "flowable:TaskListener"
+        ]
+      },
+      "properties": [
+        {
+          "name": "name",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "expression",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "stringValue",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "string",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "AsyncCapable",
+      "isAbstract": true,
+      "extends": [
+        "bpmn:Activity",
+        "bpmn:Gateway",
+        "bpmn:Event"
+      ],
+      "properties": [
+        {
+          "name": "async",
+          "isAttr": true,
+          "type": "Boolean",
+          "default": false
+        },
+        {
+          "name": "asyncBefore",
+          "isAttr": true,
+          "type": "Boolean",
+          "default": false
+        },
+        {
+          "name": "asyncAfter",
+          "isAttr": true,
+          "type": "Boolean",
+          "default": false
+        },
+        {
+          "name": "exclusive",
+          "isAttr": true,
+          "type": "Boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "name": "ScriptTask",
+      "extends": [
+        "bpmn:ScriptTask"
+      ],
+      "properties": [
+        {
+          "name": "resultVariable",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "autoStoreVariables",
+          "isAttr": true,
+          "type": "Boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "CallActivity",
+      "extends": [
+        "bpmn:CallActivity"
+      ],
+      "properties": [
+        {
+          "name": "calledElementBinding",
+          "isAttr": true,
+          "type": "String",
+          "default": "latest"
+        },
+        {
+          "name": "calledElementVersion",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "calledElementTenantId",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "caseRef",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "caseBinding",
+          "isAttr": true,
+          "type": "String",
+          "default": "latest"
+        },
+        {
+          "name": "caseVersion",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "caseTenantId",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "inheritVariables",
+          "isAttr": true,
+          "type": "Boolean",
+          "default": false
+        },
+        {
+          "name": "sameDeployment",
+          "isAttr": true,
+          "type": "Boolean",
+          "default": false
+        },
+        {
+          "name": "processInstanceIdVariable",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "returnVariable",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "ErrorEventDefinition",
+      "extends": [
+        "bpmn:ErrorEventDefinition"
+      ],
+      "properties": [
+        {
+          "name": "errorId",
+          "isAttr": true,
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "name": "PotentialStarter",
+      "superClass": [
+        "Element"
+      ],
+      "properties": [
+        {
+          "name": "resourceAssignmentExpression",
+          "type": "bpmn:ResourceAssignmentExpression"
+        }
+      ]
+    }
+  ],
+  "enumerations": []
+}

@@ -36,16 +36,13 @@
 
     <!-- 设计器主体 -->
     <div class="designer-body">
-      <!-- 左侧面板 -->
-      <BpmnPalette :lf="lfInstance" />
-
       <!-- 中间画布 -->
       <div class="designer-canvas">
-        <BpmnDesigner ref="designerRef" @ready="handleDesignerReady" />
+        <div ref="canvasRef" class="bpmn-container"></div>
       </div>
 
       <!-- 右侧属性面板 -->
-      <BpmnPropertiesPanel :lf="lfInstance" />
+      <div ref="propertiesPanelRef" class="properties-panel-container"></div>
     </div>
 
     <!-- 部署对话框 -->
@@ -96,22 +93,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import BpmnModeler from 'bpmn-js/lib/Modeler'
+import { BpmnPropertiesPanelModule, BpmnPropertiesProviderModule } from 'bpmn-js-properties-panel'
+import { flowableExtensionModule, flowableModdle } from '@/views/workflow/process/bpmn-extension/FlowableExtension.js'
+import 'bpmn-js/dist/assets/diagram-js.css'
+import 'bpmn-js/dist/assets/bpmn-js.css'
+import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
 import { categoryApi } from '@/api/workflow/category'
 import { formApi } from '@/api/workflow/form'
-import BpmnDesigner from './components/BpmnDesigner.vue'
-import BpmnPalette from './components/BpmnPalette.vue'
-import BpmnPropertiesPanel from './components/BpmnPropertiesPanel.vue'
+import { createInitialBpmnXml } from '@/composables/useBpmnJsDesigner'
 
 const router = useRouter()
 const route = useRoute()
 
-const designerRef = ref<InstanceType<typeof BpmnDesigner> | null>(null)
-const lfInstance = ref<any>(null)
+const canvasRef = ref<HTMLElement | null>(null)
+const propertiesPanelRef = ref<HTMLElement | null>(null)
+const modeler = ref<BpmnModeler | null>(null)
 
 const canUndo = ref(false)
 const canRedo = ref(false)
@@ -129,7 +131,7 @@ const formList = ref<{ id: number; name: string }[]>([])
 const deployDialogVisible = ref(false)
 const deployLoading = ref(false)
 const deployFormRef = ref<FormInstance>()
-const processDetail = ref<any>(null) // 编辑模式下缓存的流程定义详情
+const processDetail = ref<any>(null)
 const deployForm = reactive({
   name: '',
   key: '',
@@ -146,16 +148,55 @@ const deployRules: FormRules = {
   ]
 }
 
-/** 设计器就绪回调 */
-const handleDesignerReady = () => {
-  if (!designerRef.value) return
+/** 初始化设计器 */
+const initModeler = () => {
+  if (!canvasRef.value) return
 
-  const designer = designerRef.value
-  lfInstance.value = designer.lf || null
+  const instance = new BpmnModeler({
+    container: canvasRef.value,
+    propertiesPanel: {
+      parent: propertiesPanelRef.value!,
+    },
+    additionalModules: [
+      BpmnPropertiesPanelModule,
+      BpmnPropertiesProviderModule,
+      flowableExtensionModule,
+    ],
+    moddleExtensions: {
+      flowable: flowableModdle,
+    },
+  })
+
+  modeler.value = instance
+  // 设置全局引用，以便属性面板组件可以访问 modeling 服务
+  window.bpmnModeler = instance
+
+  // 监听命令栈变化
+  const commandStack = instance.get('commandStack')
+  instance.on('commandStack.changed', () => {
+    canUndo.value = commandStack.canUndo()
+    canRedo.value = commandStack.canRedo()
+  })
 
   // 如果是编辑模式，加载已有XML
   if (route.query.id) {
     loadExistingProcess(route.query.id as string)
+  } else {
+    // 新增模式：创建初始流程（包含开始事件和结束事件）
+    createInitialProcess()
+  }
+}
+
+/** 创建初始流程 */
+const createInitialProcess = async () => {
+  if (!modeler.value) return
+
+  try {
+    const initialXml = createInitialBpmnXml('Process_1', '新流程')
+    await modeler.value.importXML(initialXml)
+    modeler.value.get('canvas').zoom('fit-viewport')
+  } catch (err) {
+    console.error('创建初始流程失败:', err)
   }
 }
 
@@ -166,9 +207,18 @@ const loadExistingProcess = async (id: string) => {
       processDefinitionApi.getXml(id),
       processDefinitionApi.getById(id),
     ])
-    if (xml && designerRef.value) {
-      designerRef.value.render(xml)
+
+    if (modeler.value) {
+      if (xml) {
+        try {
+          await modeler.value.importXML(xml)
+          modeler.value.get('canvas').zoom('fit-viewport')
+        } catch (err) {
+          console.error('导入 BPMN XML 失败:', err)
+        }
+      }
     }
+
     // 缓存详情并预填部署表单
     if (detail) {
       processDetail.value = detail
@@ -186,19 +236,25 @@ const loadExistingProcess = async (id: string) => {
 
 /** 撤销 */
 const handleUndo = () => {
-  designerRef.value?.undo()
+  if (!modeler.value) return
+  const commandStack = modeler.value.get('commandStack')
+  commandStack.undo()
 }
 
 /** 重做 */
 const handleRedo = () => {
-  designerRef.value?.redo()
+  if (!modeler.value) return
+  const commandStack = modeler.value.get('commandStack')
+  commandStack.redo()
 }
 
 /** 清空 */
 const handleClear = async () => {
   try {
     await ElMessageBox.confirm('确定清空画布？清空后不可恢复', '警告', { type: 'warning' })
-    designerRef.value?.clear()
+    if (modeler.value) {
+      modeler.value.clear()
+    }
   } catch (e) {
     // 用户取消
   }
@@ -206,17 +262,23 @@ const handleClear = async () => {
 
 /** 放大 */
 const handleZoomIn = () => {
-  designerRef.value?.zoom(1.1)
+  if (!modeler.value) return
+  const canvas = modeler.value.get('canvas')
+  canvas.zoom(canvas.zoom() * 1.1)
 }
 
 /** 缩小 */
 const handleZoomOut = () => {
-  designerRef.value?.zoom(0.9)
+  if (!modeler.value) return
+  const canvas = modeler.value.get('canvas')
+  canvas.zoom(canvas.zoom() * 0.9)
 }
 
 /** 适应画布 */
 const handleResetZoom = () => {
-  designerRef.value?.resetZoom()
+  if (!modeler.value) return
+  const canvas = modeler.value.get('canvas')
+  canvas.zoom('fit-viewport')
 }
 
 /** 返回列表页 */
@@ -235,7 +297,6 @@ const handleOpenDeployDialog = () => {
     deployForm.formType = undefined
     deployForm.formId = undefined
   }
-  // 编辑模式下表单已由 loadExistingProcess 预填，保留用户可修改
   deployDialogVisible.value = true
 }
 
@@ -244,30 +305,28 @@ const handleDeploy = async () => {
   if (!deployFormRef.value) return
   await deployFormRef.value.validate()
 
-  if (!designerRef.value) return
+  if (!modeler.value) return
 
-  const xmlData = designerRef.value.getXmlData()
-  if (!xmlData) {
-    ElMessage.warning('请先设计流程图')
-    return
-  }
-
-  let bpmnXml = typeof xmlData === 'string' ? xmlData : JSON.stringify(xmlData)
-
-  // 将用户填写的 name/key 注入到 BPMN XML 的 <bpmn:process> 元素中
-  bpmnXml = bpmnXml
-    .replace(/(<bpmn:process[^>]*?)\bid="[^"]*"/, `$1 id="${deployForm.key}"`)
-    .replace(/(<bpmn:process[^>]*?)\bname="[^"]*"/, `$1 name="${deployForm.name}"`)
-  // 如果 process 没有 name 属性，则添加
-  if (!/<bpmn:process[^>]*name="/.test(bpmnXml)) {
-    bpmnXml = bpmnXml.replace(
-      /(<bpmn:process[^>]*?)\bid="[^"]*"/,
-      `$1 id="${deployForm.key}" name="${deployForm.name}"`
-    )
-  }
-
-  deployLoading.value = true
   try {
+    const { xml } = await modeler.value.saveXML({ format: true })
+    if (!xml) {
+      ElMessage.warning('导出 BPMN XML 失败')
+      return
+    }
+
+    // 将用户填写的 name/key 注入到 BPMN XML 的 <bpmn:process> 元素中
+    let bpmnXml = xml
+      .replace(/(<bpmn:process[^>]*?)\s+id="[^"]*"/, `$1 id="${deployForm.key}"`)
+      .replace(/(<bpmn:process[^>]*?)\s+name="[^"]*"/, `$1 name="${deployForm.name}"`)
+    // 如果 process 没有 name 属性，则添加
+    if (!/<bpmn:process[^>]*name="/.test(bpmnXml)) {
+      bpmnXml = bpmnXml.replace(
+        /(<bpmn:process[^>]*?)\s+id="[^"]*"/,
+        `$1 id="${deployForm.key}" name="${deployForm.name}"`
+      )
+    }
+
+    deployLoading.value = true
     await processDefinitionApi.deploy({
       name: deployForm.name,
       key: deployForm.key,
@@ -308,6 +367,13 @@ const getFormList = async () => {
 onMounted(() => {
   getCategoryList()
   getFormList()
+  initModeler()
+})
+
+onBeforeUnmount(() => {
+  if (modeler.value) {
+    modeler.value.destroy()
+  }
 })
 </script>
 
@@ -358,5 +424,276 @@ onMounted(() => {
 .designer-canvas {
   flex: 1;
   overflow: hidden;
+}
+
+.bpmn-container {
+  width: 100%;
+  height: 100%;
+  background: #f8f8f8;
+}
+
+.properties-panel-container {
+  width: 300px;
+  border-left: 1px solid var(--el-border-color-light);
+  background: var(--el-bg-color);
+  overflow-y: auto;
+}
+</style>
+
+<!-- 非 scoped 样式，用于覆盖 bpmn-js-properties-panel 的默认样式 -->
+<style lang="scss">
+.properties-panel-container {
+  .bio-properties-panel-container {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 13px;
+    color: #606266;
+
+    // ========== 顶部元素类型标题 ==========
+    .bio-properties-panel-header {
+      padding: 10px 12px;
+      background: var(--el-bg-color);
+      border-bottom: 1px solid var(--el-border-color-light);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .bio-properties-panel-header-icon {
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        background: transparent;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin: 0;
+
+        svg {
+          width: 20px;
+          height: 20px;
+        }
+      }
+
+      .bio-properties-panel-header-type {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--el-text-color-primary);
+        flex: 1;
+        line-height: 1;
+      }
+    }
+
+    // ========== 属性组 ==========
+    .bio-properties-panel-group {
+      border-bottom: 1px solid var(--el-border-color-lighter);
+    }
+
+    // 属性组标题
+    .bio-properties-panel-group-header {
+      background: var(--el-fill-color-lighter);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: background-color 0.15s;
+      user-select: none;
+
+      &:hover {
+        background: var(--el-fill-color);
+      }
+
+      // 标题文字
+      .bio-properties-panel-group-header-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--el-text-color-primary);
+        letter-spacing: 0.3px;
+      }
+
+      // 按钮区域
+      .bio-properties-panel-group-header-buttons {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      // 编辑指示点 - 隐藏
+      .bio-properties-panel-dot {
+        display: none;
+      }
+
+      // 箭头按钮
+      .bio-properties-panel-arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        border-radius: 3px;
+        color: var(--el-text-color-secondary);
+        transition: color 0.15s, background-color 0.15s;
+
+        &:hover {
+          background: var(--el-fill-color);
+          color: var(--el-text-color-primary);
+        }
+
+        svg {
+          width: 14px;
+          height: 14px;
+          fill: currentColor;
+          transition: transform 0.2s ease;
+        }
+
+        // 展开状态箭头旋转90度向下
+        .bio-properties-panel-arrow-down {
+          transform: rotate(90deg);
+        }
+      }
+    }
+
+    // 属性组内容
+    .bio-properties-panel-group-entries {
+      overflow: hidden;
+      transition: max-height 0.2s ease;
+
+      &:not(.open) {
+        max-height: 0 !important;
+        padding: 0;
+        border: none;
+      }
+    }
+
+    // ========== 属性条目容器 ==========
+    .bio-properties-panel-entry {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--el-border-color-extra-light);
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+
+    // ========== 输入组件容器 - 左右布局 ==========
+    .bio-properties-panel-textfield,
+    .bio-properties-panel-textarea,
+    .bio-properties-panel-select {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    // Label 左侧
+    .bio-properties-panel-label {
+      font-size: 13px;
+      color: var(--el-text-color-regular);
+      min-width: 75px;
+      max-width: 85px;
+      flex-shrink: 0;
+      line-height: 32px;
+      text-align: left;
+      font-weight: 500;
+    }
+
+    // 输入组件右侧 - 占据剩余空间
+    .bio-properties-panel-input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    // 文本输入框和文本区域样式
+    .bio-properties-panel-input {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid var(--el-border-color);
+      border-radius: 4px;
+      font-size: 13px;
+      color: var(--el-text-color-primary);
+      background: var(--el-bg-color);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-sizing: border-box;
+      resize: none;
+
+      &:focus {
+        border-color: var(--el-color-primary);
+        box-shadow: 0 0 0 2px var(--el-color-primary-light-8);
+      }
+
+      &:hover:not(:focus) {
+        border-color: var(--el-border-color-hover);
+      }
+
+      &::placeholder {
+        color: var(--el-text-color-placeholder);
+      }
+    }
+
+    // 下拉选择框容器
+    .bio-properties-panel-select {
+      .bio-properties-panel-input {
+        height: 32px;
+        appearance: none;
+        cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23606266' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+      }
+    }
+
+    // 复选框样式
+    .bio-properties-panel-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 87px;
+
+      input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: var(--el-color-primary);
+      }
+
+      label {
+        font-size: 13px;
+        color: var(--el-text-color-primary);
+        cursor: pointer;
+        user-select: none;
+      }
+    }
+
+    // 描述文本样式
+    .bio-properties-panel-description {
+      font-size: 12px;
+      color: var(--el-text-color-secondary);
+      margin-left: 87px;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    // 错误提示样式
+    .bio-properties-panel-error {
+      color: var(--el-color-danger);
+      font-size: 12px;
+      margin-left: 87px;
+      margin-top: 4px;
+    }
+
+    // 空状态提示
+    .bio-properties-panel-placeholder {
+      padding: 20px;
+      text-align: center;
+      color: var(--el-text-color-placeholder);
+      font-size: 14px;
+    }
+  }
 }
 </style>

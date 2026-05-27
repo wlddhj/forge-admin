@@ -3,55 +3,59 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import LogicFlow from '@logicflow/core'
-import '@logicflow/core/dist/index.css'
-import '@logicflow/extension/lib/style/index.css'
-import { BPMNElements, BpmnXmlAdapter } from '@logicflow/extension'
-import { parseStandardBpmnXml, isStandardBpmnXml } from '@/composables/useBpmnDesigner'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import BpmnViewer from 'bpmn-js/lib/NavigatedViewer'
+import 'bpmn-js/dist/assets/diagram-js.css'
+import 'bpmn-js/dist/assets/bpmn-js.css'
+import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css'
 
 const props = defineProps<{
   xml: string
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
-let lfInstance: LogicFlow | null = null
+const viewer = ref<BpmnViewer | null>(null)
 
-const renderDiagram = async () => {
-  if (!containerRef.value || !props.xml) return
+const initViewer = async () => {
+  if (!containerRef.value) return
 
-  if (!lfInstance) {
-    lfInstance = new LogicFlow({
-      container: containerRef.value,
-      plugins: [BPMNElements, BpmnXmlAdapter],
-      isSilentMode: true,
-      stopZoomGraph: true,
-      stopScrollGraph: true,
-      stopMoveGraph: true,
-    })
-  }
+  const instance = new BpmnViewer({
+    container: containerRef.value,
+  })
 
-  if (isStandardBpmnXml(props.xml)) {
-    const graphData = parseStandardBpmnXml(props.xml)
-    ;(lfInstance as any).renderRawData(graphData)
-  } else {
-    ;(lfInstance as any).render(props.xml)
-  }
+  viewer.value = instance
 
-  // 等待渲染完成后自动缩放适配容器
-  await nextTick()
-  if (lfInstance) {
-    lfInstance.fitView(20)  // 20px 边距
+  if (props.xml) {
+    await renderXml(props.xml)
   }
 }
 
-watch(() => props.xml, () => renderDiagram())
+const renderXml = async (xml: string) => {
+  if (!viewer.value || !xml) return
 
-onMounted(() => renderDiagram())
+  try {
+    await viewer.value.importXML(xml)
+    const canvas = viewer.value.get('canvas')
+    canvas.zoom('fit-viewport')
+  } catch (err) {
+    console.error('渲染 BPMN XML 失败:', err)
+  }
+}
+
+watch(() => props.xml, (newXml) => {
+  if (newXml && viewer.value) {
+    renderXml(newXml)
+  }
+})
+
+onMounted(() => {
+  initViewer()
+})
 
 onBeforeUnmount(() => {
-  lfInstance?.destroy()
-  lfInstance = null
+  if (viewer.value) {
+    viewer.value.destroy()
+  }
 })
 </script>
 
@@ -60,5 +64,6 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   min-height: 300px;
+  background: #f8f8f8;
 }
 </style>

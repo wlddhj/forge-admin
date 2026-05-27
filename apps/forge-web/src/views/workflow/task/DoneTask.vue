@@ -68,12 +68,14 @@
         @change="getList"
       />
     </el-card>
+
+    <!-- 任务详情抽屉 -->
+    <TaskDetailDrawer ref="drawerRef" @success="getList" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { taskApi } from '@/api/workflow/task'
 import type { TaskInfo, TaskQuery } from '@/types/workflow'
@@ -81,8 +83,8 @@ import { formatDateTime } from '@/utils/dateFormat'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
 import { useResponsive } from '@/composables/useResponsive'
+import TaskDetailDrawer from './components/TaskDetailDrawer.vue'
 
-const router = useRouter()
 const { isMobile } = useResponsive()
 
 // 表格高度自适应
@@ -91,6 +93,7 @@ const { tableHeight } = useTableHeight()
 // 表格实例
 const tableRef = ref<VxeTableInstance | null>(null)
 const toolbarRef = ref<VxeToolbarInstance | null>(null)
+const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
 // 序号计算
 const loading = ref(false)
@@ -143,7 +146,7 @@ const handleReset = () => {
 
 // 查看任务详情
 const handleView = (row: TaskInfo) => {
-  router.push({ path: '/workflow/task/detail', query: { id: row.id } })
+  drawerRef.value?.open(row.id)
 }
 
 onMounted(() => {

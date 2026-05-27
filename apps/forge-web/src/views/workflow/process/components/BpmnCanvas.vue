@@ -1,15 +1,13 @@
 <template>
-  <div ref="containerRef" class="bpmn-designer-container"></div>
+  <div ref="containerRef" class="bpmn-canvas-container"></div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import '@logicflow/core/dist/index.css'
-import '@logicflow/extension/lib/style/index.css'
-import { useBpmnDesigner } from '@/composables/useBpmnDesigner'
+import { useBpmnJsDesigner } from '@/composables/useBpmnJsDesigner'
 
 const containerRef = ref<HTMLElement | null>(null)
-const { init, destroy, ...designer } = useBpmnDesigner(containerRef)
+const { init, destroy, ...designer } = useBpmnJsDesigner(containerRef)
 
 const emit = defineEmits<{
   (e: 'ready'): void
@@ -28,9 +26,10 @@ defineExpose(designer)
 </script>
 
 <style scoped>
-.bpmn-designer-container {
+.bpmn-canvas-container {
   width: 100%;
   height: 100%;
   min-height: 400px;
+  background: #f8f8f8;
 }
 </style>

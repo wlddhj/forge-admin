@@ -537,6 +537,11 @@ public class WfTaskServiceImpl implements WfTaskService {
         }
         response.setCategory(historicTask.getCategory());
 
+        // 设置结束时间（用于区分已办任务）
+        if (historicTask.getEndTime() != null) {
+            response.setEndTime(historicTask.getEndTime());
+        }
+
         return response;
     }
 

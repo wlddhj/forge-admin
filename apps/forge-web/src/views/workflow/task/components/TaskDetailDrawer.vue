@@ -1,184 +1,174 @@
 <template>
-  <div class="app-container">
-    <div v-loading="loading" class="task-detail">
-      <!-- 页面头部 -->
-      <div class="detail-header">
-        <el-page-header @back="router.back()">
-          <template #content>
-            <span class="page-title">{{ taskInfo?.processDefinitionName || '任务详情' }}</span>
+  <el-drawer
+    v-model="visible"
+    :title="isDoneTask ? '任务详情' : '处理任务'"
+    size="600px"
+    direction="rtl"
+    :before-close="handleClose"
+  >
+    <div v-loading="loading" class="drawer-content">
+      <!-- 已办任务 -->
+      <template v-if="isDoneTask">
+        <!-- 实例信息 -->
+        <el-card shadow="never" class="info-card">
+          <template #header>
+            <div class="card-header">
+              <span>实例信息</span>
+              <el-button type="primary" size="small" @click="diagramDialogVisible = true">
+                查看流程图
+              </el-button>
+            </div>
           </template>
-        </el-page-header>
-      </div>
+          <el-descriptions :column="1" size="small" border>
+            <el-descriptions-item label="流程名称">
+              {{ instanceInfo?.processDefinitionName || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="发起人">
+              {{ instanceInfo?.startUserName || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="发起时间">
+              {{ formatDateTime(instanceInfo?.startTime) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag v-if="!instanceInfo?.endTime" type="primary">运行中</el-tag>
+              <el-tag v-else-if="instanceInfo?.deleteReason" type="danger">已终止</el-tag>
+              <el-tag v-else type="success">已结束</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="业务标识">
+              {{ instanceInfo?.businessKey || '-' }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </el-card>
 
-      <!-- 已办任务：采用实例详情的布局 -->
-      <div v-if="isDoneTask" class="detail-content">
-        <div class="info-section">
-          <!-- 实例信息 -->
-          <el-card shadow="never" class="info-card">
-            <template #header>
-              <div class="card-header">
-                <span>实例信息</span>
-                <el-button type="primary" size="small" @click="diagramDialogVisible = true">
-                  查看流程图
-                </el-button>
-              </div>
-            </template>
-            <el-descriptions :column="1" size="small" border>
-              <el-descriptions-item label="流程名称">
-                {{ instanceInfo?.processDefinitionName || '-' }}
-              </el-descriptions-item>
-              <el-descriptions-item label="发起人">
-                {{ instanceInfo?.startUserName || '-' }}
-              </el-descriptions-item>
-              <el-descriptions-item label="发起时间">
-                {{ formatDateTime(instanceInfo?.startTime) }}
-              </el-descriptions-item>
-              <el-descriptions-item label="状态">
-                <el-tag v-if="!instanceInfo?.endTime" type="primary">运行中</el-tag>
-                <el-tag v-else-if="instanceInfo?.deleteReason" type="danger">已终止</el-tag>
-                <el-tag v-else type="success">已结束</el-tag>
-              </el-descriptions-item>
-              <el-descriptions-item label="业务标识">
-                {{ instanceInfo?.businessKey || '-' }}
-              </el-descriptions-item>
-            </el-descriptions>
-          </el-card>
+        <!-- 申请表单 -->
+        <el-card v-if="formReady && formRule.length > 0" shadow="never" class="form-card">
+          <template #header>申请表单</template>
+          <form-create
+            ref="formCreateRef"
+            v-model="formData"
+            :rule="formRule"
+            :option="formOption"
+          />
+        </el-card>
 
-          <!-- 申请表单 -->
-          <el-card v-if="formReady && formRule.length > 0" shadow="never" class="form-card">
-            <template #header>申请表单</template>
+        <!-- 审批记录 -->
+        <el-card shadow="never" class="timeline-card">
+          <template #header>审批记录</template>
+          <el-table :data="comments" size="small" v-if="comments.length">
+            <el-table-column type="index" label="序号" width="60" align="center" />
+            <el-table-column prop="createTime" label="时间" width="160">
+              <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+            </el-table-column>
+            <el-table-column prop="userName" label="审批人" width="80" />
+            <el-table-column prop="actionType" label="动作" width="70" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" :type="actionTagType(row.actionType)">
+                  {{ actionLabel(row.actionType) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="taskName" label="任务" min-width="100" />
+            <el-table-column prop="commentText" label="意见" min-width="150" show-overflow-tooltip />
+          </el-table>
+          <el-empty v-else description="暂无审批记录" :image-size="60" />
+        </el-card>
+      </template>
+
+      <!-- 待办任务 -->
+      <template v-else>
+        <!-- 任务信息 -->
+        <el-card shadow="never" class="info-card">
+          <template #header>
+            <div class="card-header">
+              <span>任务信息</span>
+              <el-button type="primary" size="small" @click="diagramDialogVisible = true">
+                查看流程图
+              </el-button>
+            </div>
+          </template>
+          <el-descriptions :column="1" size="small" border>
+            <el-descriptions-item label="任务名称">{{ taskInfo?.name || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="流程名称">{{ taskInfo?.processDefinitionName || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="受理人">{{ taskInfo?.assigneeName || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ formatDateTime(taskInfo?.createTime) }}</el-descriptions-item>
+          </el-descriptions>
+        </el-card>
+
+        <!-- 审批表单 -->
+        <el-card shadow="never" class="form-card">
+          <template #header>审批表单</template>
+          <template v-if="formReady && formRule.length > 0">
             <form-create
               ref="formCreateRef"
               v-model="formData"
               :rule="formRule"
               :option="formOption"
             />
-          </el-card>
-
-          <!-- 审批记录 -->
-          <el-card shadow="never" class="timeline-card">
-            <template #header>审批记录</template>
-            <el-table :data="comments" size="small" v-if="comments.length">
-              <el-table-column type="index" label="序号" width="60" align="center" />
-              <el-table-column prop="createTime" label="时间" width="170">
-                <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
-              </el-table-column>
-              <el-table-column prop="userName" label="审批人" width="100" />
-              <el-table-column prop="actionType" label="动作" width="80" align="center">
-                <template #default="{ row }">
-                  <el-tag size="small" :type="actionTagType(row.actionType)">
-                    {{ actionLabel(row.actionType) }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="taskName" label="任务名称" min-width="120" />
-              <el-table-column prop="commentText" label="审批意见" min-width="200" show-overflow-tooltip />
-            </el-table>
-            <el-empty v-else description="暂无审批记录" :image-size="60" />
-          </el-card>
-        </div>
-      </div>
-
-      <!-- 待办任务：垂直布局 -->
-      <template v-else>
-        <div class="detail-content">
-          <div class="info-section">
-            <!-- 任务信息 -->
-            <el-card shadow="never" class="info-card">
-              <template #header>
-                <div class="card-header">
-                  <span>任务信息</span>
-                  <el-button type="primary" size="small" @click="diagramDialogVisible = true">
-                    查看流程图
-                  </el-button>
-                </div>
-              </template>
-              <el-descriptions :column="isMobile ? 1 : 2" size="small" border>
-                <el-descriptions-item label="任务名称">{{ taskInfo?.name || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="流程名称">{{ taskInfo?.processDefinitionName || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="受理人">{{ taskInfo?.assigneeName || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="创建时间">{{ formatDateTime(taskInfo?.createTime) }}</el-descriptions-item>
-              </el-descriptions>
-            </el-card>
-
-            <!-- 审批表单 -->
-            <el-card shadow="never" class="form-card">
-              <template #header>审批表单</template>
-              <!-- 流程表单渲染 -->
-              <template v-if="formReady && formRule.length > 0">
-                <form-create
-                  ref="formCreateRef"
-                  v-model="formData"
-                  :rule="formRule"
-                  :option="formOption"
-                />
-              </template>
-              <el-divider v-if="formReady && formRule.length > 0" />
-              <el-form label-width="80px">
-                <el-form-item label="审批意见">
-                  <el-input
-                    v-model="comment"
-                    type="textarea"
-                    :rows="4"
-                    placeholder="请输入审批意见"
-                    maxlength="500"
-                    show-word-limit
-                  />
-                </el-form-item>
-              </el-form>
-              <div class="action-buttons">
-                <el-button type="success" :loading="actionLoading" @click="handleApprove">
-                  <el-icon><Check /></el-icon>
-                  通过
-                </el-button>
-                <el-button type="danger" :loading="actionLoading" @click="handleReject">
-                  <el-icon><Close /></el-icon>
-                  驳回
-                </el-button>
-                <el-button type="warning" :loading="actionLoading" @click="delegateDialogVisible = true">
-                  <el-icon><User /></el-icon>
-                  委派
-                </el-button>
-                <el-button type="warning" :loading="actionLoading" @click="transferDialogVisible = true">
-                  <el-icon><Right /></el-icon>
-                  转办
-                </el-button>
-                <el-button type="info" :loading="actionLoading" @click="handleReturn">
-                  <el-icon><Back /></el-icon>
-                  退回
-                </el-button>
-              </div>
-            </el-card>
-
-            <!-- 审批记录 -->
-            <el-card shadow="never" class="timeline-card">
-              <template #header>审批记录</template>
-              <el-table :data="comments" size="small" v-if="comments.length">
-                <el-table-column type="index" label="序号" width="60" align="center" />
-                <el-table-column prop="createTime" label="时间" width="170">
-                  <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
-                </el-table-column>
-                <el-table-column prop="userName" label="审批人" width="100" />
-                <el-table-column prop="actionType" label="动作" width="80" align="center">
-                  <template #default="{ row }">
-                    <el-tag size="small" :type="actionTagType(row.actionType)">
-                      {{ actionLabel(row.actionType) }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="taskName" label="任务名称" min-width="120" />
-                <el-table-column prop="commentText" label="审批意见" min-width="200" show-overflow-tooltip />
-              </el-table>
-              <el-empty v-else description="暂无审批记录" :image-size="60" />
-            </el-card>
+            <el-divider />
+          </template>
+          <el-form label-width="80px">
+            <el-form-item label="审批意见">
+              <el-input
+                v-model="comment"
+                type="textarea"
+                :rows="4"
+                placeholder="请输入审批意见"
+                maxlength="500"
+                show-word-limit
+              />
+            </el-form-item>
+          </el-form>
+          <div class="action-buttons">
+            <el-button type="success" :loading="actionLoading" @click="handleApprove">
+              <el-icon><Check /></el-icon>
+              通过
+            </el-button>
+            <el-button type="danger" :loading="actionLoading" @click="handleReject">
+              <el-icon><Close /></el-icon>
+              驳回
+            </el-button>
+            <el-button type="warning" :loading="actionLoading" @click="delegateDialogVisible = true">
+              <el-icon><User /></el-icon>
+              委派
+            </el-button>
+            <el-button type="warning" :loading="actionLoading" @click="transferDialogVisible = true">
+              <el-icon><Right /></el-icon>
+              转办
+            </el-button>
+            <el-button type="info" :loading="actionLoading" @click="handleReturn">
+              <el-icon><Back /></el-icon>
+              退回
+            </el-button>
           </div>
-        </div>
+        </el-card>
+
+        <!-- 审批记录 -->
+        <el-card shadow="never" class="timeline-card">
+          <template #header>审批记录</template>
+          <el-table :data="comments" size="small" v-if="comments.length">
+            <el-table-column type="index" label="序号" width="60" align="center" />
+            <el-table-column prop="createTime" label="时间" width="160">
+              <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+            </el-table-column>
+            <el-table-column prop="userName" label="审批人" width="80" />
+            <el-table-column prop="actionType" label="动作" width="70" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" :type="actionTagType(row.actionType)">
+                  {{ actionLabel(row.actionType) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="taskName" label="任务" min-width="100" />
+            <el-table-column prop="commentText" label="意见" min-width="150" show-overflow-tooltip />
+          </el-table>
+          <el-empty v-else description="暂无审批记录" :image-size="60" />
+        </el-card>
       </template>
     </div>
 
-    <!-- 流程图弹窗（已办任务使用） -->
+    <!-- 流程图弹窗 -->
     <el-dialog v-model="diagramDialogVisible" title="流程图" width="800px" top="5vh" @opened="handleDiagramOpened">
-      <div ref="diagramContainerRef" style="height: 60vh">
+      <div style="height: 60vh">
         <BpmnPreview v-if="bpmnXml && diagramDialogVisible" :xml="bpmnXml" :key="diagramKey" />
         <el-empty v-else description="暂无流程图" />
       </div>
@@ -273,9 +263,9 @@
           >
             <el-option
               v-for="node in returnNodes"
-              :key="node.key"
-              :label="node.name"
-              :value="node.key"
+              :key="node.taskDefKey"
+              :label="node.taskName"
+              :value="node.taskDefKey"
             />
           </el-select>
         </el-form-item>
@@ -295,36 +285,31 @@
         <el-button type="primary" :loading="actionLoading" @click="handleReturnConfirm" :disabled="!returnTargetKey">确定</el-button>
       </template>
     </el-dialog>
-  </div>
+  </el-drawer>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { taskApi } from '@/api/workflow/task'
 import { processInstanceApi } from '@/api/workflow/process-instance'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
 import { formApi } from '@/api/workflow/form'
 import { getUserList } from '@/api/system'
-import type { TaskInfo, ApprovalComment, ProcessInstance } from '@/types/workflow'
+import type { TaskInfo, ApprovalComment, ProcessInstance, ReturnNode } from '@/types/workflow'
 import type { User } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { decodeFieldsDisabled } from '@/utils/formCreate'
-import { useResponsive } from '@/composables/useResponsive'
 import BpmnPreview from '@/views/workflow/process/components/BpmnPreview.vue'
 
-interface ReturnNode {
-  key: string
-  name: string
-}
+const visible = defineModel<boolean>('visible', { default: false })
 
-const route = useRoute()
-const router = useRouter()
-const { isMobile } = useResponsive()
+const emit = defineEmits<{
+  (e: 'success'): void
+}>()
 
-const taskId = route.query.id as string
-const activeTab = ref('approval')
+// 任务ID
+const taskId = ref<string>('')
 
 // 数据状态
 const loading = ref(false)
@@ -340,7 +325,6 @@ const isDoneTask = computed(() => !!taskInfo.value?.endTime)
 
 // 流程图弹窗
 const diagramDialogVisible = ref(false)
-const diagramContainerRef = ref<HTMLElement | null>(null)
 const diagramKey = ref(0)
 
 const handleDiagramOpened = () => {
@@ -374,6 +358,31 @@ const returnNodes = ref<ReturnNode[]>([])
 const userSearchLoading = ref(false)
 const userOptions = ref<User[]>([])
 
+// 打开抽屉
+const open = async (id: string) => {
+  taskId.value = id
+  visible.value = true
+  await getTaskDetail()
+}
+
+// 关闭抽屉
+const handleClose = () => {
+  resetState()
+  visible.value = false
+}
+
+// 重置状态
+const resetState = () => {
+  taskInfo.value = null
+  instanceInfo.value = null
+  comments.value = []
+  bpmnXml.value = ''
+  comment.value = ''
+  formRule.value = []
+  formData.value = {}
+  formReady.value = false
+}
+
 // 审批动作标签映射
 const actionLabel = (actionType: string): string => {
   const map: Record<string, string> = {
@@ -404,7 +413,7 @@ const actionTagType = (actionType: string): 'success' | 'danger' | 'warning' | '
   return map[actionType] || 'info'
 }
 
-// 搜索用户（委派/转办时使用）
+// 搜索用户
 const searchUsers = async (query: string) => {
   if (!query) return
   userSearchLoading.value = true
@@ -418,13 +427,12 @@ const searchUsers = async (query: string) => {
 
 // 获取任务详情
 const getTaskDetail = async () => {
-  if (!taskId) return
+  if (!taskId.value) return
   loading.value = true
   try {
-    const task = await taskApi.getById(taskId)
+    const task = await taskApi.getById(taskId.value)
     taskInfo.value = task
 
-    // 获取流程实例的 BPMN XML 和审批记录
     if (task.processInstanceId) {
       const [instanceData, commentsData] = await Promise.allSettled([
         processInstanceApi.getById(task.processInstanceId),
@@ -439,10 +447,8 @@ const getTaskDetail = async () => {
         const processDefId = instanceData.value.processDefinitionId
         const procInstanceId = task.processInstanceId
 
-        // 通过流程定义ID获取 BPMN XML 和表单
         try {
           bpmnXml.value = await processDefinitionApi.getXml(processDefId) || ''
-          // 加载流程定义详情获取表单ID
           const processDef = await processDefinitionApi.getById(processDefId)
           if (processDef.formId) {
             const formDefData = await formApi.getById(processDef.formId)
@@ -455,7 +461,6 @@ const getTaskDetail = async () => {
               formOption.value.resetBtn = false
               formOption.value.disabled = true
 
-              // 获取流程变量并设置到表单
               try {
                 const variables = await processInstanceApi.getVariables(procInstanceId)
                 formData.value = variables || {}
@@ -463,7 +468,6 @@ const getTaskDetail = async () => {
 
               formReady.value = true
 
-              // 表单渲染后设置为只读状态
               nextTick(() => {
                 if (formCreateRef.value) {
                   const fApi = formCreateRef.value.fApi || formCreateRef.value
@@ -506,12 +510,10 @@ const handleApprove = async () => {
   actionLoading.value = true
   try {
     const variables = formData.value && Object.keys(formData.value).length > 0 ? formData.value : undefined
-    await taskApi.approve(taskId, {
-      comment: comment.value,
-      variables: variables
-    })
+    await taskApi.approve(taskId.value, { comment: comment.value, variables })
     ElMessage.success('审批通过')
-    router.back()
+    emit('success')
+    handleClose()
   } catch (error) {
     ElMessage.error('审批失败')
   } finally {
@@ -530,12 +532,10 @@ const handleReject = async () => {
     actionLoading.value = true
     try {
       const variables = formData.value && Object.keys(formData.value).length > 0 ? formData.value : undefined
-      await taskApi.reject(taskId, {
-        comment: comment.value,
-        variables: variables
-      })
+      await taskApi.reject(taskId.value, { comment: comment.value, variables })
       ElMessage.success('驳回成功')
-      router.back()
+      emit('success')
+      handleClose()
     } finally {
       actionLoading.value = false
     }
@@ -556,13 +556,11 @@ const handleDelegateConfirm = async () => {
   }
   actionLoading.value = true
   try {
-    await taskApi.delegate(taskId, {
-      delegateUserId: delegateUserId.value,
-      comment: delegateComment.value
-    })
+    await taskApi.delegate(taskId.value, { delegateUserId: delegateUserId.value, comment: delegateComment.value })
     ElMessage.success('委派成功')
     delegateDialogVisible.value = false
-    router.back()
+    emit('success')
+    handleClose()
   } catch (error) {
     ElMessage.error('委派失败')
   } finally {
@@ -582,13 +580,11 @@ const handleTransferConfirm = async () => {
   }
   actionLoading.value = true
   try {
-    await taskApi.transfer(taskId, {
-      transferUserId: transferUserId.value,
-      comment: transferComment.value
-    })
+    await taskApi.transfer(taskId.value, { transferUserId: transferUserId.value, comment: transferComment.value })
     ElMessage.success('转办成功')
     transferDialogVisible.value = false
-    router.back()
+    emit('success')
+    handleClose()
   } catch (error) {
     ElMessage.error('转办失败')
   } finally {
@@ -596,10 +592,10 @@ const handleTransferConfirm = async () => {
   }
 }
 
-// 退回 - 先获取可退回节点
+// 退回
 const handleReturn = async () => {
   try {
-    const nodes = await taskApi.getReturnNodes(taskId)
+    const nodes = await taskApi.getReturnNodes(taskId.value)
     returnNodes.value = nodes || []
     if (returnNodes.value.length === 0) {
       ElMessage.warning('当前任务没有可退回的节点')
@@ -623,13 +619,11 @@ const handleReturnConfirm = async () => {
   }
   actionLoading.value = true
   try {
-    await taskApi.return(taskId, {
-      targetTaskDefKey: returnTargetKey.value,
-      comment: returnComment.value
-    })
+    await taskApi.return(taskId.value, { targetTaskDefKey: returnTargetKey.value, comment: returnComment.value })
     ElMessage.success('退回成功')
     returnDialogVisible.value = false
-    router.back()
+    emit('success')
+    handleClose()
   } catch (error) {
     ElMessage.error('退回失败')
   } finally {
@@ -637,7 +631,7 @@ const handleReturnConfirm = async () => {
   }
 }
 
-// 对话框关闭时重置状态
+// 对话框关闭时重置
 const handleDelegateDialogClose = () => {
   delegateUserId.value = undefined
   delegateComment.value = ''
@@ -655,55 +649,27 @@ const handleReturnDialogClose = () => {
   returnComment.value = ''
 }
 
-onMounted(() => {
-  getTaskDetail()
-})
+defineExpose({ open })
 </script>
 
 <style scoped lang="scss">
-.detail-header {
-  padding: 16px 20px;
-  background: #fff;
-  border-bottom: 1px solid #ebeef5;
+.drawer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 
-  .page-title {
-    font-size: 16px;
-    font-weight: 600;
+  .info-card {
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
   }
-}
 
-.detail-content {
-  padding: 16px 20px;
-
-  .info-section {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    max-width: 800px;
-
-    .info-card {
-      .card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-    }
-
-    .form-card,
-    .timeline-card {
-      :deep(.el-card__body) {
-        max-height: 400px;
-        overflow-y: auto;
-      }
-    }
-
-    .timeline-card {
-      flex: 1;
-
-      :deep(.el-card__body) {
-        max-height: none;
-        overflow-y: auto;
-      }
+  .form-card,
+  .timeline-card {
+    :deep(.el-card__body) {
+      padding: 16px;
     }
   }
 }
@@ -715,20 +681,5 @@ onMounted(() => {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid #ebeef5;
-}
-
-@media (max-width: 768px) {
-  .detail-content {
-    .info-section {
-      max-width: 100%;
-    }
-  }
-
-  .action-buttons {
-    .el-button {
-      flex: 1;
-      min-width: 0;
-    }
-  }
 }
 </style>
