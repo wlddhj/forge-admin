@@ -108,4 +108,9 @@ public interface SysUserService extends IService<SysUser> {
      * @return 导入结果
      */
     UserImportResultDTO importUsers(List<UserImportDTO> importUsers, boolean updateSupport);
+
+    /**
+     * 获取所有用户简单列表（下拉选择用）
+     */
+    List<UserSimpleResponse> getAllUsersSimple();
 }

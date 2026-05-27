@@ -419,4 +419,16 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         return result;
     }
+
+    @Override
+    public List<UserSimpleResponse> getAllUsersSimple() {
+        return lambdaQuery().eq(SysUser::getStatus, 1)
+                .select(SysUser::getId, SysUser::getNickname)
+                .list().stream().map(user -> {
+                    UserSimpleResponse resp = new UserSimpleResponse();
+                    resp.setId(user.getId());
+                    resp.setNickname(user.getNickname());
+                    return resp;
+                }).collect(Collectors.toList());
+    }
 }

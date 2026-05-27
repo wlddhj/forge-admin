@@ -56,13 +56,14 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import BpmnModeler from 'bpmn-js/lib/Modeler'
 import { BpmnPropertiesPanelModule, BpmnPropertiesProviderModule } from 'bpmn-js-properties-panel'
-import { flowableExtensionModule, flowableModdle } from '@/views/workflow/process/bpmn-extension/FlowableExtension.js'
+import { flowableExtensionModule, flowableModdle, setReferenceData } from '@/views/workflow/process/bpmn-extension/FlowableExtension.js'
 import 'bpmn-js/dist/assets/diagram-js.css'
 import 'bpmn-js/dist/assets/bpmn-js.css'
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css'
 import { modelApi } from '@/api/workflow/model'
 import type { WfModel } from '@/api/workflow/model'
 import { createInitialBpmnXml } from '@/composables/useBpmnJsDesigner'
+import { getAllRoles, getDeptList, getAllUsersSimple } from '@/api/system'
 
 const router = useRouter()
 const route = useRoute()
@@ -244,7 +245,19 @@ const handleDeploy = async () => {
   }
 }
 
-onMounted(() => {
+/** 加载引用数据用于属性面板的策略参数选择 */
+const loadReferenceData = async () => {
+  const data = {}
+  await Promise.allSettled([
+    getAllRoles().then(res => { data.roles = res }),
+    getDeptList().then(res => { data.departments = res }),
+    getAllUsersSimple().then(res => { data.users = res }),
+  ])
+  setReferenceData(data)
+}
+
+onMounted(async () => {
+  await loadReferenceData()
   initModeler()
 })
 
@@ -437,15 +450,10 @@ onBeforeUnmount(() => {
       }
     }
 
-    // 属性组内容
+    // 属性组内容 - 默认全部展开
     .bio-properties-panel-group-entries {
-      overflow: hidden;
-      transition: max-height 0.2s ease;
-
       &:not(.open) {
-        max-height: 0 !important;
-        padding: 0;
-        border: none;
+        max-height: none !important;
       }
     }
 

@@ -22,6 +22,30 @@ const CANDIDATE_STRATEGIES = [
 ]
 
 /**
+ * 引用数据缓存 - 在设计器挂载时填充
+ */
+const referenceData = {
+  roles: [],
+  departments: [],
+  users: [],
+}
+
+/**
+ * 设置引用数据（由 ProcessDesigner.vue 和 ModelDesigner.vue 调用）
+ */
+export function setReferenceData(data) {
+  if (data.roles) {
+    referenceData.roles = data.roles.map(r => ({ value: String(r.id), label: r.roleName }))
+  }
+  if (data.departments) {
+    referenceData.departments = data.departments.map(d => ({ value: String(d.id), label: d.deptName }))
+  }
+  if (data.users) {
+    referenceData.users = data.users.map(u => ({ value: String(u.id), label: u.nickname }))
+  }
+}
+
+/**
  * 自定义属性提供者 - 过滤掉不需要的默认属性组
  */
 function CustomPropertiesProvider(propertiesPanel, injector) {
@@ -33,7 +57,6 @@ CustomPropertiesProvider.$inject = ['propertiesPanel', 'injector']
 
 CustomPropertiesProvider.prototype.getGroups = function(element) {
   return function(groups) {
-    // 过滤掉 Documentation 组
     return groups.filter(group => group.id !== 'documentation')
   }.bind(this)
 }
@@ -50,7 +73,6 @@ FlowablePropertiesProvider.$inject = ['propertiesPanel', 'injector']
 
 FlowablePropertiesProvider.prototype.getGroups = function(element) {
   return function(groups) {
-    // 为 UserTask 添加 Flowable 属性组
     if (is(element, 'bpmn:UserTask')) {
       groups.push(createFlowableGroup(element, this._injector))
     }
@@ -59,40 +81,65 @@ FlowablePropertiesProvider.prototype.getGroups = function(element) {
 }
 
 /**
- * 创建 Flowable 属性组
+ * 创建 Flowable 属性组 - 根据候选人策略动态构建参数条目
  */
 function createFlowableGroup(element, injector) {
   const translate = injector.get('translate')
+  const bo = element.businessObject
+  const strategy = bo.get('flowable:candidateStrategy')
+  const strategyStr = strategy !== undefined && strategy !== null ? strategy.toString() : ''
+
+  const entries = [
+    {
+      id: 'candidateStrategy',
+      component: CandidateStrategySelect,
+      isEdited: isSelectEntryEdited,
+    },
+  ]
+
+  // 根据策略类型动态添加参数条目
+  if (strategyStr === '10') {
+    entries.push({
+      id: 'candidateParam',
+      component: CandidateParamRoleSelect,
+      isEdited: isSelectEntryEdited,
+    })
+  } else if (strategyStr === '20' || strategyStr === '21') {
+    entries.push({
+      id: 'candidateParam',
+      component: CandidateParamDeptSelect,
+      isEdited: isSelectEntryEdited,
+    })
+  } else if (strategyStr === '30') {
+    entries.push({
+      id: 'candidateParam',
+      component: CandidateParamUserSelect,
+      isEdited: isSelectEntryEdited,
+    })
+  } else if (strategyStr === '60') {
+    entries.push({
+      id: 'candidateParam',
+      component: CandidateParamExpressionField,
+      isEdited: isTextFieldEntryEdited,
+    })
+  }
+  // 策略为空时不显示参数字段
+
+  entries.push({
+    id: 'formKey',
+    component: FormKeyTextField,
+    isEdited: isTextFieldEntryEdited,
+  })
 
   return {
     id: 'flowable',
     label: translate('Flowable 属性'),
-    entries: [
-      // 候选人策略
-      {
-        id: 'candidateStrategy',
-        component: CandidateStrategySelect,
-        isEdited: isSelectEntryEdited,
-      },
-      // 矖略参数
-      {
-        id: 'candidateParam',
-        component: CandidateParamTextField,
-        isEdited: isTextFieldEntryEdited,
-      },
-      // 表单标识
-      {
-        id: 'formKey',
-        component: FormKeyTextField,
-        isEdited: isTextFieldEntryEdited,
-      },
-    ],
+    entries,
   }
 }
 
-/**
- * 候选人策略下拉选择组件
- */
+// ========== 候选人策略选择器 ==========
+
 function CandidateStrategySelect(props) {
   const { element } = props
 
@@ -107,13 +154,15 @@ function CandidateStrategySelect(props) {
     if (!modeler) return
     const modeling = modeler.get('modeling')
     const bo = element.businessObject
-    modeling.updateModdleProperties(element, bo, {
-      'flowable:candidateStrategy': value ? parseInt(value) : undefined
-    })
-  }
-
-  const getOptions = () => {
-    return CANDIDATE_STRATEGIES
+    const updateProps = {
+      'flowable:candidateStrategy': value ? parseInt(value) : undefined,
+    }
+    // 策略变更时清除旧的参数值
+    const currentStrategy = getValue()
+    if (value !== currentStrategy) {
+      updateProps['flowable:candidateParam'] = undefined
+    }
+    modeling.updateModdleProperties(element, bo, updateProps)
   }
 
   return SelectEntry({
@@ -121,65 +170,131 @@ function CandidateStrategySelect(props) {
     label: '候选人策略',
     getValue,
     setValue,
-    getOptions,
+    getOptions: () => CANDIDATE_STRATEGIES,
   })
 }
 
-/**
- * 矖略参数文本框组件
- */
-function CandidateParamTextField(props) {
+// ========== 策略参数：角色选择 ==========
+
+function CandidateParamRoleSelect(props) {
   const { element } = props
 
   const getValue = () => {
-    const bo = element.businessObject
-    return bo.get('flowable:candidateParam') || ''
+    return element.businessObject.get('flowable:candidateParam') || ''
   }
 
   const setValue = (value) => {
     const modeler = window.bpmnModeler
     if (!modeler) return
-    const modeling = modeler.get('modeling')
-    const bo = element.businessObject
-    modeling.updateModdleProperties(element, bo, {
+    modeler.get('modeling').updateModdleProperties(element, element.businessObject, {
       'flowable:candidateParam': value || undefined
     })
   }
 
-  const debounce = (fn) => fn
-
-  return TextFieldEntry({
+  return SelectEntry({
     id: 'candidateParam',
-    label: '策略参数',
-    description: '根据策略类型填写参数（如角色ID、部门ID等）',
+    label: '指定角色',
     getValue,
     setValue,
-    debounce,
+    getOptions: () => [{ value: '', label: '<无>' }, ...referenceData.roles],
   })
 }
 
-/**
- * 表单标识文本框组件
- */
-function FormKeyTextField(props) {
+// ========== 策略参数：部门选择 ==========
+
+function CandidateParamDeptSelect(props) {
   const { element } = props
 
   const getValue = () => {
-    const bo = element.businessObject
-    return bo.get('flowable:formKey') || ''
+    return element.businessObject.get('flowable:candidateParam') || ''
   }
 
   const setValue = (value) => {
     const modeler = window.bpmnModeler
     if (!modeler) return
-    const modeling = modeler.get('modeling')
-    const bo = element.businessObject
-    modeling.updateModdleProperties(element, bo, {
-      'flowable:formKey': value || undefined
+    modeler.get('modeling').updateModdleProperties(element, element.businessObject, {
+      'flowable:candidateParam': value || undefined
     })
   }
 
-  const debounce = (fn) => fn
+  return SelectEntry({
+    id: 'candidateParam',
+    label: '指定部门',
+    getValue,
+    setValue,
+    getOptions: () => [{ value: '', label: '<无>' }, ...referenceData.departments],
+  })
+}
+
+// ========== 策略参数：用户选择 ==========
+
+function CandidateParamUserSelect(props) {
+  const { element } = props
+
+  const getValue = () => {
+    return element.businessObject.get('flowable:candidateParam') || ''
+  }
+
+  const setValue = (value) => {
+    const modeler = window.bpmnModeler
+    if (!modeler) return
+    modeler.get('modeling').updateModdleProperties(element, element.businessObject, {
+      'flowable:candidateParam': value || undefined
+    })
+  }
+
+  return SelectEntry({
+    id: 'candidateParam',
+    label: '指定用户',
+    getValue,
+    setValue,
+    getOptions: () => [{ value: '', label: '<无>' }, ...referenceData.users],
+  })
+}
+
+// ========== 策略参数：表达式输入 ==========
+
+function CandidateParamExpressionField(props) {
+  const { element } = props
+
+  const getValue = () => {
+    return element.businessObject.get('flowable:candidateParam') || ''
+  }
+
+  const setValue = (value) => {
+    const modeler = window.bpmnModeler
+    if (!modeler) return
+    modeler.get('modeling').updateModdleProperties(element, element.businessObject, {
+      'flowable:candidateParam': value || undefined
+    })
+  }
+
+  return TextFieldEntry({
+    id: 'candidateParam',
+    label: '表达式',
+    description: 'Flowable 表达式，如 ${initiator}',
+    getValue,
+    setValue,
+    debounce: (fn) => fn,
+  })
+}
+
+// ========== 表单标识 ==========
+
+function FormKeyTextField(props) {
+  const { element } = props
+
+  const getValue = () => {
+    return element.businessObject.get('flowable:formKey') || ''
+  }
+
+  const setValue = (value) => {
+    const modeler = window.bpmnModeler
+    if (!modeler) return
+    modeler.get('modeling').updateModdleProperties(element, element.businessObject, {
+      'flowable:formKey': value || undefined
+    })
+  }
 
   return TextFieldEntry({
     id: 'formKey',
@@ -187,16 +302,15 @@ function FormKeyTextField(props) {
     description: '任务关联的表单标识',
     getValue,
     setValue,
-    debounce,
+    debounce: (fn) => fn,
   })
 }
 
-// 模块定义 - 包含自定义过滤器和 Flowable 属性提供者
+// 模块定义
 export const flowableExtensionModule = {
   __init__: ['customPropertiesProvider', 'flowablePropertiesProvider'],
   customPropertiesProvider: ['type', CustomPropertiesProvider],
   flowablePropertiesProvider: ['type', FlowablePropertiesProvider],
 }
 
-// 导出 Flowable moddle 扩展配置，供 Modeler 使用
 export { flowableModdle }

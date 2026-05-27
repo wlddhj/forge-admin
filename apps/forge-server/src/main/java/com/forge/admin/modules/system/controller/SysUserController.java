@@ -140,6 +140,12 @@ public class SysUserController {
         return Result.success();
     }
 
+    @Operation(summary = "获取所有用户简单列表")
+    @GetMapping("/simple-list")
+    public Result<List<UserSimpleResponse>> simpleList() {
+        return Result.success(sysUserService.getAllUsersSimple());
+    }
+
     // ==================== 个人中心 ====================
 
     @Operation(summary = "更新个人资料")

@@ -22,6 +22,15 @@ export function getUser(id: number) {
   return request.get<User>(`/system/user/${id}`).then(res => res.data)
 }
 
+export interface UserSimple {
+  id: number
+  nickname: string
+}
+
+export function getAllUsersSimple() {
+  return request.get<UserSimple[]>('/system/user/simple-list').then(res => res.data)
+}
+
 export function addUser(data: UserRequest) {
   return request.post('/system/user', data)
 }

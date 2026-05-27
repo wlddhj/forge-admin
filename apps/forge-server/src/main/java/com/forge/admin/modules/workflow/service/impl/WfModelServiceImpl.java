@@ -185,10 +185,15 @@ public class WfModelServiceImpl implements WfModelService {
         String processKey = escapeXml(model.getKey());
         String processName = escapeXml(model.getName());
 
-        // 替换 <bpmn:process ... id="xxx" ...> 中的 id 和添加 name
-        // 先替换 id 属性（属性顺序可能任意）
+        // 先移除已有的 name 属性（非贪婪匹配，避免跳过 name）
         bpmnXml = bpmnXml.replaceFirst(
-                "<bpmn:process([^>]*)\\s+id=\"[^\"]*\"",
+                "(<bpmn:process[^>]*?)\\s+name=\"[^\"]*\"",
+                "$1"
+        );
+
+        // 替换 <bpmn:process ... id="xxx" ...> 中的 id 并添加 name
+        bpmnXml = bpmnXml.replaceFirst(
+                "<bpmn:process([^>]*?)\\s+id=\"[^\"]*\"",
                 "<bpmn:process$1 id=\"" + processKey + "\" name=\"" + processName + "\""
         );
         // 如果上面没匹配到，尝试 id 在最前面的情况

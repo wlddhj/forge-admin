@@ -17,6 +17,12 @@ declare module '@/views/workflow/process/bpmn-extension/FlowableExtension.js' {
   export const flowableExtensionModule: ModuleDefinition
   export const flowableModdle: FlowableModdle
 
+  export function setReferenceData(data: {
+    roles?: Array<{ id: number; roleName: string }>
+    departments?: Array<{ id: number; deptName: string }>
+    users?: Array<{ id: number; nickname: string }>
+  }): void
+
   export default function FlowablePropertiesProvider(
     propertiesPanel: any,
     injector: any
