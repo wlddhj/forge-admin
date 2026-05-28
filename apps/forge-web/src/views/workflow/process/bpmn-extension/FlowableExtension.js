@@ -798,33 +798,22 @@ const SERVICE_IMPL_OPTIONS = [
 
 function createServiceTaskGroup(element, injector) {
   const translate = injector.get('translate')
-  const bo = element.businessObject
-  const hasImpl = bo.get('flowable:class') || bo.get('flowable:delegateExpression') || bo.get('flowable:expression')
-
-  const entries = [
-    { id: 'serviceImplType', component: ServiceImplTypeSelect, isEdited: isSelectEntryEdited },
-  ]
-
-  if (hasImpl || getServiceImplType(element) !== '') {
-    entries.push({
-      id: 'serviceImplValue',
-      component: ServiceImplValueField,
-      isEdited: isTextFieldEntryEdited,
-    })
-  }
 
   return {
     id: 'flowable-service',
     label: translate('Flowable 属性'),
-    entries,
+    entries: [
+      { id: 'serviceImplType', component: ServiceImplTypeSelect, isEdited: isSelectEntryEdited },
+      { id: 'serviceImplValue', component: ServiceImplValueField, isEdited: isTextFieldEntryEdited },
+    ],
   }
 }
 
 function getServiceImplType(element) {
   const bo = element.businessObject
-  if (bo.get('flowable:class')) return 'class'
-  if (bo.get('flowable:delegateExpression')) return 'delegateExpression'
-  if (bo.get('flowable:expression')) return 'expression'
+  if (bo.get('flowable:class') !== undefined) return 'class'
+  if (bo.get('flowable:delegateExpression') !== undefined) return 'delegateExpression'
+  if (bo.get('flowable:expression') !== undefined) return 'expression'
   return ''
 }
 
@@ -859,11 +848,14 @@ function ServiceImplValueField(props) {
   const implType = getServiceImplType(element)
 
   const getValue = () => {
+    if (!implType) return ''
     const bo = element.businessObject
-    return bo.get('flowable:' + implType) || ''
+    const val = bo.get('flowable:' + implType)
+    return val !== undefined ? val : ''
   }
 
   const setValue = (value) => {
+    if (!implType) return
     const modeler = window.bpmnModeler
     if (!modeler) return
     modeler.get('modeling').updateModdleProperties(element, element.businessObject, {
@@ -880,7 +872,7 @@ function ServiceImplValueField(props) {
   return TextFieldEntry({
     id: 'serviceImplValue',
     label: '实现值',
-    description: labels[implType] || '',
+    description: implType ? labels[implType] : '请先选择实现方式',
     getValue,
     setValue,
     debounce: (fn) => fn,
