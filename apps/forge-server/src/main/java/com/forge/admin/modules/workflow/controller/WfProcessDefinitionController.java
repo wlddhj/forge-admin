@@ -7,6 +7,7 @@ import com.forge.admin.common.response.Result;
 import com.forge.admin.modules.workflow.dto.definition.ProcessDefinitionQueryRequest;
 import com.forge.admin.modules.workflow.dto.definition.ProcessDefinitionResponse;
 import com.forge.admin.modules.workflow.dto.definition.ProcessDeployRequest;
+import com.forge.admin.modules.workflow.dto.definition.UserTaskNodeResponse;
 import com.forge.admin.modules.workflow.service.WfProcessDefinitionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,6 +20,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * 流程定义管理控制器
@@ -92,6 +94,12 @@ public class WfProcessDefinitionController {
     @PreAuthorize("hasAuthority('workflow:process:query')")
     public Result<String> getBpmnXml(@PathVariable String id) {
         return Result.success(wfProcessDefinitionService.getBpmnXml(id));
+    }
+
+    @Operation(summary = "获取需要自选审批人的用户任务节点")
+    @GetMapping("/{id}/user-tasks")
+    public Result<List<UserTaskNodeResponse>> getUserTaskNodes(@PathVariable String id) {
+        return Result.success(wfProcessDefinitionService.getStartUserSelectTasks(id));
     }
 
     @Operation(summary = "获取流程图")

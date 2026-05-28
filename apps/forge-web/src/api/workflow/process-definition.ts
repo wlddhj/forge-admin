@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 import type { PageResult } from '@/utils/request'
-import type { ProcessDefinition, ProcessDefinitionQuery, ProcessDeployRequest } from '@/types/workflow'
+import type { ProcessDefinition, ProcessDefinitionQuery, ProcessDeployRequest, UserTaskNode } from '@/types/workflow'
 
 export const processDefinitionApi = {
   page: (params: ProcessDefinitionQuery) =>
@@ -13,7 +13,9 @@ export const processDefinitionApi = {
     request.get<string>(`/workflow/process-definition/${id}/xml`).then(res => res.data),
   getDiagram: (id: string) =>
     request.get(`/workflow/process-definition/${id}/diagram`, { responseType: 'blob' }),
-suspend: (id: string) =>
+  getUserTaskNodes: (id: string) =>
+    request.get<UserTaskNode[]>(`/workflow/process-definition/${id}/user-tasks`).then(res => res.data),
+  suspend: (id: string) =>
     request.put(`/workflow/process-definition/${id}/suspend`),
   activate: (id: string) =>
     request.put(`/workflow/process-definition/${id}/activate`),

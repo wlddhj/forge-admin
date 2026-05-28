@@ -8,6 +8,7 @@ import com.forge.admin.common.utils.SecurityUtils;
 import com.forge.admin.modules.workflow.dto.definition.ProcessDefinitionQueryRequest;
 import com.forge.admin.modules.workflow.dto.definition.ProcessDefinitionResponse;
 import com.forge.admin.modules.workflow.dto.definition.ProcessDeployRequest;
+import com.forge.admin.modules.workflow.dto.definition.UserTaskNodeResponse;
 import com.forge.admin.modules.workflow.entity.WfCategory;
 import com.forge.admin.modules.workflow.entity.WfProcessDeployExt;
 import com.forge.admin.modules.workflow.mapper.WfCategoryMapper;
@@ -16,6 +17,8 @@ import com.forge.admin.modules.workflow.service.WfProcessDefinitionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.bpmn.model.BpmnModel;
+import org.flowable.bpmn.model.FlowableListener;
+import org.flowable.bpmn.model.UserTask;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.repository.Deployment;
 import org.flowable.engine.repository.ProcessDefinition;
@@ -28,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -389,5 +393,35 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
         }
 
         return response;
+    }
+
+    @Override
+    public List<UserTaskNodeResponse> getStartUserSelectTasks(String processDefinitionId) {
+        BpmnModel bpmnModel = repositoryService.getBpmnModel(processDefinitionId);
+        if (bpmnModel == null || bpmnModel.getProcesses().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<UserTaskNodeResponse> result = new ArrayList<>();
+        for (org.flowable.bpmn.model.Process process : bpmnModel.getProcesses()) {
+            for (UserTask userTask : process.findFlowElementsOfType(UserTask.class)) {
+                String strategyStr = userTask.getAttributeValue(
+                        "http://flowable.org/bpmn", "candidateStrategy");
+                if (strategyStr != null) {
+                    try {
+                        int strategy = Integer.parseInt(strategyStr);
+                        // 34=审批人自选, 35=发起人自选
+                        if (strategy == 34 || strategy == 35) {
+                            UserTaskNodeResponse node = new UserTaskNodeResponse();
+                            node.setTaskDefKey(userTask.getId());
+                            node.setTaskName(userTask.getName());
+                            node.setCandidateStrategy(strategy);
+                            result.add(node);
+                        }
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        return result;
     }
 }

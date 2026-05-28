@@ -69,6 +69,13 @@ export interface ProcessDeployRequest {
   formId?: number
 }
 
+/** 用户任务节点信息（候选人策略） */
+export interface UserTaskNode {
+  taskDefKey: string
+  taskName: string
+  candidateStrategy: number
+}
+
 // 流程实例
 export interface ProcessInstance {
   id: string

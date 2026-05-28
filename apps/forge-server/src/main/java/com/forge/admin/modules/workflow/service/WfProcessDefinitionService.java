@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.admin.modules.workflow.dto.definition.ProcessDefinitionQueryRequest;
 import com.forge.admin.modules.workflow.dto.definition.ProcessDefinitionResponse;
 import com.forge.admin.modules.workflow.dto.definition.ProcessDeployRequest;
+import com.forge.admin.modules.workflow.dto.definition.UserTaskNodeResponse;
 
 import java.io.InputStream;
+import java.util.List;
 
 /**
  * 流程定义管理服务接口
@@ -73,4 +75,12 @@ public interface WfProcessDefinitionService {
      * @return 流程图输入流
      */
     InputStream getDiagram(String processDefinitionId);
+
+    /**
+     * 获取流程定义中需要发起人自选的用户任务节点
+     *
+     * @param processDefinitionId 流程定义ID
+     * @return 需要发起人自选的用户任务列表
+     */
+    List<UserTaskNodeResponse> getStartUserSelectTasks(String processDefinitionId);
 }

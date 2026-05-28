@@ -214,12 +214,22 @@ const handleSave = async () => {
       return
     }
 
+    // 构建 metaInfo，保留 formType 和 formId
+    const metaInfo: Record<string, any> = {}
+    if (modelData.value?.formType != null) {
+      metaInfo.formType = modelData.value.formType
+    }
+    if (modelData.value?.formId != null) {
+      metaInfo.formId = modelData.value.formId
+    }
+
     await modelApi.update({
       id,
       name: modelData.value?.name || '',
       key: modelData.value?.key || '',
       category: modelData.value?.category,
       description: modelData.value?.description,
+      metaInfo: Object.keys(metaInfo).length > 0 ? JSON.stringify(metaInfo) : undefined,
       bpmnXml: xml,
     })
     ElMessage.success('保存成功')

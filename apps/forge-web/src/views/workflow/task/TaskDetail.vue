@@ -125,6 +125,34 @@
                     show-word-limit
                   />
                 </el-form-item>
+                <template v-if="approveSelectTasks.length > 0">
+                  <el-divider content-position="left">下一节点审批人选择</el-divider>
+                  <el-form-item
+                    v-for="task in approveSelectTasks"
+                    :key="task.taskDefKey"
+                    :label="task.taskName"
+                    :required="true"
+                  >
+                    <el-select
+                      v-model="nextSelectedUsers[task.taskDefKey]"
+                      multiple
+                      filterable
+                      remote
+                      reserve-keyword
+                      placeholder="请输入用户名搜索"
+                      :remote-method="searchUsers"
+                      :loading="userSearchLoading"
+                      style="width: 100%"
+                    >
+                      <el-option
+                        v-for="user in userOptions"
+                        :key="user.id"
+                        :label="`${user.nickname}（${user.username}）`"
+                        :value="user.id"
+                      />
+                    </el-select>
+                  </el-form-item>
+                </template>
               </el-form>
               <div class="action-buttons">
                 <el-button type="success" :loading="actionLoading" @click="handleApprove">
@@ -307,7 +335,7 @@ import { processInstanceApi } from '@/api/workflow/process-instance'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
 import { formApi } from '@/api/workflow/form'
 import { getUserList } from '@/api/system'
-import type { TaskInfo, ApprovalComment, ProcessInstance } from '@/types/workflow'
+import type { TaskInfo, ApprovalComment, ProcessInstance, UserTaskNode } from '@/types/workflow'
 import type { User } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { decodeFieldsDisabled } from '@/utils/formCreate'
@@ -373,6 +401,10 @@ const returnNodes = ref<ReturnNode[]>([])
 // 用户搜索相关
 const userSearchLoading = ref(false)
 const userOptions = ref<User[]>([])
+
+// 审批人自选相关
+const approveSelectTasks = ref<UserTaskNode[]>([])
+const nextSelectedUsers = ref<Record<string, number[]>>({})
 
 // 审批动作标签映射
 const actionLabel = (actionType: string): string => {
@@ -442,6 +474,11 @@ const getTaskDetail = async () => {
         // 通过流程定义ID获取 BPMN XML 和表单
         try {
           bpmnXml.value = await processDefinitionApi.getXml(processDefId) || ''
+          // 加载需要审批人自选的下游任务节点
+          try {
+            const nodes = await processDefinitionApi.getUserTaskNodes(processDefId)
+            approveSelectTasks.value = (nodes || []).filter(n => n.candidateStrategy === 34)
+          } catch { /* ignore */ }
           // 加载流程定义详情获取表单ID
           const processDef = await processDefinitionApi.getById(processDefId)
           if (processDef.formId) {
@@ -503,12 +540,28 @@ const handleApprove = async () => {
     ElMessage.warning('请输入审批意见')
     return
   }
+  // 校验审批人自选节点
+  for (const task of approveSelectTasks.value) {
+    const users = nextSelectedUsers.value[task.taskDefKey]
+    if (!users || users.length === 0) {
+      ElMessage.warning(`请为"${task.taskName}"选择审批人`)
+      return
+    }
+  }
   actionLoading.value = true
   try {
-    const variables = formData.value && Object.keys(formData.value).length > 0 ? formData.value : undefined
+    const variables: Record<string, any> = {}
+    if (formData.value && Object.keys(formData.value).length > 0) {
+      Object.assign(variables, formData.value)
+    }
+    // 审批人自选：设置 NEXT_{taskDefKey}_candidateUsers 变量
+    for (const task of approveSelectTasks.value) {
+      const users = nextSelectedUsers.value[task.taskDefKey] || []
+      variables[`NEXT_${task.taskDefKey}_candidateUsers`] = users.join(',')
+    }
     await taskApi.approve(taskId, {
       comment: comment.value,
-      variables: variables
+      variables: Object.keys(variables).length > 0 ? variables : undefined
     })
     ElMessage.success('审批通过')
     router.back()

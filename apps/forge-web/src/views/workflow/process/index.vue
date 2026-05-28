@@ -235,6 +235,34 @@
             :option="startForm.formOption"
           />
         </template>
+        <template v-if="startForm.startSelectTasks.length > 0">
+          <el-divider content-position="left">审批人选择</el-divider>
+          <el-form-item
+            v-for="task in startForm.startSelectTasks"
+            :key="task.taskDefKey"
+            :label="task.taskName"
+            :required="true"
+          >
+            <el-select
+              v-model="startForm.selectedUsers[task.taskDefKey]"
+              multiple
+              filterable
+              remote
+              reserve-keyword
+              placeholder="请输入用户名搜索"
+              :remote-method="searchUsers"
+              :loading="userSearchLoading"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="user in userOptions"
+                :key="user.id"
+                :label="`${user.nickname}（${user.username}）`"
+                :value="user.id"
+              />
+            </el-select>
+          </el-form-item>
+        </template>
       </el-form>
       <template #footer>
         <el-button @click="startDialogVisible = false">取消</el-button>
@@ -253,9 +281,11 @@ import { processDefinitionApi } from '@/api/workflow/process-definition'
 import { processInstanceApi } from '@/api/workflow/process-instance'
 import { categoryApi } from '@/api/workflow/category'
 import { formApi } from '@/api/workflow/form'
-import type { ProcessDefinition } from '@/types/workflow'
+import type { ProcessDefinition, UserTaskNode } from '@/types/workflow'
 import { formatDateTime } from '@/utils/dateFormat'
 import { decodeFields } from '@/utils/formCreate'
+import { getUserList } from '@/api/system'
+import type { User } from '@/types/system'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
@@ -440,7 +470,24 @@ const startForm = reactive({
   comment: '',
   formRule: [] as any[],
   formOption: { submitBtn: false, resetBtn: false } as any,
+  startSelectTasks: [] as UserTaskNode[], // 发起人自选节点
+  approveSelectTasks: [] as UserTaskNode[], // 审批人自选节点
+  selectedUsers: {} as Record<string, number[]>, // { taskDefKey: [userId1, userId2] }
 })
+
+// 用户搜索
+const userSearchLoading = ref(false)
+const userOptions = ref<User[]>([])
+const searchUsers = async (query: string) => {
+  if (!query) return
+  userSearchLoading.value = true
+  try {
+    const res = await getUserList({ pageNum: 1, pageSize: 20, username: query })
+    userOptions.value = res.list
+  } finally {
+    userSearchLoading.value = false
+  }
+}
 
 const handleStartProcess = async (row: ProcessDefinition) => {
   startForm.processDefinitionId = row.id
@@ -448,6 +495,9 @@ const handleStartProcess = async (row: ProcessDefinition) => {
   startForm.businessKey = ''
   startForm.comment = ''
   startForm.formRule = []
+  startForm.startSelectTasks = []
+  startForm.approveSelectTasks = []
+  startForm.selectedUsers = {}
 
   // 加载流程定义详情获取关联表单
   try {
@@ -465,23 +515,44 @@ const handleStartProcess = async (row: ProcessDefinition) => {
     }
   } catch { /* ignore */ }
 
+  // 加载需要自选审批人的任务节点
+  try {
+    const nodes = await processDefinitionApi.getUserTaskNodes(row.id)
+    startForm.startSelectTasks = (nodes || []).filter(n => n.candidateStrategy === 35)
+    startForm.approveSelectTasks = (nodes || []).filter(n => n.candidateStrategy === 34)
+  } catch { /* ignore */ }
+
   startDialogVisible.value = true
 }
 
 const handleConfirmStart = async () => {
+  // 校验发起人自选节点
+  for (const task of startForm.startSelectTasks) {
+    const users = startForm.selectedUsers[task.taskDefKey]
+    if (!users || users.length === 0) {
+      ElMessage.warning(`请为"${task.taskName}"选择审批人`)
+      return
+    }
+  }
+
   startLoading.value = true
   try {
     // startFormFApi.value 就是表单数据本身（v-model 绑定的）
-    let variables: Record<string, any> | undefined = undefined
+    let variables: Record<string, any> = {}
     if (startFormFApi.value && Object.keys(startFormFApi.value).length > 0) {
-      variables = startFormFApi.value
-      console.log('表单数据:', variables)
+      Object.assign(variables, startFormFApi.value)
+    }
+
+    // 发起人自选：设置 {taskDefKey}_candidateUsers 变量
+    for (const task of startForm.startSelectTasks) {
+      const users = startForm.selectedUsers[task.taskDefKey] || []
+      variables[`${task.taskDefKey}_candidateUsers`] = users.join(',')
     }
 
     await processInstanceApi.start({
       processDefinitionId: startForm.processDefinitionId,
       businessKey: startForm.businessKey || undefined,
-      variables: variables,
+      variables: Object.keys(variables).length > 0 ? variables : undefined,
       comment: startForm.comment || undefined,
     })
     ElMessage.success('流程发起成功')
