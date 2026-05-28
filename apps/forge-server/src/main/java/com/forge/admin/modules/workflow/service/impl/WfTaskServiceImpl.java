@@ -131,6 +131,57 @@ public class WfTaskServiceImpl implements WfTaskService {
                 .map(task -> convertHistoricTaskToResponse(task, definitionCache, userNameCache))
                 .collect(Collectors.toList());
 
+        // 批量加载审批意见
+        if (!tasks.isEmpty()) {
+            List<String> taskIds = tasks.stream().map(HistoricTaskInstance::getId).toList();
+            LambdaQueryWrapper<WfApprovalComment> commentWrapper = new LambdaQueryWrapper<>();
+            commentWrapper.in(WfApprovalComment::getTaskId, taskIds)
+                    .orderByDesc(WfApprovalComment::getCreateTime);
+            List<WfApprovalComment> comments = wfApprovalCommentMapper.selectList(commentWrapper);
+            Map<String, WfApprovalComment> commentMap = new LinkedHashMap<>();
+            for (WfApprovalComment c : comments) {
+                commentMap.putIfAbsent(c.getTaskId(), c);
+            }
+            for (int i = 0; i < records.size(); i++) {
+                WfApprovalComment comment = commentMap.get(tasks.get(i).getId());
+                if (comment != null) {
+                    records.get(i).setActionType(comment.getActionType());
+                    records.get(i).setCommentText(comment.getCommentText());
+                }
+            }
+        }
+
+        // 批量加载下一节点名称
+        if (!tasks.isEmpty()) {
+            Set<String> processInstanceIds = tasks.stream()
+                    .map(HistoricTaskInstance::getProcessInstanceId)
+                    .collect(Collectors.toSet());
+            // 批量查询所有流程实例的历史任务，按开始时间排序
+            Map<String, List<HistoricTaskInstance>> tasksByProcess = new HashMap<>();
+            for (String pId : processInstanceIds) {
+                List<HistoricTaskInstance> pTasks = historyService.createHistoricTaskInstanceQuery()
+                        .processInstanceId(pId)
+                        .orderByHistoricTaskInstanceStartTime().asc()
+                        .list();
+                tasksByProcess.put(pId, pTasks);
+            }
+            for (int i = 0; i < records.size(); i++) {
+                HistoricTaskInstance current = tasks.get(i);
+                List<HistoricTaskInstance> pTasks = tasksByProcess.get(current.getProcessInstanceId());
+                if (pTasks != null && current.getEndTime() != null) {
+                    // 找到当前任务在列表中的位置，下一个就是后续节点
+                    for (int j = 0; j < pTasks.size(); j++) {
+                        if (pTasks.get(j).getId().equals(current.getId())) {
+                            if (j + 1 < pTasks.size()) {
+                                records.get(i).setNextActivityName(pTasks.get(j + 1).getName());
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         Page<TaskResponse> resultPage = new Page<>();
         resultPage.setCurrent(request.getPageNum());
         resultPage.setSize(request.getPageSize());

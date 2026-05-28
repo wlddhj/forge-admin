@@ -133,6 +133,9 @@ export interface TaskInfo {
   endTime: string | null
   candidate?: boolean
   candidateUsers?: string[]
+  actionType?: string
+  commentText?: string
+  nextActivityName?: string
 }
 
 export interface TaskQuery {

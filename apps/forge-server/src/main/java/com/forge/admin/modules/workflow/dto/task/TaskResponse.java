@@ -103,4 +103,19 @@ public class TaskResponse {
      * 候选人名称列表
      */
     private List<String> candidateUsers;
+
+    /**
+     * 审批动作（已办任务）
+     */
+    private String actionType;
+
+    /**
+     * 审批意见（已办任务）
+     */
+    private String commentText;
+
+    /**
+     * 下一节点名称（已办任务）
+     */
+    private String nextActivityName;
 }
