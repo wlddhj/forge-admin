@@ -1,6 +1,7 @@
 package com.forge.admin.modules.workflow.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.admin.common.exception.BusinessException;
 import com.forge.admin.common.utils.SecurityUtils;
@@ -857,17 +858,36 @@ public class WfTaskServiceImpl implements WfTaskService {
             throw new BusinessException(403, "只能撤回自己完成的任务");
         }
 
+        String processInstanceId = historicTask.getProcessInstanceId();
+
         // 查找流程实例当前是否有运行中的任务
         List<Task> runningTasks = taskService.createTaskQuery()
-                .processInstanceId(historicTask.getProcessInstanceId())
+                .processInstanceId(processInstanceId)
                 .list();
 
         if (runningTasks.isEmpty()) {
             throw new BusinessException(400, "流程已结束，无法撤回");
         }
 
-        // 检查下一个任务是否就是当前活动任务（仅允许撤回到下一步）
-        String processInstanceId = historicTask.getProcessInstanceId();
+        // 只能撤回最近完成的任务
+        List<HistoricTaskInstance> recentCompleted = historyService.createHistoricTaskInstanceQuery()
+                .processInstanceId(processInstanceId)
+                .finished()
+                .orderByHistoricTaskInstanceEndTime()
+                .desc()
+                .listPage(0, 1);
+        if (recentCompleted.isEmpty() || !recentCompleted.get(0).getId().equals(taskId)) {
+            throw new BusinessException(400, "只能撤回最近完成的任务");
+        }
+
+        // 同一节点不允许重复撤回（防止无限循环）
+        LambdaQueryWrapper<WfApprovalComment> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(WfApprovalComment::getProcessInstanceId, processInstanceId)
+                .eq(WfApprovalComment::getTaskDefKey, historicTask.getTaskDefinitionKey())
+                .eq(WfApprovalComment::getActionType, ApprovalActionTypeEnum.WITHDRAW.getCode());
+        if (wfApprovalCommentMapper.selectCount(wrapper) > 0) {
+            throw new BusinessException(400, "该节点已撤回过，不能再次撤回");
+        }
 
         // 使用 Flowable 的跳转功能将流程退回到原任务节点
         runtimeService.createChangeActivityStateBuilder()
