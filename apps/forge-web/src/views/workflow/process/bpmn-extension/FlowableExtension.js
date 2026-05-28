@@ -562,21 +562,11 @@ const CONDITION_TYPE_OPTIONS = [
 
 function createSequenceFlowConditionGroup(element, injector) {
   const translate = injector.get('translate')
-  const bo = element.businessObject
-  const condition = bo.conditionExpression
-  const body = condition ? (condition.body || '') : ''
 
   const entries = [
     { id: 'conditionType', component: ConditionTypeSelect, isEdited: isSelectEntryEdited },
+    { id: 'customCondition', component: CustomConditionField, isEdited: isTextFieldEntryEdited },
   ]
-
-  if (body && body !== '${approved == true}' && body !== '${approved == false}') {
-    entries.push({
-      id: 'customCondition',
-      component: CustomConditionField,
-      isEdited: isTextFieldEntryEdited,
-    })
-  }
 
   return {
     id: 'flowable-condition',
@@ -647,13 +637,22 @@ function CustomConditionField(props) {
     }
   }
 
+  const isPreset = () => {
+    const bo = element.businessObject
+    const condition = bo.conditionExpression
+    if (!condition) return false
+    const body = condition.body || ''
+    return body === '${approved == true}' || body === '${approved == false}'
+  }
+
   return TextFieldEntry({
     id: 'customCondition',
     label: '自定义表达式',
-    description: 'Flowable 条件表达式，如 ${amount > 1000}',
+    description: isPreset() ? '选择了预设条件时不可编辑' : 'Flowable 条件表达式，如 ${amount > 1000}',
     getValue,
     setValue,
     debounce: (fn) => fn,
+    disabled: isPreset(),
   })
 }
 

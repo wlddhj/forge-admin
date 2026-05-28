@@ -189,12 +189,6 @@
           "type": "String"
         },
         {
-          "name": "operationRef",
-          "isAttr": true,
-          "type": "String",
-          "redefines": "bpmn:operationRef"
-        },
-        {
           "name": "extensionId",
           "isAttr": true,
           "type": "String"
