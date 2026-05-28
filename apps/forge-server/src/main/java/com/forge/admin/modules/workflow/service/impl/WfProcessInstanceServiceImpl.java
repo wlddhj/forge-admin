@@ -15,6 +15,7 @@ import com.forge.admin.modules.workflow.framework.ApprovalActionTypeEnum;
 import com.forge.admin.modules.workflow.identity.FlowableIdentityService;
 import com.forge.admin.modules.workflow.mapper.WfApprovalCommentMapper;
 import com.forge.admin.modules.workflow.service.ProcessNoGenerator;
+import com.forge.admin.modules.workflow.service.WfProcessInstanceCopyService;
 import com.forge.admin.modules.workflow.service.WfProcessInstanceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +58,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
     private final FlowableIdentityService flowableIdentityService;
     private final WfApprovalCommentMapper wfApprovalCommentMapper;
     private final ProcessNoGenerator processNoGenerator;
+    private final WfProcessInstanceCopyService copyService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -178,7 +180,15 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         );
 
         // 删除流程实例
+        String processDefinitionId = processInstance.getProcessDefinitionId();
         runtimeService.deleteProcessInstance(processInstanceId, "用户主动取消");
+
+        // 自动抄送
+        try {
+            copyService.autoCopyOnProcessEnd(processInstanceId, processDefinitionId, "流程取消自动抄送");
+        } catch (Exception e) {
+            log.warn("流程取消自动抄送异常：processInstanceId={}", processInstanceId, e);
+        }
 
         log.info("流程实例已取消：processInstanceId={}, operator={}", processInstanceId, currentUserId);
     }

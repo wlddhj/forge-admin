@@ -5,24 +5,37 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.admin.modules.workflow.dto.copy.CopyQueryRequest;
 import com.forge.admin.modules.workflow.dto.copy.CopyResponse;
+import com.forge.admin.modules.workflow.entity.WfProcessDeployExt;
 import com.forge.admin.modules.workflow.entity.WfProcessInstanceCopy;
+import com.forge.admin.modules.workflow.framework.candidate.BpmTaskCandidateInvoker;
 import com.forge.admin.modules.workflow.identity.FlowableIdentityService;
+import com.forge.admin.modules.workflow.mapper.WfProcessDeployExtMapper;
 import com.forge.admin.modules.workflow.mapper.WfProcessInstanceCopyMapper;
 import com.forge.admin.modules.workflow.service.WfProcessInstanceCopyService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.flowable.engine.HistoryService;
 import org.flowable.engine.RepositoryService;
+import org.flowable.engine.repository.ProcessDefinition;
+import org.flowable.engine.history.HistoricProcessInstance;
+import org.flowable.variable.api.history.HistoricVariableInstance;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class WfProcessInstanceCopyServiceImpl implements WfProcessInstanceCopyService {
 
     private final WfProcessInstanceCopyMapper copyMapper;
+    private final WfProcessDeployExtMapper deployExtMapper;
     private final FlowableIdentityService flowableIdentityService;
     private final RepositoryService repositoryService;
+    private final HistoryService historyService;
+    private final BpmTaskCandidateInvoker candidateInvoker;
 
     @Override
     public Page<CopyResponse> pageCopy(CopyQueryRequest request) {
@@ -44,7 +57,7 @@ public class WfProcessInstanceCopyServiceImpl implements WfProcessInstanceCopySe
                 .distinct()
                 .forEach(pdId -> {
                     try {
-                        org.flowable.engine.repository.ProcessDefinition pd =
+                        ProcessDefinition pd =
                                 repositoryService.createProcessDefinitionQuery().processDefinitionId(pdId).singleResult();
                         if (pd != null && pd.getName() != null) {
                             processDefinitionNameCache.put(pdId, pd.getName());
@@ -85,5 +98,84 @@ public class WfProcessInstanceCopyServiceImpl implements WfProcessInstanceCopySe
         }).collect(Collectors.toList()));
 
         return responsePage;
+    }
+
+    @Override
+    public void autoCopyOnProcessEnd(String processInstanceId, String processDefinitionId, String reason) {
+        // 1. 查询部署扩展信息，获取自动抄送配置
+        WfProcessDeployExt ext = deployExtMapper.selectOne(
+                new LambdaQueryWrapper<WfProcessDeployExt>()
+                        .eq(WfProcessDeployExt::getProcessDefinitionId, processDefinitionId)
+                        .last("LIMIT 1")
+        );
+        if (ext == null || ext.getAutoCopyStrategy() == null) {
+            return;
+        }
+
+        // 2. 通过候选人策略计算抄送目标用户
+        Set<Long> targetUserIds = candidateInvoker.calculateUsers(ext.getAutoCopyStrategy(), ext.getAutoCopyParam());
+        if (targetUserIds == null || targetUserIds.isEmpty()) {
+            log.info("自动抄送：未解析到目标用户，processInstanceId={}", processInstanceId);
+            return;
+        }
+
+        // 3. 从历史流程实例获取信息
+        HistoricProcessInstance historicInstance = historyService.createHistoricProcessInstanceQuery()
+                .processInstanceId(processInstanceId)
+                .singleResult();
+        if (historicInstance == null) {
+            log.warn("自动抄送：历史流程实例不存在，processInstanceId={}", processInstanceId);
+            return;
+        }
+
+        Long startUserId = null;
+        if (StrUtil.isNotBlank(historicInstance.getStartUserId())) {
+            try {
+                startUserId = Long.parseLong(historicInstance.getStartUserId());
+            } catch (NumberFormatException ignored) {}
+        }
+
+        // 获取流程名称
+        String processInstanceName = historicInstance.getName();
+        if (processInstanceName == null) {
+            ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
+                    .processDefinitionId(processDefinitionId).singleResult();
+            if (pd != null) {
+                processInstanceName = pd.getName();
+            }
+        }
+
+        // 获取流程编号
+        String processNo = null;
+        try {
+            HistoricVariableInstance var = historyService.createHistoricVariableInstanceQuery()
+                    .processInstanceId(processInstanceId)
+                    .variableName("processNo")
+                    .singleResult();
+            if (var != null && var.getValue() != null) {
+                processNo = var.getValue().toString();
+            }
+        } catch (Exception ignored) {}
+
+        // 4. 创建抄送记录
+        LocalDateTime now = LocalDateTime.now();
+        for (Long userId : targetUserIds) {
+            WfProcessInstanceCopy copy = new WfProcessInstanceCopy();
+            copy.setStartUserId(startUserId);
+            copy.setProcessInstanceName(processInstanceName);
+            copy.setProcessInstanceId(processInstanceId);
+            copy.setProcessDefinitionId(processDefinitionId);
+            copy.setProcessNo(processNo);
+            copy.setCategory(historicInstance.getProcessDefinitionCategory());
+            copy.setActivityId("endEvent");
+            copy.setActivityName("流程结束");
+            copy.setUserId(userId);
+            copy.setReason(reason);
+            copy.setCreateTime(now);
+            copy.setCreateBy(startUserId);
+            copyMapper.insert(copy);
+        }
+
+        log.info("自动抄送完成：processInstanceId={}, targetUserIds={}, reason={}", processInstanceId, targetUserIds, reason);
     }
 }

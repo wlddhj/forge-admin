@@ -73,6 +73,16 @@ public class ModelResponse {
     private Long formId;
 
     /**
+     * 自动抄送策略
+     */
+    private Integer autoCopyStrategy;
+
+    /**
+     * 自动抄送参数
+     */
+    private String autoCopyParam;
+
+    /**
      * BPMN XML 内容（仅详情接口返回）
      */
     private String bpmnXml;

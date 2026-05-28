@@ -43,6 +43,8 @@ export interface ProcessDefinition {
   formKey: string
   formType: number | null
   formId: number | null
+  autoCopyStrategy: number | null
+  autoCopyParam: string | null
   resourceName: string
   diagramResourceName: string
   createTime: string

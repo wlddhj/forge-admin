@@ -48,4 +48,14 @@ public class ProcessDeployRequest {
      * 关联表单ID
      */
     private Long formId;
+
+    /**
+     * 自动抄送策略
+     */
+    private Integer autoCopyStrategy;
+
+    /**
+     * 自动抄送参数
+     */
+    private String autoCopyParam;
 }

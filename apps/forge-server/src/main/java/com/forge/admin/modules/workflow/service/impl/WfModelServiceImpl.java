@@ -238,6 +238,8 @@ public class WfModelServiceImpl implements WfModelService {
             // 从 metaInfo 解析 formType 和 formId
             Integer formType = null;
             Long formId = null;
+            Integer autoCopyStrategy = null;
+            String autoCopyParam = null;
             String metaInfo = model.getMetaInfo();
             if (StrUtil.isNotBlank(metaInfo)) {
                 try {
@@ -247,6 +249,12 @@ public class WfModelServiceImpl implements WfModelService {
                     }
                     if (metaNode.has("formId")) {
                         formId = metaNode.get("formId").asLong();
+                    }
+                    if (metaNode.has("autoCopyStrategy") && !metaNode.get("autoCopyStrategy").isNull()) {
+                        autoCopyStrategy = metaNode.get("autoCopyStrategy").asInt();
+                    }
+                    if (metaNode.has("autoCopyParam") && !metaNode.get("autoCopyParam").isNull()) {
+                        autoCopyParam = metaNode.get("autoCopyParam").asText();
                     }
                 } catch (Exception e) {
                     log.warn("解析模型metaInfo失败：{}", metaInfo, e);
@@ -279,6 +287,8 @@ public class WfModelServiceImpl implements WfModelService {
             ext.setCategoryId(categoryId);  // 设置分类ID
             ext.setFormType(formType);
             ext.setFormId(formId);
+            ext.setAutoCopyStrategy(autoCopyStrategy);
+            ext.setAutoCopyParam(autoCopyParam);
             ext.setBpmnXml(bpmnXml);
             ext.setCreateBy(currentUserId);
             ext.setCreateByName(currentUsername);
@@ -322,7 +332,7 @@ public class WfModelServiceImpl implements WfModelService {
             response.setVersion(model.getVersion().toString());
         }
 
-        // 解析 metaInfo 获取 description、formType 和 formId
+        // 解析 metaInfo 获取 description、formType、formId、autoCopyStrategy、autoCopyParam
         String metaInfo = model.getMetaInfo();
         if (StrUtil.isNotBlank(metaInfo)) {
             try {
@@ -335,6 +345,12 @@ public class WfModelServiceImpl implements WfModelService {
                 }
                 if (metaNode.has("formId")) {
                     response.setFormId(metaNode.get("formId").asLong());
+                }
+                if (metaNode.has("autoCopyStrategy") && !metaNode.get("autoCopyStrategy").isNull()) {
+                    response.setAutoCopyStrategy(metaNode.get("autoCopyStrategy").asInt());
+                }
+                if (metaNode.has("autoCopyParam") && !metaNode.get("autoCopyParam").isNull()) {
+                    response.setAutoCopyParam(metaNode.get("autoCopyParam").asText());
                 }
             } catch (Exception e) {
                 log.warn("解析模型metaInfo失败：{}", metaInfo, e);

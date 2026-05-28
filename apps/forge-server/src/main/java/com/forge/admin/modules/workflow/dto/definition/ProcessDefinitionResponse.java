@@ -74,6 +74,16 @@ public class ProcessDefinitionResponse {
     private Long formId;
 
     /**
+     * 自动抄送策略
+     */
+    private Integer autoCopyStrategy;
+
+    /**
+     * 自动抄送参数
+     */
+    private String autoCopyParam;
+
+    /**
      * 资源名称
      */
     private String resourceName;

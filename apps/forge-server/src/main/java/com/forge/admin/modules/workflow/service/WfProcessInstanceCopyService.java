@@ -7,4 +7,13 @@ import com.forge.admin.modules.workflow.dto.copy.CopyResponse;
 public interface WfProcessInstanceCopyService {
 
     Page<CopyResponse> pageCopy(CopyQueryRequest request);
+
+    /**
+     * 流程结束时自动抄送
+     *
+     * @param processInstanceId    流程实例ID
+     * @param processDefinitionId  流程定义ID
+     * @param reason               抄送原因
+     */
+    void autoCopyOnProcessEnd(String processInstanceId, String processDefinitionId, String reason);
 }

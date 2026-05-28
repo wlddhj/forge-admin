@@ -199,6 +199,8 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
         ext.setDescription(request.getDescription());
         ext.setFormType(request.getFormType());
         ext.setFormId(request.getFormId());
+        ext.setAutoCopyStrategy(request.getAutoCopyStrategy());
+        ext.setAutoCopyParam(request.getAutoCopyParam());
         ext.setBpmnXml(request.getBpmnXml());
         ext.setCreateBy(currentUserId);
         ext.setCreateByName(currentUsername);
@@ -384,6 +386,8 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
             response.setBpmnXml(ext.getBpmnXml());
             response.setFormType(ext.getFormType());
             response.setFormId(ext.getFormId());
+            response.setAutoCopyStrategy(ext.getAutoCopyStrategy());
+            response.setAutoCopyParam(ext.getAutoCopyParam());
             if (ext.getCreateTime() != null) {
                 response.setCreateTime(ext.getCreateTime());
             }

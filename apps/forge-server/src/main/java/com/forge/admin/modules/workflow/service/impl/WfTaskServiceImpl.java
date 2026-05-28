@@ -12,6 +12,7 @@ import com.forge.admin.modules.workflow.framework.ApprovalActionTypeEnum;
 import com.forge.admin.modules.workflow.identity.FlowableIdentityService;
 import com.forge.admin.modules.workflow.mapper.WfApprovalCommentMapper;
 import com.forge.admin.modules.workflow.mapper.WfProcessInstanceCopyMapper;
+import com.forge.admin.modules.workflow.service.WfProcessInstanceCopyService;
 import com.forge.admin.modules.workflow.service.WfTaskService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,7 @@ public class WfTaskServiceImpl implements WfTaskService {
     private final FlowableIdentityService flowableIdentityService;
     private final WfApprovalCommentMapper wfApprovalCommentMapper;
     private final WfProcessInstanceCopyMapper wfProcessInstanceCopyMapper;
+    private final WfProcessInstanceCopyService copyService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -304,8 +306,16 @@ public class WfTaskServiceImpl implements WfTaskService {
 
         // 驳回时直接终止流程实例，设置 deleteReason 使前端显示"已终止"
         String processInstanceId = task.getProcessInstanceId();
+        String processDefinitionId = task.getProcessDefinitionId();
         String reason = request.getComment() != null ? request.getComment() : "审批驳回";
         runtimeService.deleteProcessInstance(processInstanceId, reason);
+
+        // 自动抄送
+        try {
+            copyService.autoCopyOnProcessEnd(processInstanceId, processDefinitionId, "流程驳回自动抄送");
+        } catch (Exception e) {
+            log.warn("流程驳回自动抄送异常：processInstanceId={}", processInstanceId, e);
+        }
 
         log.info("任务审批驳回（流程终止）：taskId={}, processInstanceId={}, userId={}", taskId, processInstanceId, currentUserId);
     }

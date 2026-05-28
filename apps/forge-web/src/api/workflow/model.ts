@@ -14,6 +14,8 @@ export interface WfModel {
   deployed: boolean
   formType: number | null
   formId: number | null
+  autoCopyStrategy: number | null
+  autoCopyParam: string | null
   bpmnXml: string | null
 }
 

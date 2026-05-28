@@ -198,6 +198,45 @@
             />
           </el-select>
         </el-form-item>
+        <el-divider content-position="left">自动抄送</el-divider>
+        <el-form-item label="抄送策略">
+          <el-select v-model="formData.autoCopyStrategy" placeholder="不自动抄送" clearable style="width: 100%">
+            <el-option
+              v-for="item in autoCopyStrategyOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="formData.autoCopyStrategy === 10" label="抄送角色">
+          <el-select v-model="formData.autoCopyParam" placeholder="请选择角色" clearable filterable style="width: 100%">
+            <el-option v-for="item in roleList" :key="item.id" :label="item.roleName" :value="String(item.id)" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-else-if="formData.autoCopyStrategy === 20 || formData.autoCopyStrategy === 21" label="抄送部门">
+          <el-tree-select
+            v-model="formData.autoCopyParam"
+            :data="deptTree"
+            :props="{ label: 'deptName', children: 'children' }"
+            node-key="id"
+            placeholder="请选择部门"
+            clearable
+            check-strictly
+            filterable
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item v-else-if="formData.autoCopyStrategy === 22" label="抄送岗位">
+          <el-select v-model="formData.autoCopyParam" placeholder="请选择岗位" clearable filterable style="width: 100%">
+            <el-option v-for="item in positionList" :key="item.id" :label="item.positionName" :value="String(item.id)" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-else-if="formData.autoCopyStrategy === 30" label="抄送用户">
+          <el-select v-model="formData.autoCopyParam" placeholder="请选择用户" clearable filterable style="width: 100%">
+            <el-option v-for="item in userList" :key="item.id" :label="item.nickname" :value="String(item.id)" />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -217,6 +256,7 @@ import { modelApi } from '@/api/workflow/model'
 import type { WfModel } from '@/api/workflow/model'
 import { categoryApi } from '@/api/workflow/category'
 import { formApi } from '@/api/workflow/form'
+import { getAllUsersSimple, getAllRoles, getDeptTree, getAllPositions } from '@/api/system'
 import type { WfCategory } from '@/types/workflow'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
@@ -263,6 +303,24 @@ const categoryList = ref<WfCategory[]>([])
 // 表单列表
 const formList = ref<{ id: number; name: string }[]>([])
 
+// 自动抄送策略选项
+const autoCopyStrategyOptions = [
+  { label: '指定角色', value: 10 },
+  { label: '部门成员', value: 20 },
+  { label: '部门负责人', value: 21 },
+  { label: '指定岗位', value: 22 },
+  { label: '指定用户', value: 30 },
+  { label: '发起人自己', value: 36 },
+  { label: '发起人部门负责人', value: 37 },
+  { label: '表达式', value: 60 },
+]
+
+// 自动抄送引用数据
+const userList = ref<{ id: number; nickname: string }[]>([])
+const roleList = ref<{ id: number; roleName: string }[]>([])
+const deptTree = ref<any[]>([])
+const positionList = ref<{ id: number; positionName: string }[]>([])
+
 // 对话框
 const dialogVisible = ref(false)
 const submitLoading = ref(false)
@@ -278,6 +336,8 @@ const formData = reactive({
   description: '',
   formType: undefined as number | undefined,
   formId: undefined as number | undefined,
+  autoCopyStrategy: undefined as number | undefined,
+  autoCopyParam: undefined as string | undefined,
 })
 
 const formRules: FormRules = {
@@ -356,6 +416,8 @@ const handleAdd = () => {
   formData.description = ''
   formData.formType = undefined
   formData.formId = undefined
+  formData.autoCopyStrategy = undefined
+  formData.autoCopyParam = undefined
   dialogVisible.value = true
 }
 
@@ -370,6 +432,8 @@ const handleEdit = (row: WfModel) => {
   formData.description = row.description || ''
   formData.formType = row.formType || undefined
   formData.formId = row.formId || undefined
+  formData.autoCopyStrategy = row.autoCopyStrategy || undefined
+  formData.autoCopyParam = row.autoCopyParam || undefined
   dialogVisible.value = true
 }
 
@@ -380,13 +444,19 @@ const handleSubmit = async () => {
 
   submitLoading.value = true
   try {
-    // 构建 metaInfo JSON（包含 formType 和 formId）
+    // 构建 metaInfo JSON（包含 formType、formId、autoCopyStrategy、autoCopyParam）
     const metaInfo: Record<string, any> = {}
     if (formData.formType !== undefined) {
       metaInfo.formType = formData.formType
     }
     if (formData.formId !== undefined) {
       metaInfo.formId = formData.formId
+    }
+    if (formData.autoCopyStrategy !== undefined) {
+      metaInfo.autoCopyStrategy = formData.autoCopyStrategy
+    }
+    if (formData.autoCopyParam !== undefined) {
+      metaInfo.autoCopyParam = formData.autoCopyParam
     }
 
     if (isEditDialog.value) {
@@ -479,7 +549,26 @@ onMounted(() => {
   getList()
   getCategoryList()
   getFormList()
+  loadAutoCopyReferenceData()
 })
+
+/** 加载自动抄送引用数据 */
+const loadAutoCopyReferenceData = async () => {
+  try {
+    const [users, roles, depts, positions] = await Promise.all([
+      getAllUsersSimple(),
+      getAllRoles(),
+      getDeptTree(),
+      getAllPositions(),
+    ])
+    userList.value = users
+    roleList.value = roles
+    deptTree.value = depts
+    positionList.value = positions
+  } catch (e) {
+    // 加载失败不影响主流程
+  }
+}
 </script>
 
 <style scoped lang="scss">

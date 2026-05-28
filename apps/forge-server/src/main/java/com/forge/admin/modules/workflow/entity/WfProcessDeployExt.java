@@ -64,6 +64,16 @@ public class WfProcessDeployExt {
     private Long formId;
 
     /**
+     * 自动抄送策略
+     */
+    private Integer autoCopyStrategy;
+
+    /**
+     * 自动抄送参数
+     */
+    private String autoCopyParam;
+
+    /**
      * BPMN XML内容
      */
     private String bpmnXml;
