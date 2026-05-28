@@ -5,6 +5,7 @@ import com.forge.admin.modules.system.entity.SysUser;
 import com.forge.admin.modules.system.mapper.SysDeptMapper;
 import com.forge.admin.modules.system.mapper.SysUserMapper;
 import com.forge.admin.modules.workflow.framework.candidate.BpmTaskCandidateStrategy;
+import com.forge.admin.modules.workflow.framework.candidate.CandidateStrategyEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.engine.RuntimeService;
@@ -38,7 +39,7 @@ public class StartUserDeptLeaderStrategy implements BpmTaskCandidateStrategy {
 
     @Override
     public int getStrategy() {
-        return 37;
+        return CandidateStrategyEnum.START_USER_DEPT_LEADER.getCode();
     }
 
     @Override

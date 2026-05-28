@@ -1,6 +1,7 @@
 package com.forge.admin.modules.workflow.framework.candidate.strategy;
 
 import com.forge.admin.modules.workflow.framework.candidate.BpmTaskCandidateStrategy;
+import com.forge.admin.modules.workflow.framework.candidate.CandidateStrategyEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.task.service.delegate.DelegateTask;
 import org.springframework.stereotype.Component;
@@ -21,7 +22,7 @@ public class ApproveUserSelectStrategy implements BpmTaskCandidateStrategy {
 
     @Override
     public int getStrategy() {
-        return 34;
+        return CandidateStrategyEnum.APPROVE_USER_SELECT.getCode();
     }
 
     @Override

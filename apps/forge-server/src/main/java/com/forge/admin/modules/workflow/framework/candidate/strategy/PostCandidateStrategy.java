@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.forge.admin.modules.system.entity.SysUserPosition;
 import com.forge.admin.modules.system.mapper.SysUserPositionMapper;
 import com.forge.admin.modules.workflow.framework.candidate.BpmTaskCandidateStrategy;
+import com.forge.admin.modules.workflow.framework.candidate.CandidateStrategyEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -26,7 +27,7 @@ public class PostCandidateStrategy implements BpmTaskCandidateStrategy {
 
     @Override
     public int getStrategy() {
-        return 22;
+        return CandidateStrategyEnum.POST.getCode();
     }
 
     @Override

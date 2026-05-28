@@ -1,6 +1,7 @@
 package com.forge.admin.modules.workflow.framework.candidate.strategy;
 
 import com.forge.admin.modules.workflow.framework.candidate.BpmTaskCandidateStrategy;
+import com.forge.admin.modules.workflow.framework.candidate.CandidateStrategyEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.runtime.ProcessInstance;
@@ -30,7 +31,7 @@ public class StartUserStrategy implements BpmTaskCandidateStrategy {
 
     @Override
     public int getStrategy() {
-        return 36;
+        return CandidateStrategyEnum.START_USER.getCode();
     }
 
     @Override
