@@ -246,19 +246,15 @@ public class WfTaskServiceImpl implements WfTaskService {
         Task task = validateTask(taskId);
         validateTaskAssignee(task, currentUserId);
 
-        // 设置审批驳回变量
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("approved", false);
-        if (request.getVariables() != null) {
-            variables.putAll(request.getVariables());
-        }
-
-        taskService.complete(taskId, variables);
-
         // 保存审批驳回意见
         saveApprovalComment(task, currentUserId, userName, "reject", request.getComment());
 
-        log.info("任务审批驳回：taskId={}, userId={}", taskId, currentUserId);
+        // 驳回时直接终止流程实例，设置 deleteReason 使前端显示"已终止"
+        String processInstanceId = task.getProcessInstanceId();
+        String reason = request.getComment() != null ? request.getComment() : "审批驳回";
+        runtimeService.deleteProcessInstance(processInstanceId, reason);
+
+        log.info("任务审批驳回（流程终止）：taskId={}, processInstanceId={}, userId={}", taskId, processInstanceId, currentUserId);
     }
 
     @Override
