@@ -522,18 +522,15 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
                 .processInstanceId(processInstanceId)
                 .list();
 
-        List<String> assigneeNames = new ArrayList<>();
+        List<Long> assigneeIds = new ArrayList<>();
         List<String> candidateNames = new ArrayList<>();
         Set<Long> candidateIds = new HashSet<>();
 
         for (org.flowable.task.api.Task task : tasks) {
             if (StrUtil.isNotBlank(task.getAssignee())) {
                 try {
-                    Long uid = Long.parseLong(task.getAssignee());
-                    assigneeNames.add(userNameCache.getOrDefault(uid, task.getAssignee()));
-                } catch (NumberFormatException e) {
-                    assigneeNames.add(task.getAssignee());
-                }
+                    assigneeIds.add(Long.parseLong(task.getAssignee()));
+                } catch (NumberFormatException ignored) {}
             } else {
                 // 候选任务，查询候选人
                 try {
@@ -546,6 +543,20 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
                                 } catch (NumberFormatException ignored) {}
                             });
                 } catch (Exception ignored) {}
+            }
+        }
+
+        // 批量解析受理人名称
+        List<String> assigneeNames = new ArrayList<>();
+        if (!assigneeIds.isEmpty()) {
+            Set<Long> unresolvedIds = assigneeIds.stream()
+                    .filter(id -> !userNameCache.containsKey(id))
+                    .collect(Collectors.toSet());
+            if (!unresolvedIds.isEmpty()) {
+                userNameCache.putAll(flowableIdentityService.getUserNames(unresolvedIds));
+            }
+            for (Long uid : assigneeIds) {
+                assigneeNames.add(userNameCache.getOrDefault(uid, String.valueOf(uid)));
             }
         }
 
