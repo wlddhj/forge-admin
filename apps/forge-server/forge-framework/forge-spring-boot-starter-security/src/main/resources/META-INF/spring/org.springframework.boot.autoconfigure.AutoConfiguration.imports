@@ -1,0 +1,3 @@
+com.forge.framework.security.config.JwtProperties
+com.forge.framework.security.config.JustAuthConfig
+com.forge.framework.security.config.JustAuthProperties

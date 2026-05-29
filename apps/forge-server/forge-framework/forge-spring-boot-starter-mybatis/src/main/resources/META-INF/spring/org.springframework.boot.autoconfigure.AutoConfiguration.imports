@@ -1,0 +1,7 @@
+com.forge.framework.mybatis.config.MybatisPlusConfig
+com.forge.framework.mybatis.config.DataPermissionInterceptor
+com.forge.framework.mybatis.config.DataPermissionInterceptorJSQLParser
+com.forge.framework.mybatis.aspect.DataPermissionAnnotationInterceptor
+com.forge.framework.mybatis.permission.DataPermissionRuleFactoryImpl
+com.forge.framework.mybatis.permission.DataPermissionRuleHandler
+com.forge.framework.mybatis.permission.DataPermissionContextHolder

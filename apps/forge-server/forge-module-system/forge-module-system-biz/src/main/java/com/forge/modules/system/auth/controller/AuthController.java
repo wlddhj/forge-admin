@@ -1,0 +1,272 @@
+package com.forge.modules.system.auth.controller;
+
+import com.forge.framework.web.annotation.RateLimiter;
+import com.forge.framework.security.config.JwtProperties;
+import com.forge.common.response.Result;
+import com.forge.common.utils.IpUtils;
+import com.forge.common.utils.UserContext;
+import com.forge.modules.system.auth.dto.LoginRequest;
+import com.forge.modules.system.auth.dto.LoginResponse;
+import com.forge.modules.system.auth.dto.RefreshTokenRequest;
+import com.forge.modules.system.auth.dto.UserInfoResponse;
+import com.forge.modules.system.auth.security.JwtTokenProvider;
+import com.forge.modules.system.auth.service.RefreshTokenService;
+import com.forge.modules.system.dto.menu.MenuTreeResponse;
+import com.forge.modules.system.dto.online.LoginUserSession;
+import com.forge.modules.system.entity.SysUser;
+import com.forge.modules.system.service.LoginUserSessionService;
+import com.forge.modules.system.service.SysLoginLogService;
+import com.forge.modules.system.service.SysMenuService;
+import com.forge.modules.system.service.SysUserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * 认证控制器
+ *
+ * @author standadmin
+ */
+@Slf4j
+@Tag(name = "认证管理")
+@RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final AuthenticationManager authenticationManager;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final JwtProperties jwtProperties;
+    private final SysUserService sysUserService;
+    private final SysMenuService sysMenuService;
+    private final SysLoginLogService sysLoginLogService;
+    private final RefreshTokenService refreshTokenService;
+    private final LoginUserSessionService loginUserSessionService;
+
+        @Operation(summary = "登录")
+    @PostMapping("/login")
+    @RateLimiter(keyType = RateLimiter.KeyType.USERNAME, time = 60, count = 20, message = "登录请求过于频繁，请稍后再试")
+        public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+        // 在 try 之前提取客户端信息，确保 catch 中也能访问
+        String loginIp = com.forge.common.utils.IpUtils.getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+
+        try {
+            // 认证
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+            );
+
+            // 获取用户信息
+            SysUser user = sysUserService.getByUsername(request.getUsername());
+            if (user == null) {
+                return Result.failed("用户不存在");
+            }
+
+            // 生成 tokenId
+            String tokenId = java.util.UUID.randomUUID().toString().replace("-", "");
+
+            // 生成 Access Token（使用相同的 tokenId 关联会话）
+            String accessToken = jwtTokenProvider.generateTokenWithId(request.getUsername(), tokenId);
+
+            // 生成 Refresh Token
+            String refreshToken = refreshTokenService.generateRefreshToken(
+                    request.getUsername(),
+                    jwtProperties.getRefreshExpiration()
+            );
+
+            // 解析客户端信息
+            String browser = com.forge.common.utils.IpUtils.getBrowser(userAgent);
+            String os = com.forge.common.utils.IpUtils.getOs(userAgent);
+            String loginLocation = com.forge.common.utils.IpUtils.getLocationByIp(loginIp);
+
+            // 保存登录会话到 Redis
+            long currentTime = System.currentTimeMillis();
+            LoginUserSession session = LoginUserSession.builder()
+                    .tokenId(tokenId)
+                    .userId(user.getId())
+                    .username(user.getUsername())
+                    .nickname(user.getNickname())
+                    .loginIp(loginIp)
+                    .loginLocation(loginLocation)
+                    .browser(browser)
+                    .os(os)
+                    .loginTime(currentTime)
+                    .lastActiveTime(currentTime)
+                    .build();
+            loginUserSessionService.saveSession(session, jwtProperties.getRefreshExpiration());
+
+            // 记录登录成功日志
+            sysLoginLogService.recordLoginLog(request.getUsername(), 1, "登录成功", loginIp, userAgent);
+
+            LoginResponse response = LoginResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .tokenType("Bearer")
+                    .expiresIn(jwtProperties.getExpiration())
+                    .refreshExpiresIn(jwtProperties.getRefreshExpiration())
+                    .build();
+
+            // 设置 access_token Cookie（支持 OAuth2 授权码流程的浏览器重定向）
+            Cookie tokenCookie = new Cookie("access_token", accessToken);
+            tokenCookie.setHttpOnly(true);
+            tokenCookie.setPath("/");
+            tokenCookie.setMaxAge(jwtProperties.getExpiration().intValue());
+            httpResponse.addCookie(tokenCookie);
+
+            return Result.success(response);
+        } catch (BadCredentialsException e) {
+            // 记录登录失败日志
+            sysLoginLogService.recordLoginLog(request.getUsername(), 0, "用户名或密码错误", loginIp, userAgent);
+            throw e;
+        } catch (Exception e) {
+            // 记录登录失败日志
+            sysLoginLogService.recordLoginLog(request.getUsername(), 0, "登录失败：" + e.getMessage(), loginIp, userAgent);
+            throw e;
+        }
+    }
+
+    @Operation(summary = "获取当前用户信息")
+    @GetMapping("/userinfo")
+    public Result<UserInfoResponse> getUserInfo() {
+        String username = UserContext.getCurrentUsername();
+        if (username == null) {
+            return Result.failed("未登录");
+        }
+
+        SysUser user = sysUserService.getByUsername(username);
+        if (user == null) {
+            return Result.failed("用户不存在");
+        }
+
+        // 获取角色和权限
+        List<String> roles = sysUserService.getUserRoleCodes(user.getId());
+        List<String> permissions = sysUserService.getUserPermissionCodes(user.getId());
+
+        UserInfoResponse response = UserInfoResponse.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .nickname(user.getNickname())
+                .avatar(user.getAvatar())
+                .deptId(user.getDeptId())
+                .roles(roles)
+                .permissions(permissions)
+                .build();
+
+        return Result.success(response);
+    }
+
+    @Operation(summary = "获取当前用户菜单")
+    @GetMapping("/menus")
+    public Result<List<MenuTreeResponse>> getUserMenus() {
+        Long userId = UserContext.getCurrentUserId();
+        if (userId == null) {
+            return Result.failed("未登录");
+        }
+        return Result.success(sysMenuService.getUserMenuTree(userId));
+    }
+
+    @Operation(summary = "退出登录")
+    @PostMapping("/logout")
+    public Result<Void> logout(HttpServletRequest request, HttpServletResponse httpResponse) {
+        // 从 Authorization header 获取 Access Token
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String accessToken = authHeader.substring(7);
+            try {
+                // 从 Token 中获取 tokenId 并删除会话
+                String tokenId = jwtTokenProvider.getTokenId(accessToken);
+                if (tokenId != null) {
+                    loginUserSessionService.deleteSession(tokenId);
+                    log.info("用户退出登录，删除会话: tokenId={}", tokenId);
+                }
+            } catch (Exception e) {
+                log.warn("退出登录时解析 Token 失败: {}", e.getMessage());
+            }
+        }
+
+        // 删除 Refresh Token
+        String refreshToken = request.getHeader("X-Refresh-Token");
+        if (refreshToken != null) {
+            refreshTokenService.deleteRefreshToken(refreshToken);
+        }
+
+        // 清除用户上下文
+        UserContext.clear();
+
+        // 清除 access_token Cookie
+        Cookie tokenCookie = new Cookie("access_token", null);
+        tokenCookie.setHttpOnly(true);
+        tokenCookie.setPath("/");
+        tokenCookie.setMaxAge(0);
+        httpResponse.addCookie(tokenCookie);
+
+        return Result.success();
+    }
+
+    @Operation(summary = "心跳接口")
+    @PostMapping("/heartbeat")
+    public Result<Void> heartbeat(HttpServletRequest request) {
+        // 从 Authorization header 获取 Access Token
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String accessToken = authHeader.substring(7);
+            try {
+                String tokenId = jwtTokenProvider.getTokenId(accessToken);
+                if (tokenId != null) {
+                    loginUserSessionService.updateLastActiveTime(tokenId);
+                }
+            } catch (Exception e) {
+                log.warn("心跳更新失败: {}", e.getMessage());
+            }
+        }
+        return Result.success();
+    }
+
+    @Operation(summary = "刷新 Token")
+    @PostMapping("/refresh")
+    @RateLimiter(time = 60, count = 30, message = "Token刷新请求过于频繁，请稍后再试")
+    public Result<LoginResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        String refreshToken = request.getRefreshToken();
+
+        // 验证 Refresh Token 并获取用户名
+        String username = refreshTokenService.validateAndGetUsername(refreshToken);
+        if (username == null) {
+            return Result.failed("刷新令牌无效或已过期");
+        }
+
+        // 删除旧的 Refresh Token
+        refreshTokenService.deleteRefreshToken(refreshToken);
+
+        // 生成新的 Access Token
+        String newAccessToken = jwtTokenProvider.generateToken(username);
+
+        // 生成新的 Refresh Token
+        String newRefreshToken = refreshTokenService.generateRefreshToken(
+                username,
+                jwtProperties.getRefreshExpiration()
+        );
+
+        LoginResponse response = LoginResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .tokenType("Bearer")
+                .expiresIn(jwtProperties.getExpiration())
+                .refreshExpiresIn(jwtProperties.getRefreshExpiration())
+                .build();
+
+        return Result.success(response);
+    }
+}

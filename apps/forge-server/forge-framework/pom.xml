@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.forge</groupId>
+        <artifactId>forge</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>forge-framework</artifactId>
+    <packaging>pom</packaging>
+    <name>forge-framework</name>
+    <description>框架层 - 技术基础设施</description>
+
+    <modules>
+        <module>forge-common</module>
+        <module>forge-spring-boot-starter-mybatis</module>
+        <module>forge-spring-boot-starter-redis</module>
+        <module>forge-spring-boot-starter-security</module>
+        <module>forge-spring-boot-starter-web</module>
+    </modules>
+</project>
