@@ -65,7 +65,6 @@ pnpm dev
 |------|--------|------|
 | `com.forge` | `{包名}` | `com.mycompany` |
 | `ForgeAdminApplication` | `{项目名PascalCase}Application` | `MyAdminApplication` |
-| `forge-admin-backend` | `{项目名-kebab}-backend` | `my-admin-backend` |
 | `forge-admin` | `{项目名-kebab}` | `my-admin` |
 | `forge_admin` | `{项目名-snake}` | `my_admin` |
 | `聚能后台管理系统` | `{项目描述}` | `我的管理系统` |

@@ -217,8 +217,6 @@ function main() {
     { from: 'ForgeAdminApplication', to: `${namePascal}Application` },
     { from: 'com.forge.admin', to: config.basePackage },
     { from: 'com.forge', to: config.basePackage },
-    { from: 'forge-admin-backend', to: `${config.nameKebab}-backend` },
-    { from: 'forge-admin-frontend', to: `${config.nameKebab}-frontend` },
     { from: 'forge_admin-page-config', to: `${config.nameSnake}-page-config` },
     { from: 'forge-admin', to: config.nameKebab },
     { from: 'forge_admin', to: config.nameSnake },
