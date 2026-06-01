@@ -513,3 +513,53 @@ export function updateNotice(data: NoticeRequest) {
 export function deleteNotice(ids: number[]) {
   return request.delete(`/system/notice/${ids.join(',')}`)
 }
+
+// ==================== 序列号生成器 ====================
+
+export interface KeySequence {
+  id: number
+  keyCategory: string
+  keyPrefix: string
+  dateRule: string
+  maxValue: number
+  seqLength: number
+  lastDateVal: string
+  remark: string
+  createTime: string
+  updateTime: string
+}
+
+export interface KeySequenceQuery {
+  pageNum: number
+  pageSize: number
+  keyCategory?: string
+}
+
+export interface KeySequenceRequest {
+  id?: number
+  keyCategory: string
+  keyPrefix: string
+  dateRule: string
+  seqLength: number
+  remark: string
+}
+
+export function getKeySequenceList(params: KeySequenceQuery) {
+  return request.get<PageResult<KeySequence>>('/system/key-sequence/list', { params }).then(res => res.data)
+}
+
+export function getKeySequence(id: number) {
+  return request.get<KeySequence>(`/system/key-sequence/${id}`).then(res => res.data)
+}
+
+export function addKeySequence(data: KeySequenceRequest) {
+  return request.post('/system/key-sequence', data)
+}
+
+export function updateKeySequence(data: KeySequenceRequest) {
+  return request.put('/system/key-sequence', data)
+}
+
+export function deleteKeySequence(ids: number[]) {
+  return request.delete(`/system/key-sequence/${ids.join(',')}`)
+}

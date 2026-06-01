@@ -3,8 +3,8 @@
     <div class="login-box">
       <div class="login-header">
         <img src="/vite.svg" alt="logo" />
-        <h1>forge-admin</h1>
-        <p>聚能后台管理系统</p>
+        <h1>{{ appTitle }}</h1>
+        <p>{{ appSubtitle }}</p>
       </div>
 
       <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="login-form">
@@ -59,6 +59,8 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import SocialLogin from './components/social-login.vue'
 
+const appTitle = import.meta.env.VITE_APP_TITLE
+const appSubtitle = import.meta.env.VITE_APP_SUBTITLE
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()

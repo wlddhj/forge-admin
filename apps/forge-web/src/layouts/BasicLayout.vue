@@ -4,7 +4,7 @@
     <el-aside v-show="!isMobile" :width="isCollapse ? '64px' : '220px'" class="layout-aside">
       <div class="logo">
         <img src="/vite.svg" alt="logo" />
-        <span v-show="!isCollapse">forge-admin</span>
+        <span v-show="!isCollapse">{{ appTitle }}</span>
       </div>
       <el-scrollbar>
         <el-menu
@@ -186,6 +186,8 @@ const { connect: wsConnect, disconnect: wsDisconnect, unreadCount: wsUnreadCount
 const notificationVisible = ref(false)
 
 const isCollapse = ref(false)
+
+const appTitle = import.meta.env.VITE_APP_TITLE
 const mobileMenuVisible = ref(false)
 
 // 当前激活菜单
