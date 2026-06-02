@@ -309,15 +309,15 @@ $tablet-breakpoint: $breakpoint-lg;
 @include mobile {
   .el-drawer {
     &.rtl {
-      width: 85% !important;
+      width: 100% !important;
     }
 
     &.ltr {
-      width: 85% !important;
+      width: 100% !important;
     }
 
     &.ttb {
-      height: 70% !important;
+      height: 85% !important;
     }
 
     :deep(.el-drawer__header) {
