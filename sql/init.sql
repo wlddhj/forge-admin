@@ -496,6 +496,26 @@ CREATE TABLE `oauth2_authorization_consent` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='OAuth2授权同意';
 
 -- ========================================
+-- 23. 序列号生成规则表
+-- ========================================
+DROP TABLE IF EXISTS `sys_key_sequence`;
+CREATE TABLE `sys_key_sequence` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `key_category` varchar(64) NOT NULL COMMENT '分类编码',
+  `key_prefix` varchar(64) DEFAULT NULL COMMENT '前缀（支持{0}占位符）',
+  `date_rule` varchar(32) DEFAULT NULL COMMENT '日期格式规则（如 yyyyMMdd、yyyyMM、yyyy）',
+  `max_value` bigint NOT NULL DEFAULT 0 COMMENT '当前最大值',
+  `seq_length` int NOT NULL DEFAULT 4 COMMENT '顺序号位数',
+  `last_date_val` varchar(32) DEFAULT NULL COMMENT '最近日期值',
+  `remark` varchar(255) DEFAULT NULL COMMENT '备注',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` tinyint DEFAULT 0 COMMENT '删除标记',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_key_category` (`key_category`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='序列号生成规则';
+
+-- ========================================
 -- 初始化数据
 -- ========================================
 
@@ -616,7 +636,13 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 (71, '客户端查询', 70, '', '', NULL, '', 1, 2, 'system:oauth2-client:query', 1, 1, 0, 0),
 (72, '客户新增', 70, '', '', NULL, '', 2, 2, 'system:oauth2-client:add', 1, 1, 0, 0),
 (73, '客户端修改', 70, '', '', NULL, '', 3, 2, 'system:oauth2-client:edit', 1, 1, 0, 0),
-(74, '客户端删除', 70, '', '', NULL, '', 4, 2, 'system:oauth2-client:delete', 1, 1, 0, 0);
+(74, '客户端删除', 70, '', '', NULL, '', 4, 2, 'system:oauth2-client:delete', 1, 1, 0, 0),
+-- 序列号管理
+(80, '序列号管理', 1, '/system/key-sequence', '/views/system/key-sequence/index', NULL, 'Stamp', 17, 1, 'system:key-sequence:list', 1, 1, 0, 0),
+(81, '序列查询', 80, '', '', NULL, '', 1, 2, 'system:key-sequence:query', 1, 1, 0, 0),
+(82, '序列新增', 80, '', '', NULL, '', 2, 2, 'system:key-sequence:add', 1, 1, 0, 0),
+(83, '序列编辑', 80, '', '', NULL, '', 3, 2, 'system:key-sequence:edit', 1, 1, 0, 0),
+(84, '序列删除', 80, '', '', NULL, '', 4, 2, 'system:key-sequence:delete', 1, 1, 0, 0);
 
 -- 初始化角色菜单关联 (超级管理员拥有所有菜单)
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)
@@ -707,6 +733,10 @@ INSERT INTO `sys_job` (`id`, `job_name`, `job_group`, `invoke_target`, `cron_exp
 INSERT INTO `sys_notice` (`id`, `notice_title`, `notice_type`, `notice_content`, `status`, `create_by`, `remark`) VALUES
 (1, '欢迎使用forge-admin管理系统', 2, 'forge-admin是一个基于Spring Boot 3和Vue 3的企业级后台管理系统，提供了用户管理、角色管理、菜单管理、部门管理等常用功能模块。', 1, 1, '系统欢迎公告'),
 (2, '系统升级通知', 1, '系统将于本周六凌晨2点进行版本升级，届时系统将暂停服务约30分钟，请提前做好相关工作安排。', 1, 1, '维护通知');
+
+-- 初始化序列号种子数据
+INSERT INTO `sys_key_sequence` (`key_category`, `key_prefix`, `date_rule`, `seq_length`, `remark`) VALUES
+('process_no', 'WF', 'yyyyMMdd', 4, '流程编号');
 
 SET FOREIGN_KEY_CHECKS = 1;
 
