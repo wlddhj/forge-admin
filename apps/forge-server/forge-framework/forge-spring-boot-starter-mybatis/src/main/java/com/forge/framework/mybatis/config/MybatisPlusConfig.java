@@ -1,6 +1,7 @@
 package com.forge.framework.mybatis.config;
 
 import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.DataPermissionInterceptor;
@@ -9,9 +10,11 @@ import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerIntercept
 import com.forge.framework.mybatis.permission.DataPermissionRuleHandler;
 import com.forge.common.utils.UserContext;
 import lombok.RequiredArgsConstructor;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.reflection.MetaObject;
+import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 import java.time.LocalDateTime;
 
@@ -20,8 +23,9 @@ import java.time.LocalDateTime;
  *
  * @author standadmin
  */
-@Configuration
+@AutoConfiguration(before = MybatisPlusAutoConfiguration.class)
 @RequiredArgsConstructor
+@MapperScan(value = "${forge.info.base-package}", annotationClass = Mapper.class)
 public class MybatisPlusConfig {
 
     private final DataPermissionRuleHandler dataPermissionRuleHandler;

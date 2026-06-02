@@ -1,6 +1,5 @@
 package com.forge;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -12,12 +11,6 @@ import org.springframework.scheduling.annotation.EnableAsync;
  */
 @SpringBootApplication
 @EnableAsync
-@MapperScan({
-    "com.forge.modules.system.mapper",
-    "com.forge.modules.system.auth.mapper",
-    "com.forge.modules.system.quartz.mapper",
-    "com.forge.modules.workflow.mapper"
-})
 public class ForgeAdminApplication {
 
     public static void main(String[] args) {
