@@ -55,6 +55,83 @@ pnpm install
 pnpm dev
 ```
 
+## 创建新业务模块
+
+项目支持通过脚本快速创建新的业务模块（如仓储管理、订单管理等），自动生成标准的三层 Maven 模块结构。
+
+### 使用方法
+
+```bash
+pnpm run create-module <模块名> "<模块描述>"
+```
+
+**参数说明：**
+
+| 参数 | 说明 | 格式要求 | 示例 |
+|------|------|----------|------|
+| 模块名 | 模块标识符 | kebab-case，全小写 | `wms`、`order-management` |
+| 模块描述 | 模块中文名称 | 需用引号包裹 | `"仓储管理模块"` |
+
+**示例：**
+
+```bash
+# 创建仓储管理模块
+pnpm run create-module wms "仓储管理模块"
+
+# 创建订单管理模块
+pnpm run create-module order-management "订单管理模块"
+```
+
+### 生成的目录结构
+
+以 `pnpm run create-module wms "仓储管理模块"` 为例，脚本会创建：
+
+```
+apps/forge-server/forge-module-wms/
+├── pom.xml                                          # 聚合 POM (packaging=pom)
+├── forge-module-wms-api/
+│   ├── pom.xml
+│   └── src/main/java/com/forge/modules/wms/
+│       ├── entity/                                  # 实体类目录
+│       └── dto/                                     # DTO 目录
+└── forge-module-wms-biz/
+    ├── pom.xml
+    └── src/main/java/com/forge/modules/wms/
+        ├── controller/                              # Controller 目录
+        ├── mapper/                                  # Mapper 接口目录
+        └── service/impl/                            # Service 接口和实现目录
+    └── src/main/resources/mapper/wms/               # MyBatis XML 目录
+```
+
+### 自动修改的文件
+
+脚本执行过程中会自动修改以下文件：
+
+1. **根 POM**（`apps/forge-server/pom.xml`）— 添加 `<module>forge-module-{name}</module>` 声明
+2. **启动模块 POM**（`apps/forge-server/forge-server/pom.xml`）— 添加 `forge-module-{name}-biz` 依赖
+3. **初始化脚本**（`scripts/init-project.js`）— 添加新模块的替换规则和目录重命名规则，确保 `pnpm run init` 时能正确处理新模块
+
+### 模块依赖关系
+
+新模块默认依赖：
+- `forge-common`（公共模块）
+- `forge-module-system-api`（系统模块 API）
+- `forge-spring-boot-starter-mybatis`（MyBatis 配置）
+- `forge-spring-boot-starter-web`（Web 配置）
+- `knife4j`（API 文档）、`lombok`、`mysql-connector-j`
+
+### 创建后步骤
+
+模块创建完成后，需要手动添加业务代码：
+
+1. 在 `entity/` 中创建实体类
+2. 在 `dto/` 中创建 Request / Response / QueryRequest
+3. 在 `mapper/` 中创建 Mapper 接口
+4. 在 `service/impl/` 中创建 Service 接口和实现类
+5. 在 `controller/` 中创建 Controller
+6. 在 `resources/mapper/{模块名}/` 中创建 MyBatis XML 映射文件
+7. 编译验证：`cd apps/forge-server && mvn clean compile -pl forge-module-{name}`
+
 ## 替换规则说明
 
 初始化脚本会自动替换以下内容：
@@ -259,7 +336,8 @@ my-admin/
 │   └── nginx.conf
 │
 ├── scripts/
-│   └── init-project.js                            # 初始化脚本
+│   ├── init-project.js                            # 项目初始化脚本
+│   └── create-module.js                           # 创建新业务模块脚本
 │
 ├── sql/
 │   └── init.sql                                   # 数据库脚本（已更新数据库名）
