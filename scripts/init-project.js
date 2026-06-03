@@ -218,11 +218,27 @@ function main() {
     { from: 'com.forge.admin', to: config.basePackage },
     { from: 'com.forge', to: config.basePackage },
     { from: 'forge_admin-page-config', to: `${config.nameSnake}-page-config` },
+    // Maven 子模块（长名优先）
+    { from: 'forge-module-workflow-biz', to: `${config.nameKebab}-module-workflow-biz` },
+    { from: 'forge-module-workflow-api', to: `${config.nameKebab}-module-workflow-api` },
+    { from: 'forge-module-workflow', to: `${config.nameKebab}-module-workflow` },
+    { from: 'forge-module-system-biz', to: `${config.nameKebab}-module-system-biz` },
+    { from: 'forge-module-system-api', to: `${config.nameKebab}-module-system-api` },
+    { from: 'forge-module-system', to: `${config.nameKebab}-module-system` },
+    { from: 'forge-spring-boot-starter-mybatis', to: `${config.nameKebab}-spring-boot-starter-mybatis` },
+    { from: 'forge-spring-boot-starter-redis', to: `${config.nameKebab}-spring-boot-starter-redis` },
+    { from: 'forge-spring-boot-starter-security', to: `${config.nameKebab}-spring-boot-starter-security` },
+    { from: 'forge-spring-boot-starter-web', to: `${config.nameKebab}-spring-boot-starter-web` },
+    { from: 'forge-dependencies', to: `${config.nameKebab}-dependencies` },
+    { from: 'forge-framework', to: `${config.nameKebab}-framework` },
+    { from: 'forge-common', to: `${config.nameKebab}-common` },
     { from: 'forge-admin', to: config.nameKebab },
     { from: 'forge_admin', to: config.nameSnake },
     { from: '聚能后台管理系统', to: config.description },
     { from: 'forge-server', to: `${config.nameKebab}-server` },
     { from: 'forge-web', to: `${config.nameKebab}-web` },
+    // 根 artifactId（必须在所有 forge-* 之后）
+    { from: 'forge', to: config.nameKebab },
   ]
 
   // 需要处理的文件扩展名
@@ -231,6 +247,8 @@ function main() {
     '.vue', '.ts', '.js', '.json', '.html', '.env', '.sql', '.md',
     '.imports'
   ]
+  // 无扩展名但需要处理的文件名
+  const targetFilenames = ['Dockerfile']
 
   log('1. 替换文件内容...', 'yellow')
   const files = getAllFiles('.')
@@ -238,7 +256,8 @@ function main() {
 
   files.forEach(file => {
     const ext = path.extname(file)
-    if (targetExtensions.includes(ext) || file.includes('.env')) {
+    const basename = path.basename(file)
+    if (targetExtensions.includes(ext) || targetFilenames.includes(basename) || file.includes('.env')) {
       if (replaceInFile(file, replacements)) {
         replacedCount++
         log(`  ✓ ${file}`, 'green')
@@ -300,6 +319,41 @@ function main() {
       log(`  ✓ apps/${from} -> apps/${to}`, 'green')
     }
   })
+
+  // 重命名后端子模块目录（由深到浅）
+  log('\n4.5. 重命名后端子模块目录...', 'yellow')
+  const renamedServerDir = path.join(rootDir, 'apps', `${config.nameKebab}-server`)
+  if (fs.existsSync(renamedServerDir)) {
+    const submoduleRenames = [
+      // forge-framework 子目录（深层优先）
+      { from: 'forge-framework/forge-common', to: `forge-framework/${config.nameKebab}-common` },
+      { from: 'forge-framework/forge-spring-boot-starter-mybatis', to: `forge-framework/${config.nameKebab}-spring-boot-starter-mybatis` },
+      { from: 'forge-framework/forge-spring-boot-starter-redis', to: `forge-framework/${config.nameKebab}-spring-boot-starter-redis` },
+      { from: 'forge-framework/forge-spring-boot-starter-security', to: `forge-framework/${config.nameKebab}-spring-boot-starter-security` },
+      { from: 'forge-framework/forge-spring-boot-starter-web', to: `forge-framework/${config.nameKebab}-spring-boot-starter-web` },
+      // forge-module-system 子目录
+      { from: 'forge-module-system/forge-module-system-api', to: `forge-module-system/${config.nameKebab}-module-system-api` },
+      { from: 'forge-module-system/forge-module-system-biz', to: `forge-module-system/${config.nameKebab}-module-system-biz` },
+      // forge-module-workflow 子目录
+      { from: 'forge-module-workflow/forge-module-workflow-api', to: `forge-module-workflow/${config.nameKebab}-module-workflow-api` },
+      { from: 'forge-module-workflow/forge-module-workflow-biz', to: `forge-module-workflow/${config.nameKebab}-module-workflow-biz` },
+      // 中层目录
+      { from: 'forge-framework', to: `${config.nameKebab}-framework` },
+      { from: 'forge-module-system', to: `${config.nameKebab}-module-system` },
+      { from: 'forge-module-workflow', to: `${config.nameKebab}-module-workflow` },
+      { from: 'forge-dependencies', to: `${config.nameKebab}-dependencies` },
+      // 内部 forge-server 模块（启动入口）
+      { from: 'forge-server', to: `${config.nameKebab}-server` },
+    ]
+    submoduleRenames.forEach(({ from, to }) => {
+      const oldDir = path.join(renamedServerDir, from)
+      const newDir = path.join(renamedServerDir, to)
+      if (fs.existsSync(oldDir) && from !== to) {
+        fs.renameSync(oldDir, newDir)
+        log(`  ✓ ${from} -> ${to}`, 'green')
+      }
+    })
+  }
 
   // 更新数据库初始化脚本
   log('\n5. 更新数据库脚本...', 'yellow')
