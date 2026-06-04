@@ -183,7 +183,7 @@
     </el-dialog>
 
     <!-- 字典数据抽屉 -->
-    <el-drawer v-model="dataDrawerVisible" title="字典数据" :size="isMobile ? '85%' : '50%'">
+    <el-drawer v-model="dataDrawerVisible" title="字典数据" :size="isMobile ? '85%' : '70%'">
       <dict-data-list v-if="dataDrawerVisible" :dict-type="currentDictType" />
     </el-drawer>
   </div>

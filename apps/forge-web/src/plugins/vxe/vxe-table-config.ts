@@ -118,7 +118,14 @@ VxeUI.setConfig({
       // 图标布局
       iconLayout: 'vertical'
     },
-
+    editConfig: {
+      trigger: 'dblclick',
+      mode: 'cell',
+      showStatus: true,
+      showIcon: true,
+      showAsterisk: true,
+      autoFocus: true
+    },
     // 导入配置
     importConfig: {},
     // 导出配置

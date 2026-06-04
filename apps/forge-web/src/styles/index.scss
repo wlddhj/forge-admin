@@ -177,3 +177,16 @@ html.dark {
     border-bottom-color: var(--el-border-color-lighter);
   }
 }
+
+// 找到 class="vxe-cell--edit-icon" 的下一个span元素，将字体改成蓝色
+// 找到 class="vxe-cell--edit-icon" 将图标改成蓝色
+.vxe-cell--edit-icon {
+  color: var(--el-color-primary);// 跟主题颜色变化而变化
+}
+.vxe-cell--edit-icon + span {
+  color: var(--el-color-primary);
+}
+
+.vxe-dynamics--modal .type--confirm{
+  z-index: 4090!important;
+}
