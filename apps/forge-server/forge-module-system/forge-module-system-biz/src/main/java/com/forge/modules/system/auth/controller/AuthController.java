@@ -238,7 +238,8 @@ public class AuthController {
     @Operation(summary = "刷新 Token")
     @PostMapping("/refresh")
     @RateLimiter(time = 60, count = 30, message = "Token刷新请求过于频繁，请稍后再试")
-    public Result<LoginResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+    public Result<LoginResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request,
+                                               HttpServletRequest httpRequest) {
         String refreshToken = request.getRefreshToken();
 
         // 验证 Refresh Token 并获取用户名
@@ -250,14 +251,38 @@ public class AuthController {
         // 删除旧的 Refresh Token
         refreshTokenService.deleteRefreshToken(refreshToken);
 
-        // 生成新的 Access Token
-        String newAccessToken = jwtTokenProvider.generateToken(username);
+        // 生成新的 tokenId
+        String tokenId = java.util.UUID.randomUUID().toString().replace("-", "");
+
+        // 生成新的 Access Token（使用 tokenId 关联会话）
+        String newAccessToken = jwtTokenProvider.generateTokenWithId(username, tokenId);
 
         // 生成新的 Refresh Token
         String newRefreshToken = refreshTokenService.generateRefreshToken(
                 username,
                 jwtProperties.getRefreshExpiration()
         );
+
+        // 保存新会话到 Redis
+        SysUser user = sysUserService.getByUsername(username);
+        if (user != null) {
+            String loginIp = IpUtils.getClientIp(httpRequest);
+            String userAgent = httpRequest.getHeader("User-Agent");
+            long currentTime = System.currentTimeMillis();
+            LoginUserSession session = LoginUserSession.builder()
+                    .tokenId(tokenId)
+                    .userId(user.getId())
+                    .username(user.getUsername())
+                    .nickname(user.getNickname())
+                    .loginIp(loginIp)
+                    .loginLocation(IpUtils.getLocationByIp(loginIp))
+                    .browser(IpUtils.getBrowser(userAgent))
+                    .os(IpUtils.getOs(userAgent))
+                    .loginTime(currentTime)
+                    .lastActiveTime(currentTime)
+                    .build();
+            loginUserSessionService.saveSession(session, jwtProperties.getRefreshExpiration());
+        }
 
         LoginResponse response = LoginResponse.builder()
                 .accessToken(newAccessToken)
