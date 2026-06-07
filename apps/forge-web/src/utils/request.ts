@@ -22,77 +22,50 @@ export interface PageResult<T = any> {
   pages: number
 }
 
-// 刷新回调类型
-type RefreshCallback = (token: string) => void
-
-// 是否正在刷新 Token
-let isRefreshing = false
-// 是否正在处理登录过期（防止重复提示）
-let isHandlingExpired = false
-// 等待刷新的请求队列
-let refreshSubscribers: RefreshCallback[] = []
-// 刷新超时时间
-const REFRESH_TIMEOUT = 30000
-
-// 将请求加入队列（带超时处理）
-const subscribeTokenRefresh = (cb: RefreshCallback, timeout = REFRESH_TIMEOUT): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      // 超时后从队列中移除（如果还在队列中）
-      const index = refreshSubscribers.indexOf(wrappedCb)
-      if (index > -1) {
-        refreshSubscribers.splice(index, 1)
-      }
-      reject(new Error('Token refresh timeout'))
-    }, timeout)
-
-    const wrappedCb: RefreshCallback = (token: string) => {
-      clearTimeout(timer)
-      cb(token)
-      resolve()
-    }
-
-    refreshSubscribers.push(wrappedCb)
-  })
-}
-
-// 刷新完成后执行队列中的请求
-const onRefreshed = (token: string) => {
-  const subscribers = [...refreshSubscribers]
-  refreshSubscribers = []
-  subscribers.forEach((cb) => {
-    try {
-      cb(token)
-    } catch (e) {
-      console.error('Error in refresh subscriber:', e)
-    }
-  })
-}
-
-// 刷新失败，清空队列并跳转登录
-const onRefreshFailed = (errorMessage?: string) => {
-  // 先清空队列，防止后续请求继续等待
-  const subscribers = [...refreshSubscribers]
-  refreshSubscribers = []
-  // 通知所有等待的请求失败
-  subscribers.forEach((cb) => {
-    try {
-      cb('')
-    } catch (e) {
-      console.error('Error notifying refresh failed:', e)
-    }
-  })
-
-  // 防止重复提示和跳转
-  if (isHandlingExpired) {
-    return
+// 解码 JWT 获取过期时间（毫秒时间戳），失败返回 null
+const getTokenExp = (token: string): number | null => {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(atob(parts[1]))
+    return payload.exp ? payload.exp * 1000 : null
+  } catch {
+    return null
   }
+}
+
+// 检查 token 是否已过期
+const isTokenExpired = (): boolean => {
+  const userStore = useUserStore()
+  if (!userStore.token) return false
+
+  // 优先用存储的过期时间
+  const storedExpireTime = Number(localStorage.getItem('tokenExpireTime')) || 0
+  if (storedExpireTime > 0) {
+    return Date.now() > storedExpireTime
+  }
+
+  // 后备：解码 JWT
+  const jwtExp = getTokenExp(userStore.token)
+  if (jwtExp) {
+    return Date.now() > jwtExp
+  }
+
+  return false
+}
+
+// 模块级状态
+let isHandlingExpired = false
+// 共享的刷新 Promise，所有并发请求等待同一个
+let refreshPromise: Promise<string> | null = null
+
+// 执行登出并跳转登录页
+const handleLogout = (errorMessage?: string) => {
+  if (isHandlingExpired) return
   isHandlingExpired = true
 
-  // 显示错误提示
   ElMessage.error(errorMessage || '登录已过期，请重新登录')
 
-  // 执行登出和跳转
   const userStore = useUserStore()
   const permissionStore = usePermissionStore()
   const tabsStore = useTabsStore()
@@ -104,6 +77,47 @@ const onRefreshFailed = (errorMessage?: string) => {
   })
 }
 
+// 获取共享的刷新 Promise
+const getRefreshPromise = (): Promise<string> => {
+  if (refreshPromise) return refreshPromise
+
+  const userStore = useUserStore()
+  const refreshTokenValue = userStore.refreshTokenValue
+
+  if (!refreshTokenValue) {
+    refreshPromise = Promise.reject(new Error('No refresh token'))
+    handleLogout('未登录或登录已过期')
+    return refreshPromise
+  }
+
+  refreshPromise = axios
+    .post<Result<any>>('/api/auth/refresh', { refreshToken: refreshTokenValue })
+    .then((response) => {
+      const res = response.data
+      if (res.code === 200 && res.data) {
+        userStore.updateToken(res.data.accessToken)
+        userStore.updateRefreshToken(res.data.refreshToken)
+        if (res.data.expiresIn) {
+          userStore.setTokenExpireTime(res.data.expiresIn)
+        }
+        return res.data.accessToken
+      }
+      throw new Error(res.message || 'Token 刷新失败')
+    })
+    .catch((err) => {
+      const message = err.name === 'AbortError' || err.name === 'CanceledError'
+        ? 'Token 刷新超时'
+        : '登录已过期，请重新登录'
+      handleLogout(message)
+      throw err
+    })
+    .finally(() => {
+      refreshPromise = null
+    })
+
+  return refreshPromise
+}
+
 // 创建 axios 实例
 const service: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -113,15 +127,35 @@ const service: AxiosInstance = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
   (config) => {
-    // 如果正在处理登录过期，直接拒绝新请求
+    // 已在处理过期状态，拒绝所有新请求
     if (isHandlingExpired) {
       return Promise.reject(new Error('登录已过期'))
     }
+
     const userStore = useUserStore()
-    if (userStore.token) {
-      config.headers.Authorization = `Bearer ${userStore.token}`
+    if (!userStore.token) return config
+
+    // 白名单接口不需要检查过期（刷新接口自身）
+    const url = config.url || ''
+    if (url.includes('/auth/refresh') || url.includes('/auth/login')) {
+      return config
     }
-    return config
+
+    // token 未过期，正常添加 header
+    if (!isTokenExpired()) {
+      config.headers.Authorization = `Bearer ${userStore.token}`
+      return config
+    }
+
+    // token 已过期，走共享刷新逻辑
+    return getRefreshPromise()
+      .then((newToken) => {
+        config.headers.Authorization = `Bearer ${newToken}`
+        return config
+      })
+      .catch(() => {
+        return Promise.reject(new Error('登录已过期'))
+      })
   },
   (error) => {
     return Promise.reject(error)
@@ -144,12 +178,21 @@ service.interceptors.response.use(
       if (isSilent || isHandlingExpired) {
         return Promise.reject(new Error(res.message || '请求失败'))
       }
-      // 401: 未登录或 Token 过期
+      // 401: 未登录或 Token 过期（兜底，正常情况下请求拦截器已处理）
       if (res.code === 401) {
-        return handleTokenExpired(null, res.message)
-      } else {
-        ElMessage.error(res.message || '请求失败')
+        return getRefreshPromise()
+          .then((newToken) => {
+            if (response.config) {
+              response.config.headers.Authorization = `Bearer ${newToken}`
+              return service.request(response.config)
+            }
+            return Promise.reject(new Error('刷新失败'))
+          })
+          .catch(() => {
+            return Promise.reject(new Error('登录已过期'))
+          })
       }
+      ElMessage.error(res.message || '请求失败')
 
       return Promise.reject(new Error(res.message || '请求失败'))
     }
@@ -164,12 +207,22 @@ service.interceptors.response.use(
   (error) => {
     const isSilent = (error.config as any)?.silent
 
-    // 静默请求 401 不触发自动刷新，由调用方自行处理
+    // 401 错误：尝试用共享刷新 Promise 兜底
     if (error.response?.status === 401) {
       if (isSilent || isHandlingExpired) {
         return Promise.reject(error)
       }
-      return handleTokenExpired(error)
+      return getRefreshPromise()
+        .then((newToken) => {
+          if (error.config) {
+            error.config.headers.Authorization = `Bearer ${newToken}`
+            return service.request(error.config)
+          }
+          return Promise.reject(error)
+        })
+        .catch(() => {
+          return Promise.reject(error)
+        })
     }
 
     if (!isSilent) {
@@ -200,108 +253,6 @@ service.interceptors.response.use(
   }
 )
 
-// 处理 Token 过期
-const handleTokenExpired = (error: any, errorMessage?: string) => {
-  const userStore = useUserStore()
-  const refreshTokenValue = userStore.refreshTokenValue
-
-  // 如果没有 refreshToken，直接跳转登录
-  if (!refreshTokenValue) {
-    // 防止重复提示
-    if (!isHandlingExpired) {
-      isHandlingExpired = true
-      ElMessage.error(errorMessage || '未登录或登录已过期')
-      const permissionStore = usePermissionStore()
-      const tabsStore = useTabsStore()
-      userStore.logoutAction().finally(() => {
-        permissionStore.resetRoutes()
-        tabsStore.clearAllTabs()
-        resetRouter()
-        router.push('/login')
-      })
-    }
-    return Promise.reject(error || new Error('No refresh token'))
-  }
-
-  // 如果正在刷新，将请求加入队列等待
-  if (isRefreshing) {
-    return subscribeTokenRefresh((token: string) => {
-      // token 为空表示刷新失败
-      if (!token) {
-        return Promise.reject(error || new Error('Token refresh failed'))
-      }
-      // 使用新 Token 重新发起原请求
-      const config = error?.config
-      if (config) {
-        config.headers.Authorization = `Bearer ${token}`
-        return service.request(config)
-      }
-      return Promise.reject(error)
-    }).then((result) => {
-      // subscribeTokenRefresh 的回调返回了 Promise，这里需要处理
-      return result
-    }).catch(() => {
-      return Promise.reject(error || new Error('Token refresh timeout'))
-    })
-  }
-
-  // 开始刷新 Token
-  isRefreshing = true
-
-  return new Promise((resolve, reject) => {
-    // 调用刷新 Token 接口，添加超时控制
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), REFRESH_TIMEOUT)
-
-    axios
-      .post<Result<any>>('/api/auth/refresh', { refreshToken: refreshTokenValue }, {
-        signal: controller.signal
-      })
-      .then((response) => {
-        clearTimeout(timeoutId)
-        const res = response.data
-        if (res.code === 200 && res.data) {
-          const newToken = res.data.accessToken
-          const newRefreshToken = res.data.refreshToken
-
-          // 更新 Token
-          userStore.updateToken(newToken)
-          userStore.updateRefreshToken(newRefreshToken)
-          if (res.data.expiresIn) {
-            userStore.setTokenExpireTime(res.data.expiresIn)
-          }
-
-          // 执行等待队列中的请求
-          onRefreshed(newToken)
-
-          // 重新发起原请求
-          if (error?.config) {
-            error.config.headers.Authorization = `Bearer ${newToken}`
-            resolve(service.request(error.config))
-          } else {
-            resolve(res.data)
-          }
-        } else {
-          // 刷新失败
-          onRefreshFailed(res.message || 'Token 刷新失败')
-          reject(error || new Error('Token refresh failed'))
-        }
-      })
-      .catch((err) => {
-        clearTimeout(timeoutId)
-        // 刷新失败
-        const message = err.name === 'AbortError' || err.name === 'CanceledError'
-          ? 'Token 刷新超时'
-          : '登录已过期，请重新登录'
-        onRefreshFailed(message)
-        reject(err)
-      })
-      .finally(() => {
-        isRefreshing = false
-      })
-  })
-}
-
 // 请求方法
 export const request = {
   get<T = any>(url: string, config?: AxiosRequestConfig): Promise<Result<T>> {
@@ -324,7 +275,7 @@ export const request = {
 // 重置登录过期状态（登录成功后调用）
 export const resetExpiredState = () => {
   isHandlingExpired = false
-  isRefreshing = false
+  refreshPromise = null
 }
 
 export default service

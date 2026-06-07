@@ -71,8 +71,11 @@ router.beforeEach(async (to, from, next) => {
             next({ ...to, replace: true })
           }
         } catch (error) {
-          // 获取用户信息失败，清除token
-          userStore.logoutAction()
+          // 获取用户信息失败，清除token并跳转登录
+          const permissionStore2 = usePermissionStore()
+          userStore.logoutAction().finally(() => {
+            permissionStore2.resetRoutes()
+          })
           next(`/login?redirect=${to.path}`)
           NProgress.done()
         }
