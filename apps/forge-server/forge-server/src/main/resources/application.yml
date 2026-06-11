@@ -1,7 +1,6 @@
 server:
   port: ${SERVER_PORT:8181}
   servlet:
-    context-path: /api
 
 spring:
   application:
@@ -48,6 +47,16 @@ spring:
 forge:
   info:
     base-package: com.forge
+  web:
+    admin-api:
+      prefix: /admin-api
+      controller: "**.controller.admin.**"
+    app-api:
+      prefix: /app-api
+      controller: "**.controller.app.**"
+  wx:
+    mini-app-id: ${WX_MINI_APP_ID:}
+    mini-app-secret: ${WX_MINI_APP_SECRET:}
 
 # MyBatis-Plus配置
 mybatis-plus:
@@ -114,4 +123,4 @@ logging:
 # 文件上传配置
 file:
   upload-path: ${FILE_UPLOAD_PATH:./uploads}
-  base-url: ${FILE_BASE_URL:http://localhost:8181/api/uploads}
+  base-url: ${FILE_BASE_URL:http://localhost:8181/uploads}
