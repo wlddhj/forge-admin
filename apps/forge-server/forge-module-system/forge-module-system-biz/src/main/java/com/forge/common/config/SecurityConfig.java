@@ -1,5 +1,6 @@
 package com.forge.common.config;
 
+import com.forge.framework.security.config.AppJwtAuthenticationFilter;
 import com.forge.modules.system.auth.security.JwtAuthenticationEntryPoint;
 import com.forge.modules.system.auth.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
@@ -29,11 +30,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Spring Security 配置
- *
- * @author standadmin
- */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -42,17 +38,13 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final UserDetailsService userDetailsService;
 
-    public SecurityConfig(
-            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-            @Lazy UserDetailsService userDetailsService) {
+    public SecurityConfig(JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+                          @Lazy UserDetailsService userDetailsService) {
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
         this.userDetailsService = userDetailsService;
     }
 
-    /**
-     * 白名单路径
-     */
-    private static final String[] WHITE_LIST = {
+    private static final String[] ADMIN_WHITE_LIST = {
             "/auth/login",
             "/auth/register",
             "/auth/captcha",
@@ -65,6 +57,9 @@ public class SecurityConfig {
             "/.well-known/**",
             "/userinfo",
             "/connect/logout",
+    };
+
+    private static final String[] GLOBAL_WHITE_LIST = {
             "/ws/**",
             "/app/**",
             "/doc.html",
@@ -75,36 +70,61 @@ public class SecurityConfig {
             "/favicon.ico",
             "/file/**",
             "/uploads/**",
-            "/api/uploads/**",
-            "/ws/**",
             "/ws/info/**",
             "/topic/**",
-            "/app/**",
             "/error"
     };
 
+    private static final String[] APP_WHITE_LIST = {
+            "/auth/wx-login",
+            "/auth/refresh",
+    };
+
+    @Bean
+    @Order(1)
+    public SecurityFilterChain adminSecurityFilterChain(HttpSecurity http,
+                                                         @Lazy JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+        http
+                .securityMatcher("/admin-api/**")
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(ADMIN_WHITE_LIST).permitAll()
+                        .anyRequest().authenticated())
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+
     @Bean
     @Order(2)
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, @Lazy JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+    public SecurityFilterChain appSecurityFilterChain(HttpSecurity http,
+                                                       @Lazy AppJwtAuthenticationFilter appJwtAuthenticationFilter) throws Exception {
         http
-                // 禁用 CSRF
+                .securityMatcher("/app-api/**")
                 .csrf(AbstractHttpConfigurer::disable)
-                // 配置 CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                // 配置 Session
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // 配置异常处理
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint))
-                // 配置请求授权
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(WHITE_LIST).permitAll()
+                        .requestMatchers(APP_WHITE_LIST).permitAll()
                         .anyRequest().authenticated())
-                // 配置认证提供者
-                .authenticationProvider(authenticationProvider())
-                // 添加 JWT 过滤器（同时处理系统 HS384 token 和 OAuth2 RS256 token）
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(appJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
 
+    @Bean
+    @Order(3)
+    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/**")
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(GLOBAL_WHITE_LIST).permitAll()
+                        .anyRequest().permitAll());
         return http.build();
     }
 
@@ -140,9 +160,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    /**
-     * OAuth2 JWT 认证转换器，将 scope 转换为权限标识
-     */
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
