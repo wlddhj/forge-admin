@@ -1,6 +1,5 @@
 server:
   port: ${SERVER_PORT:8181}
-  servlet:
 
 spring:
   application:
