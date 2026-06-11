@@ -45,18 +45,18 @@ public class SecurityConfig {
     }
 
     private static final String[] ADMIN_WHITE_LIST = {
-            "/auth/login",
-            "/auth/register",
-            "/auth/captcha",
-            "/auth/refresh",
-            "/auth/social/authorize/**",
-            "/auth/social/callback/**",
-            "/oauth2/token",
-            "/oauth2/jwks",
-            "/oauth2/authorization-server",
-            "/.well-known/**",
-            "/userinfo",
-            "/connect/logout",
+            "/admin-api/auth/login",
+            "/admin-api/auth/register",
+            "/admin-api/auth/captcha",
+            "/admin-api/auth/refresh",
+            "/admin-api/auth/social/authorize/**",
+            "/admin-api/auth/social/callback/**",
+            "/admin-api/oauth2/token",
+            "/admin-api/oauth2/jwks",
+            "/admin-api/oauth2/authorization-server",
+            "/admin-api/.well-known/**",
+            "/admin-api/userinfo",
+            "/admin-api/connect/logout",
     };
 
     private static final String[] GLOBAL_WHITE_LIST = {
@@ -76,12 +76,12 @@ public class SecurityConfig {
     };
 
     private static final String[] APP_WHITE_LIST = {
-            "/auth/wx-login",
-            "/auth/refresh",
+            "/app-api/auth/wx-login",
+            "/app-api/auth/refresh",
     };
 
     @Bean
-    @Order(1)
+    @Order(0)
     public SecurityFilterChain adminSecurityFilterChain(HttpSecurity http,
                                                          @Lazy JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
@@ -99,7 +99,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    @Order(2)
+    @Order(1)
     public SecurityFilterChain appSecurityFilterChain(HttpSecurity http,
                                                        @Lazy AppJwtAuthenticationFilter appJwtAuthenticationFilter) throws Exception {
         http
