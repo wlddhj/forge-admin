@@ -237,6 +237,7 @@ function main() {
     { from: '聚能后台管理系统', to: config.description },
     { from: 'forge-server', to: `${config.nameKebab}-server` },
     { from: 'forge-web', to: `${config.nameKebab}-web` },
+    { from: 'forge-miniapp', to: `${config.nameKebab}-miniapp` },
     // 根 artifactId（必须在所有 forge-* 之后）
     { from: 'forge', to: config.nameKebab },
   ]
@@ -310,6 +311,7 @@ function main() {
   const dirRenames = [
     { from: 'forge-server', to: `${config.nameKebab}-server` },
     { from: 'forge-web', to: `${config.nameKebab}-web` },
+    { from: 'forge-miniapp', to: `${config.nameKebab}-miniapp` },
   ]
   dirRenames.forEach(({ from, to }) => {
     const oldDir = path.join(rootDir, 'apps', from)

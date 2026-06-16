@@ -290,6 +290,26 @@ pnpm run init <项目名称> "<项目描述>" <包名>
 
 自动扫描所有模块的 Java 源码目录，重命名包名、更新配置文件、前端标题和数据库名。详见 [docs/template-guide.md](docs/template-guide.md)。
 
+## 模块管理
+
+### 创建新模块
+
+```bash
+node scripts/create-module.js <模块名称> "<模块描述>"
+# 示例：node scripts/create-module.js order "订单管理模块"
+```
+
+自动创建模块目录结构、pom.xml、基础类模板。
+
+### 删除模块
+
+```bash
+./scripts/remove-module.sh <模块名称>
+# 示例：./scripts/remove-module.sh workflow
+```
+
+自动从 pom.xml 移除模块引用、删除依赖关系、清理迁移脚本和模块目录。
+
 ## Docker 部署
 
 ```bash

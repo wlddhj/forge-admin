@@ -194,6 +194,38 @@ pnpm run init <项目名称> "<项目描述>" <Java包名>
 # 示例：pnpm run init my-admin "我的管理系统" com.mycompany
 ```
 
+## 模块管理
+
+### 创建新模块
+
+```bash
+node scripts/create-module.js <模块名称> "<模块描述>"
+# 示例：node scripts/create-module.js order "订单管理模块"
+```
+
+自动创建：
+- 模块目录结构（api/biz）
+- pom.xml 配置
+- 基础类模板（Entity、DTO、Controller、Service、Mapper）
+- 数据库迁移脚本模板
+
+### 删除模块
+
+```bash
+./scripts/remove-module.sh <模块名称>
+# 示例：./scripts/remove-module.sh workflow
+```
+
+自动处理：
+- 从根 pom.xml 移除模块引用
+- 从 forge-dependencies 移除依赖声明
+- 从 forge-server 移除依赖引用
+- 检查并移除其他模块的依赖
+- 清理数据库迁移脚本（交互确认）
+- 删除模块目录（交互确认）
+
+**注意：** 删除模块后需运行 `mvn clean compile` 验证编译。
+
 ## 关键文件
 
 | 用途 | 路径 |
