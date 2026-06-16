@@ -10,7 +10,11 @@
     "dev:backend": "cd apps/forge-server && mvn spring-boot:run",
     "build:frontend": "pnpm --filter forge-admin-frontend build",
     "build:backend": "cd apps/forge-server && mvn clean package -DskipTests",
-    "lint:frontend": "pnpm --filter forge-admin-frontend lint"
+    "lint:frontend": "pnpm --filter forge-admin-frontend lint",
+    "dev:miniapp": "pnpm --filter forge-miniapp dev:mp-weixin",
+    "build:miniapp": "pnpm --filter forge-miniapp build:mp-weixin",
+    "dev:miniapp:h5": "pnpm --filter forge-miniapp dev:h5",
+    "build:miniapp:h5": "pnpm --filter forge-miniapp build:h5"
   },
   "keywords": [
     "admin",

@@ -1,0 +1,20 @@
+{
+  "pages": [
+    { "path": "pages/login/index", "style": { "navigationBarTitleText": "登录" } },
+    { "path": "pages/profile/index", "style": { "navigationBarTitleText": "我的" } },
+    { "path": "pages/profile/edit", "style": { "navigationBarTitleText": "编辑资料" } },
+    { "path": "pages/profile/phone", "style": { "navigationBarTitleText": "绑定手机号" } },
+    { "path": "pages/profile/deactivate", "style": { "navigationBarTitleText": "注销账号" } }
+  ],
+  "tabBar": {
+    "list": [
+      { "pagePath": "pages/profile/index", "text": "我的" }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "Forge Miniapp",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  }
+}
