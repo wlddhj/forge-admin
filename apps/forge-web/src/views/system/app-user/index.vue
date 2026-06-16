@@ -15,8 +15,12 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 120px">
-            <el-option label="正常" :value="1" />
-            <el-option label="封禁" :value="0" />
+            <el-option
+                v-for="item in statusOptions"
+                :key="item.dictValue"
+                :label="item.dictLabel"
+                :value="Number(item.dictValue)"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -54,8 +58,12 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 100%">
-            <el-option label="正常" :value="1" />
-            <el-option label="封禁" :value="0" />
+            <el-option
+                v-for="item in statusOptions"
+                :key="item.dictValue"
+                :label="item.dictLabel"
+                :value="Number(item.dictValue)"
+            />
           </el-select>
         </el-form-item>
       </template>
@@ -117,9 +125,7 @@
         <!-- 状态 -->
         <vxe-column title="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ row.status === 1 ? '正常' : '封禁' }}
-            </el-tag>
+            <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
           </template>
         </vxe-column>
 
@@ -138,11 +144,12 @@
         </vxe-column>
 
         <!-- 桌面端操作列 -->
-        <vxe-column v-if="!isMobile" title="操作" width="200" fixed="right">
+        <vxe-column v-if="!isMobile" title="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:app-user:detail'" type="primary" link size="small" @click.stop="handleDetail(row)">详情</el-button>
+            <el-button v-permission="'system:app-user:update'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
             <el-button
-              v-permission="'system:app-user:status'"
+              v-permission="'system:app-user:update'"
               :type="row.status === 1 ? 'warning' : 'success'"
               link
               size="small"
@@ -172,6 +179,7 @@
     >
       <template #actions="{ item }">
         <el-button v-permission="'system:app-user:detail'" size="small" type="primary" @click.stop="handleDetail(item)">详情</el-button>
+        <el-button v-permission="'system:app-user:edit'" size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
         <el-button
           v-permission="'system:app-user:status'"
           size="small"
@@ -183,6 +191,60 @@
         <el-button v-permission="'system:app-user:delete'" size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
       </template>
     </MobileBottomActions>
+
+    <!-- 详情抽屉 -->
+    <el-drawer v-model="detailDrawerVisible" title="App用户详情" direction="rtl" size="400px">
+      <el-descriptions :column="1" border>
+        <el-descriptions-item label="头像">
+          <el-avatar :size="60" :src="detailData?.avatar || undefined" shape="square">
+            <el-icon><User /></el-icon>
+          </el-avatar>
+        </el-descriptions-item>
+        <el-descriptions-item label="用户ID">{{ detailData?.id }}</el-descriptions-item>
+        <el-descriptions-item label="昵称">{{ detailData?.nickname || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="手机号">
+          {{ detailData?.phone || '-' }}
+          <el-tag v-if="detailData?.phoneVerified === 1" type="success" size="small" style="margin-left: 4px">已验证</el-tag>
+          <el-tag v-else-if="detailData?.phone" type="warning" size="small" style="margin-left: 4px">未验证</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="OpenId">{{ detailData?.openId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="UnionId">{{ detailData?.unionId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="detailData?.status" />
+        </el-descriptions-item>
+        <el-descriptions-item label="最后登录">{{ formatDateTime(detailData?.lastLoginTime) }}</el-descriptions-item>
+        <el-descriptions-item label="注销时间">{{ formatDateTime(detailData?.deactivatedTime) }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatDateTime(detailData?.createTime) }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ formatDateTime(detailData?.updateTime) }}</el-descriptions-item>
+      </el-descriptions>
+    </el-drawer>
+
+    <!-- 编辑抽屉 -->
+    <el-drawer v-model="editDrawerVisible" title="编辑App用户" direction="rtl" size="400px">
+      <el-form :model="editForm" label-width="80px">
+        <el-form-item label="头像">
+          <el-avatar :size="60" :src="editForm.avatar || undefined" shape="square" @click="handleUploadAvatar">
+            <el-icon><User /></el-icon>
+          </el-avatar>
+          <el-upload
+            ref="uploadRef"
+            :show-file-list="false"
+            :before-upload="beforeAvatarUpload"
+            :http-request="handleAvatarUpload"
+            accept="image/jpeg,image/png,image/webp"
+          >
+            <el-button size="small" type="primary">更换头像</el-button>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="昵称">
+          <el-input v-model="editForm.nickname" placeholder="请输入昵称" maxlength="20" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="editLoading" @click="handleEditSubmit">保存</el-button>
+          <el-button @click="editDrawerVisible = false">取消</el-button>
+        </el-form-item>
+      </el-form>
+    </el-drawer>
   </div>
 </template>
 
@@ -190,11 +252,13 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
-import { getAppUserList, updateAppUserStatus, deleteAppUser } from '@/api/system/app-user'
+import { getAppUserList, getAppUserDetail, updateAppUserStatus, deleteAppUser, resetAppUserProfile } from '@/api/system/app-user'
 import type { AppUserEntity, AppUserQuery } from '@/api/system/app-user'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
+import { useDict } from '@/composables/useDict'
+import { DICT_TYPE } from '@/constants/dict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
@@ -204,6 +268,9 @@ const { isMobile } = useResponsive()
 
 // 表格高度自适应
 const { tableHeight } = useTableHeight()
+
+// 状态字典
+const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
 
 // 表格实例
 const tableRef = ref<VxeTableInstance | null>(null)
@@ -227,6 +294,15 @@ const total = ref(0)
 // 移动端状态
 const searchDrawerVisible = ref(false)
 const selectedRow = ref<AppUserEntity | null>(null)
+
+// 详情抽屉
+const detailDrawerVisible = ref(false)
+const detailData = ref<AppUserEntity | null>(null)
+
+// 编辑抽屉
+const editDrawerVisible = ref(false)
+const editLoading = ref(false)
+const editForm = reactive({ id: 0, nickname: '', avatar: '' })
 
 // 计算激活的搜索条件数量
 const activeConditionsCount = computed(() => {
@@ -284,9 +360,31 @@ const handleResetFromDrawer = () => {
 }
 
 // 详情
-const handleDetail = (_row: AppUserEntity) => {
-  // TODO: 打开详情抽屉（Task 12）
-  ElMessage.info('详情功能开发中')
+const handleDetail = async (row: AppUserEntity) => {
+  const data = await getAppUserDetail(row.id)
+  detailData.value = data
+  detailDrawerVisible.value = true
+}
+
+// 编辑
+const handleEdit = (row: AppUserEntity) => {
+  editForm.id = row.id
+  editForm.nickname = row.nickname || ''
+  editForm.avatar = row.avatar || ''
+  editDrawerVisible.value = true
+}
+
+// 编辑提交
+const handleEditSubmit = async () => {
+  editLoading.value = true
+  try {
+    await resetAppUserProfile(editForm.id, { nickname: editForm.nickname, avatar: editForm.avatar })
+    ElMessage.success('保存成功')
+    editDrawerVisible.value = false
+    getList()
+  } finally {
+    editLoading.value = false
+  }
 }
 
 // 封禁/解封

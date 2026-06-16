@@ -55,7 +55,7 @@ public class AppAuthServiceImpl implements AppAuthService {
         if (user == null) {
             user = AppUser.builder()
                     .openId(openId)
-                    .status(0)
+                    .status(1)
                     .lastLoginTime(LocalDateTime.now())
                     .build();
             appUserService.createAppUser(user);
