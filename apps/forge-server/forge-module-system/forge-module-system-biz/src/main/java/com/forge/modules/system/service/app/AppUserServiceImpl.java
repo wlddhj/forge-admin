@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -62,6 +63,11 @@ public class AppUserServiceImpl implements AppUserService {
 
     @Override
     public void updateProfile(Long userId, AppUserProfileUpdateRequest request) {
+        // 用户存在性校验
+        AppUser existing = appUserMapper.selectById(userId);
+        if (existing == null || existing.getDeleted() == 1) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
         AppUser user = new AppUser();
         user.setId(userId);
         user.setNickname(request.getNickname());
@@ -81,7 +87,8 @@ public class AppUserServiceImpl implements AppUserService {
     public void bindPhone(Long userId, String phone) {
         // 分布式锁防并发
         String lockKey = "app:lock:bind-phone:" + phone;
-        Boolean locked = redis.opsForValue().setIfAbsent(lockKey, "1", 5, TimeUnit.SECONDS);
+        String lockValue = UUID.randomUUID().toString();
+        Boolean locked = redis.opsForValue().setIfAbsent(lockKey, lockValue, 5, TimeUnit.SECONDS);
         if (!locked) {
             throw new BusinessException(429, "操作繁忙，请稍后再试");
         }
@@ -101,7 +108,10 @@ public class AppUserServiceImpl implements AppUserService {
             update.setPhoneVerified(1);
             appUserMapper.updateById(update);
         } finally {
-            redis.delete(lockKey);
+            // 验证锁值后再删除，防止误删其他线程的锁
+            if (lockValue.equals(redis.opsForValue().get(lockKey))) {
+                redis.delete(lockKey);
+            }
         }
     }
 
@@ -148,12 +158,16 @@ public class AppUserServiceImpl implements AppUserService {
         Set<String> members = redis.opsForSet().members(sessionSetKey);
         if (members != null) {
             for (String token : members) {
-                if (token.startsWith("tok_")) {
-                    // tok_ 前缀的是 tokenId，删除 app_session:{tokenId}
-                    redis.delete("app_session:" + token);
-                } else {
-                    // refreshToken，删除 app_refresh_token:{refreshToken}
-                    redis.delete("app_refresh_token:" + token);
+                try {
+                    if (token.startsWith("tok_")) {
+                        // tok_ 前缀的是 tokenId，删除 app_session:{tokenId}
+                        redis.delete("app_session:" + token);
+                    } else {
+                        // refreshToken，删除 app_refresh_token:{refreshToken}
+                        redis.delete("app_refresh_token:" + token);
+                    }
+                } catch (Exception e) {
+                    log.warn("删除 token 失败: {}", token, e);
                 }
             }
         }
@@ -188,6 +202,11 @@ public class AppUserServiceImpl implements AppUserService {
 
     @Override
     public void adminResetProfile(Long id, String nickname, String avatar) {
+        // 用户存在性校验
+        AppUser existing = appUserMapper.selectById(id);
+        if (existing == null || existing.getDeleted() == 1) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
         AppUser update = new AppUser();
         update.setId(id);
         if (StringUtils.hasText(nickname)) {
