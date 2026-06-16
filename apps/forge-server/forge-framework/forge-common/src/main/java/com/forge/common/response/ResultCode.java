@@ -53,7 +53,7 @@ public enum ResultCode {
     ATTACHMENT_TYPE_INVALID(5801, "文件类型不支持"),
     ATTACHMENT_SIZE_EXCEEDED(5802, "文件大小超过限制"),
 
-    // 用户状态相关（复用 USER_DISABLED 5103）
+    // 用户状态相关
     USER_DEACTIVATED(5106, "账号已注销");
 
     private final Integer code;
