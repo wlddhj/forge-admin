@@ -249,7 +249,7 @@ function main() {
     '.imports'
   ]
   // 无扩展名但需要处理的文件名
-  const targetFilenames = ['Dockerfile']
+  const targetFilenames = ['Dockerfile', 'server.sh', 'remove-module.sh']
 
   log('1. 替换文件内容...', 'yellow')
   const files = getAllFiles('.')
