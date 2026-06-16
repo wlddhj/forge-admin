@@ -160,8 +160,10 @@ public class AppUserServiceImpl implements AppUserService {
             for (String token : members) {
                 try {
                     if (token.startsWith("tok_")) {
-                        // tok_ 前缀的是 tokenId，删除 app_session:{tokenId}
-                        redis.delete("app_session:" + token);
+                        // tok_ 前缀的是 tokenId，需要移除前缀后构造 session key
+                        // SET 中存储: "tok_abc123"，实际 session key: "app_session:abc123"
+                        String tokenId = token.substring(4);
+                        redis.delete("app_session:" + tokenId);
                     } else {
                         // refreshToken，删除 app_refresh_token:{refreshToken}
                         redis.delete("app_refresh_token:" + token);
