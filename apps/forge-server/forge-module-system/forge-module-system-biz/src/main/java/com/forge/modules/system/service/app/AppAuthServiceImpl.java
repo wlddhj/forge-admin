@@ -151,6 +151,11 @@ public class AppAuthServiceImpl implements AppAuthService {
     }
 
     private String getWxOpenId(String code) {
+        // Mock 模式：如果 appId 未配置，返回模拟 openId 用于开发测试
+        if (appId == null || appId.isEmpty()) {
+            log.warn("微信小程序 appId 未配置，使用 Mock 模式，code: {}", code);
+            return "mock_openid_" + code.hashCode();
+        }
         try {
             String url = String.format(WX_CODE2SESSION_URL, appId, appSecret, code);
             RestTemplate restTemplate = new RestTemplate();
