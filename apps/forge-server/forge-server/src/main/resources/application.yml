@@ -56,6 +56,12 @@ forge:
   wx:
     mini-app-id: ${WX_MINI_APP_ID:}
     mini-app-secret: ${WX_MINI_APP_SECRET:}
+  sms:
+    code-length: 6
+    code-ttl-seconds: 300
+    send-cooldown-seconds: 60
+    daily-limit: 5
+    verify-error-limit: 5
 
 # MyBatis-Plus配置
 mybatis-plus:
