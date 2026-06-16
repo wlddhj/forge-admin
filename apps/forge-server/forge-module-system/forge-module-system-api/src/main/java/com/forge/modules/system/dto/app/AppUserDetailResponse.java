@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * App用户资料响应
+ * App用户详情响应（后台管理用）
  *
  * @author forge
  */
@@ -16,8 +16,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AppUserProfileResponse {
-
+public class AppUserDetailResponse {
     /**
      * 用户ID
      */
@@ -44,9 +43,14 @@ public class AppUserProfileResponse {
     private Integer phoneVerified;
 
     /**
-     * 微信OpenID（脱敏：前4后4）
+     * 微信OpenID（已脱敏）
      */
     private String openId;
+
+    /**
+     * 微信UnionID（已脱敏）
+     */
+    private String unionId;
 
     /**
      * 用户状态
@@ -57,4 +61,19 @@ public class AppUserProfileResponse {
      * 最后登录时间
      */
     private LocalDateTime lastLoginTime;
+
+    /**
+     * 注销时间
+     */
+    private LocalDateTime deactivatedTime;
+
+    /**
+     * 创建时间
+     */
+    private LocalDateTime createTime;
+
+    /**
+     * 更新时间
+     */
+    private LocalDateTime updateTime;
 }

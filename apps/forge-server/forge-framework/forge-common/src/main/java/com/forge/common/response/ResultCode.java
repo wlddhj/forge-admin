@@ -37,7 +37,24 @@ public enum ResultCode {
     // 社交登录错误 55xx
     SOCIAL_USER_NOT_BOUND(5501, "该第三方账号未绑定系统账号"),
     SOCIAL_USER_ALREADY_BOUND(5502, "该第三方账号已被绑定"),
-    SOCIAL_LOGIN_FAILED(5504, "第三方登录失败");
+    SOCIAL_LOGIN_FAILED(5504, "第三方登录失败"),
+
+    // 短信相关 56xx
+    SMS_COOLDOWN(5601, "验证码发送冷却中，请稍后再试"),
+    SMS_DAILY_EXCEEDED(5602, "今日验证码发送次数已达上限"),
+    SMS_CODE_NOT_FOUND(5603, "验证码不存在或已过期"),
+    SMS_CODE_ERROR(5604, "验证码错误"),
+    SMS_CODE_LOCKED(5605, "验证码错误次数过多，请重新获取"),
+
+    // 手机号相关 57xx
+    PHONE_ALREADY_BOUND(5701, "该手机号已被其他用户绑定"),
+
+    // 附件相关 58xx
+    ATTACHMENT_TYPE_INVALID(5801, "文件类型不支持"),
+    ATTACHMENT_SIZE_EXCEEDED(5802, "文件大小超过限制"),
+
+    // 用户状态相关（复用 USER_DISABLED 5103）
+    USER_DEACTIVATED(5106, "账号已注销");
 
     private final Integer code;
     private final String message;
