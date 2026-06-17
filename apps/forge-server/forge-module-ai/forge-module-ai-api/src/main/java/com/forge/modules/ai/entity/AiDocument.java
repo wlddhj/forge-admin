@@ -20,15 +20,9 @@ public class AiDocument {
 
     private Long userId;
 
-    private String fileName;
+    private Long attachmentId;  // 新增：关联附件ID
 
-    private String filePath;
-
-    private String fileUrl;
-
-    private String fileType;
-
-    private Long fileSize;
+    private String fileName;    // 保留：文件名用于显示
 
     private String content;
 
