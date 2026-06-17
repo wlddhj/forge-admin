@@ -96,15 +96,14 @@
         </vxe-column>
       </vxe-table>
 
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
-        @size-change="getList"
-        @current-change="getList"
+
+      <TablePagination
+          v-model:page-num="queryParams.pageNum"
+          v-model:page-size="queryParams.pageSize"
+          :total="total"
+          @change="getList"
       />
+
     </el-card>
 
     <!-- 详情对话框 -->
@@ -224,10 +223,17 @@ const handleDetail = async (row: DocumentResponse) => {
 }
 
 const handleSummary = async (row: DocumentResponse) => {
-  const result = await getDocumentSummary(row.id)
-  documentDetail.value = { ...row, summary: result.summary, content: result.content }
-  detailTab.value = 'summary'
-  detailDialogVisible.value = true
+  try {
+    ElMessage.info('正在生成摘要...')
+    const result = await getDocumentSummary(row.id)
+    documentDetail.value = result
+    detailTab.value = 'summary'
+    detailDialogVisible.value = true
+    ElMessage.success('摘要生成成功')
+    getList()  // 刷新列表显示摘要状态
+  } catch (e) {
+    ElMessage.error('摘要生成失败')
+  }
 }
 
 const handleDelete = (row: DocumentResponse) => {
