@@ -92,7 +92,33 @@ CREATE TABLE `ai_chat_message` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI对话消息表';
 
 -- ========================================
--- 4. AIAPI用量统计表
+-- 4. AI文档表
+-- ========================================
+DROP TABLE IF EXISTS `ai_document`;
+CREATE TABLE `ai_document` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `file_name` varchar(255) NOT NULL COMMENT '文件名称',
+  `file_path` varchar(500) DEFAULT NULL COMMENT '文件路径',
+  `file_url` varchar(500) DEFAULT NULL COMMENT '文件URL',
+  `file_type` varchar(100) DEFAULT NULL COMMENT '文件类型(MIME类型)',
+  `file_size` bigint DEFAULT 0 COMMENT '文件大小(字节)',
+  `content` longtext DEFAULT NULL COMMENT '文档内容',
+  `summary` text DEFAULT NULL COMMENT '文档摘要',
+  `model_name` varchar(100) DEFAULT NULL COMMENT '使用的模型名称',
+  `status` tinyint DEFAULT 0 COMMENT '状态(0:待处理 1:处理中 2:已完成 3:失败)',
+  `error_message` varchar(500) DEFAULT NULL COMMENT '错误信息',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` tinyint DEFAULT 0 COMMENT '删除标记',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI文档表';
+
+-- ========================================
+-- 5. AI API用量统计表
 -- ========================================
 DROP TABLE IF EXISTS `ai_api_usage`;
 CREATE TABLE `ai_api_usage` (
@@ -117,50 +143,55 @@ CREATE TABLE `ai_api_usage` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI API用量统计表';
 
 -- ========================================
--- 初始化菜单数据 (IDs 300-323)
+-- 初始化菜单数据 (AI模块完整菜单)
 -- ========================================
+-- AI助手主菜单 (目录)
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
--- AI管理 (目录)
-(300, 'AI管理', 0, '/ai', 'Layout', NULL, 'MagicStick', 3, 0, NULL, 1, 1, 0, 0),
--- 模型配置 (菜单)
-(301, '模型配置', 300, '/ai/model-config', '/views/ai/model-config/index', NULL, 'Connection', 1, 1, 'ai:model-config:list', 1, 1, 0, 0),
--- 模型配置按钮
+(300, 'AI助手', 0, '/ai', 'Layout', '/ai/model-config', 'MagicStick', 3, 0, NULL, 1, 1, 0, 0);
+
+-- 模型配置管理 (菜单)
+INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(301, '模型配置', 300, '/ai/model-config', '/views/ai/model-config/index', NULL, 'Setting', 1, 1, 'ai:model-config:list', 1, 1, 0, 0),
 (302, '模型查询', 301, '', '', NULL, '', 1, 2, 'ai:model-config:query', 1, 1, 0, 0),
 (303, '模型新增', 301, '', '', NULL, '', 2, 2, 'ai:model-config:add', 1, 1, 0, 0),
 (304, '模型编辑', 301, '', '', NULL, '', 3, 2, 'ai:model-config:edit', 1, 1, 0, 0),
-(305, '模型删除', 301, '', '', NULL, '', 4, 2, 'ai:model-config:delete', 1, 1, 0, 0),
-(306, '设为默认', 301, '', '', NULL, '', 5, 2, 'ai:model-config:set-default', 1, 1, 0, 0),
-(307, '模型导出', 301, '', '', NULL, '', 6, 2, 'ai:model-config:export', 1, 1, 0, 0),
+(309, '模型删除', 301, '', '', NULL, '', 4, 2, 'ai:model-config:delete', 1, 1, 0, 0);
+
 -- 对话管理 (菜单)
-(308, '对话管理', 300, '/ai/conversation', '/views/ai/conversation/index', NULL, 'ChatDotRound', 2, 1, 'ai:conversation:list', 1, 1, 0, 0),
--- 对话管理按钮
-(309, '对话查询', 308, '', '', NULL, '', 1, 2, 'ai:conversation:query', 1, 1, 0, 0),
-(310, '对话删除', 308, '', '', NULL, '', 2, 2, 'ai:conversation:delete', 1, 1, 0, 0),
-(311, '对话导出', 308, '', '', NULL, '', 3, 2, 'ai:conversation:export', 1, 1, 0, 0),
-(312, '关闭对话', 308, '', '', NULL, '', 4, 2, 'ai:conversation:close', 1, 1, 0, 0),
-(313, '查看详情', 308, '', '', NULL, '', 5, 2, 'ai:conversation:detail', 1, 1, 0, 0),
--- 对话日志 (菜单 - 隐藏菜单，通过对话管理访问)
-(314, '对话日志', 308, '/ai/chat-message', '/views/ai/chat-message/index', NULL, 'List', 6, 1, 'ai:chat-message:list', 1, 0, 0, 0),
--- 对话日志按钮
-(315, '消息查询', 314, '', '', NULL, '', 1, 2, 'ai:chat-message:query', 1, 1, 0, 0),
-(316, '消息删除', 314, '', '', NULL, '', 2, 2, 'ai:chat-message:delete', 1, 1, 0, 0),
-(317, '消息导出', 314, '', '', NULL, '', 3, 2, 'ai:chat-message:export', 1, 1, 0, 0),
--- 用量统计 (菜单)
-(318, '用量统计', 300, '/ai/api-usage', '/views/ai/api-usage/index', NULL, 'DataAnalysis', 3, 1, 'ai:api-usage:list', 1, 1, 0, 0),
--- 用量统计按钮
-(319, '用量查询', 318, '', '', NULL, '', 1, 2, 'ai:api-usage:query', 1, 1, 0, 0),
-(320, '用量导出', 318, '', '', NULL, '', 2, 2, 'ai:api-usage:export', 1, 1, 0, 0),
-(321, '用量详情', 318, '', '', NULL, '', 3, 2, 'ai:api-usage:detail', 1, 1, 0, 0),
-(322, '数据清空', 318, '', '', NULL, '', 4, 2, 'ai:api-usage:clear', 1, 1, 0, 0),
--- API密钥管理 (菜单)
-(323, 'API密钥', 300, '/ai/api-key', '/views/ai/api-key/index', NULL, 'Key', 4, 1, 'ai:api-key:list', 1, 1, 0, 0);
+INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(305, '对话管理', 300, '/ai/conversation', '/views/ai/conversation/index', NULL, 'ChatDotRound', 2, 1, 'ai:conversation:list', 1, 1, 0, 0),
+(306, '对话查询', 305, '', '', NULL, '', 1, 2, 'ai:conversation:query', 1, 1, 0, 0),
+(307, '对话删除', 305, '', '', NULL, '', 2, 2, 'ai:conversation:delete', 1, 1, 0, 0),
+(308, '查看详情', 305, '', '', NULL, '', 3, 2, 'ai:conversation:detail', 1, 1, 0, 0);
+
+-- 文档管理 (菜单)
+INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(310, '文档管理', 300, '/ai/document', '/views/ai/document/index', NULL, 'Document', 3, 1, 'ai:document:list', 1, 1, 0, 0),
+(311, '文档查询', 310, '', '', NULL, '', 1, 2, 'ai:document:query', 1, 1, 0, 0),
+(312, '文档上传', 310, '', '', NULL, '', 2, 2, 'ai:document:upload', 1, 1, 0, 0),
+(313, '文档删除', 310, '', '', NULL, '', 3, 2, 'ai:document:delete', 1, 1, 0, 0),
+(314, '文档分析', 310, '', '', NULL, '', 4, 2, 'ai:document:analyze', 1, 1, 0, 0);
+
+-- API用量统计 (菜单)
+INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(315, '用量统计', 300, '/ai/api-usage', '/views/ai/api-usage/index', NULL, 'DataLine', 4, 1, 'ai:api-usage:list', 1, 1, 0, 0),
+(316, '统计查询', 315, '', '', NULL, '', 1, 2, 'ai:api-usage:query', 1, 1, 0, 0),
+(317, '导出报表', 315, '', '', NULL, '', 2, 2, 'ai:api-usage:export', 1, 1, 0, 0);
 
 -- ========================================
--- 初始化角色菜单关联
+-- 补充角色菜单关联 (超级管理员拥有所有AI菜单)
 -- ========================================
--- 超级管理员(role_id=1)拥有所有AI模块菜单
-INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)
-SELECT 1, id FROM `sys_menu` WHERE `id` BETWEEN 300 AND 323;
+INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
+-- AI主菜单
+(1, 300),
+-- 模型配置管理
+(1, 301), (1, 302), (1, 303), (1, 304), (1, 309),
+-- 对话管理
+(1, 305), (1, 306), (1, 307), (1, 308),
+-- 文档管理
+(1, 310), (1, 311), (1, 312), (1, 313), (1, 314),
+-- API用量统计
+(1, 315), (1, 316), (1, 317);
 
 -- ========================================
 -- 初始化模型配置数据

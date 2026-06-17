@@ -70,7 +70,7 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
   files.forEach(file => {
     const fullPath = path.join(dirPath, file)
 
-    // 跳过特定目录
+    // 跳过特定目录（docs 目录需要处理，不跳过）
     if ([
       'node_modules', 'target', 'dist', '.git', '.idea',
       'logs', 'uploads', '.claude'
@@ -218,7 +218,11 @@ function main() {
     { from: 'com.forge.admin', to: config.basePackage },
     { from: 'com.forge', to: config.basePackage },
     { from: 'forge_admin-page-config', to: `${config.nameSnake}-page-config` },
-    // Maven 子模块（长名优先）
+    // Maven 子模块（长名优先）- 包含占位符的模板字符串
+    { from: 'forge-module-{module}-biz', to: `${config.nameKebab}-module-{module}-biz` },
+    { from: 'forge-module-{module}-api', to: `${config.nameKebab}-module-{module}-api` },
+    { from: 'forge-module-{module}', to: `${config.nameKebab}-module-{module}` },
+    // Maven 子模块 - 具体模块名
     { from: 'forge-module-workflow-biz', to: `${config.nameKebab}-module-workflow-biz` },
     { from: 'forge-module-workflow-api', to: `${config.nameKebab}-module-workflow-api` },
     { from: 'forge-module-workflow', to: `${config.nameKebab}-module-workflow` },
