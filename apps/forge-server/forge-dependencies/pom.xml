@@ -79,6 +79,17 @@
                 <artifactId>forge-module-workflow-biz</artifactId>
                 <version>${forge.version}</version>
             </dependency>
+            <!-- AI 模块 -->
+            <dependency>
+                <groupId>com.forge</groupId>
+                <artifactId>forge-module-ai-api</artifactId>
+                <version>${forge.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forge</groupId>
+                <artifactId>forge-module-ai-biz</artifactId>
+                <version>${forge.version}</version>
+            </dependency>
 
             <!-- ========== 第三方依赖 ========== -->
             <!-- MyBatis-Plus -->
