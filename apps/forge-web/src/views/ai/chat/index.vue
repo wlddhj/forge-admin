@@ -48,7 +48,9 @@
               <el-avatar v-else :size="32" class="ai-avatar">AI</el-avatar>
             </div>
             <div class="message-content">
-              <div class="message-text">{{ msg.content }}</div>
+              <div class="message-bubble">
+                <MarkdownRenderer :content="msg.content" />
+              </div>
               <div class="message-time">{{ formatDateTime(msg.createTime) }}</div>
             </div>
           </div>
@@ -57,7 +59,9 @@
               <el-avatar :size="32" class="ai-avatar">AI</el-avatar>
             </div>
             <div class="message-content">
-              <div class="message-text">{{ streamingContent }}</div>
+              <div class="message-bubble">
+                <MarkdownRenderer :content="streamingContent" />
+              </div>
             </div>
           </div>
         </div>
@@ -90,6 +94,7 @@ import { createSSE, parseSSEData } from '@/utils/sse'
 import type { ModelConfigResponse } from '@/api/ai/model'
 import type { ConversationResponse, MessageResponse } from '@/api/ai/chat'
 import { formatDateTime } from '@/utils/dateFormat'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 const userStore = useUserStore()
 
@@ -344,11 +349,9 @@ watch(selectedModelId, () => {
           flex: 1;
           max-width: 80%;
 
-          .message-text {
+          .message-bubble {
             padding: 12px 16px;
             border-radius: 8px;
-            line-height: 1.6;
-            word-break: break-word;
           }
 
           .message-time {
@@ -360,17 +363,17 @@ watch(selectedModelId, () => {
 
         &.user {
           .message-content {
-            .message-text {
+            .message-bubble {
               background: #ecf5ff;
-              color: #409eff;
             }
           }
         }
 
         &.assistant {
           .message-content {
-            .message-text {
-              background: #f5f7fa;
+            .message-bubble {
+              background: transparent;
+              padding: 0;
             }
           }
 
@@ -381,7 +384,7 @@ watch(selectedModelId, () => {
         }
 
         &.streaming {
-          .message-text {
+          .message-bubble {
             opacity: 0.8;
           }
         }

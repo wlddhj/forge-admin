@@ -1,5 +1,6 @@
 """Chat API endpoints."""
 
+import json
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
@@ -58,10 +59,11 @@ async def chat_completions_stream(request: ChatRequest) -> StreamingResponse:
                 temperature=request.temperature or 0.7,
                 max_tokens=request.max_tokens or 4096,
             ):
-                yield f"data: {chunk}\n\n"
+                # 使用JSON格式返回，避免换行符破坏SSE格式
+                yield f"data: {json.dumps({'content': chunk})}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as e:
-            yield f"data: ERROR: {str(e)}\n\n"
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(
         generate(),
