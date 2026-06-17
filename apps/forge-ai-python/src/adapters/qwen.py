@@ -43,7 +43,15 @@ class QwenAdapter(BaseLLMAdapter):
         max_tokens: int = 4096,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
-        """Send streaming chat completion request to Qwen."""
+        """Send streaming chat completion request to Qwen.
+
+        With incremental_output=True, each SSE event contains only new content.
+        SSE format:
+        id:1
+        event:result
+        :HTTP_STATUS/200
+        data:{...output.choices[0].message.content...}
+        """
         url = f"{self.api_base}/services/aigc/text-generation/generation"
         headers = self._build_headers()
         payload = self._build_payload(messages, temperature, max_tokens, stream=True, **kwargs)
@@ -52,20 +60,31 @@ class QwenAdapter(BaseLLMAdapter):
             async with client.stream("POST", url, headers=headers, json=payload) as response:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
+                    line = line.strip()
+                    if not line:
+                        continue
                     if line.startswith("data:"):
                         data_str = line[5:].strip()
                         if data_str:
                             try:
                                 data = json.loads(data_str)
-                                content = data.get("output", {}).get("text", "")
-                                if content:
-                                    yield content
+                                output = data.get("output", {})
+                                choices = output.get("choices", [])
+                                if choices:
+                                    message = choices[0].get("message", {})
+                                    content = message.get("content", "")
+                                    # With incremental_output=True, content is already incremental
+                                    if content:
+                                        yield content
+                                    # Check finish reason
+                                    finish_reason = choices[0].get("finish_reason", "")
+                                    if finish_reason and finish_reason != "null":
+                                        break
                             except json.JSONDecodeError:
                                 continue
 
     async def count_tokens(self, text: str) -> int:
         """Estimate token count for Qwen models."""
-        # Qwen uses similar tokenization to GPT models
         return len(text) // 4
 
     def _build_headers(self) -> dict[str, str]:
@@ -73,6 +92,7 @@ class QwenAdapter(BaseLLMAdapter):
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
+            "Accept": "text/event-stream",
         }
 
     def _build_payload(
@@ -84,29 +104,29 @@ class QwenAdapter(BaseLLMAdapter):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Build request payload for Qwen API format."""
-        # Convert messages to Qwen format
         formatted_messages = []
         for m in messages:
             formatted_messages.append({"role": m.role, "content": m.content})
 
-        return {
+        payload = {
             "model": self.model_name,
             "input": {"messages": formatted_messages},
             "parameters": {
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "result_format": "message",
+                "incremental_output": True,
             },
             "stream": stream,
-            **kwargs,
         }
+        payload.update(kwargs)
+        return payload
 
     def _parse_response(self, data: dict[str, Any]) -> "ChatResponse":
         """Parse API response into ChatResponse."""
         output = data.get("output", {})
         usage = data.get("usage", {})
 
-        # Handle different response formats
         content = output.get("text", "")
         if not content:
             choices = output.get("choices", [{}])

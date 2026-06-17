@@ -1,4 +1,4 @@
-package com.forge.modules.ai.controller;
+package com.forge.modules.ai.controller.admin;
 
 import com.forge.common.response.Result;
 import com.forge.framework.web.annotation.OperationLog;

@@ -39,4 +39,4 @@ justauth:
 logging:
   level:
     com.forge: debug
-    com.forge.modules.system.mapper: debug
+    com.forge.modules.system.mapper: info

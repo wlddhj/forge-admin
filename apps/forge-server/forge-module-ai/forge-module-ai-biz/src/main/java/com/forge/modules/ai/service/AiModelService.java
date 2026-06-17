@@ -31,7 +31,37 @@ public interface AiModelService {
     void updateModelStatus(Long id, Integer status);
 
     /**
+     * 设置默认模型
+     */
+    void setDefaultModel(Long id);
+
+    /**
      * 刷新模型缓存
      */
     void refreshModelCache();
+
+    /**
+     * 更新模型配置
+     */
+    void updateModelConfig(Long id, AiModelConfig config);
+
+    /**
+     * 刷新单个模型状态
+     */
+    AiModelConfig refreshModelStatus(Long id);
+
+    /**
+     * 刷新所有模型状态
+     */
+    List<AiModelConfig> refreshAllModelStatus();
+
+    /**
+     * 新增模型配置
+     */
+    void addModelConfig(AiModelConfig config);
+
+    /**
+     * 删除模型配置
+     */
+    void deleteModelConfig(Long id);
 }

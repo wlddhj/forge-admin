@@ -5,6 +5,7 @@ import com.forge.modules.ai.dto.request.DocumentSummaryRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.dto.response.DocumentResponse;
 import com.forge.modules.ai.dto.response.ModelListResponse;
+import reactor.core.publisher.Flux;
 
 import java.util.Map;
 
@@ -19,9 +20,9 @@ public interface PythonAiClient {
     ChatResponse chat(ChatRequest request);
 
     /**
-     * 流式聊天（返回SSE数据）
+     * 流式聊天（返回SSE数据流）
      */
-    String chatStream(ChatRequest request);
+    Flux<String> chatStreamFlux(ChatRequest request);
 
     /**
      * 生成文档摘要
@@ -42,4 +43,9 @@ public interface PythonAiClient {
      * 健康检查
      */
     Map<String, Object> healthCheck();
+
+    /**
+     * 检查模型是否可用
+     */
+    boolean checkModelAvailable(String modelName);
 }

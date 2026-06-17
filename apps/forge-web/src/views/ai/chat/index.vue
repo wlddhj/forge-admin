@@ -4,7 +4,7 @@
     <div class="conversation-panel">
       <div class="panel-header">
         <el-select v-model="selectedModelId" placeholder="选择模型" style="width: 100%">
-          <el-option v-for="model in modelList" :key="model.id" :label="model.name" :value="model.id" />
+          <el-option v-for="model in modelList" :key="model.id" :label="model.modelName" :value="model.id" />
         </el-select>
       </div>
       <div class="panel-actions">
@@ -63,6 +63,7 @@
         </div>
         <div class="input-area">
           <el-input
+            ref="inputRef"
             v-model="inputMessage"
             type="textarea"
             :rows="3"
@@ -84,7 +85,7 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getModelList } from '@/api/ai/model'
-import { createConversation, getConversationList, getConversationMessages, sendMessage, deleteConversation, updateConversationTitle } from '@/api/ai/chat'
+import { createConversation, getConversationList, getConversationMessages, sendMessage, deleteConversation, updateConversationTitle, saveAiMessage } from '@/api/ai/chat'
 import { createSSE, parseSSEData } from '@/utils/sse'
 import type { ModelConfigResponse } from '@/api/ai/model'
 import type { ConversationResponse, MessageResponse } from '@/api/ai/chat'
@@ -97,6 +98,7 @@ const selectedModelId = ref<number>()
 const conversationList = ref<ConversationResponse[]>([])
 const currentConversation = ref<ConversationResponse | null>(null)
 const messageList = ref<MessageResponse[]>([])
+const inputRef = ref()
 const inputMessage = ref('')
 const isStreaming = ref(false)
 const streamingContent = ref('')
@@ -106,7 +108,7 @@ const sseClient = createSSE()
 
 onMounted(async () => {
   modelList.value = await getModelList()
-  const defaultModel = modelList.value.find(m => m.isDefault)
+  const defaultModel = modelList.value.find(m => m.isDefault === 1)
   if (defaultModel) {
     selectedModelId.value = defaultModel.id
   }
@@ -124,7 +126,7 @@ const handleNewConversation = async () => {
     return
   }
   const model = modelList.value.find(m => m.id === selectedModelId.value)
-  const conv = await createConversation({ modelId: selectedModelId.value, title: `与 ${model?.name} 的对话` })
+  const conv = await createConversation({ modelId: selectedModelId.value, title: `与 ${model?.modelName} 的对话` })
   conversationList.value.unshift(conv)
   handleSelectConversation(conv)
 }
@@ -172,17 +174,36 @@ const handleSend = async () => {
       content: content
     }, {
       onMessage: (dataStr) => {
+        // 兼容两种格式：JSON { content: "xxx" } 或纯字符串
         const data = parseSSEData<{ content?: string; done?: boolean }>(dataStr)
         if (data?.content) {
           streamingContent.value += data.content
           scrollToBottom()
+        } else if (dataStr && dataStr !== '[DONE]' && !dataStr.startsWith('{')) {
+          // 纯字符串格式
+          streamingContent.value += dataStr
+          scrollToBottom()
         }
       },
       onDone: async () => {
-        // 刷新消息列表获取完整的助手回复
-        messageList.value = await getConversationMessages(currentConversation.value!.id)
+        // 将累积的流式内容作为 AI 回复添加到消息列表
+        if (streamingContent.value) {
+          const aiMsg: MessageResponse = {
+            id: Date.now(),
+            conversationId: currentConversation.value!.id,
+            role: 'assistant',
+            content: streamingContent.value,
+            createTime: new Date().toISOString()
+          }
+          messageList.value.push(aiMsg)
+          // 保存到数据库
+          await saveAiMessage(currentConversation.value!.id, streamingContent.value)
+        }
         streamingContent.value = ''
         isStreaming.value = false
+        scrollToBottom()
+        // 自动聚焦输入框
+        nextTick(() => inputRef.value?.focus())
       },
       onError: (error) => {
         ElMessage.error(error.message || '发送失败')

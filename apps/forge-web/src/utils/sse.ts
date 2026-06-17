@@ -61,17 +61,18 @@ export class SSEClient {
 
         // 解析 SSE 数据格式
         const lines = buffer.split('\n')
-        buffer = ''
+        buffer = lines.pop() || ''  // 保留最后一个可能不完整的行
 
         for (const line of lines) {
           if (line.startsWith('data:')) {
             const dataStr = line.substring(5).trim()
             if (dataStr) {
+              if (dataStr === '[DONE]') {
+                callbacks.onDone?.()
+                return
+              }
               callbacks.onMessage?.(dataStr)
             }
-          } else if (line.trim() && !line.startsWith(':')) {
-            // 保留不完整的行到 buffer
-            buffer = line
           }
         }
       }

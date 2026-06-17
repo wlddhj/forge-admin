@@ -16,9 +16,13 @@ public class ChatRequest {
     private Long conversationId;
 
     /**
+     * 模型ID
+     */
+    private Long modelId;
+
+    /**
      * 模型名称
      */
-    @NotBlank(message = "模型名称不能为空")
     private String modelName;
 
     /**
@@ -46,4 +50,15 @@ public class ChatRequest {
      * 关联的文档ID列表（可选）
      */
     private List<Long> documentIds;
+
+    /**
+     * 消息历史（包含上下文）
+     */
+    private List<MessageItem> messages;
+
+    @Data
+    public static class MessageItem {
+        private String role;
+        private String content;
+    }
 }

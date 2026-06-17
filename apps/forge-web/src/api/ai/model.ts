@@ -24,6 +24,18 @@ export interface ModelConfigRequest {
   temperature?: number
 }
 
+// 新增模型请求
+export interface AddModelRequest {
+  modelName: string
+  modelCode?: string
+  provider: string
+  apiEndpoint?: string
+  apiKey?: string
+  maxTokens?: number
+  temperature?: number
+  remark?: string
+}
+
 // 模型切换请求
 export interface ModelSwitchRequest {
   modelId: number
@@ -34,6 +46,14 @@ export const modelApi = {
   list: () =>
     request.get<ModelConfigResponse[]>('/ai/model/list'),
 
+  // 获取模型详情
+  get: (id: number) =>
+    request.get<ModelConfigResponse>(`/ai/model/${id}`),
+
+  // 新增模型配置
+  add: (data: AddModelRequest) =>
+    request.post('/ai/model', data),
+
   // 配置模型
   config: (id: number, data: ModelConfigRequest) =>
     request.put<ModelConfigResponse>(`/ai/model/${id}/config`, data),
@@ -41,6 +61,10 @@ export const modelApi = {
   // 设为默认模型
   switch: (id: number) =>
     request.put<ModelConfigResponse>(`/ai/model/${id}/default`),
+
+  // 删除模型配置
+  delete: (id: number) =>
+    request.delete(`/ai/model/${id}`),
 
   // 刷新模型状态
   refreshStatus: (id: number) =>
@@ -53,9 +77,12 @@ export const modelApi = {
 
 // 导出独立函数
 export const getModelList = () => modelApi.list().then(res => res.data)
+export const getModel = (id: number) => modelApi.get(id).then(res => res.data)
+export const addModel = (data: AddModelRequest) => modelApi.add(data)
 export const configModel = (id: number, data: ModelConfigRequest) =>
   modelApi.config(id, data).then(res => res.data)
 export const switchModel = (id: number) => modelApi.switch(id).then(res => res.data)
+export const deleteModel = (id: number) => modelApi.delete(id)
 export const refreshModelStatus = (id: number) =>
   modelApi.refreshStatus(id).then(res => res.data)
 export const refreshAllModels = () => modelApi.refreshAll().then(res => res.data)

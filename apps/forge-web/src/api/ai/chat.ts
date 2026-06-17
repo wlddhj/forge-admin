@@ -62,7 +62,13 @@ export const chatApi = {
 
   // 更新对话标题
   updateTitle: (id: number, title: string) =>
-    request.put(`/ai/chat/conversation/${id}/title`, { title })
+    request.put(`/ai/chat/conversation/${id}/title`, { title }),
+
+  // 保存AI回复消息
+  saveAiMessage: (conversationId: number, content: string) =>
+    request.post(`/ai/chat/message/save-ai?conversationId=${conversationId}`, content, {
+      headers: { 'Content-Type': 'application/json' }
+    })
 }
 
 // 导出独立函数
@@ -77,3 +83,5 @@ export const sendMessage = (data: MessageSendRequest) =>
   chatApi.send(data).then(res => res.data)
 export const updateConversationTitle = (id: number, title: string) =>
   chatApi.updateTitle(id, title)
+export const saveAiMessage = (conversationId: number, content: string) =>
+  chatApi.saveAiMessage(conversationId, content)

@@ -57,6 +57,7 @@ public class SecurityConfig {
             "/admin-api/.well-known/**",
             "/admin-api/userinfo",
             "/admin-api/connect/logout",
+            "/admin-api/ai/chat/message/stream",  // SSE 流式接口（权限在 Controller 中已检查）
     };
 
     private static final String[] GLOBAL_WHITE_LIST = {

@@ -11,6 +11,7 @@ import java.util.List;
 public class ConversationResponse {
     private Long id;
     private String title;
+    private Long modelId;
     private String modelName;
     private String type;
     private Long documentId;

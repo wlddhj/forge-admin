@@ -1,4 +1,4 @@
-package com.forge.modules.ai.controller;
+package com.forge.modules.ai.controller.admin;
 
 import com.forge.common.response.Result;
 import com.forge.framework.web.annotation.OperationLog;
@@ -7,6 +7,7 @@ import com.forge.modules.ai.entity.AiModelConfig;
 import com.forge.modules.ai.service.AiModelService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -64,8 +65,7 @@ public class AiModelController {
     @PreAuthorize("hasAuthority('ai:model:switch')")
     @OperationLog(title = "AI模型配置", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> switchDefaultModel(@PathVariable Long id) {
-        // 设置为默认模型（status=1且is_default=1）
-        aiModelService.updateModelStatus(id, 1);
+        aiModelService.setDefaultModel(id);
         return Result.success();
     }
 
@@ -75,6 +75,52 @@ public class AiModelController {
     @OperationLog(title = "AI模型配置", businessType = OperationLog.BusinessType.OTHER)
     public Result<Void> refreshModelCache() {
         aiModelService.refreshModelCache();
+        return Result.success();
+    }
+
+    @Operation(summary = "配置模型")
+    @PutMapping("/{id}/config")
+    @PreAuthorize("hasAuthority('ai:model:config')")
+    @OperationLog(title = "AI模型配置", businessType = OperationLog.BusinessType.UPDATE)
+    public Result<AiModelConfig> configModel(@PathVariable Long id, @RequestBody AiModelConfig config) {
+        aiModelService.updateModelConfig(id, config);
+        AiModelConfig updated = aiModelService.getModelConfig(id);
+        return Result.success(updated);
+    }
+
+    @Operation(summary = "刷新单个模型状态")
+    @PostMapping("/{id}/refresh")
+    @PreAuthorize("hasAuthority('ai:model:config')")
+    @OperationLog(title = "AI模型配置", businessType = OperationLog.BusinessType.OTHER)
+    public Result<AiModelConfig> refreshModelStatus(@PathVariable Long id) {
+        AiModelConfig config = aiModelService.refreshModelStatus(id);
+        return Result.success(config);
+    }
+
+    @Operation(summary = "刷新所有模型状态")
+    @PostMapping("/refresh-all")
+    @PreAuthorize("hasAuthority('ai:model:config')")
+    @OperationLog(title = "AI模型配置", businessType = OperationLog.BusinessType.OTHER)
+    public Result<List<AiModelConfig>> refreshAllModelStatus() {
+        List<AiModelConfig> configs = aiModelService.refreshAllModelStatus();
+        return Result.success(configs);
+    }
+
+    @Operation(summary = "新增模型配置")
+    @PostMapping
+    @PreAuthorize("hasAuthority('ai:model:add')")
+    @OperationLog(title = "AI模型配置", businessType = OperationLog.BusinessType.INSERT)
+    public Result<Void> addModelConfig(@Valid @RequestBody AiModelConfig config) {
+        aiModelService.addModelConfig(config);
+        return Result.success();
+    }
+
+    @Operation(summary = "删除模型配置")
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ai:model:delete')")
+    @OperationLog(title = "AI模型配置", businessType = OperationLog.BusinessType.DELETE)
+    public Result<Void> deleteModelConfig(@PathVariable Long id) {
+        aiModelService.deleteModelConfig(id);
         return Result.success();
     }
 }

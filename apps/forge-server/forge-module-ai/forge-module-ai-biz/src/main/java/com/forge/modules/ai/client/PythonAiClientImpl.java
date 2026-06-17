@@ -7,13 +7,16 @@ import com.forge.modules.ai.dto.request.DocumentSummaryRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.dto.response.DocumentResponse;
 import com.forge.modules.ai.dto.response.ModelListResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -21,30 +24,30 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class PythonAiClientImpl implements PythonAiClient {
 
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
-    @Value("${ai.python-service.url:http://localhost:8000}")
-    private String serviceUrl;
-
-    @Value("${ai.python-service.timeout:30000}")
-    private int timeout;
+    public PythonAiClientImpl(
+            @Qualifier("pythonServiceWebClient") WebClient webClient,
+            ObjectMapper objectMapper) {
+        this.webClient = webClient;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public ChatResponse chat(ChatRequest request) {
-        String url = serviceUrl + "/api/v1/chat";
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<ChatRequest> entity = new HttpEntity<>(request, headers);
+            Map<String, Object> pythonRequest = convertToPythonRequest(request);
 
-            ResponseEntity<ChatResponse> response = restTemplate.exchange(
-                    url, HttpMethod.POST, entity, ChatResponse.class);
-
-            return response.getBody();
+            return webClient.post()
+                    .uri("/api/chat/completions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(pythonRequest)
+                    .retrieve()
+                    .bodyToMono(ChatResponse.class)
+                    .block();
         } catch (Exception e) {
             log.error("调用Python AI服务chat接口失败: {}", e.getMessage());
             ChatResponse errorResponse = new ChatResponse();
@@ -55,36 +58,63 @@ public class PythonAiClientImpl implements PythonAiClient {
     }
 
     @Override
-    public String chatStream(ChatRequest request) {
-        String url = serviceUrl + "/api/v1/chat/stream";
-        try {
-            request.setStream(true);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<ChatRequest> entity = new HttpEntity<>(request, headers);
+    public Flux<String> chatStreamFlux(ChatRequest request) {
+        request.setStream(true);
+        Map<String, Object> pythonRequest = convertToPythonRequest(request);
 
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url, HttpMethod.POST, entity, String.class);
+        return webClient.post()
+                .uri("/api/chat/completions/stream")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(pythonRequest)
+                .retrieve()
+                .bodyToFlux(String.class);
+    }
 
-            return response.getBody();
-        } catch (Exception e) {
-            log.error("调用Python AI服务chat/stream接口失败: {}", e.getMessage());
-            return null;
+    private Map<String, Object> convertToPythonRequest(ChatRequest request) {
+        Map<String, Object> pythonRequest = new HashMap<>();
+
+        List<Map<String, String>> messages = new ArrayList<>();
+        // 使用历史消息（如果有）
+        if (request.getMessages() != null && !request.getMessages().isEmpty()) {
+            for (ChatRequest.MessageItem m : request.getMessages()) {
+                Map<String, String> msg = new HashMap<>();
+                msg.put("role", m.getRole());
+                msg.put("content", m.getContent());
+                messages.add(msg);
+            }
         }
+        // 添加当前用户消息
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", request.getContent());
+        messages.add(userMessage);
+        pythonRequest.put("messages", messages);
+
+        String provider = inferProviderFromModelName(request.getModelName());
+        pythonRequest.put("provider", provider);
+        pythonRequest.put("model", request.getModelName());
+
+        if (request.getTemperature() != null) {
+            pythonRequest.put("temperature", request.getTemperature());
+        }
+        if (request.getMaxTokens() != null) {
+            pythonRequest.put("max_tokens", request.getMaxTokens());
+        }
+        pythonRequest.put("stream", request.getStream() != null && request.getStream());
+
+        return pythonRequest;
     }
 
     @Override
     public DocumentResponse summarize(DocumentSummaryRequest request) {
-        String url = serviceUrl + "/api/v1/document/summarize";
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<DocumentSummaryRequest> entity = new HttpEntity<>(request, headers);
-
-            ResponseEntity<DocumentResponse> response = restTemplate.exchange(
-                    url, HttpMethod.POST, entity, DocumentResponse.class);
-
-            return response.getBody();
+            return webClient.post()
+                    .uri("/api/document/summarize")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(DocumentResponse.class)
+                    .block();
         } catch (Exception e) {
             log.error("调用Python AI服务summarize接口失败: {}", e.getMessage());
             DocumentResponse errorResponse = new DocumentResponse();
@@ -96,20 +126,18 @@ public class PythonAiClientImpl implements PythonAiClient {
 
     @Override
     public DocumentResponse parseDocument(Long documentId, String filePath) {
-        String url = serviceUrl + "/api/v1/document/parse";
         try {
-            Map<String, Object> params = Map.of(
-                    "documentId", documentId,
-                    "filePath", filePath
-            );
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(params, headers);
+            Map<String, Object> params = new HashMap<>();
+            params.put("documentId", documentId);
+            params.put("filePath", filePath);
 
-            ResponseEntity<DocumentResponse> response = restTemplate.exchange(
-                    url, HttpMethod.POST, entity, DocumentResponse.class);
-
-            return response.getBody();
+            return webClient.post()
+                    .uri("/api/document/parse")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(params)
+                    .retrieve()
+                    .bodyToMono(DocumentResponse.class)
+                    .block();
         } catch (Exception e) {
             log.error("调用Python AI服务parse接口失败: {}", e.getMessage());
             DocumentResponse errorResponse = new DocumentResponse();
@@ -121,11 +149,12 @@ public class PythonAiClientImpl implements PythonAiClient {
 
     @Override
     public ModelListResponse getAvailableModels() {
-        String url = serviceUrl + "/api/v1/models";
         try {
-            ResponseEntity<ModelListResponse> response = restTemplate.getForEntity(
-                    url, ModelListResponse.class);
-            return response.getBody();
+            return webClient.get()
+                    .uri("/api/chat/providers")
+                    .retrieve()
+                    .bodyToMono(ModelListResponse.class)
+                    .block();
         } catch (Exception e) {
             log.error("调用Python AI服务models接口失败: {}", e.getMessage());
             return new ModelListResponse();
@@ -134,13 +163,58 @@ public class PythonAiClientImpl implements PythonAiClient {
 
     @Override
     public Map<String, Object> healthCheck() {
-        String url = serviceUrl + "/health";
         try {
-            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-            return objectMapper.readValue(response.getBody(), new TypeReference<Map<String, Object>>() {});
+            String response = webClient.get()
+                    .uri("/api/health")
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            return objectMapper.readValue(response, new TypeReference<Map<String, Object>>() {});
         } catch (Exception e) {
             log.error("调用Python AI服务health接口失败: {}", e.getMessage());
             return Map.of("status", "error", "message", e.getMessage());
         }
+    }
+
+    @Override
+    public boolean checkModelAvailable(String modelName) {
+        try {
+            Map<String, Object> health = healthCheck();
+            if (health.containsKey("providers")) {
+                Object providersObj = health.get("providers");
+                List<String> availableProviders = new ArrayList<>();
+                if (providersObj instanceof List) {
+                    for (Object p : (List<?>) providersObj) {
+                        availableProviders.add(p.toString());
+                    }
+                }
+                String provider = inferProviderFromModelName(modelName);
+                return availableProviders.contains(provider);
+            }
+            return false;
+        } catch (Exception e) {
+            log.warn("检查模型 {} 可用性失败: {}", modelName, e.getMessage());
+            return false;
+        }
+    }
+
+    private String inferProviderFromModelName(String modelName) {
+        if (modelName == null) {
+            return null;
+        }
+        String lowerName = modelName.toLowerCase();
+        if (lowerName.startsWith("qwen") || lowerName.contains("通义")) {
+            return "qwen";
+        }
+        if (lowerName.startsWith("deepseek")) {
+            return "deepseek";
+        }
+        if (lowerName.startsWith("glm") || lowerName.contains("智谱")) {
+            return "glm";
+        }
+        if (lowerName.startsWith("ernie") || lowerName.contains("文心")) {
+            return "ernie";
+        }
+        return modelName.split("-")[0].toLowerCase();
     }
 }

@@ -1,6 +1,5 @@
 package com.forge.modules.ai.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
@@ -11,13 +10,16 @@ public class CreateConversationRequest {
     /**
      * 对话标题
      */
-    @NotBlank(message = "对话标题不能为空")
     private String title;
+
+    /**
+     * 模型ID
+     */
+    private Long modelId;
 
     /**
      * 模型名称
      */
-    @NotBlank(message = "模型名称不能为空")
     private String modelName;
 
     /**
