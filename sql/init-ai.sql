@@ -96,26 +96,25 @@ CREATE TABLE `ai_chat_message` (
 -- ========================================
 DROP TABLE IF EXISTS `ai_document`;
 CREATE TABLE `ai_document` (
-  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `user_id` bigint NOT NULL COMMENT '用户ID',
-  `file_name` varchar(255) NOT NULL COMMENT '文件名称',
-  `file_path` varchar(500) DEFAULT NULL COMMENT '文件路径',
-  `file_url` varchar(500) DEFAULT NULL COMMENT '文件URL',
-  `file_type` varchar(100) DEFAULT NULL COMMENT '文件类型(MIME类型)',
-  `file_size` bigint DEFAULT 0 COMMENT '文件大小(字节)',
-  `content` longtext DEFAULT NULL COMMENT '文档内容',
-  `summary` text DEFAULT NULL COMMENT '文档摘要',
-  `model_name` varchar(100) DEFAULT NULL COMMENT '使用的模型名称',
-  `status` tinyint DEFAULT 0 COMMENT '状态(0:待处理 1:处理中 2:已完成 3:失败)',
-  `error_message` varchar(500) DEFAULT NULL COMMENT '错误信息',
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  `deleted` tinyint DEFAULT 0 COMMENT '删除标记',
-  PRIMARY KEY (`id`),
-  KEY `idx_user_id` (`user_id`),
-  KEY `idx_status` (`status`),
-  KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI文档表';
+    `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `user_id` bigint NOT NULL COMMENT '用户ID',
+    `attachment_id` bigint DEFAULT NULL COMMENT '附件ID',
+    `file_name` varchar(255) NOT NULL COMMENT '文件名称',
+    `content` longtext COMMENT '提取的文本内容',
+    `summary` text COMMENT 'AI生成的摘要',
+    `model_name` varchar(100) DEFAULT NULL COMMENT '使用的模型名称',
+    `status` tinyint NOT NULL DEFAULT '0' COMMENT '状态(0:待处理 1:处理中 2:已完成 3:失败)',
+    `error_message` varchar(500) DEFAULT NULL COMMENT '错误信息',
+    `model_provider` varchar(50) DEFAULT NULL COMMENT '处理模型提供商',
+    `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '删除标记',
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_status` (`status`),
+    KEY `idx_create_time` (`create_time`),
+    KEY `idx_attachment_id` (`attachment_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='AI文档表';
 
 -- ========================================
 -- 5. AI API用量统计表
