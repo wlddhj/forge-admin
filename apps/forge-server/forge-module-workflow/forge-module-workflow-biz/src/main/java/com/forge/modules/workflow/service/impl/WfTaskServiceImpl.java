@@ -967,7 +967,7 @@ public class WfTaskServiceImpl implements WfTaskService {
                         historicTask.getTaskDefinitionKey())
                 .changeState();
 
-        String currentUsername = SecurityUtils.getCurrentNickame();
+        String currentUsername = SecurityUtils.getCurrentNickname();
         Task newTask = taskService.createTaskQuery()
                 .processInstanceId(processInstanceId)
                 .taskDefinitionKey(historicTask.getTaskDefinitionKey())
