@@ -19,23 +19,29 @@ public class AiModelConfig {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private String provider;
-
     private String modelName;
 
-    private String apiKey;
+    private String modelCode;
 
-    private String apiUrl;
+    private String provider;
+
+    private String apiEndpoint;
+
+    private String apiKey;
 
     private Integer maxTokens;
 
     private BigDecimal temperature;
 
-    private Integer isEnabled;
+    private Integer contextWindow;
+
+    private BigDecimal inputPrice;
+
+    private BigDecimal outputPrice;
 
     private Integer isDefault;
 
-    private Integer sortOrder;
+    private Integer status;
 
     private String remark;
 

@@ -29,23 +29,23 @@ public class AiDocumentServiceImpl implements AiDocumentService {
     @Override
     @Transactional
     public DocumentResponse parseDocument(Long documentId, String filePath) {
-        // 更新文档状态为处理中
-        AiDocument document = documentMapper.selectById(documentId);
-        if (document != null) {
-            document.setStatus(0);
-            documentMapper.updateById(document);
+        AiDocument document = null;
+        if (documentId != null) {
+            document = documentMapper.selectById(documentId);
+            if (document != null) {
+                document.setStatus(0);
+                documentMapper.updateById(document);
+            }
         }
 
         // 调用Python服务解析
         DocumentResponse response = pythonAiClient.parseDocument(documentId, filePath);
 
         // 更新文档状态和内容
-        if (document != null) {
-            document.setStatus(response != null && response.getStatus() == 1 ? 1 : 2);
-            if (response != null) {
-                document.setSummary(response.getSummary());
-                document.setModelName(response.getModelName());
-            }
+        if (document != null && response != null) {
+            document.setStatus(response.getStatus() == 1 ? 1 : 2);
+            document.setSummary(response.getSummary());
+            document.setModelName(response.getModelName());
             documentMapper.updateById(document);
         }
 
@@ -58,7 +58,7 @@ public class AiDocumentServiceImpl implements AiDocumentService {
         DocumentResponse response = pythonAiClient.summarize(request);
 
         // 更新文档摘要
-        if (response != null && response.getStatus() == 1) {
+        if (response != null && response.getStatus() != null && response.getStatus() == 1) {
             AiDocument document = documentMapper.selectById(request.getDocumentId());
             if (document != null) {
                 document.setSummary(response.getSummary());

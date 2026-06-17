@@ -6,44 +6,40 @@ import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * AI 文档实体
+ * AI API用量统计实体
  */
 @Data
-@TableName("ai_document")
-public class AiDocument {
+@TableName("ai_api_usage")
+public class AiApiUsage {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
     private Long userId;
 
-    private String fileName;
+    private Long modelId;
 
-    private String filePath;
+    private LocalDateTime usageDate;
 
-    private String fileUrl;
+    private Integer requestCount;
 
-    private String fileType;
+    private Integer successCount;
 
-    private Long fileSize;
+    private Integer failureCount;
 
-    private String content;
+    private Integer totalInputTokens;
 
-    private String summary;
+    private Integer totalOutputTokens;
 
-    private String modelName;
+    private BigDecimal totalCost;
 
-    private Integer status;
-
-    private String errorMessage;
+    private Integer avgResponseTime;
 
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;
-
-    @TableLogic
-    private Integer deleted;
 }

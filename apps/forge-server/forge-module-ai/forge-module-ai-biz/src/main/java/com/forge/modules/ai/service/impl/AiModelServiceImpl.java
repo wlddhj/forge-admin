@@ -11,8 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * AI模型服务实现
@@ -45,7 +46,7 @@ public class AiModelServiceImpl implements AiModelService {
     @Override
     public List<AiModelConfig> getAllModelConfigs() {
         LambdaQueryWrapper<AiModelConfig> wrapper = new LambdaQueryWrapper<>();
-        wrapper.orderByAsc(AiModelConfig::getSortOrder);
+        wrapper.orderByAsc(AiModelConfig::getId);
         return modelConfigMapper.selectList(wrapper);
     }
 
@@ -74,16 +75,18 @@ public class AiModelServiceImpl implements AiModelService {
                     // 新模型，插入记录
                     AiModelConfig config = new AiModelConfig();
                     config.setModelName(model.getModelName());
-                    config.setDisplayName(model.getDisplayName());
+                    config.setModelCode(model.getModelName());
                     config.setProvider(model.getProvider());
-                    config.setDescription(model.getDescription());
-                    config.setContextLength(model.getContextLength());
-                    config.setMaxTemperature(model.getMaxTemperature());
-                    config.setSupportsVision(model.getSupportsVision());
-                    config.setSupportsFunctionCall(model.getSupportsFunctionCall());
-                    config.setPricingInput(model.getPricingInput());
-                    config.setPricingOutput(model.getPricingOutput());
                     config.setStatus(1);
+                    config.setIsDefault(0);
+                    config.setMaxTokens(4096);
+                    config.setTemperature(new BigDecimal("0.7"));
+                    if (model.getPricingInput() != null) {
+                        config.setInputPrice(new BigDecimal(model.getPricingInput().toString()));
+                    }
+                    if (model.getPricingOutput() != null) {
+                        config.setOutputPrice(new BigDecimal(model.getPricingOutput().toString()));
+                    }
                     modelConfigMapper.insert(config);
                 }
             });

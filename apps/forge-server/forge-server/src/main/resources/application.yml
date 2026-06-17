@@ -129,3 +129,18 @@ logging:
 file:
   upload-path: ${FILE_UPLOAD_PATH:./uploads}
   base-url: ${FILE_BASE_URL:http://localhost:8181/uploads}
+
+# AI模块配置
+ai:
+  enabled: ${AI_ENABLED:true}
+  python-service:
+    base-url: ${AI_PYTHON_SERVICE_URL:http://localhost:8000}
+    connect-timeout: ${AI_PYTHON_CONNECT_TIMEOUT:5000}
+    read-timeout: ${AI_PYTHON_READ_TIMEOUT:60000}
+    enabled: ${AI_PYTHON_ENABLED:true}
+  models:
+    default-model: ${AI_DEFAULT_MODEL:deepseek-chat}
+    default-temperature: ${AI_DEFAULT_TEMPERATURE:0.7}
+    default-max-tokens: ${AI_DEFAULT_MAX_TOKENS:4096}
+    cache-enabled: ${AI_MODEL_CACHE_ENABLED:true}
+    cache-expire-seconds: ${AI_MODEL_CACHE_EXPIRE:3600}

@@ -5,29 +5,42 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
  * AI 消息记录实体
  */
 @Data
-@TableName("ai_message")
+@TableName("ai_chat_message")
 public class AiMessage {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private Long conversationId;
+    private String messageId;
+
+    private String conversationId;
 
     private String role;
 
     private String content;
 
-    private Integer tokensUsed;
+    private Integer inputTokens;
 
-    private String modelProvider;
+    private Integer outputTokens;
 
-    private Integer responseTime;
+    private BigDecimal cost;
+
+    private Long modelId;
+
+    private String parentMessageId;
+
+    private String metadata;
+
+    private Integer status;
+
+    private String errorMsg;
 
     private LocalDateTime createTime;
 }

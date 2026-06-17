@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -52,10 +53,11 @@ public class AiChatServiceImpl implements AiChatService {
     @Transactional
     public ConversationResponse createConversation(CreateConversationRequest request) {
         AiConversation conversation = new AiConversation();
+        conversation.setConversationId(UUID.randomUUID().toString());
         conversation.setTitle(request.getTitle());
-        conversation.setModelName(request.getModelName());
-        conversation.setType(request.getType());
-        conversation.setDocumentId(request.getDocumentId());
+        conversation.setStatus(1);
+        conversation.setTotalMessages(0);
+        conversation.setTotalTokens(0);
         conversationMapper.insert(conversation);
 
         return toConversationResponse(conversation);
@@ -79,7 +81,7 @@ public class AiChatServiceImpl implements AiChatService {
 
         // 获取消息列表
         LambdaQueryWrapper<AiMessage> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(AiMessage::getConversationId, conversationId)
+        wrapper.eq(AiMessage::getConversationId, conversation.getConversationId())
                 .orderByAsc(AiMessage::getCreateTime);
         List<AiMessage> messages = messageMapper.selectList(wrapper);
         response.setMessages(messages.stream().map(this::toMessageResponse).collect(Collectors.toList()));
@@ -90,51 +92,87 @@ public class AiChatServiceImpl implements AiChatService {
     @Override
     @Transactional
     public void deleteConversation(Long conversationId) {
-        // 删除消息
-        LambdaQueryWrapper<AiMessage> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(AiMessage::getConversationId, conversationId);
-        messageMapper.delete(wrapper);
+        AiConversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation != null) {
+            // 删除消息
+            LambdaQueryWrapper<AiMessage> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(AiMessage::getConversationId, conversation.getConversationId());
+            messageMapper.delete(wrapper);
 
-        // 删除对话
-        conversationMapper.deleteById(conversationId);
+            // 删除对话
+            conversationMapper.deleteById(conversationId);
+        }
     }
 
     private void saveUserMessage(ChatRequest request) {
+        String conversationIdStr;
         if (request.getConversationId() == null) {
             // 创建新对话
             AiConversation conversation = new AiConversation();
+            conversation.setConversationId(UUID.randomUUID().toString());
             conversation.setTitle(request.getContent().substring(0, Math.min(50, request.getContent().length())));
-            conversation.setModelName(request.getModelName());
-            conversation.setType("chat");
+            conversation.setStatus(1);
+            conversation.setTotalMessages(0);
+            conversation.setTotalTokens(0);
             conversationMapper.insert(conversation);
             request.setConversationId(conversation.getId());
+            conversationIdStr = conversation.getConversationId();
+        } else {
+            AiConversation conversation = conversationMapper.selectById(request.getConversationId());
+            conversationIdStr = conversation != null ? conversation.getConversationId() : UUID.randomUUID().toString();
         }
 
         AiMessage message = new AiMessage();
-        message.setConversationId(request.getConversationId());
+        message.setMessageId(UUID.randomUUID().toString());
+        message.setConversationId(conversationIdStr);
         message.setRole("user");
         message.setContent(request.getContent());
+        message.setStatus(1);
         messageMapper.insert(message);
+
+        // 更新对话消息数
+        updateConversationStats(conversationIdStr);
     }
 
     private void saveAssistantMessage(ChatResponse response) {
+        AiConversation conversation = conversationMapper.selectById(response.getConversationId());
+        if (conversation == null) {
+            return;
+        }
+
         AiMessage message = new AiMessage();
-        message.setConversationId(response.getConversationId());
+        message.setMessageId(UUID.randomUUID().toString());
+        message.setConversationId(conversation.getConversationId());
         message.setRole("assistant");
         message.setContent(response.getContent());
         message.setInputTokens(response.getInputTokens());
         message.setOutputTokens(response.getOutputTokens());
+        message.setStatus(1);
         messageMapper.insert(message);
         response.setMessageId(message.getId());
+
+        // 更新对话统计
+        updateConversationStats(conversation.getConversationId());
+    }
+
+    private void updateConversationStats(String conversationId) {
+        LambdaQueryWrapper<AiMessage> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AiMessage::getConversationId, conversationId);
+        Long messageCount = messageMapper.selectCount(wrapper);
+
+        AiConversation conversation = conversationMapper.selectOne(
+                new LambdaQueryWrapper<AiConversation>().eq(AiConversation::getConversationId, conversationId)
+        );
+        if (conversation != null) {
+            conversation.setTotalMessages(messageCount.intValue());
+            conversationMapper.updateById(conversation);
+        }
     }
 
     private ConversationResponse toConversationResponse(AiConversation conversation) {
         ConversationResponse response = new ConversationResponse();
         response.setId(conversation.getId());
         response.setTitle(conversation.getTitle());
-        response.setModelName(conversation.getModelName());
-        response.setType(conversation.getType());
-        response.setDocumentId(conversation.getDocumentId());
         response.setCreateTime(conversation.getCreateTime());
         response.setUpdateTime(conversation.getUpdateTime());
         response.setMessages(Collections.emptyList());
