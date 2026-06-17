@@ -7,9 +7,12 @@ export interface DocumentResponse {
   fileName: string
   fileSize: number
   fileType: string
+  fileUrl: string
+  content: string | null  // 新增
   status: number // 0: 处理中, 1: 已完成, 2: 处理失败
   summary: string | null
-  content: string | null
+  modelName: string | null
+  errorMessage: string | null
   createTime: string
   updateTime: string
 }
@@ -52,9 +55,9 @@ export const documentApi = {
   get: (id: number) =>
     request.get<DocumentResponse>(`/ai/document/${id}`),
 
-  // 获取文档摘要
+  // 获取文档摘要 - 改为 GET 请求，使用默认模型
   summary: (id: number) =>
-    request.get<{ summary: string; content: string }>(`/ai/document/${id}/summary`),
+    request.get<DocumentResponse>(`/ai/document/${id}/summary`),
 
   // 删除文档
   delete: (id: number) =>
