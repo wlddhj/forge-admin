@@ -26,6 +26,11 @@ public interface AiModelService {
     AiModelConfig getModelConfig(Long id);
 
     /**
+     * 获取默认模型配置
+     */
+    AiModelConfig getDefaultModel();
+
+    /**
      * 更新模型状态
      */
     void updateModelStatus(Long id, Integer status);

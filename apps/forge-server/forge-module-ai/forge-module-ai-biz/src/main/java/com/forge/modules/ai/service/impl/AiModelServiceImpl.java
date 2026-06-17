@@ -56,6 +56,15 @@ public class AiModelServiceImpl implements AiModelService {
     }
 
     @Override
+    public AiModelConfig getDefaultModel() {
+        LambdaQueryWrapper<AiModelConfig> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AiModelConfig::getIsDefault, 1);
+        wrapper.eq(AiModelConfig::getStatus, 1);
+        wrapper.last("LIMIT 1");
+        return modelConfigMapper.selectOne(wrapper);
+    }
+
+    @Override
     @Transactional
     public void updateModelStatus(Long id, Integer status) {
         AiModelConfig config = modelConfigMapper.selectById(id);
