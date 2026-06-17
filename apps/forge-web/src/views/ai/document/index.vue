@@ -67,12 +67,13 @@
         <vxe-column field="fileName" title="文件名" min-width="200" />
         <vxe-column field="fileType" title="类型" width="80">
           <template #default="{ row }">
-            <el-tag size="small">{{ row.fileType.toUpperCase() }}</el-tag>
+            <el-tag v-if="row.fileType" size="small">{{ row.fileType.toUpperCase() }}</el-tag>
+            <span v-else>-</span>
           </template>
         </vxe-column>
         <vxe-column field="fileSize" title="大小" width="100">
           <template #default="{ row }">
-            {{ formatFileSize(row.fileSize) }}
+            {{ row.fileSize ? formatFileSize(row.fileSize) : '-' }}
           </template>
         </vxe-column>
         <vxe-column title="状态" width="100">
