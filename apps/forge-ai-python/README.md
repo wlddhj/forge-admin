@@ -14,9 +14,37 @@ AI service for Forge Admin - multi-provider LLM integration with document parsin
 ### Prerequisites
 
 - Python 3.10+
-- pip or hatch
+- uv (recommended) or pip
 
-### Installation
+### Using Maintenance Scripts (uv)
+
+```bash
+# 安装依赖
+./scripts/install.sh
+
+# 开发模式启动（带自动重载）
+./scripts/dev.sh
+
+# 生产模式启动
+./scripts/start.sh
+
+# 停止服务
+./scripts/stop.sh
+
+# 运行测试
+./scripts/test.sh
+
+# 代码检查
+./scripts/lint.sh
+
+# 代码格式化
+./scripts/format.sh
+
+# 查看所有命令
+./scripts/run.sh help
+```
+
+### Manual Installation (pip)
 
 ```bash
 # Clone and enter directory
@@ -25,10 +53,21 @@ cd apps/forge-ai-python
 # Install dependencies
 pip install -e .
 pip install -e ".[dev]"  # For development
+```
 
-# Or use hatch
-pip install hatch
-hatch install
+### Manual Installation (uv)
+
+```bash
+cd apps/forge-ai-python
+
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies
+uv sync
+
+# Install with dev dependencies
+uv sync --all-groups
 ```
 
 ### Configuration
