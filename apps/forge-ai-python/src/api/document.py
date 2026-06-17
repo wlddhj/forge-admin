@@ -1,6 +1,8 @@
 """Document API endpoints."""
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile, Form, Request
+from typing import Optional
+import json
 
 from models.schemas import DocumentParseResponse, DocumentType, SummarizeRequest, SummarizeResponse
 from services.document_parser import DocumentParser
@@ -18,22 +20,78 @@ async def get_document_types() -> list[DocumentType]:
 
 
 @router.post("/parse", response_model=DocumentParseResponse)
-async def parse_document(file: UploadFile = File(...)) -> DocumentParseResponse:
-    """Parse uploaded document and extract text."""
-    # Read file content
-    content = await file.read()
+async def parse_document(
+    request: Request,
+    file: Optional[UploadFile] = File(default=None),
+    filePath: Optional[str] = Form(default=None),
+    documentId: Optional[int] = Form(default=None)
+) -> DocumentParseResponse:
+    """Parse uploaded document and extract text.
+
+    支持三种方式：
+    1. multipart/form-data上传文件：file参数
+    2. multipart/form-data指定路径：filePath参数
+    3. JSON body：{"filePath": "...", "documentId": ...}
+    """
+    content = None
+    filename = "unknown"
+
+    # 尝试从JSON body获取参数
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            filePath = body.get("filePath")
+            documentId = body.get("documentId")
+        except json.JSONDecodeError:
+            pass
+
+    if file and file.filename:
+        # 方式1：上传文件
+        content = await file.read()
+        filename = file.filename
+    elif filePath:
+        # 方式2/3：从本地路径读取文件
+        import os
+        if not os.path.exists(filePath):
+            raise HTTPException(status_code=404, detail=f"File not found: {filePath}")
+        with open(filePath, 'rb') as f:
+            content = f.read()
+        filename = os.path.basename(filePath)
+    else:
+        raise HTTPException(status_code=422, detail="Either 'file' or 'filePath' must be provided")
 
     try:
-        result = await document_parser.parse(content, file.filename or "unknown")
+        result = await document_parser.parse(content, filename)
         return DocumentParseResponse(
-            text=result["text"],
+            content=result["text"],
             pages=result["pages"],
             metadata=result["metadata"],
+            status=1,  # 成功
+            summary=None,
+            modelName=None,
+            errorMessage=None,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return DocumentParseResponse(
+            content=None,
+            pages=0,
+            metadata={},
+            status=2,  # 失败
+            summary=None,
+            modelName=None,
+            errorMessage=str(e),
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to parse document: {str(e)}")
+        return DocumentParseResponse(
+            content=None,
+            pages=0,
+            metadata={},
+            status=2,  # 失败
+            summary=None,
+            modelName=None,
+            errorMessage=f"Failed to parse document: {str(e)}",
+        )
 
 
 @router.post("/summarize", response_model=SummarizeResponse)

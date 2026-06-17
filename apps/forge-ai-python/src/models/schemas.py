@@ -82,9 +82,14 @@ class DocumentParseRequest(BaseModel):
 class DocumentParseResponse(BaseModel):
     """Document parse response."""
 
-    text: str
+    content: Optional[str] = None  # 文档内容，对应 Java 的 content 字段
     pages: int = 1
     metadata: dict[str, Any] = Field(default_factory=dict)
+    # 以下字段用于匹配 Java 端的 DocumentResponse
+    status: int = 1  # 1-成功 2-失败
+    summary: Optional[str] = None
+    modelName: Optional[str] = None
+    errorMessage: Optional[str] = None
 
 
 class SummarizeRequest(BaseModel):
