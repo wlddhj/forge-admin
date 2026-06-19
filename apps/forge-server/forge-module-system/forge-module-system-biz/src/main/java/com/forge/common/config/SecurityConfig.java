@@ -93,6 +93,20 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                // 安全响应头配置
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.sameOrigin())
+                        .contentTypeOptions(contentType -> contentType.disable())
+                        .xssProtection(xss -> xss.disable())
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000))
+                        .addHeaderWriter((request, response) -> {
+                            response.setHeader("X-Content-Type-Options", "nosniff");
+                            response.setHeader("X-XSS-Protection", "1; mode=block");
+                            response.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;");
+                        })
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(ADMIN_WHITE_LIST).permitAll()
                         .anyRequest().authenticated())
@@ -121,6 +135,19 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                // 安全响应头配置
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.sameOrigin())
+                        .contentTypeOptions(contentType -> contentType.disable())
+                        .xssProtection(xss -> xss.disable())
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000))
+                        .addHeaderWriter((request, response) -> {
+                            response.setHeader("X-Content-Type-Options", "nosniff");
+                            response.setHeader("X-XSS-Protection", "1; mode=block");
+                        })
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(APP_WHITE_LIST).permitAll()
                         .anyRequest().authenticated())
