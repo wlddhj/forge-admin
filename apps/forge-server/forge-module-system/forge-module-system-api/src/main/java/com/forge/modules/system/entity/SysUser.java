@@ -1,6 +1,8 @@
 package com.forge.modules.system.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.forge.framework.mybatis.annotation.EncryptField;
+import com.forge.framework.mybatis.handler.EncryptTypeHandler;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -35,13 +37,17 @@ public class SysUser {
     private String password;
 
     /**
-     * 手机号
+     * 手机号（加密存储）
      */
+    @EncryptField
+    @TableField(typeHandler = EncryptTypeHandler.class)
     private String phone;
 
     /**
-     * 邮箱
+     * 邮箱（加密存储）
      */
+    @EncryptField
+    @TableField(typeHandler = EncryptTypeHandler.class)
     private String email;
 
     /**
