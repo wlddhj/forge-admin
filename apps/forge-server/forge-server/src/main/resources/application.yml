@@ -62,6 +62,54 @@ forge:
     send-cooldown-seconds: 60
     daily-limit: 5
     verify-error-limit: 5
+  security:
+    captcha:
+      enabled: true
+      length: 4
+      expire-seconds: 300
+      width: 120
+      height: 40
+    password:
+      min-length: 8
+      max-length: 32
+      require-uppercase: true
+      require-lowercase: true
+      require-digit: true
+      require-special: true
+      history-size: 5
+      expire-days: 90
+      bcrypt-strength: 12
+      aes-key: ${APP_AES_KEY:default-aes-key-change-in-prod-32bytes!}
+      random-password-length: 12
+    login:
+      max-fail-count: 5
+      lock-minutes: 15
+      single-session: true
+      max-concurrent-sessions: 3
+    upload:
+      max-size: 10485760
+      allowed-extensions:
+        - jpg
+        - jpeg
+        - png
+        - gif
+        - webp
+        - bmp
+        - pdf
+        - doc
+        - docx
+        - xls
+        - xlsx
+        - ppt
+        - pptx
+        - txt
+        - csv
+        - md
+        - json
+      enable-magic-check: true
+    cors-allowed-origins:
+      - "*"
+    sensitive-data-masking: true
 
 # MyBatis-Plus配置
 mybatis-plus:

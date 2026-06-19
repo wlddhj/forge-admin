@@ -29,6 +29,23 @@
           />
         </el-form-item>
 
+        <el-form-item v-if="captchaEnabled" prop="captchaCode">
+          <div class="captcha-wrapper">
+            <el-input
+              v-model="loginForm.captchaCode"
+              placeholder="验证码"
+              prefix-icon="Key"
+              size="large"
+              maxlength="6"
+              @keyup.enter="handleLogin"
+            />
+            <div class="captcha-image" @click="refreshCaptcha">
+              <img v-if="captchaImage" :src="captchaImage" alt="点击刷新验证码" />
+              <div v-else class="captcha-loading">加载中...</div>
+            </div>
+          </div>
+        </el-form-item>
+
         <el-form-item>
           <el-button
             type="primary"
@@ -52,11 +69,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { getCaptcha } from '@/api/auth'
 import SocialLogin from './components/social-login.vue'
 
 const appTitle = import.meta.env.VITE_APP_TITLE
@@ -68,15 +86,48 @@ const userStore = useUserStore()
 const loginFormRef = ref<FormInstance>()
 const loading = ref(false)
 
+// 验证码状态
+const captchaEnabled = ref(false)
+const captchaImage = ref('')
+
 const loginForm = reactive({
   username: 'admin',
-  password: '123456'
+  password: '123456',
+  captchaId: '',
+  captchaCode: ''
 })
 
 const loginRules: FormRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  captchaCode: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
 }
+
+// 获取验证码
+const refreshCaptcha = async () => {
+  try {
+    const res = await getCaptcha()
+    loginForm.captchaId = res.captchaId
+    captchaImage.value = res.captchaImage
+    loginForm.captchaCode = ''
+    // 如果 captchaId 为空，说明后端禁用了验证码
+    captchaEnabled.value = !!res.captchaId
+  } catch (e) {
+    console.error('获取验证码失败', e)
+  }
+}
+
+// 清除可能残留的旧登录状态（避免旧 token 干扰登录）
+const clearStaleAuth = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refreshToken')
+  localStorage.removeItem('tokenExpireTime')
+}
+
+onMounted(() => {
+  clearStaleAuth()
+  refreshCaptcha()
+})
 
 const handleLogin = async () => {
   if (!loginFormRef.value) return
@@ -90,8 +141,12 @@ const handleLogin = async () => {
 
         const redirect = route.query.redirect as string
         router.push(redirect || '/dashboard')
-      } catch (error) {
+      } catch (error: any) {
         console.error('登录失败', error)
+        // 登录失败后刷新验证码
+        if (captchaEnabled.value) {
+          refreshCaptcha()
+        }
       } finally {
         loading.value = false
       }
@@ -191,6 +246,47 @@ const handleLogin = async () => {
 
   .el-form-item {
     margin-bottom: 25px;
+  }
+
+  .captcha-wrapper {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    align-items: center;
+
+    .el-input {
+      flex: 1;
+    }
+
+    .captcha-image {
+      width: 120px;
+      height: 40px;
+      flex-shrink: 0;
+      cursor: pointer;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--el-border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f7fa;
+      transition: all 0.3s ease;
+
+      &:hover {
+        border-color: var(--el-text-color-secondary);
+      }
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .captcha-loading {
+        font-size: 12px;
+        color: var(--el-text-color-placeholder);
+      }
+    }
   }
 
   .login-btn {

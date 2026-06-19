@@ -28,7 +28,7 @@ public class UserRequest {
     @Size(max = 30, message = "昵称长度不能超过30个字符")
     private String nickname;
 
-    @Schema(description = "密码（新增时必填）", example = "123456")
+    @Schema(description = "密码（新增时必填，需符合复杂度策略：8-32位、含大小写字母+数字+特殊字符）", example = "GoodPass#2026")
     private String password;
 
     @Schema(description = "手机号", example = "13800138000")

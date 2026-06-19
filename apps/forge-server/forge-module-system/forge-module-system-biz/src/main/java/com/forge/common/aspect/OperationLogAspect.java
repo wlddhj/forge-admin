@@ -5,6 +5,7 @@ import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONUtil;
 import com.forge.framework.web.annotation.OperationLog;
 import com.forge.common.utils.SecurityUtils;
+import com.forge.common.utils.SensitiveDataMasker;
 import com.forge.common.utils.UserContext;
 import com.forge.modules.system.entity.SysOperationLog;
 import com.forge.modules.system.service.SysOperationLogService;
@@ -126,7 +127,7 @@ public class OperationLogAspect {
     }
 
     /**
-     * 获取请求参数
+     * 获取请求参数（敏感字段脱敏）
      */
     private String getRequestParams(JoinPoint joinPoint) {
         Map<String, Object> params = new HashMap<>();
@@ -140,13 +141,38 @@ public class OperationLogAspect {
                     continue;
                 }
                 try {
-                    params.put("param", arg);
+                    // 序列化为 JSON 后脱敏处理
+                    String json = JSONUtil.toJsonStr(arg);
+                    String maskedJson = maskSensitiveFields(json);
+                    params.put("param", JSONUtil.parseObj(maskedJson));
                 } catch (Exception e) {
                     log.warn("序列化请求参数异常: {}", e.getMessage());
                 }
             }
         }
         return JSONUtil.toJsonStr(params);
+    }
+
+    /**
+     * 脱敏 JSON 中的敏感字段
+     */
+    private String maskSensitiveFields(String json) {
+        if (StrUtil.isEmpty(json)) {
+            return json;
+        }
+        try {
+            cn.hutool.json.JSONObject obj = JSONUtil.parseObj(json);
+            for (String key : obj.keySet()) {
+                Object value = obj.get(key);
+                if (value instanceof String strValue) {
+                    obj.set(key, SensitiveDataMasker.mask(key, strValue));
+                }
+            }
+            return obj.toString();
+        } catch (Exception e) {
+            // 非 JSON 对象，直接返回
+            return json;
+        }
     }
 
     /**

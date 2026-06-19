@@ -40,3 +40,9 @@ logging:
   level:
     com.forge: debug
     com.forge.modules.system.mapper: info
+
+# 等保安全策略（开发环境覆盖）
+forge:
+  security:
+    captcha:
+      enabled: true

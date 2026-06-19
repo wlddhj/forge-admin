@@ -1,10 +1,15 @@
 import request from '@/utils/request'
-import type { LoginRequest, LoginResponse, UserInfo, RefreshTokenRequest } from '@/types/auth'
+import type { LoginRequest, LoginResponse, UserInfo, RefreshTokenRequest, CaptchaResponse } from '@/types/auth'
 import type { MenuTree } from '@/types/system'
 
 // 登录
 export function login(data: LoginRequest) {
   return request.post<LoginResponse>('/auth/login', data).then(res => res.data)
+}
+
+// 获取验证码
+export function getCaptcha() {
+  return request.get<CaptchaResponse>('/auth/captcha').then(res => res.data)
 }
 
 // 刷新 Token（静默模式，避免 401 时触发拦截器的自动刷新循环）

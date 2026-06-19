@@ -57,4 +57,14 @@ public class UserInfoResponse {
      * 权限列表
      */
     private List<String> permissions;
+
+    /**
+     * 密码剩余有效天数（null 表示不检查，<=7 时前端应提醒修改）
+     */
+    private Integer passwordExpireDays;
+
+    /**
+     * 密码是否已过期
+     */
+    private Boolean passwordExpired;
 }

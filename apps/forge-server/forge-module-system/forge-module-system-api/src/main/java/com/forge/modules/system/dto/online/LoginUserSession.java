@@ -66,4 +66,9 @@ public class LoginUserSession implements Serializable {
      * 最后活跃时间（时间戳）
      */
     private Long lastActiveTime;
+
+    /**
+     * 关联的 Refresh Token（用于踢出时同步失效）
+     */
+    private String refreshToken;
 }

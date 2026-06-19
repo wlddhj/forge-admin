@@ -9,7 +9,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.forge.framework.mybatis.annotation.DataPermission;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
+import com.forge.common.utils.CryptoUtils;
 import com.forge.common.utils.UserContext;
+import com.forge.modules.system.auth.util.PasswordValidator;
 import com.forge.modules.system.dto.user.*;
 import com.forge.modules.system.entity.SysDept;
 import com.forge.modules.system.entity.SysRole;
@@ -55,6 +57,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private final SysDeptService sysDeptService;
     private final SysRoleService sysRoleService;
     private final SysRoleDeptMapper sysRoleDeptMapper;
+    private final com.forge.modules.system.auth.util.PasswordValidator passwordValidator;
+    private final com.forge.modules.system.auth.properties.PasswordPolicyProperties passwordPolicyProperties;
+    private final com.forge.modules.system.service.SysUserPasswordHistoryService passwordHistoryService;
+    private final CryptoUtils cryptoUtils;
 
     @Override
     @DataPermission(enable = false) // 禁用数据权限，避免循环依赖
@@ -213,13 +219,24 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
-    public void resetPassword(Long id) {
+    @Transactional(rollbackFor = Exception.class)
+    public String resetPassword(Long id) {
         SysUser user = getById(id);
         if (user == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
-        user.setPassword(passwordEncoder.encode("123456"));
+        // 生成符合复杂度的随机密码，强制下次登录修改
+        String randomPassword = cryptoUtils.generateRandomPassword(passwordPolicyProperties.getRandomPasswordLength());
+        user.setPassword(passwordEncoder.encode(randomPassword));
+        user.setPasswordUpdateTime(java.time.LocalDateTime.now());
+        user.setFirstLogin(1);
+        user.setPasswordErrorCount(0);
+        user.setLockTime(null);
         updateById(user);
+        // 重置后清除历史，避免新密码被旧历史拦截
+        passwordHistoryService.remove(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.forge.modules.system.entity.SysUserPasswordHistory>()
+                .eq(com.forge.modules.system.entity.SysUserPasswordHistory::getUserId, id));
+        return randomPassword;
     }
 
     @Override
@@ -316,18 +333,38 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updatePassword(UserPasswordRequest request) {
         SysUser user = getCurrentUser();
         if (user == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
         }
-        // 验证旧密码
+        // 1. 验证旧密码
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
             throw new BusinessException("当前密码错误");
         }
-        // 更新密码
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        // 2. 新旧密码不能相同
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BusinessException("新密码不能与当前密码相同");
+        }
+        // 3. 复杂度校验
+        PasswordValidator.Result vr = passwordValidator.validate(request.getNewPassword());
+        if (!vr.isSuccess()) {
+            throw new BusinessException(vr.getMessage());
+        }
+        // 4. 历史密码校验（最近 N 次不复用）
+        if (passwordHistoryService.isPasswordInHistory(
+                user.getId(), request.getNewPassword(), passwordPolicyProperties.getHistorySize())) {
+            throw new BusinessException("新密码不能与最近 " + passwordPolicyProperties.getHistorySize() + " 次使用过的密码相同");
+        }
+        // 5. 编码并持久化新密码
+        String newHash = passwordEncoder.encode(request.getNewPassword());
+        user.setPassword(newHash);
+        user.setPasswordUpdateTime(java.time.LocalDateTime.now());
+        user.setFirstLogin(0);
         updateById(user);
+        // 6. 保存到历史表
+        passwordHistoryService.saveAndTrim(user.getId(), newHash, passwordPolicyProperties.getHistorySize());
     }
 
     @Override
@@ -398,7 +435,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                     // 新增用户
                     SysUser user = new SysUser();
                     BeanUtil.copyProperties(importUser, user);
-                    user.setPassword(passwordEncoder.encode("123456"));
+                    String defaultPassword = cryptoUtils.generateRandomPassword(passwordPolicyProperties.getRandomPasswordLength());
+                    user.setPassword(passwordEncoder.encode(defaultPassword));
+                    user.setPasswordUpdateTime(java.time.LocalDateTime.now());
+                    user.setFirstLogin(1);
                     if (user.getStatus() == null) {
                         user.setStatus(1);
                     }

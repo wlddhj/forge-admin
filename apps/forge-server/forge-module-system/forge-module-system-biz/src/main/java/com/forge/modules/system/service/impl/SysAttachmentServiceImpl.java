@@ -13,6 +13,7 @@ import com.forge.modules.system.mapper.SysAttachmentMapper;
 import com.forge.modules.system.service.SysAttachmentService;
 import com.forge.modules.system.service.SysFileConfigService;
 import com.forge.modules.system.service.SysUserService;
+import com.forge.modules.system.auth.util.FileUploadValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -41,6 +42,7 @@ public class SysAttachmentServiceImpl extends ServiceImpl<SysAttachmentMapper, S
     private final SysAttachmentMapper sysAttachmentMapper;
     private final SysUserService sysUserService;
     private final SysFileConfigService sysFileConfigService;
+    private final FileUploadValidator fileUploadValidator;
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter DATE_PATH_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
@@ -92,6 +94,12 @@ public class SysAttachmentServiceImpl extends ServiceImpl<SysAttachmentMapper, S
     public AttachmentResponse upload(MultipartFile file, String bizType, Long bizId) {
         if (file.isEmpty()) {
             throw new RuntimeException("上传文件不能为空");
+        }
+
+        // 安全校验：大小、扩展名、Magic Number
+        String validationError = fileUploadValidator.validate(file);
+        if (validationError != null) {
+            throw new RuntimeException(validationError);
         }
 
         SysFileConfig config = getRequiredDefaultConfig();

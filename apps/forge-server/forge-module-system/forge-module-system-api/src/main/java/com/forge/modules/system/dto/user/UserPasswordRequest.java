@@ -13,8 +13,8 @@ public class UserPasswordRequest {
     @NotBlank(message = "当前密码不能为空")
     private String oldPassword;
 
-    @Schema(description = "新密码", required = true)
+    @Schema(description = "新密码（8-32位，需含大小写字母、数字、特殊字符）", required = true)
     @NotBlank(message = "新密码不能为空")
-    @Size(min = 6, max = 20, message = "密码长度为6-20位")
+    @Size(min = 8, max = 32, message = "密码长度为8-32位")
     private String newPassword;
 }

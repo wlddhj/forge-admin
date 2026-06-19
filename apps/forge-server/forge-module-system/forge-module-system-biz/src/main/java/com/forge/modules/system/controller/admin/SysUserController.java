@@ -131,13 +131,13 @@ public class SysUserController {
         return Result.success();
     }
 
-    @Operation(summary = "重置密码")
+    @Operation(summary = "重置密码（返回随机密码，仅本次展示）")
     @PutMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('system:user:resetPwd')")
     @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.UPDATE)
-    public Result<Void> resetPassword(@PathVariable Long id) {
-        sysUserService.resetPassword(id);
-        return Result.success();
+    public Result<String> resetPassword(@PathVariable Long id) {
+        String randomPassword = sysUserService.resetPassword(id);
+        return Result.success(randomPassword);
     }
 
     @Operation(summary = "获取所有用户简单列表")

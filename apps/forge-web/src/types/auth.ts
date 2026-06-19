@@ -2,6 +2,8 @@
 export interface LoginRequest {
   username: string
   password: string
+  captchaId?: string
+  captchaCode?: string
 }
 
 // 登录响应
@@ -11,6 +13,16 @@ export interface LoginResponse {
   tokenType: string
   expiresIn: number
   refreshExpiresIn: number
+  needChangePassword?: boolean
+  message?: string
+  passwordExpireDays?: number
+  passwordExpired?: boolean
+}
+
+// 验证码响应
+export interface CaptchaResponse {
+  captchaId: string
+  captchaImage: string
 }
 
 // 刷新 Token 请求
@@ -28,4 +40,6 @@ export interface UserInfo {
   deptName: string
   roles: string[]
   permissions: string[]
+  passwordExpireDays?: number
+  passwordExpired?: boolean
 }

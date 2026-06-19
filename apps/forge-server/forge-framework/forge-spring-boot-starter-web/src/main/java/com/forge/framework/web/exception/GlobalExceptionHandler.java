@@ -7,6 +7,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
@@ -81,12 +82,15 @@ public class GlobalExceptionHandler {
      * 认证异常
      */
     @ExceptionHandler(AuthenticationException.class)
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public Result<Void> handleAuthenticationException(AuthenticationException e) {
+    public Result<Void> handleAuthenticationException(AuthenticationException e, HttpServletResponse response) {
         log.warn("认证失败: {}", e.getMessage());
         if (e instanceof BadCredentialsException) {
+            // 密码错误返回 HTTP 200 + 业务错误码，避免前端误判为 token 过期触发刷新流程
+            response.setStatus(HttpStatus.OK.value());
             return Result.failed(ResultCode.USER_PASSWORD_ERROR);
         }
+        // 其他认证异常（如 token 无效）返回 401
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
         return Result.failed(ResultCode.UNAUTHORIZED);
     }
 

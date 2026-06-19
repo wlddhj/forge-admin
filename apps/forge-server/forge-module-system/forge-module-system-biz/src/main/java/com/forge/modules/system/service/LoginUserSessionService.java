@@ -38,4 +38,22 @@ public interface LoginUserSessionService {
      * @param tokenId 会话ID
      */
     void updateLastActiveTime(String tokenId);
+
+    /**
+     * 获取指定用户的所有活跃会话
+     *
+     * @param username 用户名
+     * @return 会话列表（按登录时间倒序）
+     */
+    List<LoginUserSession> getSessionsByUsername(String username);
+
+    /**
+     * 踢掉指定用户的所有会话（排除当前 tokenId）
+     * 用于单点登录场景
+     *
+     * @param username        用户名
+     * @param excludeTokenId  保留的当前会话ID（可为 null 表示全部踢出）
+     * @return 被踢出的会话数量
+     */
+    int kickOutUserSessions(String username, String excludeTokenId);
 }

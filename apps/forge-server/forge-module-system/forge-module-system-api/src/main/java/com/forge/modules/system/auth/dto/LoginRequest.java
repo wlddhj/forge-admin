@@ -17,7 +17,13 @@ public class LoginRequest {
     @NotBlank(message = "用户名不能为空")
     private String username;
 
-    @Schema(description = "密码", example = "admin123", required = true)
+    @Schema(description = "密码", example = "GoodPass#2026", required = true)
     @NotBlank(message = "密码不能为空")
     private String password;
+
+    @Schema(description = "验证码ID", example = "abc123")
+    private String captchaId;
+
+    @Schema(description = "验证码", example = "ABCD")
+    private String captchaCode;
 }

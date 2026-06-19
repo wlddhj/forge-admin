@@ -56,9 +56,9 @@ public interface SysUserService extends IService<SysUser> {
     void updateStatus(Long id, Integer status);
 
     /**
-     * 重置密码
+     * 重置密码（返回随机生成的明文密码，仅本次展示）
      */
-    void resetPassword(Long id);
+    String resetPassword(Long id);
 
     /**
      * 获取用户权限

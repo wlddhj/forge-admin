@@ -20,6 +20,11 @@
             <artifactId>forge-common</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-mybatis</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <scope>provided</scope>
