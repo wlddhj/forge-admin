@@ -61,6 +61,11 @@ public interface SysUserService extends IService<SysUser> {
     String resetPassword(Long id);
 
     /**
+     * 解锁用户（清除登录失败计数和锁定标记）
+     */
+    void unlock(Long id);
+
+    /**
      * 获取用户权限
      */
     List<SimpleGrantedAuthority> getUserPermissions(Long userId);

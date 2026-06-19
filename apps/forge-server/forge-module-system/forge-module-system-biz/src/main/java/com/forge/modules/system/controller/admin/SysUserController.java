@@ -140,6 +140,15 @@ public class SysUserController {
         return Result.success(randomPassword);
     }
 
+    @Operation(summary = "解锁用户（清除登录锁定状态）")
+    @PutMapping("/{id}/unlock")
+    @PreAuthorize("hasAuthority('system:user:unlock')")
+    @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.UPDATE)
+    public Result<Void> unlock(@PathVariable Long id) {
+        sysUserService.unlock(id);
+        return Result.success();
+    }
+
     @Operation(summary = "获取所有用户简单列表")
     @GetMapping("/simple-list")
     public Result<List<UserSimpleResponse>> simpleList() {

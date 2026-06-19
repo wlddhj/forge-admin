@@ -61,6 +61,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private final com.forge.modules.system.auth.properties.PasswordPolicyProperties passwordPolicyProperties;
     private final com.forge.modules.system.service.SysUserPasswordHistoryService passwordHistoryService;
     private final CryptoUtils cryptoUtils;
+    private final com.forge.modules.system.auth.service.LoginAttemptService loginAttemptService;
 
     @Override
     @DataPermission(enable = false) // 禁用数据权限，避免循环依赖
@@ -237,6 +238,22 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         passwordHistoryService.remove(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.forge.modules.system.entity.SysUserPasswordHistory>()
                 .eq(com.forge.modules.system.entity.SysUserPasswordHistory::getUserId, id));
         return randomPassword;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void unlock(Long id) {
+        SysUser user = getById(id);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        // 清除数据库锁定状态
+        user.setPasswordErrorCount(0);
+        user.setLockTime(null);
+        updateById(user);
+        // 清除 Redis 锁定标记和失败计数
+        loginAttemptService.unlock(user.getUsername());
+        log.info("管理员解锁用户: id={}, username={}", id, user.getUsername());
     }
 
     @Override

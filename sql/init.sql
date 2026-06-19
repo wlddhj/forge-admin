@@ -630,6 +630,7 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 (12, '用户编辑', 2, '', '', NULL, '', 3, 2, 'system:user:edit', 1, 1, 0, 0),
 (13, '用户删除', 2, '', '', NULL, '', 4, 2, 'system:user:delete', 1, 1, 0, 0),
 (14, '重置密码', 2, '', '', NULL, '', 5, 2, 'system:user:resetPwd', 1, 1, 0, 0),
+(85, '解锁用户', 2, '', '', NULL, '', 6, 2, 'system:user:unlock', 1, 1, 0, 0),
 (61, '用户导出', 2, '', '', NULL, '', 7, 2, 'system:user:export', 1, 1, 0, 0),
 -- 角色管理按钮
 (15, '角色查询', 3, '', '', NULL, '', 1, 2, 'system:role:query', 1, 1, 0, 0),
