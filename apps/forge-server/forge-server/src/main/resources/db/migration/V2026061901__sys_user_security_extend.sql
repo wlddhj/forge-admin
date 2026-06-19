@@ -3,7 +3,7 @@
 
 ALTER TABLE `sys_user`
     ADD COLUMN `password_update_time` DATETIME DEFAULT NULL COMMENT '密码最后修改时间' AFTER `last_login_ip`,
-    ADD COLUMN `first_login` TINYINT NOT NULL DEFAULT 0 COMMENT '是否首次登录(0:否 1:是强制改密)' AFTER `password_update_time`,
+    ADD COLUMN `first_login` TINYINT NOT NULL DEFAULT 0 COMMENT '是否首次登录需强制改密(0:否 1:是)' AFTER `password_update_time`,
     ADD COLUMN `password_error_count` INT NOT NULL DEFAULT 0 COMMENT '连续登录失败次数' AFTER `first_login`,
     ADD COLUMN `lock_time` DATETIME DEFAULT NULL COMMENT '账号锁定截止时间' AFTER `password_error_count`,
     ADD INDEX `idx_lock_time` (`lock_time`);
