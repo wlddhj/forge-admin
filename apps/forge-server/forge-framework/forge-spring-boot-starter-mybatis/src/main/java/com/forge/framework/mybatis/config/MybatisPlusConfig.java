@@ -8,6 +8,8 @@ import com.baomidou.mybatisplus.extension.plugins.inner.DataPermissionIntercepto
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.forge.framework.mybatis.permission.DataPermissionRuleHandler;
+import com.forge.framework.mybatis.holder.CryptoUtilsHolder;
+import com.forge.common.utils.CryptoUtils;
 import com.forge.common.utils.UserContext;
 import lombok.RequiredArgsConstructor;
 import org.apache.ibatis.annotations.Mapper;
@@ -29,6 +31,16 @@ import java.time.LocalDateTime;
 public class MybatisPlusConfig {
 
     private final DataPermissionRuleHandler dataPermissionRuleHandler;
+
+    /**
+     * CryptoUtils 持有者（供 EncryptTypeHandler 使用）
+     */
+    @Bean
+    public CryptoUtilsHolder cryptoUtilsHolder(CryptoUtils cryptoUtils) {
+        CryptoUtilsHolder holder = new CryptoUtilsHolder();
+        holder.setCryptoUtils(cryptoUtils);
+        return holder;
+    }
 
     /**
      * MyBatis-Plus 拦截器配置

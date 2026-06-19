@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.forge.framework.mybatis.annotation.DataPermission;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
+import com.forge.common.utils.CryptoUtils;
 import com.forge.common.utils.UserContext;
 import com.forge.modules.system.auth.util.PasswordValidator;
 import com.forge.modules.system.dto.user.*;
@@ -59,7 +60,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private final com.forge.modules.system.auth.util.PasswordValidator passwordValidator;
     private final com.forge.modules.system.auth.properties.PasswordPolicyProperties passwordPolicyProperties;
     private final com.forge.modules.system.service.SysUserPasswordHistoryService passwordHistoryService;
-    private final com.forge.modules.system.auth.util.CryptoUtils cryptoUtils;
+    private final CryptoUtils cryptoUtils;
 
     @Override
     @DataPermission(enable = false) // 禁用数据权限，避免循环依赖

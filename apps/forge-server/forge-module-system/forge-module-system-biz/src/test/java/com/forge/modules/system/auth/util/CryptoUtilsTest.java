@@ -1,5 +1,6 @@
 package com.forge.modules.system.auth.util;
 
+import com.forge.common.utils.CryptoUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
