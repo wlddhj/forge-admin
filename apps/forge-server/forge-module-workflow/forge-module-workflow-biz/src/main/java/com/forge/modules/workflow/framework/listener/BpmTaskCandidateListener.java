@@ -1,24 +1,24 @@
 package com.forge.modules.workflow.framework.listener;
 
+import com.aizuda.bpm.engine.core.FlowCreator;
+import com.aizuda.bpm.engine.core.enums.TaskEventType;
+import com.aizuda.bpm.engine.entity.FlwTask;
+import com.aizuda.bpm.engine.entity.FlwTaskActor;
+import com.aizuda.bpm.engine.listener.TaskListener;
+import com.aizuda.bpm.engine.model.NodeModel;
 import com.forge.modules.workflow.framework.candidate.BpmTaskCandidateInvoker;
+import com.forge.modules.workflow.framework.candidate.BpmTaskCandidateStrategy;
+import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.flowable.bpmn.model.BpmnModel;
-import org.flowable.bpmn.model.FlowElement;
-import org.flowable.bpmn.model.UserTask;
-import org.flowable.engine.RepositoryService;
-import org.flowable.engine.delegate.TaskListener;
-import org.flowable.task.service.delegate.DelegateTask;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
-import java.util.Set;
+import java.util.*;
+import java.util.function.Supplier;
 
 /**
- * 任务候选人自动分配监听器
+ * 任务候选人自动分配监听器 - FlowLong 版本
  * 在任务创建时根据候选人策略自动设置候选用户
- * 既可作为 TaskListener 在 BPMN 中配置，也可作为全局事件监听器
  *
  * @author forge-admin
  */
@@ -27,114 +27,195 @@ import java.util.Set;
 public class BpmTaskCandidateListener implements TaskListener {
 
     private final BpmTaskCandidateInvoker candidateInvoker;
-    private RepositoryService repositoryService;
+    private final FlowLongIdentityService identityService;
 
-    private static final String FLOWABLE_NS = "http://flowable.org/bpmn";
-
-    public BpmTaskCandidateListener(BpmTaskCandidateInvoker candidateInvoker) {
+    public BpmTaskCandidateListener(BpmTaskCandidateInvoker candidateInvoker,
+                                    FlowLongIdentityService identityService) {
         this.candidateInvoker = candidateInvoker;
-    }
-
-    @Autowired
-    @Lazy
-    public void setRepositoryService(RepositoryService repositoryService) {
-        this.repositoryService = repositoryService;
+        this.identityService = identityService;
     }
 
     @Override
-    public void notify(DelegateTask delegateTask) {
+    public boolean notify(TaskEventType eventType, Supplier<FlwTask> supplier,
+                          List<FlwTaskActor> taskActors, NodeModel nodeModel, FlowCreator flowCreator) {
         // 只处理任务创建事件
-//        if (!EVENTNAME_CREATE.equals(delegateTask.getEventName())) {
-//            return;
-//        }
+        if (eventType != TaskEventType.create) {
+            return false;
+        }
 
-        assignCandidates(delegateTask);
+        FlwTask task = supplier.get();
+        if (task == null) {
+            return false;
+        }
+
+        return assignCandidates(task, taskActors, nodeModel, flowCreator);
     }
 
     /**
-     * 处理任务候选人分配（可被全局事件监听器调用）
+     * 处理任务候选人分配
      */
-    public void assignCandidates(DelegateTask delegateTask) {
+    public boolean assignCandidates(FlwTask task, List<FlwTaskActor> taskActors,
+                                    NodeModel nodeModel, FlowCreator flowCreator) {
         Integer strategyCode = null;
         String param = null;
 
-        // 1. 从 BPMN 模型的扩展属性获取（flowable:candidateStrategy/candidateParam）
-        String processDefinitionId = delegateTask.getProcessDefinitionId();
-        String taskDefKey = delegateTask.getTaskDefinitionKey();
-        try {
-            BpmnModel bpmnModel = repositoryService.getBpmnModel(processDefinitionId);
-            FlowElement flowElement = bpmnModel.getFlowElement(taskDefKey);
-            if (flowElement instanceof UserTask) {
-                UserTask userTask = (UserTask) flowElement;
-                String strategyAttr = userTask.getAttributeValue(FLOWABLE_NS, "candidateStrategy");
-                if (strategyAttr != null && !strategyAttr.isEmpty()) {
-                    strategyCode = Integer.parseInt(strategyAttr);
+        // 1. 从 NodeModel 扩展属性获取候选人策略
+        if (nodeModel != null) {
+            Map<String, Object> extendConfig = nodeModel.getExtendConfig();
+            if (extendConfig != null) {
+                Object strategyObj = extendConfig.get("candidateStrategy");
+                if (strategyObj != null) {
+                    strategyCode = ((Number) strategyObj).intValue();
                 }
-                param = userTask.getAttributeValue(FLOWABLE_NS, "candidateParam");
+                Object paramObj = extendConfig.get("candidateParam");
+                if (paramObj != null) {
+                    param = paramObj.toString();
+                }
             }
-        } catch (Exception e) {
-            log.warn("从BPMN模型读取候选人策略失败: {}", e.getMessage());
         }
 
-        // 2. 从流程变量中获取候选人策略和参数（备用）
+        // 2. 从任务变量获取候选人策略（备用）
+        if (strategyCode == null || param == null) {
+            String variableJson = task.getVariable();
+            if (variableJson != null && !variableJson.isEmpty()) {
+                try {
+                    // 简单解析 JSON 获取候选人策略
+                    Map<String, Object> variables = parseVariables(variableJson);
+                    if (strategyCode == null) {
+                        Object strategyObj = variables.get("candidateStrategy");
+                        if (strategyObj != null) {
+                            strategyCode = ((Number) strategyObj).intValue();
+                        }
+                    }
+                    if (param == null) {
+                        Object paramObj = variables.get("candidateParam");
+                        if (paramObj != null) {
+                            param = paramObj.toString();
+                        }
+                    }
+                    // 尝试从任务定义 Key 对应的变量获取
+                    String taskKey = task.getTaskKey();
+                    if (strategyCode == null) {
+                        Object taskStrategyObj = variables.get(taskKey + "_candidateStrategy");
+                        if (taskStrategyObj != null) {
+                            strategyCode = ((Number) taskStrategyObj).intValue();
+                        }
+                    }
+                    if (param == null) {
+                        Object taskParamObj = variables.get(taskKey + "_candidateParam");
+                        if (taskParamObj != null) {
+                            param = taskParamObj.toString();
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("解析任务变量失败: {}", e.getMessage());
+                }
+            }
+        }
+
         if (strategyCode == null) {
-            strategyCode = (Integer) delegateTask.getVariable("candidateStrategy");
-        }
-        if (param == null) {
-            param = (String) delegateTask.getVariable("candidateParam");
+            log.debug("任务 {} 未配置候选人策略", task.getId());
+            return false;
         }
 
-        // 3. 尝试从任务本地变量获取（针对特定任务的策略）
-        if (strategyCode == null) {
-            Object localStrategy = delegateTask.getVariableLocal("candidateStrategy");
-            if (localStrategy != null) {
-                strategyCode = (Integer) localStrategy;
-            }
-        }
-        if (param == null) {
-            Object localParam = delegateTask.getVariableLocal("candidateParam");
-            if (localParam != null) {
-                param = (String) localParam;
-            }
-        }
+        // 构建任务上下文
+        BpmTaskCandidateStrategy.TaskContext taskContext = createTaskContext(task, flowCreator);
 
-        // 4. 尝试从任务名称属性获取（BPMN XML 中配置的扩展属性）
-        if (strategyCode == null) {
-            Object processStrategy = delegateTask.getVariable(taskDefKey + "_candidateStrategy");
-            if (processStrategy != null) {
-                strategyCode = (Integer) processStrategy;
-            }
-        }
-        if (param == null) {
-            Object processParam = delegateTask.getVariable(taskDefKey + "_candidateParam");
-            if (processParam != null) {
-                param = (String) processParam;
-            }
-        }
-
-        if (strategyCode == null) {
-            log.debug("任务 {} 未配置候选人策略", delegateTask.getId());
-            return;
-        }
-
-        Set<Long> userIds = candidateInvoker.calculateUsers(strategyCode, param, delegateTask);
+        Set<Long> userIds = candidateInvoker.calculateUsers(strategyCode, param, taskContext);
         if (userIds.isEmpty()) {
             log.warn("任务 {} 候选人计算结果为空, strategy={}, param={}",
-                    delegateTask.getId(), strategyCode, param);
-            return;
+                    task.getId(), strategyCode, param);
+            return false;
         }
 
-        // 统一使用 addCandidateUser，由 validateTaskAssignee 中 claim 认领
-        // delegateTask.setAssignee() 不会写入 ACT_HI_TASKINST，导致已办任务查不到
-        for (Long userId : userIds) {
-            delegateTask.addCandidateUser(String.valueOf(userId));
-        }
+        // 添加候选人到 taskActors 列表
+        List<FlwTaskActor> actors = candidateInvoker.convertToTaskActors(userIds, identityService);
+        taskActors.addAll(actors);
+
         if (userIds.size() == 1) {
             log.info("任务 {} 单候选人: strategy={}, candidate={}",
-                    delegateTask.getId(), strategyCode, userIds.iterator().next());
+                    task.getId(), strategyCode, userIds.iterator().next());
         } else {
             log.info("任务 {} 多候选人: strategy={}, candidates={}",
-                    delegateTask.getId(), strategyCode, userIds);
+                    task.getId(), strategyCode, userIds);
+        }
+
+        return true;
+    }
+
+    /**
+     * 创建任务上下文
+     */
+    private BpmTaskCandidateStrategy.TaskContext createTaskContext(FlwTask task, FlowCreator flowCreator) {
+        return new BpmTaskCandidateStrategy.TaskContext() {
+            @Override
+            public Long getTaskId() {
+                return task.getId();
+            }
+
+            @Override
+            public String getTaskKey() {
+                return task.getTaskKey();
+            }
+
+            @Override
+            public String getTaskName() {
+                return task.getTaskName();
+            }
+
+            @Override
+            public Long getInstanceId() {
+                return task.getInstanceId();
+            }
+
+            @Override
+            public Long getProcessId() {
+                // TODO: 从流程实例获取流程定义ID
+                return null;
+            }
+
+            @Override
+            public Long getStartUserId() {
+                // 从 FlowCreator 获取发起人ID
+                if (flowCreator != null && flowCreator.getCreateId() != null) {
+                    try {
+                        return Long.parseLong(flowCreator.getCreateId());
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public Map<String, Object> getVariables() {
+                String variableJson = task.getVariable();
+                if (variableJson != null && !variableJson.isEmpty()) {
+                    return parseVariables(variableJson);
+                }
+                return Collections.emptyMap();
+            }
+
+            @Override
+            public String getBusinessKey() {
+                // TODO: 从流程实例获取业务Key
+                return null;
+            }
+        };
+    }
+
+    /**
+     * 简单解析 JSON 变量
+     */
+    private Map<String, Object> parseVariables(String variableJson) {
+        try {
+            // 使用简单的 JSON 解析（避免依赖 ObjectMapper）
+            // 实际项目中应该使用 ObjectMapper
+            return new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(variableJson, Map.class);
+        } catch (Exception e) {
+            log.warn("解析变量JSON失败: {}", e.getMessage());
+            return Collections.emptyMap();
         }
     }
 }

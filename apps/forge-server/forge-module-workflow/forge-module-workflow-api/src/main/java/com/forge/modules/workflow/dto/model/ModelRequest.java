@@ -29,6 +29,11 @@ public class ModelRequest {
     private String key;
 
     /**
+     * 分类ID
+     */
+    private Long categoryId;
+
+    /**
      * 分类编码
      */
     private String category;
@@ -39,12 +44,33 @@ public class ModelRequest {
     private String description;
 
     /**
-     * 扩展信息（JSON，包含 formType、formId）
+     * 表单类型(10流程表单 20业务表单)
+     */
+    private Integer formType;
+
+    /**
+     * 关联表单ID
+     */
+    private Long formId;
+
+    /**
+     * 自动抄送策略
+     */
+    private Integer autoCopyStrategy;
+
+    /**
+     * 自动抄送参数
+     */
+    private String autoCopyParam;
+
+    /**
+     * 扩展信息（JSON）
      */
     private String metaInfo;
 
     /**
-     * BPMN XML 内容（更新模型设计时使用）
+     * FlowLong 流程模型 JSON 内容
+     * 由 FlowLong 流程设计器直接导出
      */
-    private String bpmnXml;
+    private String modelJson;
 }

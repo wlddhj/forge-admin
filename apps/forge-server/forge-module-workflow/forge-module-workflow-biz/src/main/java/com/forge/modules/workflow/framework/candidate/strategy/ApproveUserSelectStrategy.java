@@ -3,18 +3,20 @@ package com.forge.modules.workflow.framework.candidate.strategy;
 import com.forge.modules.workflow.framework.candidate.BpmTaskCandidateStrategy;
 import com.forge.modules.workflow.framework.candidate.CandidateStrategyEnum;
 import lombok.extern.slf4j.Slf4j;
-import org.flowable.task.service.delegate.DelegateTask;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 审批人自选候选人策略
+ * 审批人自选候选人策略 - FlowLong 版本
  * 上一个审批人在审批时选择下一个节点的审批人，存储在流程变量中
  * 变量名：NEXT_TASK_DEF_KEY_candidateUsers
+ *
+ * @author forge-admin
  */
 @Slf4j
 @Component
@@ -36,17 +38,23 @@ public class ApproveUserSelectStrategy implements BpmTaskCandidateStrategy {
     }
 
     @Override
-    public Set<Long> calculateUsers(String param, DelegateTask delegateTask) {
+    public Set<Long> calculateUsers(String param, TaskContext taskContext) {
         try {
-            String taskDefKey = delegateTask.getTaskDefinitionKey();
-            String varName = "NEXT_" + taskDefKey + "_candidateUsers";
-            Object candidateUsers = delegateTask.getVariable(varName);
-            if (candidateUsers instanceof String && !((String) candidateUsers).isEmpty()) {
-                return Arrays.stream(((String) candidateUsers).split(","))
-                        .map(String::trim)
-                        .filter(s -> !s.isEmpty())
-                        .map(Long::parseLong)
-                        .collect(Collectors.toSet());
+            String taskKey = taskContext.getTaskKey();
+            String varName = "NEXT_" + taskKey + "_candidateUsers";
+
+            Map<String, Object> variables = taskContext.getVariables();
+            if (variables != null && variables.containsKey(varName)) {
+                Object candidateUsers = variables.get(varName);
+                if (candidateUsers instanceof String && !((String) candidateUsers).isEmpty()) {
+                    Set<Long> userIds = Arrays.stream(((String) candidateUsers).split(","))
+                            .map(String::trim)
+                            .filter(s -> !s.isEmpty())
+                            .map(Long::parseLong)
+                            .collect(Collectors.toSet());
+                    log.debug("审批人自选候选人: taskKey={}, userIds={}", taskKey, userIds);
+                    return userIds;
+                }
             }
         } catch (Exception e) {
             log.warn("获取审批人自选候选人失败: {}", e.getMessage());

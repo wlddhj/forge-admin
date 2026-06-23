@@ -3,7 +3,6 @@ package com.forge.modules.workflow.dto.definition;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-import java.util.Date;
 
 /**
  * 流程定义响应
@@ -104,7 +103,7 @@ public class ProcessDefinitionResponse {
     private String deployUserName;
 
     /**
-     * BPMN XML内容
+     * FlowLong 流程模型 JSON 内容
      */
-    private String bpmnXml;
+    private String modelJson;
 }

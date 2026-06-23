@@ -38,8 +38,8 @@
             <artifactId>forge-spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.flowable</groupId>
-            <artifactId>flowable-spring-boot-starter-process</artifactId>
+            <groupId>com.aizuda</groupId>
+            <artifactId>flowlong-spring-boot-starter</artifactId>
         </dependency>
         <dependency>
             <groupId>com.github.xiaoymin</groupId>

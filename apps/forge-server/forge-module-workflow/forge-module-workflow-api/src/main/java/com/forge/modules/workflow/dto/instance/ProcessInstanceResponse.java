@@ -2,7 +2,7 @@ package com.forge.modules.workflow.dto.instance;
 
 import lombok.Data;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -39,14 +39,24 @@ public class ProcessInstanceResponse {
     private String businessKey;
 
     /**
+     * 分类ID
+     */
+    private Long categoryId;
+
+    /**
+     * 分类名称
+     */
+    private String categoryName;
+
+    /**
      * 开始时间
      */
-    private Date startTime;
+    private LocalDateTime startTime;
 
     /**
      * 结束时间
      */
-    private Date endTime;
+    private LocalDateTime endTime;
 
     /**
      * 耗时（毫秒）

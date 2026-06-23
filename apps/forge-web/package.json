@@ -18,6 +18,7 @@
     "@form-create/designer": "^3.1.3",
     "@form-create/element-ui": "^3.1.24",
     "@fortawesome/fontawesome-free": "^7.2.0",
+    "@hzab/flowlong-designer": "^1.0.9",
     "axios": "^1.6.0",
     "bpmn-js": "^18.16.1",
     "bpmn-js-properties-panel": "^5.58.0",

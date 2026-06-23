@@ -6,29 +6,25 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 流程部署扩展信息实体
+ * 流程定义扩展信息实体 - FlowLong 版本
+ * 对应表 wf_process_ext
  *
  * @author forge-admin
  */
 @Data
-@TableName("wf_process_deploy_ext")
-public class WfProcessDeployExt {
+@TableName("wf_process_ext")
+public class WfProcessExt {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
-     * 部署ID
+     * FlowLong 流程定义ID（关联 flw_process.id）
      */
-    private String deploymentId;
+    private Long processId;
 
     /**
-     * 流程定义ID
-     */
-    private String processDefinitionId;
-
-    /**
-     * 流程定义Key
+     * 流程标识
      */
     private String processKey;
 
@@ -39,19 +35,14 @@ public class WfProcessDeployExt {
     private String processName;
 
     /**
-     * 流程分类ID
+     * 分类ID（关联 wf_category.id）
      */
     private Long categoryId;
 
     /**
-     * 描述
+     * 流程描述
      */
     private String description;
-
-    /**
-     * 表单Key
-     */
-    private String formKey;
 
     /**
      * 表单类型(10流程表单 20业务表单)
@@ -74,17 +65,24 @@ public class WfProcessDeployExt {
     private String autoCopyParam;
 
     /**
-     * BPMN XML内容
+     * FlowLong 流程模型 JSON 内容
      */
-    private String bpmnXml;
+    @TableField("model_json")
+    private String modelJson;
 
     /**
-     * 部署人ID
+     * 元信息 JSON（存储表单配置等扩展信息）
+     */
+    @TableField("meta_info")
+    private String metaInfo;
+
+    /**
+     * 创建人ID
      */
     private Long createBy;
 
     /**
-     * 部署人名称
+     * 创建人名称
      */
     private String createByName;
 

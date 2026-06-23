@@ -2,7 +2,7 @@ package com.forge.modules.workflow.dto.model;
 
 import lombok.Data;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 /**
  * 模型响应
@@ -28,9 +28,19 @@ public class ModelResponse {
     private String key;
 
     /**
+     * 分类ID
+     */
+    private Long categoryId;
+
+    /**
      * 分类编码
      */
     private String category;
+
+    /**
+     * 分类名称
+     */
+    private String categoryName;
 
     /**
      * 描述
@@ -50,12 +60,12 @@ public class ModelResponse {
     /**
      * 创建时间
      */
-    private Date createTime;
+    private LocalDateTime createTime;
 
     /**
      * 最后更新时间
      */
-    private Date lastUpdateTime;
+    private LocalDateTime lastUpdateTime;
 
     /**
      * 是否已部署
@@ -83,7 +93,7 @@ public class ModelResponse {
     private String autoCopyParam;
 
     /**
-     * BPMN XML 内容（仅详情接口返回）
+     * FlowLong 流程模型 JSON 内容（仅详情接口返回）
      */
-    private String bpmnXml;
+    private String modelJson;
 }

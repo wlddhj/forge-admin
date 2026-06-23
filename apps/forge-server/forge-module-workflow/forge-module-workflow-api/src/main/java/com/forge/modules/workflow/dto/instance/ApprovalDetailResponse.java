@@ -22,7 +22,7 @@ public class ApprovalDetailResponse {
     private LocalDateTime endTime;
     private Long startUserId;
     private String startUserName;
-    private String bpmnXml;
+    private String modelJson;
     private List<ApprovalNode> nodes;
 
     @Data

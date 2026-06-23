@@ -1,16 +1,25 @@
 package com.forge.modules.workflow.listener;
 
+import com.aizuda.bpm.engine.core.FlowCreator;
+import com.aizuda.bpm.engine.core.enums.TaskEventType;
+import com.aizuda.bpm.engine.entity.FlwTask;
+import com.aizuda.bpm.engine.entity.FlwTaskActor;
+import com.aizuda.bpm.engine.listener.TaskListener;
+import com.aizuda.bpm.engine.model.NodeModel;
 import com.forge.framework.web.websocket.NotificationMessage;
 import com.forge.framework.web.websocket.NotificationService;
-import com.forge.modules.workflow.identity.FlowableIdentityService;
+import com.forge.modules.workflow.identity.FlowLongIdentityService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.flowable.engine.delegate.TaskListener;
-import org.flowable.engine.impl.el.FixedValue;
-import org.flowable.task.service.delegate.DelegateTask;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Set;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
 /**
- * 任务通知监听器
+ * 任务通知监听器 - FlowLong 版本
  * 当任务创建时，通过 WebSocket 向处理人发送通知
  *
  * @author forge-admin
@@ -20,46 +29,70 @@ import org.springframework.stereotype.Component;
 public class TaskNotificationListener implements TaskListener {
 
     private final NotificationService notificationService;
-    private final FlowableIdentityService flowableIdentityService;
+    private final FlowLongIdentityService identityService;
 
     public TaskNotificationListener(NotificationService notificationService,
-                                     FlowableIdentityService flowableIdentityService) {
+                                     FlowLongIdentityService identityService) {
         this.notificationService = notificationService;
-        this.flowableIdentityService = flowableIdentityService;
+        this.identityService = identityService;
     }
 
     @Override
-    public void notify(DelegateTask delegateTask) {
-        String eventName = delegateTask.getEventName();
-//        if (!EVENTNAME_CREATE.equals(eventName)) {
-//            return;
-//        }
+    public boolean notify(TaskEventType eventType, Supplier<FlwTask> supplier,
+                          List<FlwTaskActor> taskActors, NodeModel nodeModel, FlowCreator flowCreator) {
+        // 只处理任务创建事件
+        if (eventType != TaskEventType.create) {
+            return false;
+        }
 
+        FlwTask task = supplier.get();
+        if (task == null) {
+            return false;
+        }
+
+        sendNotification(task, taskActors);
+        return false; // 返回 false 表示不干预任务流程
+    }
+
+    /**
+     * 发送任务通知
+     */
+    private void sendNotification(FlwTask task, List<FlwTaskActor> taskActors) {
         try {
-            String assignee = delegateTask.getAssignee();
-            String taskName = delegateTask.getName();
-            String processInstanceId = delegateTask.getProcessInstanceId();
+            String taskName = task.getTaskName();
+            Long instanceId = task.getInstanceId();
 
-            if (assignee != null && !assignee.isEmpty()) {
-                Long assigneeId;
-                try {
-                    assigneeId = Long.parseLong(assignee);
-                } catch (NumberFormatException e) {
-                    log.warn("任务处理人ID格式错误：assignee={}", assignee);
-                    return;
-                }
+            // 获取候选人用户ID
+            Set<Long> candidateUserIds = taskActors.stream()
+                    .filter(actor -> actor.getActorType() == 0) // 用户类型
+                    .map(actor -> {
+                        try {
+                            return Long.parseLong(actor.getActorId());
+                        } catch (NumberFormatException e) {
+                            return null;
+                        }
+                    })
+                    .filter(id -> id != null)
+                    .collect(Collectors.toSet());
 
-                String title = "新待办任务";
-                String content = String.format("您有一个新的待办任务「%s」，请及时处理。", taskName);
-
-                NotificationMessage message = NotificationMessage.workflow(title, content, Long.valueOf(delegateTask.getId().hashCode()).longValue());
-                notificationService.sendToUser(assigneeId, message);
-
-                log.info("发送任务通知：taskId={}, assignee={}, taskName={}",
-                        delegateTask.getId(), assignee, taskName);
+            if (candidateUserIds.isEmpty()) {
+                log.debug("任务 {} 没有候选用户，跳过通知", task.getId());
+                return;
             }
+
+            String title = "新待办任务";
+            String content = String.format("您有一个新的待办任务「%s」，请及时处理。", taskName);
+
+            // 向所有候选用户发送通知
+            for (Long userId : candidateUserIds) {
+                NotificationMessage message = NotificationMessage.workflow(title, content, task.getId());
+                notificationService.sendToUser(userId, message);
+            }
+
+            log.info("发送任务通知：taskId={}, taskName={}, candidates={}",
+                    task.getId(), taskName, candidateUserIds);
         } catch (Exception e) {
-            log.error("发送任务通知失败：taskId={}, error={}", delegateTask.getId(), e.getMessage(), e);
+            log.error("发送任务通知失败：taskId={}, error={}", task.getId(), e.getMessage(), e);
         }
     }
 }

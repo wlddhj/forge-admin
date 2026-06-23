@@ -16,7 +16,10 @@ export interface WfModel {
   formId: number | null
   autoCopyStrategy: number | null
   autoCopyParam: string | null
+  /** @deprecated 使用 modelJson */
   bpmnXml: string | null
+  /** FlowLong 流程模型 JSON */
+  modelJson: string | null
 }
 
 export interface ModelQuery {
@@ -34,7 +37,10 @@ export interface ModelRequest {
   category?: string
   description?: string
   metaInfo?: string
+  /** @deprecated 使用 modelJson */
   bpmnXml?: string
+  /** FlowLong 流程模型 JSON */
+  modelJson?: string
 }
 
 export const modelApi = {

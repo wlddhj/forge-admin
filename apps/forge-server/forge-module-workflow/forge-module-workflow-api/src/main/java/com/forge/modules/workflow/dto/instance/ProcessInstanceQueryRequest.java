@@ -21,6 +21,16 @@ public class ProcessInstanceQueryRequest {
     private int pageSize = 20;
 
     /**
+     * 流程定义ID
+     */
+    private String processDefinitionId;
+
+    /**
+     * 流程名称（模糊搜索）
+     */
+    private String processName;
+
+    /**
      * 流程定义名称
      */
     private String processDefinitionName;

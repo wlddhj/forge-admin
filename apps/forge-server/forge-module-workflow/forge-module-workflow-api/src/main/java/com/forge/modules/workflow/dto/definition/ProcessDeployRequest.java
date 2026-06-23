@@ -34,10 +34,10 @@ public class ProcessDeployRequest {
     private String description;
 
     /**
-     * BPMN XML内容
+     * FlowLong 流程模型 JSON 内容
      */
-    @NotBlank(message = "BPMN XML内容不能为空")
-    private String bpmnXml;
+    @NotBlank(message = "流程模型内容不能为空")
+    private String modelJson;
 
     /**
      * 表单类型(10流程表单 20业务表单)

@@ -1,15 +1,14 @@
 package com.forge.modules.workflow.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.forge.modules.workflow.entity.WfProcessDeployExt;
+import com.forge.modules.workflow.entity.WfProcessExt;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
- * 流程部署扩展信息 Mapper
+ * 流程定义扩展 Mapper - FlowLong 版本
  *
  * @author forge-admin
  */
 @Mapper
-public interface WfProcessDeployExtMapper extends BaseMapper<WfProcessDeployExt> {
-
+public interface WfProcessExtMapper extends BaseMapper<WfProcessExt> {
 }

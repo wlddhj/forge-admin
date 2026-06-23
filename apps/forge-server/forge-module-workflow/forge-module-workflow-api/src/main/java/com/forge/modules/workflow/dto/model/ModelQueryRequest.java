@@ -27,6 +27,11 @@ public class ModelQueryRequest {
     private String category;
 
     /**
+     * 分类ID
+     */
+    private Long categoryId;
+
+    /**
      * 当前页
      */
     @Min(1)

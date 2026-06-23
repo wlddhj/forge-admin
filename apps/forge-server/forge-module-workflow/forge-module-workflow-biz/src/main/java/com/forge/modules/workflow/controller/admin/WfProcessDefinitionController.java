@@ -1,9 +1,9 @@
 package com.forge.modules.workflow.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.forge.framework.web.annotation.OperationLog;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
+import com.forge.framework.web.annotation.OperationLog;
 import com.forge.modules.workflow.dto.definition.ProcessDefinitionQueryRequest;
 import com.forge.modules.workflow.dto.definition.ProcessDefinitionResponse;
 import com.forge.modules.workflow.dto.definition.ProcessDeployRequest;
@@ -89,11 +89,11 @@ public class WfProcessDefinitionController {
         return Result.success();
     }
 
-    @Operation(summary = "获取BPMN XML")
-    @GetMapping("/{id}/xml")
+    @Operation(summary = "获取流程模型 JSON")
+    @GetMapping("/{id}/json")
     @PreAuthorize("hasAuthority('workflow:process:query')")
-    public Result<String> getBpmnXml(@PathVariable String id) {
-        return Result.success(wfProcessDefinitionService.getBpmnXml(id));
+    public Result<String> getModelJson(@PathVariable String id) {
+        return Result.success(wfProcessDefinitionService.getModelJson(id));
     }
 
     @Operation(summary = "获取需要自选审批人的用户任务节点")

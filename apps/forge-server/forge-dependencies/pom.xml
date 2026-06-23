@@ -19,7 +19,7 @@
         <hutool.version>5.8.25</hutool.version>
         <justauth.version>1.16.6</justauth.version>
         <spring-authorization-server.version>1.2.0</spring-authorization-server.version>
-        <flowable.version>7.0.1</flowable.version>
+        <flowlong.version>1.2.5</flowlong.version>
         <easyexcel.version>3.3.4</easyexcel.version>
         <jsqlparser.version>4.9</jsqlparser.version>
         <aliyun-oss.version>3.17.4</aliyun-oss.version>
@@ -101,18 +101,6 @@
                 <version>${mybatis-plus.version}</version>
             </dependency>
 
-            <!-- MyBatis（覆盖 Flowable 拉入的旧版本） -->
-            <dependency>
-                <groupId>org.mybatis</groupId>
-                <artifactId>mybatis</artifactId>
-                <version>${mybatis.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.mybatis</groupId>
-                <artifactId>mybatis-spring</artifactId>
-                <version>3.0.3</version>
-            </dependency>
-
             <!-- JSQLParser -->
             <dependency>
                 <groupId>com.github.jsqlparser</groupId>
@@ -179,11 +167,11 @@
                 <version>${spring-authorization-server.version}</version>
             </dependency>
 
-            <!-- Flowable -->
+            <!-- FlowLong 工作流引擎 -->
             <dependency>
-                <groupId>org.flowable</groupId>
-                <artifactId>flowable-spring-boot-starter-process</artifactId>
-                <version>${flowable.version}</version>
+                <groupId>com.aizuda</groupId>
+                <artifactId>flowlong-spring-boot-starter</artifactId>
+                <version>${flowlong.version}</version>
             </dependency>
 
             <!-- 阿里云 OSS -->

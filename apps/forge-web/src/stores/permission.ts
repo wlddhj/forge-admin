@@ -29,19 +29,11 @@ export const usePermissionStore = defineStore('permission', () => {
     } as RouteRecordRaw)
 
     // 3. 添加隐藏路由（没有对应菜单的页面）
-    // 模型设计器
+    // 模型设计器（FlowLong）
     childrenRoutes.push({
       path: '/workflow/model/designer',
-      name: 'ModelDesigner',
-      component: loadComponent('/views/workflow/model/ModelDesigner', 'ModelDesigner'),
-      meta: { title: '模型设计', hidden: true }
-    } as RouteRecordRaw)
-
-    // 流程设计器
-    childrenRoutes.push({
-      path: '/workflow/process/designer',
-      name: 'ProcessDesigner',
-      component: loadComponent('/views/workflow/process/ProcessDesigner', 'ProcessDesigner'),
+      name: 'FlowLongModelDesigner',
+      component: loadComponent('/views/workflow/model/FlowLongModelDesigner', 'FlowLongModelDesigner'),
       meta: { title: '流程设计', hidden: true }
     } as RouteRecordRaw)
 

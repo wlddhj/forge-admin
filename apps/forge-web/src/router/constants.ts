@@ -81,6 +81,16 @@ export const CONSTANT_ROUTES = [
       hidden: true,
       noAuth: true
     }
+  },
+  {
+    path: '/workflow/model/designer',
+    name: 'FlowLongModelDesigner',
+    component: () => import('@/views/workflow/model/FlowLongModelDesigner.vue'),
+    meta: {
+      title: '流程设计',
+      hidden: true,
+      noAuth: false
+    }
   }
 ]
 

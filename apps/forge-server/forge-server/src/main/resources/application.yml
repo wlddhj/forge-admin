@@ -43,6 +43,12 @@ spring:
       max-file-size: 100MB
       max-request-size: 100MB
 
+# FlowLong 工作流引擎配置
+flowlong:
+  banner: false
+  eventing:
+    task: true  # 启用任务事件监听，用于候选人分配
+
 forge:
   info:
     base-package: com.forge

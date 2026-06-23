@@ -20,12 +20,12 @@ public class WfApprovalComment {
     /**
      * 流程实例ID
      */
-    private String processInstanceId;
+    private Long processInstanceId;
 
     /**
      * 任务ID
      */
-    private String taskId;
+    private Long taskId;
 
     /**
      * 任务定义Key

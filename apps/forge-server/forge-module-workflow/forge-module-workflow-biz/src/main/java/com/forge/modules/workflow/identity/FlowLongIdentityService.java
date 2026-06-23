@@ -11,15 +11,12 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 工作流身份桥接服务 - 统一版本
- * 将 sys_user/sys_role 映射到工作流的认证上下文
- * 同时支持 FlowLong 和原有的业务逻辑
- *
- * @author forge-admin
+ * FlowLong 身份桥接服务
+ * 将 sys_user/sys_role 映射到 FlowLong 的认证上下文
  */
 @Service
 @RequiredArgsConstructor
-public class FlowableIdentityService {
+public class FlowLongIdentityService {
 
     private final SysUserMapper sysUserMapper;
     private final SysRoleMapper sysRoleMapper;

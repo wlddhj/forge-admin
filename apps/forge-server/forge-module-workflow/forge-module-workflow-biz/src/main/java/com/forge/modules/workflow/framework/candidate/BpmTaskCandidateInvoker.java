@@ -3,15 +3,11 @@ package com.forge.modules.workflow.framework.candidate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * 候选人策略调度器
+ * 候选人策略调度器 - FlowLong 版本
  *
  * @author forge-admin
  */
@@ -53,10 +49,10 @@ public class BpmTaskCandidateInvoker {
      *
      * @param strategyCode 策略代码
      * @param param        策略参数
-     * @param delegateTask 当前任务
+     * @param taskContext  任务上下文
      * @return 候选人用户ID集合
      */
-    public Set<Long> calculateUsers(Integer strategyCode, String param, org.flowable.task.service.delegate.DelegateTask delegateTask) {
+    public Set<Long> calculateUsers(Integer strategyCode, String param, BpmTaskCandidateStrategy.TaskContext taskContext) {
         if (strategyCode == null) {
             return Collections.emptySet();
         }
@@ -65,7 +61,7 @@ public class BpmTaskCandidateInvoker {
             log.warn("未找到候选人策略: {}", strategyCode);
             return Collections.emptySet();
         }
-        return strategy.calculateUsers(param, delegateTask);
+        return strategy.calculateUsers(param, taskContext);
     }
 
     /**
@@ -84,5 +80,25 @@ public class BpmTaskCandidateInvoker {
      */
     public List<BpmTaskCandidateStrategy> getStrategyList() {
         return new ArrayList<>(strategyMap.values());
+    }
+
+    /**
+     * 将候选人用户ID集合转换为 FlowLong TaskActor 列表
+     *
+     * @param userIds      用户ID集合
+     * @param identityService 身份服务
+     * @return TaskActor 列表
+     */
+    public List<com.aizuda.bpm.engine.entity.FlwTaskActor> convertToTaskActors(Set<Long> userIds,
+                                                                                com.forge.modules.workflow.identity.FlowLongIdentityService identityService) {
+        return userIds.stream()
+                .map(userId -> {
+                    com.aizuda.bpm.engine.entity.FlwTaskActor actor = new com.aizuda.bpm.engine.entity.FlwTaskActor();
+                    actor.setActorId(String.valueOf(userId));
+                    actor.setActorName(identityService.getUserName(userId));
+                    actor.setActorType(0); // 用户类型
+                    return actor;
+                })
+                .collect(Collectors.toList());
     }
 }

@@ -61,12 +61,12 @@ public interface WfProcessDefinitionService {
     void deleteDeployment(String deploymentId);
 
     /**
-     * 获取流程定义的BPMN XML
+     * 获取流程定义的 FlowLong JSON 模型
      *
      * @param processDefinitionId 流程定义ID
-     * @return BPMN XML内容
+     * @return FlowLong JSON 模型内容
      */
-    String getBpmnXml(String processDefinitionId);
+    String getModelJson(String processDefinitionId);
 
     /**
      * 获取流程定义的流程图
