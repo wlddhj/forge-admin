@@ -5,8 +5,13 @@ import com.aizuda.bpm.engine.*;
 import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.core.enums.ActorType;
 import com.aizuda.bpm.engine.core.enums.InstanceState;
+import com.aizuda.bpm.engine.core.enums.NodeSetType;
 import com.aizuda.bpm.engine.core.enums.TaskState;
+import com.aizuda.bpm.engine.core.enums.TaskType;
 import com.aizuda.bpm.engine.entity.*;
+import com.aizuda.bpm.engine.model.DynamicAssignee;
+import com.aizuda.bpm.engine.model.NodeAssignee;
+import com.aizuda.bpm.engine.model.NodeModel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -122,36 +127,187 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             throw new BusinessException(404, "流程定义不存在");
         }
 
-        // 准备流程变量
-        Map<String, Object> variables = request.getVariables() != null
-                ? new HashMap<>(request.getVariables()) : new HashMap<>();
-        variables.put("initiator", String.valueOf(currentUserId));
-        variables.put("processNo", processNoGenerator.generateNo());
-        flowLongEngine.startInstanceById(processId, flowCreator, variables).ifPresent(instance -> {
+        // 处理发起人自选审批人
+        Map<String, String[]> startUserSelectActors = request.getStartUserSelectActors();
+        Set<String> dynamicAssigneeNodeKeys = new HashSet<>();
+        if (startUserSelectActors != null && !startUserSelectActors.isEmpty()) {
+            // 构建动态分配处理人员数据
+            Map<String, Object> dynamicAssigneeMap = new HashMap<>();
+            for (Map.Entry<String, String[]> entry : startUserSelectActors.entrySet()) {
+                String nodeKey = entry.getKey();
+                String[] actorIds = entry.getValue();
+                if (actorIds != null && actorIds.length > 0) {
+                    dynamicAssigneeNodeKeys.add(nodeKey);
+                    // 构建处理人列表
+                    List<NodeAssignee> assigneeList = new ArrayList<>();
+                    for (String actorId : actorIds) {
+                        String actorName = identityService.getUserName(Long.parseLong(actorId));
+                        assigneeList.add(NodeAssignee.builder().id(actorId).name(actorName).build());
+                    }
+                    // 创建动态分配对象，type=1 表示指定成员
+                    DynamicAssignee dynamicAssignee = DynamicAssignee.of(1, assigneeList);
+                    dynamicAssigneeMap.put(nodeKey, dynamicAssignee);
+                }
+            }
+            // 传递动态分配处理人员数据
+            FlowDataTransfer.dynamicAssignee(dynamicAssigneeMap);
+        }
 
-            // 获取发起后的第一个任务
-            List<FlwTask> tasks = queryService.getTasksByInstanceId(instance.getId());
-            FlwTask firstTask = tasks.isEmpty() ? null : tasks.get(0);
+        try {
+            // 准备流程变量
+            Map<String, Object> variables = request.getVariables() != null
+                    ? new HashMap<>(request.getVariables()) : new HashMap<>();
+            variables.put("initiator", String.valueOf(currentUserId));
+            variables.put("processNo", processNoGenerator.generateNo());
 
-            // 保存初始提交意见
-            String userName = identityService.getUserName(currentUserId);
-            String taskDefKey = firstTask != null ? firstTask.getTaskKey() : "start";
-            String taskName = firstTask != null ? firstTask.getTaskName() : "发起流程";
+            // 自定义模型校验：跳过已通过 FlowDataTransfer 传递审批人的发起人自选节点
+            flowLongEngine.startInstanceById(processId, flowCreator, variables, false, nodeModel -> {
+                // 递归检查所有节点
+                checkNodeModelWithDynamicAssignee(nodeModel, dynamicAssigneeNodeKeys);
+            }, null).ifPresent(instance -> {
 
-            saveApprovalComment(
-                    instance.getId(),
-                    firstTask != null ? firstTask.getId() : null,
-                    taskDefKey,
-                    taskName,
-                    currentUserId,
-                    userName,
-                    ApprovalActionTypeEnum.SUBMIT.getCode(),
-                    request.getComment()
-            );
+                // 获取发起后的第一个任务
+                List<FlwTask> tasks = queryService.getTasksByInstanceId(instance.getId());
+                FlwTask firstTask = tasks.isEmpty() ? null : tasks.get(0);
 
-            log.info("流程发起成功：processId={}, instanceId={}, startUser={}",
-                    processId, instance.getId(), currentUserId);
-        });
+                // 保存初始提交意见
+                String userName = identityService.getUserName(currentUserId);
+                String taskDefKey = firstTask != null ? firstTask.getTaskKey() : "start";
+                String taskName = firstTask != null ? firstTask.getTaskName() : "发起流程";
+
+                saveApprovalComment(
+                        instance.getId(),
+                        firstTask != null ? firstTask.getId() : null,
+                        taskDefKey,
+                        taskName,
+                        currentUserId,
+                        userName,
+                        ApprovalActionTypeEnum.SUBMIT.getCode(),
+                        request.getComment()
+                );
+
+                log.info("流程发起成功：processId={}, instanceId={}, startUser={}",
+                        processId, instance.getId(), currentUserId);
+            });
+        } finally {
+            // 清理 FlowDataTransfer 数据，避免线程复用时数据残留
+            FlowDataTransfer.remove();
+        }
+    }
+
+    /**
+     * 递归检查节点模型，跳过已通过 FlowDataTransfer 传递审批人的发起人自选节点
+     */
+    private void checkNodeModelWithDynamicAssignee(NodeModel rootNode, Set<String> dynamicAssigneeNodeKeys) {
+        // 获取所有子孙节点（参考 ModelHelper.getRootNodeAllChildNodes）
+        List<NodeModel> allNodes = getAllChildNodes(rootNode);
+
+        Set<String> nodeKeys = new HashSet<>();
+        for (NodeModel node : allNodes) {
+            // 检查节点KEY重复
+            if (!nodeKeys.add(node.getNodeKey())) {
+                throw new BusinessException(400, "流程节点KEY重复：" + node.getNodeKey());
+            }
+
+            // 检查审批节点
+            if (TaskType.approval.eq(node.getType()) && com.aizuda.bpm.engine.assist.ObjectUtils.isEmpty(node.getNodeAssigneeList())) {
+                if (NodeSetType.specifyMembers.eq(node.getSetType())) {
+                    throw new BusinessException(400, "审批节点「" + node.getNodeName() + "」未配置处理人员");
+                }
+                if (NodeSetType.role.eq(node.getSetType())) {
+                    throw new BusinessException(400, "审批节点「" + node.getNodeName() + "」未选择角色");
+                }
+                if (NodeSetType.initiatorSelected.eq(node.getSetType())) {
+                    // 发起人自选：检查是否已通过 FlowDataTransfer 传递审批人
+                    if (!dynamicAssigneeNodeKeys.contains(node.getNodeKey())) {
+                        throw new BusinessException(400, "发起人自选节点「" + node.getNodeName() + "」未选择审批人");
+                    }
+                }
+            }
+
+            // 检查抄送节点
+            if (TaskType.cc.eq(node.getType()) && com.aizuda.bpm.engine.assist.ObjectUtils.isEmpty(node.getNodeAssigneeList())) {
+                if (NodeSetType.specifyMembers.eq(node.getSetType()) && !Boolean.TRUE.equals(node.getAllowSelection())) {
+                    throw new BusinessException(400, "抄送节点「" + node.getNodeName() + "」未配置处理人员");
+                }
+                if (NodeSetType.role.eq(node.getSetType())) {
+                    throw new BusinessException(400, "抄送节点「" + node.getNodeName() + "」未选择角色");
+                }
+                if (NodeSetType.initiatorSelected.eq(node.getSetType())) {
+                    // 抄送发起人自选：检查是否已通过 FlowDataTransfer 传递审批人
+                    if (!dynamicAssigneeNodeKeys.contains(node.getNodeKey())) {
+                        throw new BusinessException(400, "抄送发起人自选节点「" + node.getNodeName() + "」未选择审批人");
+                    }
+                }
+            }
+
+            // 其他校验（自动通过、自动拒绝、路由、子流程等）
+            if (TaskType.autoPass.eq(node.getType()) || TaskType.autoReject.eq(node.getType())) {
+                if (!com.aizuda.bpm.engine.model.ModelHelper.inConditionNode(node) || node.getChildNode() != null) {
+                    throw new BusinessException(400, "自动通过/拒绝节点「" + node.getNodeName() + "」配置错误");
+                }
+            }
+            if (node.routeNode() && com.aizuda.bpm.engine.assist.ObjectUtils.isEmpty(node.getRouteNodes())) {
+                throw new BusinessException(400, "路由节点「" + node.getNodeName() + "」未配置路由分支");
+            }
+            if (node.callProcessNode() && com.aizuda.bpm.engine.assist.ObjectUtils.isEmpty(node.getCallProcess())) {
+                throw new BusinessException(400, "子流程节点「" + node.getNodeName() + "」未选择子流程");
+            }
+        }
+    }
+
+    /**
+     * 获取节点及其所有子孙节点（参考 ModelHelper.getRootNodeAllChildNodes）
+     */
+    private List<NodeModel> getAllChildNodes(NodeModel node) {
+        List<NodeModel> nodes = new ArrayList<>();
+        collectNodes(node, nodes);
+        return nodes;
+    }
+
+    /**
+     * 递归收集所有节点
+     */
+    private void collectNodes(NodeModel node, List<NodeModel> nodes) {
+        if (node == null) {
+            return;
+        }
+        nodes.add(node);
+
+        // 处理条件分支
+        if (node.conditionNode()) {
+            List<com.aizuda.bpm.engine.model.ConditionNode> conditionNodes = node.getConditionNodes();
+            if (conditionNodes != null) {
+                for (com.aizuda.bpm.engine.model.ConditionNode cn : conditionNodes) {
+                    collectNodes(cn.getChildNode(), nodes);
+                }
+            }
+            collectNodes(node.getChildNode(), nodes);
+        }
+        // 处理并行分支
+        else if (node.parallelNode()) {
+            List<com.aizuda.bpm.engine.model.ConditionNode> parallelNodes = node.getParallelNodes();
+            if (parallelNodes != null) {
+                for (com.aizuda.bpm.engine.model.ConditionNode pn : parallelNodes) {
+                    collectNodes(pn.getChildNode(), nodes);
+                }
+            }
+            collectNodes(node.getChildNode(), nodes);
+        }
+        // 处理包容分支
+        else if (node.inclusiveNode()) {
+            List<com.aizuda.bpm.engine.model.ConditionNode> inclusiveNodes = node.getInclusiveNodes();
+            if (inclusiveNodes != null) {
+                for (com.aizuda.bpm.engine.model.ConditionNode in : inclusiveNodes) {
+                    collectNodes(in.getChildNode(), nodes);
+                }
+            }
+            collectNodes(node.getChildNode(), nodes);
+        }
+        // 普通节点
+        else {
+            collectNodes(node.getChildNode(), nodes);
+        }
     }
 
     @Override

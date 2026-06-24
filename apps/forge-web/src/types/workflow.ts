@@ -113,6 +113,8 @@ export interface ProcessStartRequest {
   businessKey?: string
   variables?: Record<string, any>
   comment?: string
+  /** 发起人自选审批人 key: taskDefKey, value: 审批人ID数组 */
+  startUserSelectActors?: Record<string, string[]>
 }
 
 // 任务

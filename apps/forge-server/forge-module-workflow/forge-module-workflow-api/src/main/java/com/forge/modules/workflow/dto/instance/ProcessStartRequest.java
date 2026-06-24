@@ -33,4 +33,11 @@ public class ProcessStartRequest {
      * 提交意见
      */
     private String comment;
+
+    /**
+     * 发起人自选审批人
+     * key: 节点定义Key（taskDefKey）
+     * value: 审批人ID列表
+     */
+    private Map<String, String[]> startUserSelectActors;
 }

@@ -548,10 +548,13 @@ const handleConfirmStart = async () => {
       Object.assign(variables, startFormData.value)
     }
 
-    // 发起人自选：设置 {taskDefKey}_candidateUsers 变量
+    // 构建发起人自选审批人数据
+    const startUserSelectActors: Record<string, string[]> = {}
     for (const task of startForm.startSelectTasks) {
       const users = startForm.selectedUsers[task.taskDefKey] || []
-      variables[`${task.taskDefKey}_candidateUsers`] = users.join(',')
+      if (users.length > 0) {
+        startUserSelectActors[task.taskDefKey] = users.map(String)
+      }
     }
 
     await processInstanceApi.start({
@@ -559,6 +562,7 @@ const handleConfirmStart = async () => {
       businessKey: startForm.businessKey || undefined,
       variables: Object.keys(variables).length > 0 ? variables : undefined,
       comment: startForm.comment || undefined,
+      startUserSelectActors: Object.keys(startUserSelectActors).length > 0 ? startUserSelectActors : undefined,
     })
     ElMessage.success('流程发起成功')
     startDialogVisible.value = false
