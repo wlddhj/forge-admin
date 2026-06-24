@@ -324,7 +324,9 @@ public class WfTaskServiceImpl implements WfTaskService {
         FlwTask task = validateTask(id);
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
-        taskService.executeJumpTask(id, request.getTargetTaskDefKey(), flowCreator, null, t -> null, TaskType.rejectJump);
+
+        // 使用 FlowLongEngine 执行退回，内部会正确构建 Execution 对象
+        flowLongEngine.executeJumpTask(id, request.getTargetTaskDefKey(), flowCreator, null, TaskType.rejectJump);
 
         saveApprovalComment(task, currentUserId, userName, ApprovalActionTypeEnum.RETURN.getCode(), request.getComment());
         log.info("任务退回：taskId={}, userId={}", taskId, currentUserId);
