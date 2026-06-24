@@ -60,14 +60,6 @@ public interface WfTaskService {
     void unclaimTask(String taskId);
 
     /**
-     * 完成任务（普通提交）
-     *
-     * @param taskId  任务ID
-     * @param request 完成请求
-     */
-    void completeTask(String taskId, TaskCompleteRequest request);
-
-    /**
      * 审批通过任务
      *
      * @param taskId  任务ID

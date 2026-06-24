@@ -228,21 +228,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         log.info("取消签收成功：taskId={}", taskId);
     }
 
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void completeTask(String taskId, TaskCompleteRequest request) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        String userName = identityService.getUserName(currentUserId);
 
-        Long id = parseTaskId(taskId);
-        FlwTask task = validateTask(id);
-
-        FlowCreator flowCreator = createFlowCreator(currentUserId);
-        taskService.complete(id, flowCreator, request.getVariables());
-
-        saveApprovalComment(task, currentUserId, userName, ApprovalActionTypeEnum.SUBMIT.getCode(), request.getComment());
-        log.info("任务完成：taskId={}, userId={}", taskId, currentUserId);
-    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -279,8 +265,8 @@ public class WfTaskServiceImpl implements WfTaskService {
 
         // 驳回任务
         FlowCreator flowCreator = createFlowCreator(currentUserId);
-        taskService.rejectTask(task, flowCreator, request.getVariables());
-
+//        taskService.rejectTask(task, flowCreator, request.getVariables());
+        flowLongEngine.executeRejectTask(task, null, flowCreator, request.getVariables(), true);
         log.info("任务审批驳回：taskId={}, userId={}", taskId, currentUserId);
     }
 

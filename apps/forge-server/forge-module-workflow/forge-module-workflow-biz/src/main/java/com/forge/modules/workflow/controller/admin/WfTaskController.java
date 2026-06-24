@@ -87,15 +87,6 @@ public class WfTaskController {
         return Result.success();
     }
 
-    @Operation(summary = "完成任务")
-    @PostMapping("/{taskId}/complete")
-    @PreAuthorize("hasAuthority('workflow:task:complete')")
-    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
-    public Result<Void> complete(@PathVariable String taskId, @RequestBody TaskCompleteRequest request) {
-        wfTaskService.completeTask(taskId, request);
-        return Result.success();
-    }
-
     @Operation(summary = "审批通过")
     @PostMapping("/{taskId}/approve")
     @PreAuthorize("hasAuthority('workflow:task:complete')")
