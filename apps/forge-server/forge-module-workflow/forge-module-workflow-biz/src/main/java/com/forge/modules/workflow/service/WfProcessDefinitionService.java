@@ -56,9 +56,9 @@ public interface WfProcessDefinitionService {
     /**
      * 删除部署（级联删除流程实例）
      *
-     * @param deploymentId 部署ID
+     * @param id 流程ID
      */
-    void deleteDeployment(String deploymentId);
+    void deleteDeployment(String id);
 
     /**
      * 获取流程定义的 FlowLong JSON 模型

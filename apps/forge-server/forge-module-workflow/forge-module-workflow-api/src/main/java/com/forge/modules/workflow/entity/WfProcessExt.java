@@ -21,6 +21,7 @@ public class WfProcessExt {
     /**
      * FlowLong 流程定义ID（关联 flw_process.id）
      */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long processId;
 
     /**

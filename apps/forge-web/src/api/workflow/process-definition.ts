@@ -21,6 +21,6 @@ export const processDefinitionApi = {
     request.put(`/workflow/process-definition/${id}/suspend`),
   activate: (id: string) =>
     request.put(`/workflow/process-definition/${id}/activate`),
-  delete: (deploymentId: string) =>
-    request.delete(`/workflow/process-definition/${deploymentId}`)
+  delete: (id: string) =>
+    request.delete(`/workflow/process-definition/${id}`)
 }

@@ -1,14 +1,17 @@
 package com.forge.modules.workflow.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.aizuda.bpm.engine.FlowLongEngine;
 import com.aizuda.bpm.engine.ProcessService;
 import com.aizuda.bpm.engine.QueryService;
 import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.core.enums.FlowState;
+import com.aizuda.bpm.engine.entity.FlwInstance;
 import com.aizuda.bpm.engine.entity.FlwProcess;
 import com.aizuda.bpm.mybatisplus.mapper.FlwInstanceMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
@@ -54,6 +57,7 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
     private final WfProcessExtMapper processExtMapper;
     private final WfCategoryMapper categoryMapper;
     private final FlowLongIdentityService identityService;
+    private final FlowLongEngine flowLongEngine;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -227,10 +231,9 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteDeployment(String deploymentId) {
+    public void deleteDeployment(String id) {
         // FlowLong 的 deploymentId 实际上是 processId
-        Long processId = parseProcessId(deploymentId);
-
+        Long processId = parseProcessId(id);
         // 检查流程是否存在
         FlwProcess process = processService.getProcessById(processId);
         if (process == null) {
@@ -238,20 +241,21 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
         }
 
         // 检查是否有运行中的流程实例
-        LambdaQueryWrapper<com.aizuda.bpm.engine.entity.FlwInstance> instanceWrapper = new LambdaQueryWrapper<>();
-        instanceWrapper.eq(com.aizuda.bpm.engine.entity.FlwInstance::getProcessId, processId);
+        LambdaQueryWrapper<FlwInstance> instanceWrapper = new LambdaQueryWrapper<>();
+        instanceWrapper.eq(FlwInstance::getProcessId, processId);
         long instanceCount = instanceMapper.selectCount(instanceWrapper);
         if (instanceCount > 0) {
             throw new BusinessException(400, "存在运行中的流程实例，无法删除流程定义");
         }
 
         // 删除流程定义
-        processMapper.deleteById(processId);
+        flowLongEngine.processService().removeById(processId);
 
         // 删除扩展信息
-        LambdaQueryWrapper<WfProcessExt> wrapper = new LambdaQueryWrapper<>();
+        LambdaUpdateWrapper<WfProcessExt> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(WfProcessExt::getProcessId, processId);
-        processExtMapper.delete(wrapper);
+        wrapper.set(WfProcessExt::getProcessId, null);
+        processExtMapper.update(wrapper);
 
         log.info("流程定义已删除：processId={}", processId);
     }

@@ -436,7 +436,7 @@ const handleDelete = async (row: ProcessDefinition) => {
   cancelSelection()
   try {
     await ElMessageBox.confirm(`确定删除流程 "${row.name}"？删除后不可恢复`, '警告', { type: 'warning' })
-    await processDefinitionApi.delete(row.deploymentId)
+    await processDefinitionApi.delete(row.id)
     ElMessage.success('删除成功')
     getList()
   } catch (e) {

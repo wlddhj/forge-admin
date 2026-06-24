@@ -81,11 +81,11 @@ public class WfProcessDefinitionController {
     }
 
     @Operation(summary = "删除流程部署")
-    @DeleteMapping("/{deploymentId}")
+    @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('workflow:process:delete')")
     @OperationLog(title = "流程定义管理", businessType = OperationLog.BusinessType.DELETE)
-    public Result<Void> delete(@PathVariable String deploymentId) {
-        wfProcessDefinitionService.deleteDeployment(deploymentId);
+    public Result<Void> delete(@PathVariable String id) {
+        wfProcessDefinitionService.deleteDeployment(id);
         return Result.success();
     }
 
