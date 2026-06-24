@@ -133,12 +133,39 @@ public class WorkflowReminderJob implements Job {
      */
     private boolean sendReminder(FlwTask task, TaskService taskService, FlowLongEngine flowLongEngine,
                                   NotificationService notificationService, FlowLongSchedulerProperties properties) {
+        // 获取节点模型和扩展配置
+        NodeModel nodeModel = getNodeModel(task, flowLongEngine);
+        Map<String, Object> extendConfig = nodeModel != null ? nodeModel.getExtendConfig() : null;
+
+        // 读取节点级别的提醒配置（覆盖全局配置）
+        int maxReminderCount = properties.getMaxReminderCount();
+        int reminderIntervalHours = properties.getReminderIntervalHours();
+
+        if (extendConfig != null) {
+            // 节点级最大提醒次数
+            Object maxCountObj = extendConfig.get("remindMaxCount");
+            if (maxCountObj instanceof Number) {
+                int nodeMaxCount = ((Number) maxCountObj).intValue();
+                if (nodeMaxCount > 0) {
+                    maxReminderCount = nodeMaxCount;
+                }
+            }
+
+            // 节点级提醒间隔
+            Object intervalObj = extendConfig.get("remindIntervalHours");
+            if (intervalObj instanceof Number) {
+                int nodeInterval = ((Number) intervalObj).intValue();
+                if (nodeInterval > 0) {
+                    reminderIntervalHours = nodeInterval;
+                }
+            }
+        }
+
         // 检查是否已达到最大提醒次数
         Integer remindRepeat = task.getRemindRepeat();
-        int maxReminderCount = properties.getMaxReminderCount();
-
         if (remindRepeat != null && remindRepeat >= maxReminderCount) {
-            log.debug("任务已达到最大提醒次数，不再提醒: taskId={}, count={}", task.getId(), remindRepeat);
+            log.debug("任务已达到最大提醒次数，不再提醒: taskId={}, count={}, max={}",
+                    task.getId(), remindRepeat, maxReminderCount);
             return false;
         }
 
@@ -188,16 +215,33 @@ public class WorkflowReminderJob implements Job {
         log.info("发送提醒通知: taskId={}, title={}, recipients={}, elapsed={}min",
                 task.getId(), title, userIds.size(), elapsedMinutes);
 
-        // 更新提醒次数和下次提醒时间
-        updateRemindCount(task, taskService, properties);
+        // 更新提醒次数和下次提醒时间（使用节点级或全局配置）
+        updateRemindCount(task, taskService, maxReminderCount, reminderIntervalHours);
 
         return true;
     }
 
     /**
+     * 获取任务的节点模型
+     */
+    private NodeModel getNodeModel(FlwTask task, FlowLongEngine flowLongEngine) {
+        try {
+            ProcessModel processModel = flowLongEngine.runtimeService()
+                    .getProcessModelByInstanceId(task.getInstanceId());
+            if (processModel != null) {
+                return processModel.getNode(task.getTaskKey());
+            }
+        } catch (Exception e) {
+            log.warn("获取节点模型失败: taskId={}, taskKey={}", task.getId(), task.getTaskKey(), e);
+        }
+        return null;
+    }
+
+    /**
      * 更新提醒次数和下次提醒时间
      */
-    private void updateRemindCount(FlwTask task, TaskService taskService, FlowLongSchedulerProperties properties) {
+    private void updateRemindCount(FlwTask task, TaskService taskService,
+                                    int maxReminderCount, int reminderIntervalHours) {
         try {
             FlwTask updateTask = new FlwTask();
             updateTask.setId(task.getId());
@@ -206,16 +250,18 @@ public class WorkflowReminderJob implements Job {
             int newRepeat = (remindRepeat != null ? remindRepeat : 0) + 1;
             updateTask.setRemindRepeat(newRepeat);
 
-            // 设置下次提醒时间
-            if (newRepeat < properties.getMaxReminderCount()) {
+            // 设置下次提醒时间（使用节点级或全局配置的间隔）
+            if (newRepeat < maxReminderCount) {
                 LocalDateTime nextRemindTime = LocalDateTime.now()
-                        .plusHours(properties.getReminderIntervalHours());
+                        .plusHours(reminderIntervalHours);
                 updateTask.setRemindTime(Date.from(nextRemindTime.atZone(ZoneId.systemDefault()).toInstant()));
-                log.debug("设置下次提醒时间: taskId={}, nextRemindTime={}", task.getId(), nextRemindTime);
+                log.debug("设置下次提醒时间: taskId={}, nextRemindTime={}, intervalHours={}",
+                        task.getId(), nextRemindTime, reminderIntervalHours);
             } else {
                 // 达到最大次数后不再设置下次提醒时间
                 updateTask.setRemindTime(null);
-                log.info("任务达到最大提醒次数，不再设置下次提醒: taskId={}, count={}", task.getId(), newRepeat);
+                log.info("任务达到最大提醒次数，不再设置下次提醒: taskId={}, count={}, max={}",
+                        task.getId(), newRepeat, maxReminderCount);
             }
 
             // 更新任务

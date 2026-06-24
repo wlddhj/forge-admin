@@ -26,6 +26,11 @@ export interface FlowlongNodeModel {
   termAuto?: boolean // 超时自动审批
   term?: number // 审批期限（小时）
   termMode?: number // 超时后执行类型 0=自动通过, 1=自动拒绝
+  // 超时提醒配置
+  remindAuto?: boolean // 是否启用超时提醒
+  remindAdvanceMinutes?: number // 提前提醒时间（分钟）
+  remindIntervalHours?: number // 提醒间隔（小时）
+  remindChannels?: string[] // 提醒渠道 ['websocket', 'email']
   examineMode?: number // 多人审批方式 1=依次审批, 2=会签, 3=或签
   userSelectFlag?: boolean // 允许发起人自选抄送人
   expression?: string // 表达式
@@ -93,6 +98,11 @@ export function useFlowLongDataTransform() {
         if (node.termAuto !== undefined) result.termAuto = node.termAuto
         if (node.term !== undefined) result.term = node.term
         if (node.termMode !== undefined) result.termMode = node.termMode
+        // 超时提醒配置
+        if (node.remindAuto !== undefined) result.remindAuto = node.remindAuto
+        if (node.remindAdvanceMinutes !== undefined) result.remindAdvanceMinutes = node.remindAdvanceMinutes
+        if (node.remindIntervalHours !== undefined) result.remindIntervalHours = node.remindIntervalHours
+        if (node.remindChannels !== undefined) result.remindChannels = node.remindChannels
         if (node.userSelectFlag !== undefined) result.userSelectFlag = node.userSelectFlag
         if (node.expression !== undefined) result.expression = node.expression
         if (node.examineLevel !== undefined) result.examineLevel = node.examineLevel
@@ -139,6 +149,11 @@ export function useFlowLongDataTransform() {
       if (node.termAuto !== undefined) result.termAuto = node.termAuto
       if (node.term !== undefined) result.term = node.term
       if (node.termMode !== undefined) result.termMode = node.termMode
+      // 超时提醒配置
+      if (node.remindAuto !== undefined) result.remindAuto = node.remindAuto
+      if (node.remindAdvanceMinutes !== undefined) result.remindAdvanceMinutes = node.remindAdvanceMinutes
+      if (node.remindIntervalHours !== undefined) result.remindIntervalHours = node.remindIntervalHours
+      if (node.remindChannels !== undefined) result.remindChannels = node.remindChannels
       if (node.userSelectFlag !== undefined) result.userSelectFlag = node.userSelectFlag
       if (node.expression !== undefined) result.expression = node.expression
       if (node.examineLevel !== undefined) result.examineLevel = node.examineLevel

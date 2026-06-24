@@ -1,6 +1,16 @@
 # 工作流扩展功能实现状态
 
-## 当前状态：编译通过 ✅，Bean 冲突已解决 ✅
+## 当前状态：编译通过 ✅，Bean 冲突已解决 ✅，前端超时提醒配置已完成 ✅
+
+### 8. 节点级超时提醒配置 ✅（新增）
+- 前端界面：审批节点配置页面添加提醒配置（提前提醒时间、提醒间隔、提醒渠道）
+- 后端监听器：`CompositeTaskListener.java` 任务创建时设置 `remindTime`
+- 定时任务：`WorkflowReminderJob.java` 读取节点级配置覆盖全局配置
+- 配置字段：
+  - `remindAuto`: 是否启用超时提醒
+  - `remindAdvanceMinutes`: 提前提醒时间（分钟）
+  - `remindIntervalHours`: 提醒间隔（小时）
+  - `remindChannels`: 提醒渠道 ['websocket']
 
 ## 已实现的功能
 

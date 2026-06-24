@@ -133,6 +133,25 @@
               </el-form-item>
             </template>
             <el-divider></el-divider>
+            <el-form-item label="">
+              <el-checkbox v-model="form.remindAuto" label="启用超时提醒"></el-checkbox>
+            </el-form-item>
+            <template v-if="form.remindAuto">
+              <el-form-item label="提前提醒时间">
+                <el-input-number v-model="form.remindAdvanceMinutes" :min="1" :max="720" />
+                分钟（在超时前提前提醒）
+              </el-form-item>
+              <el-form-item label="提醒间隔">
+                <el-input-number v-model="form.remindIntervalHours" :min="1" :max="168" />
+                小时（重复提醒间隔）
+              </el-form-item>
+              <el-form-item label="提醒渠道">
+                <el-checkbox-group v-model="form.remindChannels">
+                  <el-checkbox value="websocket" label="WebSocket（实时推送）"></el-checkbox>
+                </el-checkbox-group>
+              </el-form-item>
+            </template>
+            <el-divider></el-divider>
             <el-form-item label="多人审批时审批方式">
               <el-radio-group v-model="form.examineMode">
                 <p style="width: 100%"><el-radio :value="1">按顺序依次审批</el-radio></p>
@@ -186,6 +205,16 @@ watch(
 
 const show = () => {
   form.value = JSON.parse(JSON.stringify(nodeConfig.value))
+  // 初始化提醒配置默认值
+  if (form.value.remindAuto && !form.value.remindChannels) {
+    form.value.remindChannels = ['websocket']
+  }
+  if (form.value.remindAuto && !form.value.remindAdvanceMinutes) {
+    form.value.remindAdvanceMinutes = 30
+  }
+  if (form.value.remindAuto && !form.value.remindIntervalHours) {
+    form.value.remindIntervalHours = 24
+  }
   drawer.value = true
 }
 
