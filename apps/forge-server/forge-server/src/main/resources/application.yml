@@ -46,8 +46,21 @@ spring:
 # FlowLong 工作流引擎配置
 flowlong:
   banner: false
+  # Spring 事件发布配置
   eventing:
-    task: true  # 启用任务事件监听，用于候选人分配
+    task: true      # 启用任务事件监听，用于候选人分配和通知
+    instance: true  # 启用实例事件监听，用于流程生命周期追踪
+  # 调度器配置（超时检查和任务提醒）
+  scheduler:
+    enabled: true                           # 是否启用调度器
+    timeout-check-interval: 60              # 超时检查间隔（秒）
+    reminder-check-interval: 300            # 提醒检查间隔（秒）
+    reminder-advance-minutes: 30            # 提醒提前时间（分钟）
+    use-distributed-lock: true              # 使用分布式锁防止重复执行
+    lock-type: redis                        # 分布式锁类型：redis / database
+    lock-timeout-seconds: 30                # 锁超时时间（秒）
+    max-reminder-count: 3                   # 最大提醒次数
+    reminder-interval-hours: 24             # 提醒间隔（小时）
 
 forge:
   info:

@@ -1,30 +1,30 @@
-package com.forge.modules.workflow.framework.listener;
+package com.forge.modules.workflow.listener;
 
 import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.core.enums.TaskEventType;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
-import com.aizuda.bpm.engine.listener.TaskListener;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.forge.modules.workflow.framework.candidate.BpmTaskCandidateInvoker;
 import com.forge.modules.workflow.framework.candidate.BpmTaskCandidateStrategy;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.function.Supplier;
 
 /**
- * 任务候选人自动分配监听器 - FlowLong 版本
- * 在任务创建时根据候选人策略自动设置候选用户
+ * 任务候选人自动分配处理器
+ *
+ * 注意：不再实现 TaskListener 接口，由 CompositeTaskListener 调用
+ * 使用 @Service 注解，可以被依赖注入
  *
  * @author forge-admin
  */
 @Slf4j
-@Component("bpmTaskCandidateListener")
-public class BpmTaskCandidateListener implements TaskListener {
+@Service
+public class BpmTaskCandidateListener {
 
     private final BpmTaskCandidateInvoker candidateInvoker;
     private final FlowLongIdentityService identityService;
@@ -35,7 +35,10 @@ public class BpmTaskCandidateListener implements TaskListener {
         this.identityService = identityService;
     }
 
-    @Override
+    /**
+     * 处理任务事件
+     * 由 CompositeTaskListener 调用
+     */
     public boolean notify(TaskEventType eventType, Supplier<FlwTask> supplier,
                           List<FlwTaskActor> taskActors, NodeModel nodeModel, FlowCreator flowCreator) {
         // 只处理任务创建事件

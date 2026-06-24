@@ -1,2 +1,3 @@
 com.forge.framework.redis.config.RedisConfig
 com.forge.framework.redis.config.CacheConfig
+com.forge.framework.redis.lock.DistributedLockAutoConfiguration
