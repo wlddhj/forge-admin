@@ -4,7 +4,7 @@
     <el-card shadow="never" class="search-card">
       <el-form :model="queryParams" inline>
         <el-form-item label="流程名称">
-          <el-input v-model="queryParams.processInstanceName" placeholder="请输入流程名称" clearable />
+          <el-input v-model="queryParams.name" placeholder="请输入流程名称" clearable />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleQuery"><el-icon><Search /></el-icon>搜索</el-button>
@@ -36,12 +36,12 @@
         show-overflow="tooltip"
       >
         <vxe-column type="seq" title="序号" width="60" />
-        <vxe-column field="processInstanceName" title="流程名称" min-width="180" />
-        <vxe-column field="processNo" title="流程编号" width="160" />
-        <vxe-column field="activityName" title="抄送节点" width="140" />
+        <vxe-column field="processNo" title="流程编号" width="120" />
+        <vxe-column field="processDefinitionName" title="流程名称" min-width="130" />
+        <vxe-column field="name" title="抄送节点" width="130" />
         <vxe-column field="startUserName" title="发起人" width="100" />
-        <vxe-column field="userName" title="被抄送人" width="100" />
-        <vxe-column field="reason" title="抄送原因" min-width="200" />
+        <vxe-column field="assigneeName" title="被抄送人" width="100" />
+        <vxe-column field="commentText" title="抄送原因" min-width="200" />
         <vxe-column field="createTime" title="抄送时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
         </vxe-column>
@@ -72,7 +72,8 @@ import { useRouter } from 'vue-router'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
 import { formatDateTime } from '@/utils/dateFormat'
-import { copyApi, type CopyQuery, type ProcessInstanceCopy } from '@/api/workflow/process-instance-copy'
+import { taskApi } from '@/api/workflow/task'
+import type { TaskQuery, TaskInfo } from '@/types/workflow'
 
 const router = useRouter()
 
@@ -91,19 +92,19 @@ onMounted(() => {
 })
 
 const loading = ref(false)
-const tableData = ref<ProcessInstanceCopy[]>([])
+const tableData = ref<TaskInfo[]>([])
 const total = ref(0)
 
-const queryParams = reactive<CopyQuery>({
+const queryParams = reactive<TaskQuery>({
   pageNum: 1,
   pageSize: 10,
-  processInstanceName: undefined,
+  name: undefined,
 })
 
 const getList = async () => {
   loading.value = true
   try {
-    const res = await copyApi.page(queryParams)
+    const res = await taskApi.cc(queryParams)
     tableData.value = res.list || []
     total.value = res.total || 0
   } catch (e) {
@@ -119,12 +120,12 @@ const handleQuery = () => {
 }
 
 const handleReset = () => {
-  queryParams.processInstanceName = undefined
+  queryParams.name = undefined
   queryParams.pageNum = 1
   getList()
 }
 
-const handleViewDetail = (row: ProcessInstanceCopy) => {
+const handleViewDetail = (row: TaskInfo) => {
   router.push({ path: '/workflow/instance/detail', query: { id: row.processInstanceId } })
 }
 

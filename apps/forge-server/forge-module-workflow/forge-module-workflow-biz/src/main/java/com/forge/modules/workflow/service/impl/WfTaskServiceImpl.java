@@ -385,11 +385,33 @@ public class WfTaskServiceImpl implements WfTaskService {
         FlwTask task = validateTask(id);
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
+
+        // 获取任务模型
+        com.aizuda.bpm.engine.model.NodeModel nodeModel = taskService.getTaskModel(id);
+
+        // 创建抄送任务参与者列表
         List<FlwTaskActor> taskActors = request.getCopyUserIds().stream()
-                .map(userId -> createTaskActor(userId))
+                .map(userId -> {
+                    FlwTaskActor taskActor = new FlwTaskActor();
+                    taskActor.setActorId(String.valueOf(userId));
+                    taskActor.setActorName(identityService.getUserName(userId));
+                    taskActor.setActorType(0); // 用户类型
+                    return taskActor;
+                })
                 .collect(Collectors.toList());
 
-        taskService.addTaskActor(id, taskActors, flowCreator);
+        // 使用 FlowLong 的 createCcTask 方法创建抄送任务
+        taskService.createCcTask(nodeModel, task, taskActors, flowCreator);
+
+        // 保存审批意见
+        String userName = identityService.getUserName(currentUserId);
+        String commentText = "任务抄送给：" + taskActors.stream()
+                .map(FlwTaskActor::getActorName)
+                .collect(Collectors.joining(", "));
+        if (StrUtil.isNotBlank(request.getReason())) {
+            commentText = commentText + "，原因：" + request.getReason();
+        }
+        saveApprovalComment(task, currentUserId, userName, ApprovalActionTypeEnum.COPY.getCode(), commentText);
 
         log.info("任务抄送成功：taskId={}, copyUserIds={}", taskId, request.getCopyUserIds());
     }
@@ -424,6 +446,96 @@ public class WfTaskServiceImpl implements WfTaskService {
     public List<Map<String, String>> getChildTasks(String parentTaskId) {
         // TODO: 实现获取子任务列表
         return Collections.emptyList();
+    }
+
+    @Override
+    public Page<TaskResponse> getCcTasks(TaskQueryRequest request) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new BusinessException(401, "未获取到当前用户信息");
+        }
+
+        String userIdStr = String.valueOf(currentUserId);
+
+        // 查询当前用户作为抄送人的历史任务参与者记录
+        // 抄送人通过 weight = 6 来标识
+        LambdaQueryWrapper<FlwHisTaskActor> actorWrapper = new LambdaQueryWrapper<>();
+        actorWrapper.eq(FlwHisTaskActor::getActorId, userIdStr);
+        actorWrapper.eq(FlwHisTaskActor::getWeight, 6); // 抄送人标识
+        List<FlwHisTaskActor> ccTaskActors = hisTaskActorMapper.selectList(actorWrapper);
+
+        if (ccTaskActors.isEmpty()) {
+            Page<TaskResponse> emptyPage = new Page<>();
+            emptyPage.setCurrent(request.getPageNum());
+            emptyPage.setSize(request.getPageSize());
+            emptyPage.setTotal(0);
+            emptyPage.setRecords(Collections.emptyList());
+            return emptyPage;
+        }
+
+        // 获取所有抄送 taskId
+        Set<Long> ccTaskIds = ccTaskActors.stream()
+                .map(FlwHisTaskActor::getTaskId)
+                .collect(Collectors.toSet());
+
+        // 查询历史抄送任务
+        LambdaQueryWrapper<FlwHisTask> taskWrapper = new LambdaQueryWrapper<>();
+        taskWrapper.in(FlwHisTask::getId, ccTaskIds);
+        taskWrapper.eq(FlwHisTask::getTaskType, TaskType.cc.getValue()); // 抄送任务类型
+
+        // 任务名称筛选
+        if (StrUtil.isNotBlank(request.getName())) {
+            taskWrapper.like(FlwHisTask::getTaskName, request.getName());
+        }
+
+        taskWrapper.orderByDesc(FlwHisTask::getCreateTime);
+
+        Page<FlwHisTask> pageParam = new Page<>(request.getPageNum(), request.getPageSize());
+        Page<FlwHisTask> taskPage = hisTaskMapper.selectPage(pageParam, taskWrapper);
+
+        // 转换为响应对象，补充流程信息
+        List<TaskResponse> records = taskPage.getRecords().stream()
+                .map(this::convertHisTaskToResponseWithProcess)
+                .collect(Collectors.toList());
+
+        Page<TaskResponse> resultPage = new Page<>();
+        resultPage.setCurrent(taskPage.getCurrent());
+        resultPage.setSize(taskPage.getSize());
+        resultPage.setTotal(taskPage.getTotal());
+        resultPage.setRecords(records);
+        return resultPage;
+    }
+
+    @Override
+    public List<TaskResponse> getCcTasksByInstanceId(String processInstanceId) {
+        Long instanceId = parseTaskId(processInstanceId);
+
+        // 使用 FlowLong 的查询服务获取流程实例的抄送任务参与者
+        Optional<List<FlwHisTaskActor>> ccTaskActorsOpt = queryService.getCcTaskActorsByInstanceId(instanceId);
+
+        if (ccTaskActorsOpt.isEmpty() || ccTaskActorsOpt.get().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<FlwHisTaskActor> ccTaskActors = ccTaskActorsOpt.get();
+
+        // 获取所有抄送 taskId
+        Set<Long> ccTaskIds = ccTaskActors.stream()
+                .map(FlwHisTaskActor::getTaskId)
+                .collect(Collectors.toSet());
+
+        // 查询历史抄送任务
+        LambdaQueryWrapper<FlwHisTask> taskWrapper = new LambdaQueryWrapper<>();
+        taskWrapper.in(FlwHisTask::getId, ccTaskIds);
+        taskWrapper.eq(FlwHisTask::getTaskType, TaskType.cc.getValue());
+        taskWrapper.orderByDesc(FlwHisTask::getCreateTime);
+
+        List<FlwHisTask> ccTasks = hisTaskMapper.selectList(taskWrapper);
+
+        // 转换为响应对象
+        return ccTasks.stream()
+                .map(this::convertHisTaskToResponseWithProcess)
+                .collect(Collectors.toList());
     }
 
     // ========== 私有方法 ==========

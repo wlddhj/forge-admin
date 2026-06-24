@@ -125,6 +125,9 @@ export interface TaskInfo {
   processInstanceId: string
   processDefinitionName: string
   processNo: string
+  startUserId: string
+  startUserName: string
+  startTime: string
   assignee: string
   assigneeName: string
   owner: string

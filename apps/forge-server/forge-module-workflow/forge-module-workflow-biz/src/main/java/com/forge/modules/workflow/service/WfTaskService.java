@@ -145,4 +145,20 @@ public interface WfTaskService {
      * @return 子任务列表
      */
     List<Map<String, String>> getChildTasks(String parentTaskId);
+
+    /**
+     * 查询抄送列表（当前用户收到的抄送）
+     *
+     * @param request 查询参数
+     * @return 分页结果
+     */
+    Page<TaskResponse> getCcTasks(TaskQueryRequest request);
+
+    /**
+     * 查询流程实例的抄送列表
+     *
+     * @param processInstanceId 流程实例ID
+     * @return 抄送列表
+     */
+    List<TaskResponse> getCcTasksByInstanceId(String processInstanceId);
 }

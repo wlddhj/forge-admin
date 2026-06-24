@@ -90,7 +90,6 @@ public class WfTaskController {
     @Operation(summary = "审批通过")
     @PostMapping("/{taskId}/approve")
     @PreAuthorize("hasAuthority('workflow:task:complete')")
-    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> approve(@PathVariable String taskId, @RequestBody TaskCompleteRequest request) {
         wfTaskService.approveTask(taskId, request);
         return Result.success();
@@ -99,7 +98,6 @@ public class WfTaskController {
     @Operation(summary = "审批驳回")
     @PostMapping("/{taskId}/reject")
     @PreAuthorize("hasAuthority('workflow:task:complete')")
-    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> reject(@PathVariable String taskId, @RequestBody TaskCompleteRequest request) {
         wfTaskService.rejectTask(taskId, request);
         return Result.success();
@@ -108,7 +106,6 @@ public class WfTaskController {
     @Operation(summary = "委派任务")
     @PostMapping("/{taskId}/delegate")
     @PreAuthorize("hasAuthority('workflow:task:delegate')")
-    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> delegate(@PathVariable String taskId, @Valid @RequestBody TaskDelegateRequest request) {
         wfTaskService.delegateTask(taskId, request);
         return Result.success();
@@ -142,7 +139,6 @@ public class WfTaskController {
     @Operation(summary = "加签")
     @PostMapping("/{taskId}/sign-create")
     @PreAuthorize("hasAuthority('workflow:task:complete')")
-    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> signCreate(@PathVariable String taskId, @Valid @RequestBody TaskSignCreateRequest request) {
         request.setTaskId(taskId);
         wfTaskService.signCreateTask(taskId, request);
@@ -152,7 +148,6 @@ public class WfTaskController {
     @Operation(summary = "减签")
     @PostMapping("/{taskId}/sign-delete")
     @PreAuthorize("hasAuthority('workflow:task:complete')")
-    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> signDelete(@PathVariable String taskId, @Valid @RequestBody TaskSignDeleteRequest request) {
         request.setTaskId(taskId);
         wfTaskService.signDeleteTask(taskId, request);
@@ -162,7 +157,6 @@ public class WfTaskController {
     @Operation(summary = "抄送")
     @PostMapping("/{taskId}/copy")
     @PreAuthorize("hasAuthority('workflow:task:complete')")
-    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> copy(@PathVariable String taskId, @Valid @RequestBody TaskCopyRequest request) {
         request.setTaskId(taskId);
         wfTaskService.copyTask(taskId, request);
@@ -172,7 +166,6 @@ public class WfTaskController {
     @Operation(summary = "撤回")
     @PostMapping("/{taskId}/withdraw")
     @PreAuthorize("hasAuthority('workflow:task:complete')")
-    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> withdraw(@PathVariable String taskId) {
         wfTaskService.withdrawTask(taskId);
         return Result.success();
@@ -183,5 +176,23 @@ public class WfTaskController {
     @PreAuthorize("hasAuthority('workflow:task:query')")
     public Result<List<Map<String, String>>> getChildTasks(@PathVariable String taskId) {
         return Result.success(wfTaskService.getChildTasks(taskId));
+    }
+
+    @Operation(summary = "查询抄送列表")
+    @GetMapping("/cc")
+    @PreAuthorize("hasAuthority('workflow:task:list')")
+    public Result<PageResult<TaskResponse>> ccTasks(TaskQueryRequest request) {
+        Page<TaskResponse> page = wfTaskService.getCcTasks(request);
+        PageResult<TaskResponse> result = PageResult.of(
+                page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize()
+        );
+        return Result.success(result);
+    }
+
+    @Operation(summary = "查询流程实例的抄送列表")
+    @GetMapping("/cc/{processInstanceId}")
+    @PreAuthorize("hasAuthority('workflow:task:query')")
+    public Result<List<TaskResponse>> ccTasksByInstanceId(@PathVariable String processInstanceId) {
+        return Result.success(wfTaskService.getCcTasksByInstanceId(processInstanceId));
     }
 }
