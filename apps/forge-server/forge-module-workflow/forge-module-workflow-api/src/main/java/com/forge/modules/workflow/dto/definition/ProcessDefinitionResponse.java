@@ -48,9 +48,9 @@ public class ProcessDefinitionResponse {
     private String deploymentId;
 
     /**
-     * 挂起状态（1激活 2挂起）
+     * 流程状态（0无效 1正常 2历史）
      */
-    private Integer suspensionState;
+    protected Integer processState;
 
     /**
      * 描述

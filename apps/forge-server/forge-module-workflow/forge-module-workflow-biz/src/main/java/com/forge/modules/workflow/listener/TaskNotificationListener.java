@@ -1,6 +1,7 @@
 package com.forge.modules.workflow.listener;
 
 import com.aizuda.bpm.engine.core.FlowCreator;
+import com.aizuda.bpm.engine.core.enums.ActorType;
 import com.aizuda.bpm.engine.core.enums.TaskEventType;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
@@ -64,7 +65,7 @@ public class TaskNotificationListener implements TaskListener {
 
             // 获取候选人用户ID
             Set<Long> candidateUserIds = taskActors.stream()
-                    .filter(actor -> actor.getActorType() == 0) // 用户类型
+                    .filter(actor -> ActorType.user.eq(actor.getActorType())) // 用户类型
                     .map(actor -> {
                         try {
                             return Long.parseLong(actor.getActorId());

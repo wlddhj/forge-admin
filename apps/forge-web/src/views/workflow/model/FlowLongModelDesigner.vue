@@ -68,7 +68,7 @@ const route = useRoute()
 const workflowRef = ref<InstanceType<typeof ScWorkflow> | null>(null)
 
 // 数据转换 Hook
-const { createInitialModel } = useFlowLongDataTransform()
+const { createInitialModel, transformDesignerToBackend, transformBackendToDesigner } = useFlowLongDataTransform()
 
 // 流程模型数据（flowlong-designer 格式）
 const processModel = ref<FlowlongProcessModel | null>(null)

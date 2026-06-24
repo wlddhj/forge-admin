@@ -3,6 +3,7 @@ package com.forge.modules.workflow.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.aizuda.bpm.engine.*;
 import com.aizuda.bpm.engine.core.FlowCreator;
+import com.aizuda.bpm.engine.core.enums.ActorType;
 import com.aizuda.bpm.engine.core.enums.InstanceState;
 import com.aizuda.bpm.engine.core.enums.TaskState;
 import com.aizuda.bpm.engine.entity.*;
@@ -632,19 +633,19 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
                 String actorName = actor.getActorName();
                 if (StrUtil.isBlank(actorName)) {
                     // 如果 actorName 为空，尝试通过 ID 获取名称
-                    if (actor.getActorType() == 0) {
+                    if (ActorType.user.eq(actor.getActorType())) {
                         // 用户类型
                         actorName = identityService.getUserName(actor.getActorId());
-                    } else if (actor.getActorType() == 1) {
+                    } else if (ActorType.role.eq(actor.getActorType())) {
                         // 角色/组类型
                         actorName = identityService.getGroupName(Long.parseLong(actor.getActorId()));
                     }
                 }
 
-                if (actor.getActorType() == 0) {
+                if (ActorType.user.eq(actor.getActorType())) {
                     // 用户类型 - 直接作为受理人或候选人
                     assigneeNames.add(actorName);
-                } else if (actor.getActorType() == 1) {
+                } else if (ActorType.role.eq(actor.getActorType())) {
                     // 角色/组类型 - 作为候选组
                     candidateNames.add(actorName);
                 }

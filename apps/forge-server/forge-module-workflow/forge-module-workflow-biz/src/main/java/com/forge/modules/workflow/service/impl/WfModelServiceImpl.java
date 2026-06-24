@@ -182,16 +182,29 @@ public class WfModelServiceImpl implements WfModelService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         String userName = identityService.getUserName(currentUserId);
 
-        // 已部署的模型：只允许更新 modelJson（设计内容），不允许修改基本信息
+        // 已部署的模型：允许更新 modelJson 和扩展信息（formId、autoCopyStrategy等），不允许修改基本信息
         if (ext.getProcessId() != null) {
+            // 更新设计内容
             if (StrUtil.isNotBlank(request.getModelJson())) {
                 ext.setModelJson(request.getModelJson());
-                ext.setUpdateTime(LocalDateTime.now());
-                processExtMapper.updateById(ext);
-                log.info("更新已部署模型设计内容：id={}, name={}", ext.getId(), ext.getProcessName());
-                return;
             }
-            throw new BusinessException(400, "已部署的模型只允许更新设计内容（modelJson）");
+            // 更新扩展信息（这些不影响流程定义本身）
+            if (request.getFormType() != null) {
+                ext.setFormType(request.getFormType());
+            }
+            if (request.getFormId() != null) {
+                ext.setFormId(request.getFormId());
+            }
+            if (request.getAutoCopyStrategy() != null) {
+                ext.setAutoCopyStrategy(request.getAutoCopyStrategy());
+            }
+            if (request.getAutoCopyParam() != null) {
+                ext.setAutoCopyParam(request.getAutoCopyParam());
+            }
+            ext.setUpdateTime(LocalDateTime.now());
+            processExtMapper.updateById(ext);
+            log.info("更新已部署模型扩展信息：id={}, name={}, formId={}", ext.getId(), ext.getProcessName(), ext.getFormId());
+            return;
         }
 
         // 未部署的模型：允许修改所有信息

@@ -21,9 +21,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="queryParams.suspensionState" placeholder="请选择" clearable style="width: 120px">
+          <el-select v-model="queryParams.processState" placeholder="请选择" clearable style="width: 120px">
             <el-option label="激活" :value="1" />
-            <el-option label="挂起" :value="2" />
+            <el-option label="挂起" :value="0" />
+            <el-option label="历史" :value="2" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -61,9 +62,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="queryParams.suspensionState" placeholder="请选择" clearable style="width: 100%">
+          <el-select v-model="queryParams.processState" placeholder="请选择" clearable style="width: 100%">
             <el-option label="激活" :value="1" />
-            <el-option label="挂起" :value="2" />
+            <el-option label="挂起" :value="0" />
+            <el-option label="历史" :value="2" />
           </el-select>
         </el-form-item>
       </template>
@@ -116,8 +118,8 @@
         <!-- 状态 -->
         <vxe-column title="状态" width="80" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.suspensionState === 1 ? 'success' : 'warning'">
-              {{ row.suspensionState === 1 ? '激活' : '挂起' }}
+            <el-tag :type="row.processState === 1 ? 'success' : 'warning'">
+              {{ row.processState === 1 ? '激活' : row.processState === 1 ? '挂起': '历史' }}
             </el-tag>
           </template>
         </vxe-column>
@@ -134,20 +136,20 @@
         <vxe-column v-if="!isMobile" title="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button
-              v-if="row.suspensionState === 1"
+              v-if="row.processState === 1"
               v-permission="'workflow:instance:start'"
               type="success" link size="small"
               @click.stop="handleStartProcess(row)"
             >发起</el-button>
             <el-button type="primary" link size="small" @click.stop="handleViewJson(row)">JSON</el-button>
             <el-button
-              v-if="row.suspensionState === 1"
+              v-if="row.processState === 1"
               v-permission="'workflow:process:edit'"
               type="warning" link size="small"
               @click.stop="handleSuspend(row)"
             >挂起</el-button>
             <el-button
-              v-if="row.suspensionState === 2"
+              v-if="row.processState === 0"
               v-permission="'workflow:process:edit'"
               type="success" link size="small"
               @click.stop="handleActivate(row)"
@@ -230,7 +232,8 @@
         <template v-if="startForm.formRule.length > 0">
           <el-divider content-position="left">流程表单</el-divider>
           <form-create
-            v-model="startFormFApi"
+            ref="formCreateRef"
+            v-model="startFormData"
             :rule="startForm.formRule"
             :option="startForm.formOption"
           />
@@ -318,7 +321,7 @@ const queryParams = reactive({
   name: '',
   key: '',
   categoryId: undefined as number | undefined,
-  suspensionState: undefined as number | undefined,
+  processState: undefined as number | undefined,
   pageNum: 1,
   pageSize: 20
 })
@@ -379,7 +382,7 @@ const handleReset = () => {
   queryParams.name = ''
   queryParams.key = ''
   queryParams.categoryId = undefined
-  queryParams.suspensionState = undefined
+  queryParams.processState = undefined
   handleQuery()
 }
 
@@ -462,7 +465,8 @@ const cancelSelection = () => {
 // 发起流程
 const startDialogVisible = ref(false)
 const startLoading = ref(false)
-const startFormFApi = ref<any>(null)
+const formCreateRef = ref<any>(null)
+const startFormData = ref<Record<string, any>>({})
 const startForm = reactive({
   processDefinitionId: '',
   processName: '',
@@ -498,6 +502,7 @@ const handleStartProcess = async (row: ProcessDefinition) => {
   startForm.startSelectTasks = []
   startForm.approveSelectTasks = []
   startForm.selectedUsers = {}
+  startFormData.value = {}
 
   // 加载流程定义详情获取关联表单
   try {
@@ -537,13 +542,10 @@ const handleConfirmStart = async () => {
 
   startLoading.value = true
   try {
-    // 使用 form-create API 获取表单数据
+    // 使用 form-create v-model 绑定的表单数据
     let variables: Record<string, any> = {}
-    if (startFormFApi.value) {
-      const formData = startFormFApi.value.formData()
-      if (formData && Object.keys(formData).length > 0) {
-        Object.assign(variables, formData)
-      }
+    if (startFormData.value && Object.keys(startFormData.value).length > 0) {
+      Object.assign(variables, startFormData.value)
     }
 
     // 发起人自选：设置 {taskDefKey}_candidateUsers 变量
@@ -570,6 +572,7 @@ const handleConfirmStart = async () => {
 
 const handleStartDialogClose = () => {
   startForm.formRule = []
+  startFormData.value = {}
 }
 
 onMounted(() => {

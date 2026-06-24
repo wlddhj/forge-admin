@@ -36,8 +36,12 @@ export interface ModelRequest {
   id?: string
   name: string
   key: string
-  category?: string
+  categoryId?: number
   description?: string
+  formType?: number
+  formId?: number
+  autoCopyStrategy?: number
+  autoCopyParam?: string
   metaInfo?: string
   /** @deprecated 使用 modelJson */
   bpmnXml?: string

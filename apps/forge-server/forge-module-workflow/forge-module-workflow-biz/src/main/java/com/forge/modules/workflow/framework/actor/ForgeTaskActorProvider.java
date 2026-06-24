@@ -3,12 +3,14 @@ package com.forge.modules.workflow.framework.actor;
 import com.aizuda.bpm.engine.core.Execution;
 import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.core.enums.NodeSetType;
+import com.aizuda.bpm.engine.core.enums.TaskType;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.aizuda.bpm.engine.impl.GeneralTaskActorProvider;
 import com.aizuda.bpm.engine.model.NodeAssignee;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.forge.modules.workflow.framework.candidate.BpmTaskCandidateInvoker;
 import com.forge.modules.workflow.framework.candidate.BpmTaskCandidateStrategy;
+import com.forge.modules.workflow.framework.candidate.CandidateStrategyEnum;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,7 +73,7 @@ public class ForgeTaskActorProvider extends GeneralTaskActorProvider {
         }
 
         // 发起人节点，允许
-        if (nodeModel.getType() != null && nodeModel.getType() == 0) {
+        if (TaskType.major.eq(nodeModel.getType())) {
             return true;
         }
 
@@ -141,19 +143,35 @@ public class ForgeTaskActorProvider extends GeneralTaskActorProvider {
         Integer setType = nodeModel.getSetType();
         log.debug("节点 {}, setType={}", nodeModel.getNodeName(), setType);
 
-        // 根据 setType 推算策略
-        // setType: 1=指定成员, 2=部门负责人(映射到发起人部门负责人), 3=角色, 4=发起人自选, 5=发起人自己, 6=审批人自选, 7=连续多级部门负责人, 8=表达式
-        // 注意：前端设计器 setType=2 对应"部门负责人"，FlowLong 没有直接对应值，使用 START_USER_DEPT_LEADER(37)
+        // 根据 setType 推算候选人策略
+        // 注意：前端设计器 setType=2 对应"部门负责人"，映射到 START_USER_DEPT_LEADER
         if (setType != null) {
-            switch (setType) {
-                case 1: return 30; // 指定成员 -> USER
-                case 2: return 37; // 部门负责人 -> START_USER_DEPT_LEADER（发起人的部门负责人）
-                case 3: return 10; // 角色 -> ROLE
-                case 4: return 35; // 发起人自选 -> START_USER_SELECT
-                case 5: return 36; // 发起人自己 -> START_USER
-                case 6: return 34; // 审批人自选 -> APPROVE_USER_SELECT
-                case 7: return 38; // 连续多级部门负责人 -> DEPT_LEADER_MULTI
-                case 8: return 60; // 表达式 -> EXPRESSION
+            if (NodeSetType.specifyMembers.eq(setType)) {
+                return CandidateStrategyEnum.USER.getCode(); // 指定成员 -> USER
+            }
+            if (NodeSetType.supervisor.eq(setType)) {
+                return CandidateStrategyEnum.START_USER_DEPT_LEADER.getCode(); // 部门负责人 -> START_USER_DEPT_LEADER
+            }
+            if (NodeSetType.role.eq(setType)) {
+                return CandidateStrategyEnum.ROLE.getCode(); // 角色 -> ROLE
+            }
+            if (NodeSetType.initiatorSelected.eq(setType)) {
+                return CandidateStrategyEnum.START_USER_SELECT.getCode(); // 发起人自选 -> START_USER_SELECT
+            }
+            if (NodeSetType.initiatorThemselves.eq(setType)) {
+                return CandidateStrategyEnum.START_USER.getCode(); // 发起人自己 -> START_USER
+            }
+            // 前端设计器 setType=6 对应"审批人自选"
+            if (setType == 6) {
+                return CandidateStrategyEnum.APPROVE_USER_SELECT.getCode(); // 审批人自选 -> APPROVE_USER_SELECT
+            }
+            // 前端设计器 setType=7 对应"连续多级部门负责人"
+            if (setType == 7) {
+                return CandidateStrategyEnum.DEPT_LEADER_MULTI.getCode(); // 连续多级部门负责人 -> DEPT_LEADER_MULTI
+            }
+            // 前端设计器 setType=8 对应"表达式"
+            if (setType == 8) {
+                return CandidateStrategyEnum.EXPRESSION.getCode(); // 表达式 -> EXPRESSION
             }
         }
 

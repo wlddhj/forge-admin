@@ -466,6 +466,10 @@ const handleSubmit = async () => {
         key: formData.key,
         categoryId: formData.categoryId,
         description: formData.description,
+        formType: formData.formType,
+        formId: formData.formId,
+        autoCopyStrategy: formData.autoCopyStrategy,
+        autoCopyParam: formData.autoCopyParam,
         metaInfo: Object.keys(metaInfo).length > 0 ? JSON.stringify(metaInfo) : undefined,
       })
       ElMessage.success('更新成功')
@@ -475,6 +479,10 @@ const handleSubmit = async () => {
         key: formData.key,
         categoryId: formData.categoryId,
         description: formData.description,
+        formType: formData.formType,
+        formId: formData.formId,
+        autoCopyStrategy: formData.autoCopyStrategy,
+        autoCopyParam: formData.autoCopyParam,
         metaInfo: Object.keys(metaInfo).length > 0 ? JSON.stringify(metaInfo) : undefined,
       })
       ElMessage.success('新增成功')

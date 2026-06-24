@@ -6,6 +6,8 @@ import com.aizuda.bpm.engine.ProcessService;
 import com.aizuda.bpm.engine.QueryService;
 import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.core.enums.FlowState;
+import com.aizuda.bpm.engine.core.enums.NodeSetType;
+import com.aizuda.bpm.engine.core.enums.TaskType;
 import com.aizuda.bpm.engine.entity.FlwInstance;
 import com.aizuda.bpm.engine.entity.FlwProcess;
 import com.aizuda.bpm.mybatisplus.mapper.FlwInstanceMapper;
@@ -66,15 +68,11 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
         LambdaQueryWrapper<FlwProcess> wrapper = new LambdaQueryWrapper<>();
 
         // 根据前端传入的状态参数过滤
-        // suspensionState: 1=激活, 2=挂起, null=全部
-        if (request.getSuspensionState() != null) {
-            if (request.getSuspensionState() == 1) {
-                // 激活状态
-                wrapper.eq(FlwProcess::getProcessState, FlowState.active.getValue());
-            } else if (request.getSuspensionState() == 2) {
-                // 挂起状态
-                wrapper.eq(FlwProcess::getProcessState, FlowState.inactive.getValue());
-            }
+        // 流程状态（0无效 1正常 2历史）
+        if (request.getProcessState() != null) {
+            wrapper.eq(FlwProcess::getProcessState, request.getProcessState());
+        }else{
+            wrapper.ne(FlwProcess::getProcessState, FlowState.history.getValue());
         }
         // 如果 suspensionState 为 null，不添加状态过滤条件，查询所有状态
 
@@ -314,14 +312,121 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
         Long id = parseProcessId(processDefinitionId);
 
         FlwProcess process = processService.getProcessById(id);
-        if (process == null || StrUtil.isBlank(process.getModelContent())) {
+        if (process == null) {
             return Collections.emptyList();
         }
 
-        // 解析 FlowLong JSON 流程模型，获取用户任务节点
-        // TODO: 实现 FlowLong 流程模型解析，提取候选人策略信息
+        // 优先使用扩展表中的 modelJson
+        WfProcessExt ext = getProcessExtByProcessId(id);
+        String modelContent = null;
+        if (ext != null && StrUtil.isNotBlank(ext.getModelJson())) {
+            modelContent = ext.getModelJson();
+        } else if (StrUtil.isNotBlank(process.getModelContent())) {
+            modelContent = process.getModelContent();
+        }
 
-        return Collections.emptyList();
+        if (modelContent == null) {
+            return Collections.emptyList();
+        }
+
+        // 解析 FlowLong JSON 流程模型，获取发起人自选的用户任务节点
+        List<UserTaskNodeResponse> result = new ArrayList<>();
+        try {
+            Map<String, Object> model = objectMapper.readValue(modelContent, Map.class);
+            Object nodeConfig = model.get("nodeConfig");
+            if (nodeConfig instanceof Map) {
+                traverseNodes((Map<String, Object>) nodeConfig, result);
+            }
+        } catch (Exception e) {
+            log.error("解析流程模型失败：processId={}", id, e);
+        }
+
+        return result;
+    }
+
+    /**
+     * 递归遍历节点树，找出发起人自选的审批节点
+     */
+    private void traverseNodes(Map<String, Object> node, List<UserTaskNodeResponse> result) {
+        if (node == null) {
+            return;
+        }
+
+        Integer type = (Integer) node.get("type");
+        Integer setType = (Integer) node.get("setType");
+        String nodeKey = (String) node.get("nodeKey");
+        String nodeName = (String) node.get("nodeName");
+
+        // 审批节点且发起人自选
+        if (TaskType.approval.eq(type) && NodeSetType.initiatorSelected.eq(setType)) {
+            UserTaskNodeResponse response = new UserTaskNodeResponse();
+            response.setTaskDefKey(nodeKey);
+            response.setTaskName(nodeName);
+            response.setCandidateStrategy(setType);
+            result.add(response);
+        }
+
+        // 遍历子节点
+        Object childNode = node.get("childNode");
+        if (childNode instanceof Map) {
+            traverseNodes((Map<String, Object>) childNode, result);
+        }
+
+        // 遍历条件分支节点
+        Object conditionNodes = node.get("conditionNodes");
+        if (conditionNodes instanceof List) {
+            for (Object conditionNode : (List<?>) conditionNodes) {
+                if (conditionNode instanceof Map) {
+                    Map<String, Object> cn = (Map<String, Object>) conditionNode;
+                    Object cnChildNode = cn.get("childNode");
+                    if (cnChildNode instanceof Map) {
+                        traverseNodes((Map<String, Object>) cnChildNode, result);
+                    }
+                }
+            }
+        }
+
+        // 遍历并行分支节点
+        Object parallelNodes = node.get("parallelNodes");
+        if (parallelNodes instanceof List) {
+            for (Object parallelNode : (List<?>) parallelNodes) {
+                if (parallelNode instanceof Map) {
+                    Map<String, Object> pn = (Map<String, Object>) parallelNode;
+                    Object pnChildNode = pn.get("childNode");
+                    if (pnChildNode instanceof Map) {
+                        traverseNodes((Map<String, Object>) pnChildNode, result);
+                    }
+                }
+            }
+        }
+
+        // 遍历包容分支节点
+        Object inclusiveNodes = node.get("inclusiveNodes");
+        if (inclusiveNodes instanceof List) {
+            for (Object inclusiveNode : (List<?>) inclusiveNodes) {
+                if (inclusiveNode instanceof Map) {
+                    Map<String, Object> in = (Map<String, Object>) inclusiveNode;
+                    Object inChildNode = in.get("childNode");
+                    if (inChildNode instanceof Map) {
+                        traverseNodes((Map<String, Object>) inChildNode, result);
+                    }
+                }
+            }
+        }
+
+        // 遍历路由分支节点
+        Object routeNodes = node.get("routeNodes");
+        if (routeNodes instanceof List) {
+            for (Object routeNode : (List<?>) routeNodes) {
+                if (routeNode instanceof Map) {
+                    Map<String, Object> rn = (Map<String, Object>) routeNode;
+                    Object rnChildNode = rn.get("childNode");
+                    if (rnChildNode instanceof Map) {
+                        traverseNodes((Map<String, Object>) rnChildNode, result);
+                    }
+                }
+            }
+        }
     }
 
     // ========== 私有方法 ==========
@@ -378,15 +483,7 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
         response.setKey(process.getProcessKey());
         response.setName(process.getProcessName());
         response.setVersion(process.getProcessVersion() != null ? process.getProcessVersion() : 1);
-
-        // FlowLong 的流程状态
-        Integer processState = process.getProcessState();
-        if (processState != null) {
-            // FlowState.active = 1 (可用), FlowState.inactive = 0 (不可用)
-            response.setSuspensionState(processState == FlowState.active.getValue() ? 1 : 2);
-        } else {
-            response.setSuspensionState(1); // 默认可用
-        }
+        response.setProcessState(process.getProcessState());
 
         // 从扩展表获取额外信息
         if (ext != null) {

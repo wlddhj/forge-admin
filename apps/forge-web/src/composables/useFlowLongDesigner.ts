@@ -140,16 +140,15 @@ export function useFlowLongDesigner() {
    */
   const createInitialModel = (processKey: string, processName: string): FlowLongProcessModel => {
     const startNode: FlowLongNodeModel = {
-      nodeName: '开始',
+      nodeName: '发起人',
       nodeKey: 'start',
-      type: 1, // 开始节点类型
+      type: 0, // TaskType.major = 0 (主办/发起人节点)
       childNode: {
         nodeName: '结束',
         nodeKey: 'end',
-        type: 4, // 结束节点类型
+        type: -1, // TaskType.end = -1 (结束节点)
       }
     }
-    // 设置父节点关系
     startNode.childNode!.parentNode = startNode
 
     return {
@@ -166,7 +165,7 @@ export function useFlowLongDesigner() {
     const newNode: FlowLongNodeModel = {
       nodeName,
       nodeKey: generateNodeKey('task'),
-      type: 2, // 审批节点类型
+      type: 1, // TaskType.approval = 1 (审批节点)
       parentNode,
       childNode: parentNode.childNode
     }
@@ -184,7 +183,7 @@ export function useFlowLongDesigner() {
     const newNode: FlowLongNodeModel = {
       nodeName,
       nodeKey: generateNodeKey('cc'),
-      type: 3, // 抄送节点类型
+      type: 2, // TaskType.cc = 2 (抄送节点)
       parentNode,
       childNode: parentNode.childNode
     }
@@ -239,17 +238,22 @@ export function useFlowLongDesigner() {
 }
 
 /**
- * FlowLong 节点类型常量
+ * FlowLong 节点类型常量（与 TaskType 保持一致）
  */
 export const FlowLongNodeType = {
-  START: 1,
-  APPROVAL: 2,
-  CC: 3,
-  END: 4,
-  CONDITION: 5,
-  PARALLEL: 6,
-  INCLUSIVE: 7,
-  TRIGGER: 8
+  END: -1,           // 结束节点
+  MAJOR: 0,          // 主办/发起人节点
+  APPROVAL: 1,       // 审批节点
+  CC: 2,             // 抄送节点
+  CONDITION_NODE: 3, // 条件审批节点
+  CONDITION_BRANCH: 4, // 条件分支节点
+  ROUTE_BRANCH: 23,  // 路由分支
+  AUTO_PASS: 30,     // 自动通过
+  AUTO_REJECT: 31,   // 自动拒绝
+
+  // 常用别名
+  START: 0,          // 发起人节点（别名，等同于 MAJOR）
+  CONDITION: 4       // 条件分支（别名，等同于 CONDITION_BRANCH）
 }
 
 /**
