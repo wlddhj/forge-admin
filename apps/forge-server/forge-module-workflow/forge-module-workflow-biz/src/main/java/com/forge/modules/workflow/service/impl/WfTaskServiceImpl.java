@@ -453,9 +453,6 @@ public class WfTaskServiceImpl implements WfTaskService {
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
 
-        // 获取任务模型
-        com.aizuda.bpm.engine.model.NodeModel nodeModel = taskService.getTaskModel(id);
-
         // 创建抄送任务参与者列表
         List<FlwTaskActor> taskActors = request.getCopyUserIds().stream()
                 .map(userId -> {
@@ -467,8 +464,8 @@ public class WfTaskServiceImpl implements WfTaskService {
                 })
                 .collect(Collectors.toList());
 
-        // 使用 FlowLong 的 createCcTask 方法创建抄送任务
-        taskService.createCcTask(nodeModel, task, taskActors, flowCreator);
+        // 使用 FlowLongEngine 的 createCcTask 方法创建抄送任务（自动获取 ProcessModel 和 NodeModel）
+        flowLongEngine.createCcTask(task, taskActors, flowCreator);
 
         // 保存审批意见
         String userName = identityService.getUserName(currentUserId);
