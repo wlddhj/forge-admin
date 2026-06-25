@@ -8,6 +8,7 @@ import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.aizuda.bpm.spring.event.EventTaskListener;
+import com.forge.modules.workflow.framework.ai.AiApprovalExecutor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,7 @@ import java.util.function.Supplier;
  * 1. EventTaskListener - 发布 FlowLong TaskEvent
  * 2. BpmTaskCandidateListener - 候选人自动分配
  * 3. TaskNotificationListener - 通知推送
+ * 4. AiApprovalExecutor - AI智能审批
  *
  * @author forge-admin
  */
@@ -37,15 +39,18 @@ public class CompositeTaskListener extends EventTaskListener {
 
     private final BpmTaskCandidateListener candidateListener;
     private final TaskNotificationListener notificationListener;
+    private final AiApprovalExecutor aiApprovalExecutor;
     private final FlowLongEngine flowLongEngine;
 
     public CompositeTaskListener(ApplicationEventPublisher eventPublisher,
                                   BpmTaskCandidateListener candidateListener,
                                   TaskNotificationListener notificationListener,
+                                  AiApprovalExecutor aiApprovalExecutor,
                                   FlowLongEngine flowLongEngine) {
         super(eventPublisher);
         this.candidateListener = candidateListener;
         this.notificationListener = notificationListener;
+        this.aiApprovalExecutor = aiApprovalExecutor;
         this.flowLongEngine = flowLongEngine;
     }
 
@@ -82,6 +87,18 @@ public class CompositeTaskListener extends EventTaskListener {
             notificationListener.notify(eventType, supplier, taskActors, nodeModel, flowCreator);
         } catch (Exception e) {
             log.error("通知监听器处理失败: taskId={}, error={}", task.getId(), e.getMessage(), e);
+        }
+
+        // 5. 任务创建时检查并执行AI审批
+        if (eventType == TaskEventType.create && nodeModel != null) {
+            try {
+                boolean aiExecuted = aiApprovalExecutor.checkAndExecuteAiApproval(task, nodeModel, flowCreator);
+                if (aiExecuted) {
+                    log.info("AI审批已自动执行: taskId={}, taskName={}", task.getId(), task.getTaskName());
+                }
+            } catch (Exception e) {
+                log.error("AI审批执行失败: taskId={}, error={}", task.getId(), e.getMessage(), e);
+            }
         }
 
         // 返回 false 表示不干预流程执行

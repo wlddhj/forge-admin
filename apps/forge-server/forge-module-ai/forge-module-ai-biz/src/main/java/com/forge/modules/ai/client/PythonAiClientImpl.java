@@ -7,6 +7,7 @@ import com.forge.modules.ai.dto.request.DocumentSummaryRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.dto.response.DocumentResponse;
 import com.forge.modules.ai.dto.response.ModelListResponse;
+import com.forge.modules.ai.dto.response.PythonChatResponse;
 import com.forge.modules.ai.exception.PythonServiceErrorHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -46,13 +47,15 @@ public class PythonAiClientImpl implements PythonAiClient {
         try {
             Map<String, Object> pythonRequest = convertToPythonRequest(request);
 
-            return webClient.post()
+            PythonChatResponse pythonResponse = webClient.post()
                     .uri("/api/chat/completions")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(pythonRequest)
                     .retrieve()
-                    .bodyToMono(ChatResponse.class)
+                    .bodyToMono(PythonChatResponse.class)
                     .block();
+
+            return convertToChatResponse(pythonResponse);
         } catch (Exception e) {
             String friendlyMessage = PythonServiceErrorHandler.handleException(e, "chat");
             log.error("调用Python AI服务chat接口失败: {}", friendlyMessage, e);
@@ -61,6 +64,34 @@ public class PythonAiClientImpl implements PythonAiClient {
             errorResponse.setErrorMessage(friendlyMessage);
             return errorResponse;
         }
+    }
+
+    private ChatResponse convertToChatResponse(PythonChatResponse pythonResponse) {
+        ChatResponse response = new ChatResponse();
+        if (pythonResponse == null) {
+            response.setSuccess(false);
+            response.setErrorMessage("Python服务返回空响应");
+            return response;
+        }
+
+        response.setSuccess(true);
+        response.setModelName(pythonResponse.getModel());
+
+        // 提取 content
+        if (pythonResponse.getChoices() != null && !pythonResponse.getChoices().isEmpty()) {
+            PythonChatResponse.Choice firstChoice = pythonResponse.getChoices().get(0);
+            if (firstChoice.getMessage() != null) {
+                response.setContent(firstChoice.getMessage().getContent());
+            }
+        }
+
+        // 提取 token 使用量
+        if (pythonResponse.getUsage() != null) {
+            response.setInputTokens(pythonResponse.getUsage().getPromptTokens());
+            response.setOutputTokens(pythonResponse.getUsage().getCompletionTokens());
+        }
+
+        return response;
     }
 
     @Override
