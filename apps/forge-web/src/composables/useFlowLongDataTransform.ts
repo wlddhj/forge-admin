@@ -92,8 +92,8 @@ export function useFlowLongDataTransform() {
         childNode: transformNode(node.childNode)
       }
 
-      // 审批节点配置
-      if (node.type === 2 || node.type === 3) {
+      // 审批节点配置（type=1 审批节点, type=3 条件审批节点）
+      if (node.type === 1 || node.type === 3) {
         if (node.examineMode !== undefined) result.examineMode = node.examineMode
         if (node.termAuto !== undefined) result.termAuto = node.termAuto
         if (node.term !== undefined) result.term = node.term
