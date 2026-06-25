@@ -180,7 +180,14 @@ const handleSend = async () => {
     }, {
       onMessage: (dataStr) => {
         // 兼容两种格式：JSON { content: "xxx" } 或纯字符串
-        const data = parseSSEData<{ content?: string; done?: boolean }>(dataStr)
+        const data = parseSSEData<{ content?: string; done?: boolean; error?: boolean; message?: string }>(dataStr)
+        // 检查错误消息
+        if (data?.error) {
+          ElMessage.error(data.message || 'AI服务暂时不可用')
+          isStreaming.value = false
+          streamingContent.value = ''
+          return
+        }
         if (data?.content) {
           streamingContent.value += data.content
           scrollToBottom()

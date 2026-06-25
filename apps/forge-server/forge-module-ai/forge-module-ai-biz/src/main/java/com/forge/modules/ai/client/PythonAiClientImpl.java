@@ -7,6 +7,7 @@ import com.forge.modules.ai.dto.request.DocumentSummaryRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.dto.response.DocumentResponse;
 import com.forge.modules.ai.dto.response.ModelListResponse;
+import com.forge.modules.ai.exception.PythonServiceErrorHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.buffer.DataBufferUtils;
@@ -53,10 +54,11 @@ public class PythonAiClientImpl implements PythonAiClient {
                     .bodyToMono(ChatResponse.class)
                     .block();
         } catch (Exception e) {
-            log.error("调用Python AI服务chat接口失败: {}", e.getMessage());
+            String friendlyMessage = PythonServiceErrorHandler.handleException(e, "chat");
+            log.error("调用Python AI服务chat接口失败: {}", friendlyMessage, e);
             ChatResponse errorResponse = new ChatResponse();
             errorResponse.setSuccess(false);
-            errorResponse.setErrorMessage(e.getMessage());
+            errorResponse.setErrorMessage(friendlyMessage);
             return errorResponse;
         }
     }
@@ -71,7 +73,17 @@ public class PythonAiClientImpl implements PythonAiClient {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(pythonRequest)
                 .retrieve()
-                .bodyToFlux(String.class);
+                .bodyToFlux(String.class)
+                .onErrorResume(e -> {
+                    String friendlyMessage = PythonServiceErrorHandler.handleException(e, "chat-stream");
+                    log.error("调用Python AI服务流式chat接口失败: {}", friendlyMessage, e);
+                    // 返回包含错误信息的 SSE 格式消息
+                    String errorJson = String.format(
+                            "{\"error\": true, \"message\": \"%s\"}",
+                            friendlyMessage.replace("\"", "\\\"")
+                    );
+                    return Flux.just(errorJson);
+                });
     }
 
     private Map<String, Object> convertToPythonRequest(ChatRequest request) {
@@ -135,10 +147,11 @@ public class PythonAiClientImpl implements PythonAiClient {
                     .bodyToMono(DocumentResponse.class)
                     .block();
         } catch (Exception e) {
-            log.error("调用Python AI服务summarize接口失败: {}", e.getMessage());
+            String friendlyMessage = PythonServiceErrorHandler.handleException(e, "summarize");
+            log.error("调用Python AI服务summarize接口失败: {}", friendlyMessage, e);
             DocumentResponse errorResponse = new DocumentResponse();
             errorResponse.setStatus(2);
-            errorResponse.setErrorMessage(e.getMessage());
+            errorResponse.setErrorMessage(friendlyMessage);
             return errorResponse;
         }
     }
@@ -158,10 +171,11 @@ public class PythonAiClientImpl implements PythonAiClient {
                     .bodyToMono(DocumentResponse.class)
                     .block();
         } catch (Exception e) {
-            log.error("调用Python AI服务parse接口失败: {}", e.getMessage());
+            String friendlyMessage = PythonServiceErrorHandler.handleException(e, "parse-document");
+            log.error("调用Python AI服务parse接口失败: {}", friendlyMessage, e);
             DocumentResponse errorResponse = new DocumentResponse();
             errorResponse.setStatus(2);
-            errorResponse.setErrorMessage(e.getMessage());
+            errorResponse.setErrorMessage(friendlyMessage);
             return errorResponse;
         }
     }
@@ -188,10 +202,11 @@ public class PythonAiClientImpl implements PythonAiClient {
                     .bodyToMono(DocumentResponse.class)
                     .block();
         } catch (Exception e) {
-            log.error("调用Python AI服务parse接口（文件上传）失败: {}", e.getMessage());
+            String friendlyMessage = PythonServiceErrorHandler.handleException(e, "parse-document-file");
+            log.error("调用Python AI服务parse接口（文件上传）失败: {}", friendlyMessage, e);
             DocumentResponse errorResponse = new DocumentResponse();
             errorResponse.setStatus(2);
-            errorResponse.setErrorMessage(e.getMessage());
+            errorResponse.setErrorMessage(friendlyMessage);
             return errorResponse;
         }
     }
@@ -205,8 +220,12 @@ public class PythonAiClientImpl implements PythonAiClient {
                     .bodyToMono(ModelListResponse.class)
                     .block();
         } catch (Exception e) {
-            log.error("调用Python AI服务models接口失败: {}", e.getMessage());
-            return new ModelListResponse();
+            String friendlyMessage = PythonServiceErrorHandler.handleException(e, "get-models");
+            log.error("调用Python AI服务models接口失败: {}", friendlyMessage, e);
+            ModelListResponse errorResponse = new ModelListResponse();
+            errorResponse.setAvailable(false);
+            errorResponse.setErrorMessage(friendlyMessage);
+            return errorResponse;
         }
     }
 
@@ -220,8 +239,7 @@ public class PythonAiClientImpl implements PythonAiClient {
                     .block();
             return objectMapper.readValue(response, new TypeReference<Map<String, Object>>() {});
         } catch (Exception e) {
-            log.error("调用Python AI服务health接口失败: {}", e.getMessage());
-            return Map.of("status", "error", "message", e.getMessage());
+            return PythonServiceErrorHandler.getUnavailableStatus(e);
         }
     }
 

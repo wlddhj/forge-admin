@@ -8,6 +8,19 @@ import java.util.List;
  */
 @Data
 public class ModelListResponse {
+    /**
+     * 服务是否可用
+     */
+    private Boolean available = true;
+
+    /**
+     * 错误信息（服务不可用时）
+     */
+    private String errorMessage;
+
+    /**
+     * 可用的模型列表
+     */
     private List<ModelConfigResponse> models;
 
     /**
