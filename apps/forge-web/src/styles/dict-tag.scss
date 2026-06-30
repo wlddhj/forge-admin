@@ -46,10 +46,7 @@ $ext-colors-dark: (
   }
 
   // ========== 扩展色（基础） ==========
-  @each $name, $colors in $ext-colors {
-    $bg: nth($colors, 1);
-    $border: nth($colors, 2);
-    $text: nth($colors, 3);
+  @each $name, $bg, $border, $text in $ext-colors {
     :deep(.el-tag.#{$name}),
     .el-tag.#{$name} {
       --el-tag-bg-color: #{$bg};
@@ -69,10 +66,7 @@ $ext-colors-dark: (
     }
   }
 
-  @each $name, $colors in $ext-colors {
-    $bg: nth($colors, 1);
-    $border: nth($colors, 2);
-    $text: nth($colors, 3);
+  @each $name, $bg, $border, $text in $ext-colors {
     :deep(.el-tag.#{$name}-round),
     .el-tag.#{$name}-round {
       --el-tag-bg-color: #{$bg};
@@ -93,8 +87,7 @@ $ext-colors-dark: (
     }
   }
 
-  @each $name, $colors in $ext-colors {
-    $text: nth($colors, 3);
+  @each $name, $bg, $border, $text in $ext-colors {
     :deep(.el-tag.text-#{$name}),
     .el-tag.text-#{$name} {
       --el-tag-bg-color: transparent;
@@ -115,10 +108,7 @@ $ext-colors-dark: (
     }
   }
 
-  @each $name, $colors in $ext-colors {
-    $bg: nth($colors, 1);
-    $border: nth($colors, 2);
-    $text: nth($colors, 3);
+  @each $name, $bg, $border, $text in $ext-colors {
     :deep(.el-tag.bold-#{$name}),
     .el-tag.bold-#{$name} {
       --el-tag-bg-color: #{$bg};
@@ -141,10 +131,7 @@ $ext-colors-dark: (
     }
   }
 
-  @each $name, $colors in $ext-colors {
-    $bg: nth($colors, 1);
-    $border: nth($colors, 2);
-    $text: nth($colors, 3);
+  @each $name, $bg, $border, $text in $ext-colors {
     :deep(.el-tag.large-#{$name}),
     .el-tag.large-#{$name} {
       --el-tag-bg-color: #{$bg};
@@ -159,10 +146,7 @@ $ext-colors-dark: (
 
 // 暗黑模式 mixin
 @mixin dict-tag-dark-styles {
-  @each $name, $colors in $ext-colors-dark {
-    $bg: nth($colors, 1);
-    $border: nth($colors, 2);
-    $text: nth($colors, 3);
+  @each $name, $bg, $border, $text in $ext-colors-dark {
     :deep(.el-tag.#{$name}),
     .el-tag.#{$name},
     :deep(.el-tag.#{$name}-round),
