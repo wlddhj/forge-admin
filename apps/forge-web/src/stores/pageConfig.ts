@@ -3,7 +3,9 @@
  */
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
-
+import {CACHE_KEY, useCache} from "@/hooks/web/useCache.ts";
+import {VxeUI} from "vxe-pc-ui";
+const { wsCache } = useCache()
 export type ThemeType = 'light' | 'dark'
 
 export interface PageConfig {
@@ -102,9 +104,13 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     document.documentElement.setAttribute('data-theme', theme)
     if (theme === 'dark') {
       document.documentElement.classList.add('dark')
+      document.documentElement.classList.remove('light')
     } else {
+      document.documentElement.classList.add('light')
       document.documentElement.classList.remove('dark')
     }
+    wsCache.set(CACHE_KEY.IS_DARK, 'dark' === theme)
+    VxeUI.setTheme(theme)
   }
 
   // 切换主题

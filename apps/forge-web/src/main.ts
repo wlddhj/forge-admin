@@ -7,6 +7,7 @@ import 'element-plus/dist/index.css'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 import 'nprogress/nprogress.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
+import {VxeUI} from "vxe-pc-ui";
 
 import App from './App.vue'
 import router from './router'
@@ -18,7 +19,10 @@ import { setupVxe } from './plugins/vxe'
 
 // 导入 form-create 表单设计器插件
 import { setupFormCreate } from './plugins/formCreate'
+import {CACHE_KEY, useCache} from "@/hooks/web/useCache.ts";
+import {isDark} from "@/utils/is.ts";
 
+const { wsCache } = useCache()
 const app = createApp(App)
 
 // 注册所有图标
@@ -39,5 +43,13 @@ setupVxe(app)
 
 // 注册 form-create 表单设计器
 setupFormCreate(app)
-
+// 根据浏览器当前主题设置系统主题色
+const setDefaultTheme = () => {
+  let isDarkTheme = wsCache.get(CACHE_KEY.IS_DARK)
+  if (isDarkTheme === null) {
+    isDarkTheme = isDark()
+  }
+  VxeUI.setTheme(isDarkTheme ? 'dark' : 'light')
+}
+setDefaultTheme()
 app.mount('#app')
