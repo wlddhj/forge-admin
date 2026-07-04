@@ -21,6 +21,7 @@ import { setupVxe } from './plugins/vxe'
 import { setupFormCreate } from './plugins/formCreate'
 import {CACHE_KEY, useCache} from "@/hooks/web/useCache.ts";
 import {isDark} from "@/utils/is.ts";
+import { usePageConfigStore } from '@/stores/pageConfig'
 
 const { wsCache } = useCache()
 const app = createApp(App)
@@ -52,4 +53,11 @@ const setDefaultTheme = () => {
   VxeUI.setTheme(isDarkTheme ? 'dark' : 'light')
 }
 setDefaultTheme()
+
+// 显式实例化 pageConfig store，保证启动时立即应用 preset 与 theme
+// 避免依赖 BasicLayout 渲染时的惰性初始化导致主题闪烁
+const pageConfigStore = usePageConfigStore()
+pageConfigStore.applyPreset(pageConfigStore.config.preset)
+pageConfigStore.applyTheme(pageConfigStore.config.theme)
+
 app.mount('#app')
