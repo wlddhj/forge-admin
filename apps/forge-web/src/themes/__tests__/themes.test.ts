@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest'
 import { PRESETS, getPreset } from '@/themes'
 import type { Palette, LayoutKind, StyleKind, Preset } from '@/themes'
 
