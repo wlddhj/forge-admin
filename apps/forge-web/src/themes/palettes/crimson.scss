@@ -1,4 +1,4 @@
-[data-palette='crimson'] {
+:root[data-palette='crimson'] {
   --app-color-primary: #f5222d;
   --app-color-success: #52c41a;
   --app-color-warning: #faad14;
@@ -23,7 +23,7 @@
   }
 }
 
-[data-palette='crimson'][data-theme='dark'] {
+:root[data-palette='crimson'][data-theme='dark'] {
   --app-color-primary:         #cf1322;
   --el-color-primary-light-3:  #820a14;
 }

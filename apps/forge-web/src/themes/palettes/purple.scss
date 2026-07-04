@@ -1,4 +1,4 @@
-[data-palette='purple'] {
+:root[data-palette='purple'] {
   --app-color-primary: #722ed1;
   --app-color-success: #52c41a;
   --app-color-warning: #faad14;
@@ -23,7 +23,7 @@
   }
 }
 
-[data-palette='purple'][data-theme='dark'] {
+:root[data-palette='purple'][data-theme='dark'] {
   --app-color-primary:         #9254de;
   --el-color-primary-light-3:  #692db3;
 }
