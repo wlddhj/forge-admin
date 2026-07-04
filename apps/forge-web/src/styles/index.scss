@@ -1,4 +1,6 @@
 @use './var.css';
+@use '../themes/tokens.scss';
+
 // 引入响应式样式
 @use './responsive.scss' as *;
 

@@ -1,0 +1,34 @@
+// 第一阶业务变量：默认值
+// 具体值由 [data-palette] / [data-style] 覆盖
+:root {
+  // ─── 调色板相关（由 palette 覆盖） ───
+  --app-color-primary: #409EFF;
+  --app-color-success: #67c23a;
+  --app-color-warning: #e6a23c;
+  --app-color-danger:  #f56c6c;
+
+  --app-sidebar-bg:     #304156;
+  --app-sidebar-text:   #bfcbd9;
+  --app-sidebar-active: var(--app-color-primary);
+
+  --app-header-bg:      #ffffff;
+
+  // ─── 风格相关（由 style 覆盖） ───
+  --app-radius-sm:   2px;
+  --app-radius-base: 4px;
+  --app-radius-lg:   8px;
+
+  --app-shadow-card:    0 1px 4px rgba(0, 21, 41, 0.08);
+  --app-shadow-popover: 0 2px 12px rgba(0, 0, 0, 0.12);
+
+  --app-gap-page:    10px;
+  --app-gap-card:    10px;
+  --app-density-pad: 10px;
+}
+
+// dark 通用覆盖（不依赖 palette，调中性色）
+[data-theme='dark'] {
+  --app-header-bg:     var(--el-bg-color);
+  --app-shadow-card:   0 1px 4px rgba(0, 0, 0, 0.3);
+  --app-shadow-popover:0 2px 12px rgba(0, 0, 0, 0.5);
+}
