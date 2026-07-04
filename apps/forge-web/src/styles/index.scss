@@ -1,5 +1,9 @@
 @use './var.css';
 @use '../themes/tokens.scss';
+@use '../themes/palettes/blue.scss';
+@use '../themes/palettes/purple.scss';
+@use '../themes/palettes/green.scss';
+@use '../themes/palettes/crimson.scss';
 
 // 引入响应式样式
 @use './responsive.scss' as *;

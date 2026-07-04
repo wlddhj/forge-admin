@@ -1,0 +1,32 @@
+[data-palette='blue'] {
+  --app-color-primary: #409EFF;
+  --app-color-success: #67c23a;
+  --app-color-warning: #e6a23c;
+  --app-color-danger:  #f56c6c;
+
+  // 桥接到 Element Plus
+  --el-color-primary:        var(--app-color-primary);
+  --el-color-success:        var(--app-color-success);
+  --el-color-warning:        var(--app-color-warning);
+  --el-color-danger:         var(--app-color-danger);
+  --el-color-primary-light-3:#79bbff;
+  --el-color-primary-light-5:#a0cfff;
+  --el-color-primary-light-7:#c6e2ff;
+  --el-color-primary-light-9:#ecf5ff;
+  --el-color-primary-dark-2: #337ecc;
+
+  // 桥接到 vxe-table
+  --vxe-ui-primary-color: var(--app-color-primary);
+
+  // 侧栏（仅在 sidebar 布局下生效）
+  [data-layout='sidebar'] & {
+    --app-sidebar-bg:     #304156;
+    --app-sidebar-text:   #bfcbd9;
+    --app-sidebar-active: var(--app-color-primary);
+  }
+}
+
+[data-palette='blue'][data-theme='dark'] {
+  --app-color-primary:         #3a8ee6;
+  --el-color-primary-light-3:  #1d6dbf;
+}
