@@ -24,6 +24,7 @@
         <module>forge-module-system</module>
         <module>forge-module-workflow</module>
         <module>forge-module-ai</module>
+        <module>forge-module-screen</module>
         <module>forge-server</module>
     </modules>
 
