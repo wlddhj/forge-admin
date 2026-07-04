@@ -11,9 +11,9 @@
           :default-active="activeMenu"
           :collapse="isCollapse"
           :unique-opened="true"
-          background-color="#304156"
-          text-color="#bfcbd9"
-          active-text-color="#409EFF"
+          background-color="var(--app-sidebar-bg)"
+          text-color="var(--app-sidebar-text)"
+          active-text-color="var(--app-color-primary)"
           router
         >
           <!-- 首页菜单 -->
@@ -323,7 +323,7 @@ watch(() => userStore.token, (newToken) => {
 }
 
 .layout-aside {
-  background-color: #304156;
+  background-color: var(--app-sidebar-bg);
   transition: width 0.3s;
   display: flex;
   flex-direction: column;
