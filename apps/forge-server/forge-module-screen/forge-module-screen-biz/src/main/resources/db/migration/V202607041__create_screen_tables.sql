@@ -62,12 +62,14 @@ CREATE TABLE sys_screen_sql_whitelist (
     UNIQUE KEY uk_whitelist_table (schema_name, table_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='SQL 白名单';
 
--- 白名单初始化（仅系统表，敏感列排除）
+-- 白名单初始化（仅系统表，敏感列已排除）
+-- 列名以 sys_* 实际 schema 为准（已通过 DESC 校验）
+-- 敏感列排除规则（spec §3.2/§6.2）：password、salt、email、phone、avatar、id_card、IP、PII
 INSERT INTO sys_screen_sql_whitelist (schema_name, table_name, column_list, risk_level, remark) VALUES
-('forge_admin', 'sys_user', JSON_ARRAY('id','dept_id','user_name','nick_name','status','create_time','update_time'), 1, '用户表（敏感列已排除）'),
-('forge_admin', 'sys_role', JSON_ARRAY('id','role_name','role_key','status','data_scope','create_time'), 0, '角色表'),
-('forge_admin', 'sys_dept', JSON_ARRAY('id','parent_id','dept_name','order_num','status','create_time'), 0, '部门表'),
-('forge_admin', 'sys_menu', JSON_ARRAY('id','parent_id','menu_name','path','menu_type','visible','status','create_time'), 0, '菜单表'),
-('forge_admin', 'sys_dict', JSON_ARRAY('id','dict_name','dict_type','status','create_time'), 0, '字典表'),
-('forge_admin', 'sys_login_log', JSON_ARRAY('id','user_name','ipaddr','status','login_time'), 1, '登录日志'),
-('forge_admin', 'sys_operation_log', JSON_ARRAY('id','title','business_type','method','request_url','status','oper_time'), 1, '操作日志');
+('forge_admin', 'sys_user', JSON_ARRAY('id','dept_id','username','nickname','account_type','status','create_time','update_time'), 1, '用户表（排除 password/phone/email/avatar/last_login_ip/phone_suffix 等敏感列）'),
+('forge_admin', 'sys_role', JSON_ARRAY('id','role_name','role_code','description','is_fixed','status','data_scope','sort_order','create_time'), 0, '角色表'),
+('forge_admin', 'sys_dept', JSON_ARRAY('id','parent_id','dept_name','ancestors','leader','status','sort_order','create_time'), 0, '部门表（排除 email/phone）'),
+('forge_admin', 'sys_menu', JSON_ARRAY('id','parent_id','menu_name','route_path','component_path','redirect_path','icon','sort_order','menu_type','permission','status','visible','is_external','is_cached','create_time'), 0, '菜单表'),
+('forge_admin', 'sys_dict_type', JSON_ARRAY('id','dict_name','dict_type','status','is_system','remark','create_time'), 0, '字典类型表'),
+('forge_admin', 'sys_login_log', JSON_ARRAY('id','username','login_location','browser','os','status','msg','login_time'), 1, '登录日志（排除 login_ip，IP 可识别个人）'),
+('forge_admin', 'sys_operation_log', JSON_ARRAY('id','title','business_type','request_method','request_url','operator_id','operator_name','dept_name','status','operate_time','cost_time'), 1, '操作日志（排除 operate_ip/operate_location，IP 可识别个人）');
