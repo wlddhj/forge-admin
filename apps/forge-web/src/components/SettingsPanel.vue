@@ -16,7 +16,7 @@
             v-for="preset in PRESETS"
             :key="preset.id"
             class="preset-card"
-            :class="{ active: localConfig.preset === preset.id }"
+            :class="{ active: isPresetActive(preset) }"
             @click="handlePresetChange(preset.id)"
           >
             <div class="preset-thumb" :data-palette="preset.palette" :data-style="preset.style">
@@ -28,6 +28,54 @@
           </div>
         </div>
       </div>
+
+      <el-divider />
+
+      <!-- 高级设置（独立切换三维度） -->
+      <el-collapse v-model="advancedExpanded">
+        <el-collapse-item name="advanced" title="高级设置">
+          <p class="section-desc">独立调整调色板、布局、风格（与套餐预设解耦）</p>
+
+          <!-- 调色板 -->
+          <div class="setting-item">
+            <div class="item-label">
+              <span>调色板</span>
+              <p class="item-desc">主色与派生色</p>
+            </div>
+            <el-segmented
+              v-model="localConfig.palette"
+              :options="paletteOptions"
+              @change="(val: Palette) => handlePaletteChange(val)"
+            />
+          </div>
+
+          <!-- 布局 -->
+          <div class="setting-item">
+            <div class="item-label">
+              <span>布局</span>
+              <p class="item-desc">移动端始终为侧栏</p>
+            </div>
+            <el-segmented
+              v-model="localConfig.layout"
+              :options="layoutOptions"
+              @change="(val: LayoutKind) => handleLayoutChange(val)"
+            />
+          </div>
+
+          <!-- 风格 -->
+          <div class="setting-item">
+            <div class="item-label">
+              <span>风格</span>
+              <p class="item-desc">圆角与阴影</p>
+            </div>
+            <el-segmented
+              v-model="localConfig.style"
+              :options="styleOptions"
+              @change="(val: StyleKind) => handleStyleChange(val)"
+            />
+          </div>
+        </el-collapse-item>
+      </el-collapse>
 
       <el-divider />
 
@@ -137,6 +185,7 @@ import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { usePageConfigStore, type ThemeType } from '@/stores/pageConfig'
 import { PRESETS } from '@/themes'
+import type { Palette, LayoutKind, StyleKind } from '@/themes'
 
 const pageConfigStore = usePageConfigStore()
 
@@ -145,6 +194,27 @@ const themeOptions = [
   { label: '明亮', value: 'light' },
   { label: '暗黑', value: 'dark' }
 ]
+
+// 高级设置三维度选项
+const paletteOptions = [
+  { label: '蓝', value: 'blue' },
+  { label: '紫', value: 'purple' },
+  { label: '绿', value: 'green' },
+  { label: '红', value: 'crimson' }
+]
+const layoutOptions = [
+  { label: '侧栏', value: 'sidebar' },
+  { label: '顶栏', value: 'top' }
+]
+const styleOptions = [
+  { label: '扁平', value: 'flat' },
+  { label: '玻璃', value: 'glass' },
+  { label: '卡片', value: 'card' },
+  { label: '紧凑', value: 'compact' }
+]
+
+// 高级设置展开状态（默认收起）
+const advancedExpanded = ref<string[]>([])
 
 // 对话框显示状态
 const visible = computed({
@@ -176,9 +246,20 @@ const handleConfigChange = (key: string, value: any) => {
   pageConfigStore.updateConfig(key as any, value)
 }
 
+// 套餐激活判定（三维度全匹配）
+const isPresetActive = (preset: { palette: Palette; layout: LayoutKind; style: StyleKind }) => {
+  return localConfig.value.palette === preset.palette
+    && localConfig.value.layout === preset.layout
+    && localConfig.value.style === preset.style
+}
+
+// 三维度独立切换
+const handlePaletteChange = (val: Palette) => pageConfigStore.changePalette(val)
+const handleLayoutChange = (val: LayoutKind) => pageConfigStore.changeLayout(val)
+const handleStyleChange = (val: StyleKind) => pageConfigStore.changeStyle(val)
+
 // 选择套餐
 const handlePresetChange = (presetId: string) => {
-  localConfig.value.preset = presetId
   pageConfigStore.changePreset(presetId)
 }
 
@@ -194,6 +275,7 @@ const handleSave = () => {
 const handleReset = () => {
   pageConfigStore.resetConfig()
   localConfig.value = { ...pageConfigStore.config }
+  advancedExpanded.value = []
   ElMessage.success('已恢复默认设置')
 }
 </script>
