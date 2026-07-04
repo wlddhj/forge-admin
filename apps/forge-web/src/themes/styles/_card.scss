@@ -1,0 +1,23 @@
+// 卡片化：中圆角、明显阴影、宽松间距
+[data-style='card'] {
+  --app-radius-base: 8px;
+  --app-radius-lg:   12px;
+  --app-radius-sm:   4px;
+
+  --app-shadow-card:    0 2px 8px rgba(0, 0, 0, 0.1);
+  --app-shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.15);
+
+  --app-gap-page:    12px;
+  --app-gap-card:    14px;
+  --app-density-pad: 12px;
+
+  // 强化卡片视觉
+  .el-card {
+    border-radius: var(--app-radius-lg);
+    box-shadow: var(--app-shadow-card);
+  }
+
+  .app-container {
+    padding: var(--app-gap-page);
+  }
+}

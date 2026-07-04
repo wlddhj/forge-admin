@@ -4,6 +4,10 @@
 @use '../themes/palettes/purple.scss';
 @use '../themes/palettes/green.scss';
 @use '../themes/palettes/crimson.scss';
+@use '../themes/styles/flat';
+@use '../themes/styles/glass';
+@use '../themes/styles/card';
+@use '../themes/styles/compact';
 
 // 引入响应式样式
 @use './responsive.scss' as *;

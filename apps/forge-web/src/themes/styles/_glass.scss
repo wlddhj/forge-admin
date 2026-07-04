@@ -1,0 +1,37 @@
+// 玻璃拟态：大圆角、模糊背景、柔和阴影
+@mixin glass-surface {
+  // 基础：不支持 backdrop-filter 时退化到半透明实色
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: var(--app-radius-lg);
+  box-shadow: var(--app-shadow-card);
+
+  // 渐进增强
+  @supports (backdrop-filter: blur(12px)) {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(12px) saturate(180%);
+  }
+
+  [data-theme='dark'] & {
+    background: rgba(30, 30, 40, 0.92);
+
+    @supports (backdrop-filter: blur(12px)) {
+      background: rgba(30, 30, 40, 0.65);
+    }
+  }
+}
+
+[data-style='glass'] {
+  --app-radius-base: 12px;
+  --app-radius-lg:   16px;
+  --app-radius-sm:   8px;
+
+  --app-shadow-card:    0 4px 16px rgba(0, 0, 0, 0.08);
+  --app-shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  --app-gap-page:    16px;
+  --app-gap-card:    16px;
+  --app-density-pad: 12px;
+
+  // 应用到关键容器
+  .el-card { @include glass-surface; }
+}

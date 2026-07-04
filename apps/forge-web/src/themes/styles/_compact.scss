@@ -1,0 +1,32 @@
+// 紧凑：小圆角、极弱阴影、密集间距
+[data-style='compact'] {
+  --app-radius-base: 2px;
+  --app-radius-lg:   4px;
+  --app-radius-sm:   1px;
+
+  --app-shadow-card:    0 1px 2px rgba(0, 0, 0, 0.06);
+  --app-shadow-popover: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  --app-gap-page:    6px;
+  --app-gap-card:    8px;
+  --app-density-pad: 6px;
+
+  // 表格/表单更紧凑
+  .el-card {
+    --el-card-padding: 8px;
+    border-radius: var(--app-radius-base);
+  }
+
+  .el-dialog {
+    --el-dialog-padding-primary: 8px;
+  }
+
+  .el-form-item {
+    margin-bottom: 12px;
+  }
+
+  .vxe-table {
+    --vxe-ui-table-cell-padding-left: 4px;
+    --vxe-ui-table-cell-padding-right: 4px;
+  }
+}

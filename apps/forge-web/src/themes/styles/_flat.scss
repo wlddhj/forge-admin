@@ -1,0 +1,13 @@
+// 扁平风：默认值，最小装饰
+[data-style='flat'] {
+  --app-radius-base: 4px;
+  --app-radius-lg:   8px;
+  --app-radius-sm:   2px;
+
+  --app-shadow-card:    0 1px 4px rgba(0, 21, 41, 0.08);
+  --app-shadow-popover: 0 2px 12px rgba(0, 0, 0, 0.12);
+
+  --app-gap-page:    10px;
+  --app-gap-card:    10px;
+  --app-density-pad: 10px;
+}
