@@ -63,10 +63,23 @@ describe('pageConfig store - 套餐切换', () => {
     }).not.toThrow()
   })
 
-  it('resetConfig 把 preset 重置为 default', () => {
+  it('resetConfig 把 preset 重置为 default 并应用到 DOM', () => {
     const store = usePageConfigStore()
     store.applyPreset('geek')
     store.resetConfig()
     expect(store.config.preset).toBe('default')
+    // store 自洽：resetConfig 内部应触发 applyPreset 与 applyTheme
+    expect(document.documentElement.getAttribute('data-palette')).toBe('blue')
+    expect(document.documentElement.getAttribute('data-layout')).toBe('sidebar')
+    expect(document.documentElement.getAttribute('data-style')).toBe('flat')
+  })
+
+  it('resetConfig 把 theme 重置为 light 并应用到 DOM', () => {
+    const store = usePageConfigStore()
+    store.applyTheme('dark')
+    store.resetConfig()
+    expect(store.config.theme).toBe('light')
+    expect(document.documentElement.classList.contains('light')).toBe(true)
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
   })
 })

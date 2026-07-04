@@ -194,8 +194,6 @@ const handleSave = () => {
 const handleReset = () => {
   pageConfigStore.resetConfig()
   localConfig.value = { ...pageConfigStore.config }
-  pageConfigStore.applyTheme(localConfig.value.theme)
-  pageConfigStore.applyPreset(localConfig.value.preset)
   ElMessage.success('已恢复默认设置')
 }
 </script>

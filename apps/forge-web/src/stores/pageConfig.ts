@@ -95,6 +95,8 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
   // 重置配置
   const resetConfig = () => {
     config.value = { ...defaultConfig }
+    applyTheme(config.value.theme)
+    applyPreset(config.value.preset)
   }
 
   // 打开设置面板
