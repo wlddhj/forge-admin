@@ -10,14 +10,6 @@
     background: rgba(255, 255, 255, 0.65);
     backdrop-filter: blur(12px) saturate(180%);
   }
-
-  [data-theme='dark'] & {
-    background: rgba(30, 30, 40, 0.92);
-
-    @supports (backdrop-filter: blur(12px)) {
-      background: rgba(30, 30, 40, 0.65);
-    }
-  }
 }
 
 [data-style='glass'] {
@@ -35,3 +27,16 @@
   // 应用到关键容器
   .el-card { @include glass-surface; }
 }
+
+// dark 模式独立块：data-style 与 data-theme 同挂 <html>，
+// 必须用同元素复合选择器（[data-style='glass'][data-theme='dark']）而非 ancestor 关系
+[data-style='glass'][data-theme='dark'] {
+  .el-card {
+    background: rgba(30, 30, 40, 0.92);
+
+    @supports (backdrop-filter: blur(12px)) {
+      background: rgba(30, 30, 40, 0.65);
+    }
+  }
+}
+
