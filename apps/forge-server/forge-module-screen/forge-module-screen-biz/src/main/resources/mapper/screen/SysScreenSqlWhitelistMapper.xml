@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.forge.modules.screen.mapper.SysScreenSqlWhitelistMapper">
+
+    <select id="findByTable" resultType="com.forge.modules.screen.entity.SysScreenSqlWhitelist">
+        SELECT id, schema_name, table_name, column_list, risk_level, enabled, remark
+        FROM sys_screen_sql_whitelist
+        WHERE schema_name = #{schemaName}
+          AND table_name = #{tableName}
+          AND enabled = 1
+        LIMIT 1
+    </select>
+
+</mapper>
