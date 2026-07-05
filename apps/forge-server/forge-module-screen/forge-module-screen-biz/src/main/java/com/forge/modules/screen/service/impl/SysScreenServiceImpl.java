@@ -3,6 +3,7 @@ package com.forge.modules.screen.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.exception.BusinessException;
+import com.forge.modules.screen.dto.ScreenCopyRequest;
 import com.forge.modules.screen.dto.ScreenPageRequest;
 import com.forge.modules.screen.dto.ScreenRequest;
 import com.forge.modules.screen.dto.ScreenResponse;
@@ -107,6 +108,26 @@ public class SysScreenServiceImpl implements SysScreenService {
         entity.setStatus(ScreenStatus.PUBLISHED.getCode());
         entity.setVersion(entity.getVersion() + 1);
         mapper.updateById(entity);
+    }
+
+    @Override
+    @Transactional
+    public Long copy(String sourceCode, ScreenCopyRequest request) {
+        SysScreen src = mapper.selectOne(
+            new LambdaQueryWrapper<SysScreen>().eq(SysScreen::getCode, sourceCode));
+        if (src == null) {
+            throw new BusinessException("源大屏不存在: " + sourceCode);
+        }
+        SysScreen dst = new SysScreen();
+        dst.setCode(request.getNewCode());
+        dst.setName(request.getNewName());
+        dst.setConfig(src.getConfig());
+        dst.setConfigDraft(src.getConfigDraft());
+        dst.setTheme(src.getTheme());
+        dst.setStatus(ScreenStatus.DRAFT.getCode());
+        dst.setVersion(1);
+        mapper.insert(dst);
+        return dst.getId();
     }
 
     private ScreenResponse toResponse(SysScreen entity) {

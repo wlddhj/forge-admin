@@ -1,6 +1,7 @@
 package com.forge.modules.screen.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.forge.modules.screen.dto.ScreenCopyRequest;
 import com.forge.modules.screen.dto.ScreenPageRequest;
 import com.forge.modules.screen.dto.ScreenRequest;
 import com.forge.modules.screen.dto.ScreenResponse;
@@ -50,4 +51,13 @@ public interface SysScreenService {
      * @param code 大屏编码
      */
     void publish(String code);
+
+    /**
+     * 复制大屏：拷贝源大屏的 config/config_draft/theme，新大屏状态置为草稿、版本号重置为 1
+     *
+     * @param sourceCode 源大屏编码
+     * @param request    新大屏编码与名称
+     * @return 新大屏 ID
+     */
+    Long copy(String sourceCode, ScreenCopyRequest request);
 }
