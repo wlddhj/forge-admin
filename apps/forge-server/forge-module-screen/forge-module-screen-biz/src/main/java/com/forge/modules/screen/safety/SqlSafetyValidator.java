@@ -9,6 +9,7 @@ import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.Limit;
+import net.sf.jsqlparser.statement.select.Offset;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
@@ -47,13 +48,16 @@ public class SqlSafetyValidator {
      * 禁用的危险函数（小写匹配）
      *
      * <p>包括：文件读写、长时延时、信息泄露、命令执行类。
+     * 包含 MySQL（sleep/benchmark）与 PostgreSQL/Oracle 防御性条目（pg_sleep 等），
+     * 数据源动态配置时不至于因方言切换而失防（C6）。
      */
     private static final Set<String> FORBIDDEN_FUNCTIONS = Set.of(
         "load_file", "sleep", "benchmark", "outfile", "dumpfile",
         "load data", "system", "database", "schema",
         "current_user", "user", "connection_id", "version",
         "get_lock", "release_lock", "is_free_lock", "is_used_lock",
-        "row_count", "found_rows"
+        "row_count", "found_rows",
+        "pg_sleep", "pg_sleep_for", "waitfor", "waitfordelay", "dbms_lock.sleep"
     );
 
     /**
@@ -190,17 +194,55 @@ public class SqlSafetyValidator {
     }
 
     /**
-     * 使用 ExpressionDeParser + 自定义 visitor 递归收集所有 Function 节点。
-     * ExpressionVisitorAdapter 自带 visit(Function) 重写入口。
+     * 使用 ExpressionVisitorAdapter 递归收集所有 Function 节点。
+     *
+     * <p>关键防御（C2）：默认 adapter 不会递归进入 {@link ParenthesedSelect}
+     * （标量子查询）的内部 SELECT。必须显式重写 visit(ParenthesedSelect)
+     * 与 visit(Select) 调用 {@link #scanSelectForFunctions}，否则 SELECT 子项
+     * 或 WHERE 中的标量子查询里隐藏的 SLEEP/BENCHMARK 会被漏掉。
+     *
+     * <p>JSqlParser 4.9 dispatch 陷阱：{@code ParenthesedSelect} 在 JSqlParser 4.9
+     * 中继承自 {@code Select}（而 {@code Select} 同时实现 {@code Expression}）。
+     * 当 ParenthesedSelect 作为 SELECT item 表达式或 WHERE 中的子查询出现时，
+     * {@code Select.accept(ExpressionVisitor)} 调用的是
+     * {@code visit(Select)}，而不是 {@code visit(ParenthesedSelect)}。
+     * 因此必须两个 visit 方法都重写，并在其中扫描子查询内部。
+     *
+     * <p>额外保险：在进入 visitor 之前显式判断 {@code expr instanceof ParenthesedSelect}
+     * 直接递归扫描，确保即便后续 JSqlParser 版本调整 dispatch 也不会漏防。
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private void collectFunctionsInExpr(Expression expr, List<Function> sink) {
+        // 顶层即标量子查询（SELECT 子项 / WHERE IN 子查询）的兜底递归
+        if (expr instanceof ParenthesedSelect ps && ps.getSelect() != null) {
+            scanSelectForFunctions(ps.getSelect(), sink);
+        }
         net.sf.jsqlparser.expression.ExpressionVisitorAdapter visitor =
             new net.sf.jsqlparser.expression.ExpressionVisitorAdapter() {
                 @Override
                 public void visit(Function function) {
                     sink.add(function);
                     super.visit(function);
+                }
+
+                @Override
+                public void visit(ParenthesedSelect ps) {
+                    // 递归扫描标量子查询内部的 selectItems / where / having
+                    if (ps.getSelect() != null) {
+                        scanSelectForFunctions(ps.getSelect(), sink);
+                    }
+                    super.visit(ps);
+                }
+
+                @Override
+                public void visit(Select sel) {
+                    // C2 关键：当 ParenthesedSelect 作为 Expression 出现时，
+                    // Select.accept(ExpressionVisitor) 实际分发到此方法，
+                    // 而不是 visit(ParenthesedSelect)。需要在此也递归扫描。
+                    if (sel instanceof ParenthesedSelect ps && ps.getSelect() != null) {
+                        scanSelectForFunctions(ps.getSelect(), sink);
+                    }
+                    super.visit(sel);
                 }
             };
         expr.accept(visitor);
@@ -209,23 +251,38 @@ public class SqlSafetyValidator {
     /**
      * 拒绝访问 information_schema / mysql / performance_schema / sys 等系统库表。
      * 利用 TablesNamesFinder 提取所有表名，逐个检查。
+     *
+     * <p>注意：TablesNamesFinder 返回的字符串保留反引号/双引号（如
+     * {@code `information_schema`.`tables`}），必须先剥离再匹配，否则攻击者
+     * 可用反引号绕过（C1）。
      */
     public void assertNoSystemTable(Statement stmt) {
         List<String> tables = new TablesNamesFinder().getTableList(stmt);
         for (String t : tables) {
-            // TablesNamesFinder 返回形如 "information_schema.tables" 或 "sys_user"
-            String lower = t.toLowerCase();
-            if (FORBIDDEN_TABLES.contains(lower)) {
+            // 剥离反引号/双引号/单引号后再小写化（C1 防御）
+            String normalized = normalizeIdentifier(t);
+            if (FORBIDDEN_TABLES.contains(normalized)) {
                 throw new SqlSafetyException("禁用 system 表: " + t);
             }
             // 拆分 schema.name 单独判断
-            String[] parts = lower.split("\\.");
+            String[] parts = normalized.split("\\.");
             for (String part : parts) {
                 if (FORBIDDEN_TABLES.contains(part)) {
                     throw new SqlSafetyException("禁用 system 表: " + t);
                 }
             }
         }
+    }
+
+    /**
+     * 标识符归一化：剥离反引号/双引号/单引号并小写化。
+     * 用于系统表匹配，避免 {@code `information_schema`} 这类带引号写法绕过白名单。
+     */
+    private String normalizeIdentifier(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.replace("`", "").replace("\"", "").replace("'", "").toLowerCase();
     }
 
     /**
@@ -273,46 +330,125 @@ public class SqlSafetyValidator {
     }
 
     /**
-     * LIMIT 行数不得超过 {@link ScreenConstants#SQL_MAX_ROWS}。
+     * LIMIT 行数与 OFFSET 均不得超过 {@link ScreenConstants#SQL_MAX_ROWS}。
+     *
+     * <p>覆盖三类绕过（C3）：
+     * <ul>
+     *   <li>{@code LIMIT 1 OFFSET 999999} — JSqlParser 4.9 把 OFFSET 单独
+     *       解析为 {@link PlainSelect#getOffset()}（一个 {@link Offset} 对象），
+     *       而不是 {@link Limit#getOffset()}；本方法必须两处都查。</li>
+     *   <li>{@code LIMIT 999999, 1} — MySQL 逗号形式，JSqlParser 解析为
+     *       rowCount=1, offset=999999（offset 在 {@link Limit#getOffset()}）</li>
+     *   <li>{@code LIMIT 5 + 5} — rowCount 是表达式，按 fail-closed 拒绝</li>
+     * </ul>
+     *
+     * <p>对 JDBC 占位符 {@code ?} 仍允许通过（交由 T11 运行时绑定校验），
+     * 其他非常量表达式（Addition/函数等）一律拒绝。
      */
     public void assertLimitWithinMax(Statement stmt) {
         if (!(stmt instanceof Select select)) {
             return;
         }
-        Long count = extractRowCount(select);
-        if (count == null) {
+        Limit limit = findFirstLimit(select);
+        if (limit == null) {
             return;
         }
-        if (count > ScreenConstants.SQL_MAX_ROWS) {
+
+        Long rowCount = asLongLimit(limit.getRowCount(), "LIMIT 行数");
+        if (rowCount != null && rowCount > ScreenConstants.SQL_MAX_ROWS) {
             throw new SqlSafetyException(
-                "LIMIT 超过上限 " + ScreenConstants.SQL_MAX_ROWS + "，当前: " + count);
+                "LIMIT 超过上限 " + ScreenConstants.SQL_MAX_ROWS + "，当前: " + rowCount);
+        }
+
+        // OFFSET 检查（两处来源都要查）：
+        // (a) LIMIT 999999, 1 形式 — offset 在 Limit.getOffset()
+        // (b) LIMIT 1 OFFSET 999999 形式 — offset 在 PlainSelect.getOffset()（独立 Offset 对象）
+        Long offsetInLimit = asLongLimit(limit.getOffset(), "OFFSET");
+        if (offsetInLimit != null && offsetInLimit > ScreenConstants.SQL_MAX_ROWS) {
+            throw new SqlSafetyException(
+                "OFFSET 超过上限 " + ScreenConstants.SQL_MAX_ROWS + "，当前: " + offsetInLimit);
+        }
+
+        Offset standalone = findFirstPlainOffset(select);
+        if (standalone != null && standalone.getOffset() != null) {
+            Long standaloneOffset = asLongLimit(standalone.getOffset(), "OFFSET");
+            if (standaloneOffset != null && standaloneOffset > ScreenConstants.SQL_MAX_ROWS) {
+                throw new SqlSafetyException(
+                    "OFFSET 超过上限 " + ScreenConstants.SQL_MAX_ROWS + "，当前: " + standaloneOffset);
+            }
         }
     }
 
-    private Long extractRowCount(Select select) {
-        Limit limit = findFirstLimit(select);
-        if (limit == null || limit.getRowCount() == null) {
+    /**
+     * 找到第一个 PlainSelect 的独立 OFFSET 子句。
+     * 与 {@link #findFirstLimit} 配套，覆盖 {@code LIMIT n OFFSET m} 形式。
+     */
+    private Offset findFirstPlainOffset(Select select) {
+        if (select instanceof PlainSelect ps) {
+            if (ps.getOffset() != null) {
+                return ps.getOffset();
+            }
+            if (ps.getFromItem() instanceof ParenthesedSelect pselect) {
+                return findFirstPlainOffset(pselect.getSelect());
+            }
+            return null;
+        } else if (select instanceof SetOperationList sol) {
+            if (sol.getOffset() != null) {
+                return sol.getOffset();
+            }
+            for (Select sub : sol.getSelects()) {
+                Offset o = findFirstPlainOffset(sub);
+                if (o != null) {
+                    return o;
+                }
+            }
+            return null;
+        } else if (select instanceof ParenthesedSelect pselect) {
+            return findFirstPlainOffset(pselect.getSelect());
+        }
+        return null;
+    }
+
+    /**
+     * 把 Limit 的 rowCount / offset Expression 转换为 Long。
+     *
+     * <ul>
+     *   <li>{@code null} 入参 → 返回 null（该子句未出现）</li>
+     *   <li>{@link LongValue} → 直接取值</li>
+     *   <li>JDBC 占位符（{@code ?}）→ 返回 null，交由 T11 运行时校验</li>
+     *   <li>其他非数字表达式（Addition、BindParameter 等）→ 抛 {@link SqlSafetyException}（fail-closed）</li>
+     * </ul>
+     *
+     * @param clauseName 用于错误信息的子句名（"LIMIT 行数" / "OFFSET"）
+     */
+    private Long asLongLimit(Expression expr, String clauseName) {
+        if (expr == null) {
             return null;
         }
-        Expression rc = limit.getRowCount();
-        if (rc instanceof LongValue lv) {
+        if (expr instanceof LongValue lv) {
             return lv.getValue();
         }
-        // 兜底：用 deparser 解析字符串再尝试解析（防止 JDBC 参数等动态表达式）
+        // 占位符：deparse 后是 "?"，留给运行时绑定校验
+        String text = deparse(expr);
+        if (text == null || text.equals("?") || text.isEmpty()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(text);
+        } catch (NumberFormatException ex) {
+            // 表达式（5+5 等）/非数字：fail-closed 拒绝
+            throw new SqlSafetyException(
+                clauseName + " 必须为整数常量或占位符，当前: " + text);
+        }
+    }
+
+    private String deparse(Expression expr) {
         try {
             ExpressionDeParser dep = new ExpressionDeParser();
             StringBuilder sb = new StringBuilder();
             dep.setBuffer(sb);
-            rc.accept(dep);
-            String text = sb.toString().trim();
-            // 跳过占位符 ?
-            if (text.equals("?") || text.isEmpty()) {
-                return null;
-            }
-            return Long.parseLong(text);
-        } catch (NumberFormatException ex) {
-            // 非数字 LIMIT（参数化）：跳过，交由运行时参数校验
-            return null;
+            expr.accept(dep);
+            return sb.toString().trim();
         } catch (Exception ex) {
             return null;
         }
