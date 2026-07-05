@@ -43,4 +43,11 @@ public interface SysScreenService {
      * 批量删除大屏
      */
     void delete(List<Long> ids);
+
+    /**
+     * 发布大屏：把草稿配置覆盖到正式配置，状态置为已发布，版本号 +1
+     *
+     * @param code 大屏编码
+     */
+    void publish(String code);
 }

@@ -95,6 +95,20 @@ public class SysScreenServiceImpl implements SysScreenService {
         mapper.deleteBatchIds(ids);
     }
 
+    @Override
+    @Transactional
+    public void publish(String code) {
+        SysScreen entity = mapper.selectOne(
+            new LambdaQueryWrapper<SysScreen>().eq(SysScreen::getCode, code));
+        if (entity == null) {
+            throw new BusinessException("大屏不存在: " + code);
+        }
+        entity.setConfig(entity.getConfigDraft());
+        entity.setStatus(ScreenStatus.PUBLISHED.getCode());
+        entity.setVersion(entity.getVersion() + 1);
+        mapper.updateById(entity);
+    }
+
     private ScreenResponse toResponse(SysScreen entity) {
         ScreenResponse resp = new ScreenResponse();
         BeanUtils.copyProperties(entity, resp);
