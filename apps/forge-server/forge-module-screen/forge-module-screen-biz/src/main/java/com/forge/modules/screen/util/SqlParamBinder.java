@@ -78,4 +78,39 @@ public final class SqlParamBinder {
      */
     public record PreparedSql(String sql, List<Object> params) {
     }
+
+    /**
+     * 把 {@code preparedSql} 中的 {@code ?} 占位符转换为 MyBatis 风格的
+     * {@code #{p0}, #{p1}, ...} 命名占位符，便于通过 {@code ${sql}} 注入到 MyBatis
+     * 映射语句中并保留 prepared statement 的参数绑定语义。
+     *
+     * <p>背景：C3 修复要求把 SQL 执行从 {@code JdbcTemplate} 切换到 MyBatis，
+     * 以走 {@code DataPermissionInterceptor} 等拦截器链。但用户配置的 SQL 是动态的，
+     * 不能写成静态 XML。解决方法：在 {@code <select>} 体里写 {@code ${sql}}，由
+     * {@code SqlParamBinder} 先把 {@code :name} 转 {@code ?}，再由本方法把 {@code ?}
+     * 转换为 {@code #{pi}}（i 为位置下标）。MyBatis 在解析阶段会先处理 {@code ${}}
+     * 字符串展开，再处理 {@code #{}} 占位符 → JDBC 的 {@code ?} 绑定，因此参数值通过
+     * MyBatis 的正常绑定机制走 {@code PreparedStatement.setObject}。
+     *
+     * @param preparedSql 含 {@code ?} 占位符的 SQL
+     * @return 含 {@code #{pi}} 占位符的 SQL（i 从 0 开始递增）
+     */
+    public static String toMybatisPlaceholders(PreparedSql preparedSql) {
+        if (preparedSql == null) {
+            throw new IllegalArgumentException("preparedSql 不能为空");
+        }
+        String sql = preparedSql.sql();
+        StringBuilder sb = new StringBuilder(sql.length() + 16);
+        int idx = 0;
+        for (int i = 0; i < sql.length(); i++) {
+            char ch = sql.charAt(i);
+            if (ch == '?') {
+                sb.append("#{p").append(idx).append('}');
+                idx++;
+            } else {
+                sb.append(ch);
+            }
+        }
+        return sb.toString();
+    }
 }

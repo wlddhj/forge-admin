@@ -1,6 +1,7 @@
 package com.forge.modules.screen.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -33,8 +34,12 @@ public class SysScreenDataSource {
     private String type;
 
     /**
-     * 配置（JSON 字符串）
+     * 配置（JSON 字符串）。
+     *
+     * <p>spec §2.3 核心安全边界：包含 SQL 原文 / HTTP URL 等敏感信息，仅后端可读，
+     * 永远不序列化到前端。前端只引用 {@code dataSourceId}。
      */
+    @JsonIgnore
     private String config;
 
     /**

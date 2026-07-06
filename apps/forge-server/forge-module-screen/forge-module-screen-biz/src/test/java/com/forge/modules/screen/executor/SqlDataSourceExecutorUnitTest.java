@@ -1,13 +1,13 @@
 package com.forge.modules.screen.executor;
 
 import com.forge.modules.screen.constant.ScreenConstants;
+import com.forge.modules.screen.mapper.DynamicSqlMapper;
 import com.forge.modules.screen.safety.SqlSafetyException;
 import com.forge.modules.screen.safety.SqlSafetyGuard;
 import com.forge.modules.screen.util.SqlParamBinder;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
 import org.junit.jupiter.api.Test;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -20,19 +20,23 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link SqlDataSourceExecutor} 单元测试（TDD）。
+ * {@link SqlDataSourceExecutor} 单元测试。
  *
  * <p>覆盖三个边界：
  * <ul>
  *   <li>SqlParamBinder 命名参数转换正确（顺序、占位符、缺参 fail-closed）</li>
  *   <li>执行器在安全闸门失败时立即抛 {@link SqlSafetyException}，
- *       且不会调用 {@link JdbcTemplate}（防御 C4：使用 AST 重序列化的 SQL）</li>
+ *       且不会调用 {@link DynamicSqlMapper}（防御 C4：使用 AST 重序列化的 SQL）</li>
  *   <li>执行器对 LIMIT/OFFSET 参数做运行时上限校验（C5 闭合）</li>
  * </ul>
+ *
+ * <p>C3 修复后执行路径从 {@code JdbcTemplate} 切换到 {@link DynamicSqlMapper}，
+ * 以走 MyBatis Plus 拦截器链（含 {@code DataPermissionInterceptor}）。
  *
  * @author standadmin
  */
@@ -52,6 +56,19 @@ class SqlDataSourceExecutorUnitTest {
     }
 
     /**
+     * {@code ?} → {@code #{pi}} 转换：用于走 MyBatis ${sql} 注入。
+     */
+    @Test
+    void sql_param_binder_to_mybatis_placeholders() {
+        SqlParamBinder.PreparedSql p = SqlParamBinder.convert(
+            "SELECT id FROM sys_user WHERE status = :status AND user_name = :name LIMIT :limit",
+            Map.of("status", 0, "name", "admin", "limit", 50));
+        String mybatis = SqlParamBinder.toMybatisPlaceholders(p);
+        assertThat(mybatis).isEqualTo(
+            "SELECT id FROM sys_user WHERE status = #{p0} AND user_name = #{p1} LIMIT #{p2}");
+    }
+
+    /**
      * 引用了未提供的命名参数时立即 fail-closed。
      */
     @Test
@@ -63,17 +80,7 @@ class SqlDataSourceExecutorUnitTest {
     }
 
     /**
-     * 安全闸门抛出时执行器不再触达 JdbcTemplate。
-     *
-     * <p>断言三件事：
-     * <ul>
-     *   <li>异常类型为 {@link SqlSafetyException}</li>
-     *   <li>JdbcTemplate.queryForList 永不被调用（mock jdbcTemplate 不会 NPE 即可）</li>
-     *   <li>使用 deparsed SQL —— 通过 ArgumentCaptor 验证传入 guard 的是原始模板，
-     *       而真正用于执行的 SQL 来自 {@code stmt.toString()}（由后续 integration 验证）。</li>
-     * </ul>
-     * 这里 jdbcTemplate 传 null，因为安全闸门必先抛出，jdbcTemplate 永不被调用；
-     * 这也是 fail-closed 的实证：impl 必须先调用 guard 再访问 jdbcTemplate。
+     * 安全闸门抛出时执行器不再触达 DynamicSqlMapper。
      */
     @Test
     void executor_throws_when_safety_check_fails() {
@@ -81,7 +88,7 @@ class SqlDataSourceExecutorUnitTest {
         doThrow(new SqlSafetyException("禁用 password 列"))
             .when(guard).guard(anyString(), anyMap());
 
-        // jdbcTemplate 故意为 null：验证执行器在 guard 抛出后不会触碰 jdbcTemplate
+        // mapper 故意为 null：验证执行器在 guard 抛出后不会触碰 mapper
         SqlDataSourceExecutor executor = new SqlDataSourceExecutor(guard, null);
         assertThatThrownBy(() -> executor.execute(
             "SELECT password FROM sys_user LIMIT 1", Map.of(), 5000))
@@ -91,20 +98,16 @@ class SqlDataSourceExecutorUnitTest {
     /**
      * C5 闭合：当 SQL 用 {@code LIMIT ?}（占位符）规避静态 AST 上限校验时，
      * 运行时由 {@code enforceBoundLimit} 拦截超限的 LIMIT/OFFSET 实参。
-     *
-     * <p>构造一个安全闸门已通过的 mock 场景，params 携带 limit=10000，
-     * 期望执行器在调到 jdbcTemplate 之前抛 {@link SqlSafetyException}。
      */
     @Test
     void executor_rejects_bound_limit_above_max() throws Exception {
         SqlSafetyGuard guard = mock(SqlSafetyGuard.class);
-        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        // 模拟 guard 通过：返回已 deparsed 的 Statement
+        DynamicSqlMapper mapper = mock(DynamicSqlMapper.class);
         Statement stubStmt = CCJSqlParserUtil.parse(
             "SELECT id FROM sys_user LIMIT ?");
         when(guard.guard(anyString(), anyMap())).thenReturn(stubStmt);
 
-        SqlDataSourceExecutor executor = new SqlDataSourceExecutor(guard, jdbcTemplate);
+        SqlDataSourceExecutor executor = new SqlDataSourceExecutor(guard, mapper);
 
         assertThatThrownBy(() -> executor.execute(
             "SELECT id FROM sys_user LIMIT :limit",
@@ -113,40 +116,39 @@ class SqlDataSourceExecutorUnitTest {
             .isInstanceOf(SqlSafetyException.class)
             .hasMessageContaining("limit");
 
-        // 防御确认：jdbcTemplate 真正执行从未发生
-        verify(jdbcTemplate, org.mockito.Mockito.never())
-            .queryForList(anyString(), any(Object[].class));
+        // 防御确认：mapper 真正执行从未发生
+        verify(mapper, never())
+            .executeDynamicSql(anyString(), anyMap());
     }
 
     /**
-     * 正常路径：guard 通过 + LIMIT 在上限内 + deparsed SQL 用于执行。
+     * 正常路径：guard 通过 + LIMIT 在上限内 + 原始模板通过 mapper 执行
+     * （C3 修复后由 DynamicSqlMapper 接管，不再走 JdbcTemplate）。
      *
-     * <p>关键 C4 断言：执行 JdbcTemplate 时使用的 SQL 是
-     * {@code stmt.toString()}（JSqlParser 重新序列化）而非原始模板。
-     * 这里通过让模板带一个会被 JSqlParser 归一化的差异（大小写/空白）来观察。
+     * <p>C4 防御仍由 guard 提供（解析 + AST 校验）；参数绑定基于原始模板，
+     * 避免 JSqlParser deparse 把 {@code :name} 规范化为 {@code ?} 导致漏绑定。
      */
     @Test
-    void executor_uses_deparsed_sql_and_binds_params() throws Exception {
+    void executor_routes_through_dynamic_sql_mapper() throws Exception {
         SqlSafetyGuard guard = mock(SqlSafetyGuard.class);
-        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        // 模板用小写 limit；JSqlParser deparse 后会规范为 LIMIT ?
+        DynamicSqlMapper mapper = mock(DynamicSqlMapper.class);
         Statement stubStmt = CCJSqlParserUtil.parse(
-            "SELECT id FROM sys_user LIMIT ?");
+            "SELECT id FROM sys_user LIMIT 1");
         when(guard.guard(anyString(), anyMap())).thenReturn(stubStmt);
-        when(jdbcTemplate.queryForList(anyString(), any(Object[].class)))
+        when(mapper.executeDynamicSql(anyString(), anyMap()))
             .thenReturn(List.of(Map.of("id", 1L)));
 
-        SqlDataSourceExecutor executor = new SqlDataSourceExecutor(guard, jdbcTemplate);
+        SqlDataSourceExecutor executor = new SqlDataSourceExecutor(guard, mapper);
         List<Map<String, Object>> rows = executor.execute(
             "select id from sys_user limit :limit",
             Map.of("limit", 50),
             5000);
 
         assertThat(rows).hasSize(1);
-        // 关键：执行时传入的 SQL 来自 stmt.toString()（"SELECT id FROM sys_user LIMIT ?"），
-        // 不是原始模板 "select id from sys_user limit :limit"。
-        verify(jdbcTemplate).queryForList(
-            eq("SELECT id FROM sys_user LIMIT ?"),
-            any(Object[].class));
+        // 关键：传给 mapper 的 SQL 来自原始模板的 :name → #{p0} 转换；
+        // deparsed SQL 仅作 AST 验证用途，不再进入执行路径。
+        verify(mapper).executeDynamicSql(
+            eq("select id from sys_user limit #{p0}"),
+            eq(Map.of("p0", 50)));
     }
 }

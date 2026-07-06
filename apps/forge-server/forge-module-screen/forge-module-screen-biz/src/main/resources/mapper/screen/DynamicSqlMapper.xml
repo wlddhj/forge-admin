@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.forge.modules.screen.mapper.DynamicSqlMapper">
+
+    <!--
+      动态 SQL 执行（C3 修复）。
+      ${sql} 中的 SQL 文本已经过 SqlSafetyGuard.guard() deparse 与白名单校验，
+      原 :name 占位符已由 SqlParamBinder 转换为 ?，再由 toMybatisPlaceholders
+      转换为 #{p0}, #{p1}, ...，由 MyBatis 标准参数绑定机制走 PreparedStatement。
+      DataPermission 注解使 DataPermissionInterceptor 自动按表名注入部门/用户过滤条件。
+    -->
+    <select id="executeDynamicSql" resultType="java.util.LinkedHashMap">
+        ${sql}
+    </select>
+
+</mapper>

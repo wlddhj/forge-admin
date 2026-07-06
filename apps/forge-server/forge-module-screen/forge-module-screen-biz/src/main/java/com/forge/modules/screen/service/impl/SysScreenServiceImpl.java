@@ -104,9 +104,15 @@ public class SysScreenServiceImpl implements SysScreenService {
         if (entity == null) {
             throw new BusinessException("大屏不存在: " + code);
         }
+        // 防御：旧数据 / 复制导入可能 version 为 null，先归一为 0，
+        // 由 {@code OptimisticLockerInnerInterceptor} 在 updateById 时 +1。
+        if (entity.getVersion() == null) {
+            entity.setVersion(0);
+        }
         entity.setConfig(entity.getConfigDraft());
         entity.setStatus(ScreenStatus.PUBLISHED.getCode());
-        entity.setVersion(entity.getVersion() + 1);
+        // 不手动 +1：{@code OptimisticLockerInnerInterceptor}（已在 MybatisPlusConfig 注册）
+        // 会自动在 SET 中 +1，并在 WHERE 中校验原 version，确保并发 publish 不相互覆盖。
         mapper.updateById(entity);
     }
 

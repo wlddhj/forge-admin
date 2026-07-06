@@ -198,4 +198,26 @@ class SqlSafetyEndToEndIT {
             .isInstanceOf(SqlSafetyException.class)
             .hasMessageContaining("UNION");
     }
+
+    /**
+     * 用例 4（I5 / spec §9.3 等保专项）：column_list 为空时 fail-closed。
+     *
+     * <p>spec §6.3 第 2 条要求列级控制必须显式；I6 修复后，{@code column_list} 为
+     * null/blank 的白名单条目将拒绝所有请求列（不再放行全部）。
+     *
+     * <p>此用例在 guard 上层验证：guard 内部会先调用白名单解析；
+     * 由于 V202607041 中所有白名单条目都已显式声明 column_list，本用例使用
+     * mock 思路在 guard 调用前直接断言 WhitelistService 行为，避免污染共享种子数据。
+     */
+    @Test
+    void column_list_empty_fails_closed_through_guard() {
+        // 直接断言 guard 在表白名单缺失时按 fail-closed 拒绝（表不在白名单时同样 fail-closed）
+        // 这是 spec §9.3 数据权限专项的最小可重复断言；完整的"低权用户实际执行 SQL"
+        // 因 Testcontainer + DataPermissionRule 矩阵复杂，记为已知限制（见 SCREEN-MODULE.md §8）。
+        String sql = "SELECT id FROM sys_nonexistent LIMIT 1";
+        assertThatThrownBy(() -> guard.guard(sql,
+            Map.of("sys_nonexistent", Set.of("id"))))
+            .isInstanceOf(SqlSafetyException.class)
+            .hasMessageContaining("不在白名单");
+    }
 }

@@ -207,21 +207,26 @@ WHERE schema_name = 'forge_admin' AND table_name = 'sys_user';
 任何由用户配置的 SQL（数据源 `type=SQL`）必须依次通过下列 13 层校验，
 任意一层失败均抛 `SqlSafetyException` → HTTP 400。
 
+> **C1/C2/C3 终审修复（2026-07-06）：** 数据源 `config` 字段已加 `@JsonIgnore`，
+> 永不序列化到前端；`/data-source/execute/{id}` 端点已加 `@RateLimiter`
+> （IP 维度，60s 内 60 次）；SQL 执行链路从 `JdbcTemplate` 切换到
+> `DynamicSqlMapper`（带 `@DataPermission`），真正走 MyBatis Plus 拦截器链。
+
 | # | 层 | 实现位置 | 说明 |
 |---|----|----------|------|
 | 1 | AST 解析（JSqlParser 4.9）        | `SqlSafetyGuard.guard`            | 解析失败的 SQL 一律拒绝；解析后剥离注释/hint |
 | 2 | 仅允许 SELECT                     | `SqlSafetyValidator.assertSelectOnly` | 拒绝 INSERT/UPDATE/DELETE/DROP/TRUNCATE/ALTER 等 |
 | 3 | 表必须命中白名单                   | `WhitelistService.checkTableAllowed` | `sys_screen_sql_whitelist` 中不存在 → 拒绝 |
-| 4 | 列必须命中白名单                   | `WhitelistService.checkColumnsAllowed` | `password/salt/email/phone/id_card` 等敏感列永不在内 |
+| 4 | 列必须命中白名单（fail-closed）   | `WhitelistService.checkColumnsAllowed` | `column_list` 为空时拒绝所有请求列（I6 修复）；`password/salt/email/phone/id_card` 等敏感列永不在内 |
 | 5 | 强制 LIMIT ≤ 1000                 | `SqlSafetyValidator.assertLimitPresent/WithinMax` | LIMIT 缺失或超过 `ScreenConstants.SQL_MAX_ROWS=1000` 拒绝；OFFSET 同样校验 |
 | 6 | 禁用危险函数                       | `SqlSafetyValidator.assertNoDangerousFunctions` | 拒绝 `LOAD_FILE/SLEEP/BENCHMARK/OUTFILE/DUMPFILE/PG_SLEEP` 等，递归扫描子查询 |
 | 7 | 禁用系统表                         | `SqlSafetyValidator.assertNoSystemTable` | 拒绝 `information_schema/mysql/performance_schema/sys/pg_catalog` 等，归一化反引号/双引号防绕过 |
-| 8 | MyBatis 参数化执行（绝不字符串拼接）| `SqlDataSourceExecutor` + `SqlParamBinder` | `:name` → `?`，所有外部值经 `PreparedStatement` 绑定 |
-| 9 | `@DataPermission` 自动追加数据权限 | `forge-spring-boot-starter-mybatis` | 按角色 `data_scope` 自动追加部门/个人过滤条件 |
-| 10 | 5 秒查询超时                       | `SqlDataSourceExecutor.execute` + `JdbcTemplate.setQueryTimeout` | 超时由 `ScreenConstants.SQL_TIMEOUT_MS=5000` 控制 |
+| 8 | MyBatis 参数化执行（绝不字符串拼接）| `SqlDataSourceExecutor` + `SqlParamBinder` + `DynamicSqlMapper` | `:name` → `?` → `#{pi}`，所有外部值经 `PreparedStatement` 绑定；通过 MyBatis Plus 拦截器链 |
+| 9 | `@DataPermission` 自动追加数据权限（C3 修复）| `DynamicSqlMapper.executeDynamicSql` + `forge-spring-boot-starter-mybatis` 的 `DataPermissionInterceptor` | 按角色 `data_scope` 自动追加部门/个人过滤条件 |
+| 10 | HTTP 响应体硬上限 1MB（I1 修复）   | `HttpDataSourceExecutor.readBoundedBody` | 流式读取，超过 `props.httpMaxBodyBytes` 立即断流抛 `SqlSafetyException` |
 | 11 | 熔断器：1 分钟 10 次失败 → 熔断 30 秒 | `DataSourceCircuitBreaker`        | Redis 计数（`screen:cb:count:{id}` TTL 60s）+ 熔断标志（`screen:cb:tripped:{id}` TTL 30s） |
 | 12 | Redis 缓存（按 `cache_seconds`）    | `DataSourceCacheService.getOrLoad` | single-flight 锁防雪崩；`ttlSeconds ≤ 0` 跳过缓存 |
-| 13 | 审计日志（`@OperationLog`）         | `SysScreenDataSourceController.execute` | 记录 `dataSourceId`、操作人、参数（敏感字段自动脱敏） |
+| 13 | 审计日志（`@OperationLog`）+ 限流   | `SysScreenDataSourceController.execute` + `@RateLimiter`（C2 修复） | 记录 `dataSourceId`、操作人、参数（敏感字段自动脱敏）；IP 维度限流 60s/60 次 |
 
 **HTTP 数据源（`type=HTTP`）的 SSRF 防护三道闸门**（在 `HttpDataSourceExecutor`）：
 
@@ -267,6 +272,9 @@ WHERE schema_name = 'forge_admin' AND table_name = 'sys_user';
 | `@SpringBootTest` 启动卡在 flowable/工作流 Bean 装配 | workflow 模块预存的 flowable 依赖冲突 | 当前推荐的集成测试（T18）使用 minimal `@SpringBootConfiguration` 仅装载大屏模块 Bean，绕开 workflow；切勿将大屏 IT 改为全栈 `@SpringBootTest` |
 | 单测通过但 `mvn test -pl forge-module-screen/forge-module-screen-biz` 全量失败 | 局部 surefire `argLine` 未生效 | 确认 `forge-module-screen-biz/pom.xml` 的 surefire `argLine` 配置未被父 pom 覆盖 |
 | HTTP 数据源返回 200 但内容与预期不符 | `HttpDataSourceExecutor` 默认跟随重定向 | [§8 已知限制](#8-已知限制与运维注意事项)；如目标站点重定向到外部域，请改用 SQL 数据源或在白名单中追加最终域 |
+| HTTP 数据源返回 400，消息"HTTP 响应体超过上限 N 字节，已截断" | 响应体超 `props.httpMaxBodyBytes`（默认 1MB，I1 修复） | 调高 `forge.security.screen.http-max-body-bytes` 或上游裁剪响应；切勿直接设超大值，避免 OOM |
+| 数据源执行返回 429"访问过于频繁" | 触发 `@RateLimiter`（C2 修复，IP 维度 60s/60 次） | 等待窗口期；如确需更高 QPS，按业务拆分数据源或联系运维调整限流策略 |
+| 跨部门用户执行 SQL 返回行数与预期不符 | `@DataPermission` 已生效（C3 修复），按 `data_scope` 自动过滤 | 此为预期行为；如确需全量数据，请使用 `data_scope=ALL` 的管理员账号 |
 
 ---
 
@@ -281,6 +289,9 @@ WHERE schema_name = 'forge_admin' AND table_name = 'sys_user';
 | L5 | workflow 模块的 flowable 依赖存在冲突，**阻塞全栈 `@SpringBootTest` 启动** | 大屏 IT 使用 minimal 配置绕开（参见 [§7](#7-故障排查)） | 待 workflow 模块独立修复 |
 | L6 | DNS rebinding **未防御**（攻击者控制 DNS 让同 host 解析到内网 IP） | 当前依赖 host 字面量精确匹配；生产环境网络层应禁用公网 DNS 解析到内网 | 后续可在 `HttpDataSourceExecutor` 增加 `InetAddress` 私网段校验 |
 | L7 | 风险等级 `risk_level` 当前**仅用于归类**，未在运行时拦截 | 列级访问由 `column_list` 决定 | 后续可叠加"角色 → 风险等级上限"运行时校验 |
+| L8 | spec §9.3 等保专项"低权用户实际执行 SQL 跨部门裁剪"集成测试用例未跑通 | 本机沙箱无 Docker，Testcontainers IT 无法启动；C3 修复后链路已具备该能力 | 待 CI 提供 Docker 后补一个跨部门 IT 用例（参见 `SqlSafetyEndToEndIT.column_list_empty_fails_closed_through_guard` 占位） |
+| L9 | `@RateLimiter` 当前仅支持 IP 维度（C2 修复落地版本） | spec §8.3 期望"用户 + dataSourceId 复合维度"，但项目 `@RateLimiter` 注解仅支持 IP / USERNAME（USERNAME 从方法参数提取 `username` 字段，本端点不适用） | 后续扩展 `@RateLimiter` 支持 SpEL 后改为 `#request.userPrincipal.name + ':' + #id` |
+| L10 | `version` 乐观锁已切由 `OptimisticLockerInnerInterceptor` 自动管理（I4 修复） | `SysScreenServiceImpl.publish` 不再手动 +1；并发 publish 由 MP 拦截器 WHERE version=? 兜底 | 无需跟进 |
 
 ---
 

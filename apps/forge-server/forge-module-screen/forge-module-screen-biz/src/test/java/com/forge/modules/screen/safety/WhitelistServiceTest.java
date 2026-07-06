@@ -65,4 +65,38 @@ class WhitelistServiceTest {
             .isInstanceOf(SqlSafetyException.class)
             .hasMessageContaining("password");
     }
+
+    /**
+     * I6 修复：column_list 为空时 fail-closed，拒绝所有请求列（最小授权）。
+     */
+    @Test
+    void checkColumnsAllowed_fails_closed_when_column_list_is_empty() {
+        SysScreenSqlWhitelist wl = new SysScreenSqlWhitelist();
+        wl.setSchemaName("forge_admin");
+        wl.setTableName("sys_dept");
+        wl.setColumnList("  ");  // 空白
+        lenient().when(mapper.findByTable("forge_admin", "sys_dept")).thenReturn(wl);
+
+        assertThatThrownBy(() -> service.checkColumnsAllowed("forge_admin", "sys_dept",
+            Set.of("id")))
+            .isInstanceOf(SqlSafetyException.class)
+            .hasMessageContaining("fail-closed");
+    }
+
+    /**
+     * I6 修复：column_list 为 null 同样 fail-closed。
+     */
+    @Test
+    void checkColumnsAllowed_fails_closed_when_column_list_is_null() {
+        SysScreenSqlWhitelist wl = new SysScreenSqlWhitelist();
+        wl.setSchemaName("forge_admin");
+        wl.setTableName("sys_role");
+        wl.setColumnList(null);
+        lenient().when(mapper.findByTable("forge_admin", "sys_role")).thenReturn(wl);
+
+        assertThatThrownBy(() -> service.checkColumnsAllowed("forge_admin", "sys_role",
+            Set.of("id")))
+            .isInstanceOf(SqlSafetyException.class)
+            .hasMessageContaining("fail-closed");
+    }
 }

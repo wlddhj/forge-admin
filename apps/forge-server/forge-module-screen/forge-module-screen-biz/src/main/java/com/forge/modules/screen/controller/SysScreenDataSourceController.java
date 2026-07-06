@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RateLimiter;
 import com.forge.modules.screen.dto.DataSourceExecuteRequest;
 import com.forge.modules.screen.dto.DataSourceExecuteResponse;
 import com.forge.modules.screen.dto.ScreenPageRequest;
@@ -78,6 +79,8 @@ public class SysScreenDataSourceController {
     @PostMapping("/execute/{id}")
     @PreAuthorize("hasAuthority('screen:data-source:execute')")
     @OperationLog(title = "大屏数据源执行", businessType = OperationLog.BusinessType.OTHER)
+    @RateLimiter(keyType = RateLimiter.KeyType.IP, keyPrefix = "screen_data_source_execute",
+            time = 60, count = 60, message = "数据源执行过于频繁，请稍后再试")
     public Result<DataSourceExecuteResponse> execute(@PathVariable Long id,
                                                      @RequestBody DataSourceExecuteRequest request) {
         return Result.success(dataSourceService.execute(id, request));

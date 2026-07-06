@@ -29,7 +29,7 @@ class SysScreenServiceImplPublishTest {
     SysScreenServiceImpl service;
 
     @Test
-    void publish_should_copy_draft_to_config_and_bump_version() {
+    void publish_should_copy_draft_to_config_and_keep_version_for_mp_interceptor() {
         SysScreen entity = new SysScreen();
         entity.setId(1L);
         entity.setCode("ops");
@@ -43,12 +43,14 @@ class SysScreenServiceImplPublishTest {
 
         service.publish("ops");
 
-        // 使用 ArgumentCaptor<SysScreen> 避免 updateById(T) 与 updateById(Collection<T>) 重载歧义
+        // I4 修复：不再手动 +1，由 OptimisticLockerInnerInterceptor 在 SQL 层 +1，
+        // 因此 entity 上的 version 仍为 3（拦截器在 SET 子句中改为 version=4，
+        // 并在 WHERE 中校验 version=3）。本断言验证"未在内存中 +1"。
         ArgumentCaptor<SysScreen> captor = ArgumentCaptor.forClass(SysScreen.class);
         verify(mapper).updateById(captor.capture());
         SysScreen saved = captor.getValue();
         assertThat(saved.getStatus()).isEqualTo(1);
-        assertThat(saved.getVersion()).isEqualTo(4);
+        assertThat(saved.getVersion()).isEqualTo(3);
         assertThat(saved.getConfig()).isEqualTo("{\"cards\":[]}");
     }
 
