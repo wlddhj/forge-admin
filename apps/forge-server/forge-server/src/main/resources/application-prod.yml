@@ -140,6 +140,14 @@ forge:
       - ${CORS_ALLOWED_ORIGIN_1}
       - ${CORS_ALLOWED_ORIGIN_2}
     sensitive-data-masking: true
+    # 大屏模块安全配置：生产环境强制 HTTPS，仅放行内网 Compose 服务名
+    screen:
+      allowed-hosts:
+        - forge-server
+        - forge-ai-python
+      http-timeout-ms: 5000
+      http-max-body-bytes: 1048576
+      require-https: true
 
 # JWT 配置（生产环境必须使用强密钥）
 jwt:

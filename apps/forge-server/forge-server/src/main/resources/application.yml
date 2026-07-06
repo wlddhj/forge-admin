@@ -129,6 +129,16 @@ forge:
     cors-allowed-origins:
       - "*"
     sensitive-data-masking: true
+    # 大屏模块安全配置：HTTP 数据源 SSRF 防护、超时、限体、HTTPS 强制
+    screen:
+      allowed-hosts:
+        - localhost
+        - 127.0.0.1
+        - forge-server
+        - forge-ai-python
+      http-timeout-ms: 5000
+      http-max-body-bytes: 1048576
+      require-https: false
 
 # MyBatis-Plus配置
 mybatis-plus:
