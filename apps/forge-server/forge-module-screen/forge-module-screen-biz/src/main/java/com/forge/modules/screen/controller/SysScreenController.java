@@ -84,7 +84,7 @@ public class SysScreenController {
 
     @Operation(summary = "发布大屏")
     @PutMapping("/publish/{code}")
-    @PreAuthorize("hasAuthority('screen:screen:edit')")
+    @PreAuthorize("hasAuthority('screen:screen:publish')")
     @OperationLog(title = "大屏发布", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> publish(@PathVariable String code) {
         sysScreenService.publish(code);
@@ -93,7 +93,7 @@ public class SysScreenController {
 
     @Operation(summary = "复制大屏")
     @PostMapping("/copy/{code}")
-    @PreAuthorize("hasAuthority('screen:screen:add')")
+    @PreAuthorize("hasAuthority('screen:screen:copy')")
     @OperationLog(title = "大屏复制", businessType = OperationLog.BusinessType.INSERT)
     public Result<Long> copy(@PathVariable String code,
                              @Valid @RequestBody ScreenCopyRequest request) {

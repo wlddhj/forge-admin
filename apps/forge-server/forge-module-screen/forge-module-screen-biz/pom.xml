@@ -80,15 +80,19 @@
     <build>
         <plugins>
             <!--
-              Mockito + JDK 25 兼容：Mockito 通过 ByteBuddy 生成代理类时需要访问
-              java.lang 私有成员；显式打开模块以避免 JDK 25 上 InaccessibleObjectException。
+              Mockito + JDK 25 兼容：
+              1. net.bytebuddy.experimental=true：开启 ByteBuddy 实验性支持，
+                 允许其在官方仅声明支持 Java 22 的情况下加载 Java 25 (class file v69) 字节码。
+                 这是修复 14 个 Mockito 错误的关键（仅 add-opens 无效）。
+              2. add-opens java.base/java.lang=ALL-UNNAMED：辅助打开模块访问，
+                 部分 Mockito 操作仍会反射 java.lang 私有成员，保留以防边界问题。
               父 pom 未统一配置，故在本模块局部声明。
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>--add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+                    <argLine>-Dnet.bytebuddy.experimental=true --add-opens java.base/java.lang=ALL-UNNAMED</argLine>
                 </configuration>
             </plugin>
         </plugins>
