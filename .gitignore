@@ -65,3 +65,6 @@ apps/forge-server/uploads/
 # Claude
 .claude/
 /.playwright-mcp/
+
+# Git worktrees
+.worktrees/
