@@ -12,6 +12,7 @@ import {VxeUI} from "vxe-pc-ui";
 import App from './App.vue'
 import router from './router'
 import './styles/index.scss'
+import '@/styles/screen.scss'
 import { permission, role } from './directives/permission'
 
 // 导入 vxe-table 插件
