@@ -24,8 +24,13 @@ import {CACHE_KEY, useCache} from "@/hooks/web/useCache.ts";
 import {isDark} from "@/utils/is.ts";
 import { usePageConfigStore } from '@/stores/pageConfig'
 
+import { registerBuiltinCards } from '@/views/screen/cards/registry'
+
 const { wsCache } = useCache()
 const app = createApp(App)
+
+// 注册内置大屏卡片（需在 mount 前调用，确保编辑器/渲染页可用）
+try { registerBuiltinCards() } catch { /* 幂等 */ }
 
 // 注册所有图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
