@@ -50,9 +50,14 @@ describe('cardRegistry', () => {
     expect(() => registerBuiltinCards()).not.toThrow()
   })
 
-  it('registerBuiltinCards 后全局 cardRegistry 至少能注册 1 个内置卡片（防止后续 Task 误删入口）', () => {
-    // 该断言在 Task 5/6 完成之前可以手动跳过；保留以防回归
+  it('registerBuiltinCards 注册 6 个核心卡片', () => {
     registerBuiltinCards()
-    expect(cardRegistry.list().length).toBeGreaterThanOrEqual(0)
+    expect(cardRegistry.list().length).toBe(6)
+    expect(cardRegistry.get('digital-number')).toBeDefined()
+    expect(cardRegistry.get('line-chart')).toBeDefined()
+    expect(cardRegistry.get('bar-chart')).toBeDefined()
+    expect(cardRegistry.get('pie-chart')).toBeDefined()
+    expect(cardRegistry.get('scroll-table')).toBeDefined()
+    expect(cardRegistry.get('text-board')).toBeDefined()
   })
 })

@@ -140,6 +140,9 @@ importers:
       '@pinia/testing':
         specifier: ^0.1.7
         version: 0.1.7(pinia@2.3.1)(vue@3.5.38)
+      '@types/echarts':
+        specifier: ^5.0.0
+        version: 5.0.0
       '@vitejs/plugin-vue':
         specifier: ^5.0.0
         version: 5.2.4(vite@5.4.21)(vue@3.5.38)
@@ -149,6 +152,9 @@ importers:
       '@vue/tsconfig':
         specifier: ^0.5.0
         version: 0.5.1
+      echarts:
+        specifier: ^5.5.0
+        version: 5.6.0
       happy-dom:
         specifier: ^20.8.9
         version: 20.10.4
@@ -4303,6 +4309,13 @@ packages:
       '@babel/types': 7.29.7
     dev: true
 
+  /@types/echarts@5.0.0:
+    resolution: {integrity: sha512-5uc/16BlYpzH8kU/u8aeRRgY2FV6yRY7RjPnYfUFPowl0F3kvNgfaz09PmeVdLkqdAtMft3XkCfqiJPJjG2DNQ==}
+    deprecated: This is a stub types definition. echarts provides its own type definitions, so you do not need this installed.
+    dependencies:
+      echarts: 5.6.0
+    dev: true
+
   /@types/estree@1.0.9:
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
 
@@ -5712,6 +5725,13 @@ packages:
 
   /eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
+
+  /echarts@5.6.0:
+    resolution: {integrity: sha512-oTbVTsXfKuEhxftHqL5xprgLoc0k7uScAwtryCgWF6hPYFLRwOUHiFmHGCBKP5NPFNkDVopOieyUqYGH8Fa3kA==}
+    dependencies:
+      tslib: 2.3.0
+      zrender: 5.6.1
+    dev: true
 
   /editorconfig@1.0.7:
     resolution: {integrity: sha512-e0GOtq/aTQhVdNyDU9e02+wz9oDDM+SIOQxWME2QRjzRX5yyLAuHDE+0aE8vHb9XRC8XD37eO2u57+F09JqFhw==}
@@ -9048,6 +9068,10 @@ packages:
       punycode: 2.3.1
     dev: true
 
+  /tslib@2.3.0:
+    resolution: {integrity: sha512-N82ooyxVNm6h1riLCoyS9e3fuJ3AMG2zIZs2Gd1ATcSFjSA23Q0fzjjZeh0jbJvWVDZ0cJT8yaNNaaXHzueNjg==}
+    dev: true
+
   /tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
@@ -9916,3 +9940,9 @@ packages:
   /zeebe-bpmn-moddle@1.14.0:
     resolution: {integrity: sha512-jhEr/UOaWcT4peXxkUqXd7tscjYf2evbm/ElofmZ8TFPqs8MhxTVolFQBtKza6n9cwIVDyc6L7ChQHSzicG7QA==}
     dev: false
+
+  /zrender@5.6.1:
+    resolution: {integrity: sha512-OFXkDJKcrlx5su2XbzJvj/34Q3m6PvyCZkVPHGYpcCJ52ek4U/ymZyfuV1nKE23AyBJ51E/6Yr0mhZ7xGTO4ag==}
+    dependencies:
+      tslib: 2.3.0
+    dev: true
