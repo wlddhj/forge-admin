@@ -31,6 +31,8 @@
   },
   "dependencies": {
     "@stomp/stompjs": "^7.3.0",
+    "grid-layout-plus": "^1.1.1",
+    "nanoid": "^5.1.16",
     "sockjs-client": "^1.6.1"
   },
   "devDependencies": {
