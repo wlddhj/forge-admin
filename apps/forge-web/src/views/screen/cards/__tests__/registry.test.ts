@@ -50,14 +50,13 @@ describe('cardRegistry', () => {
     expect(() => registerBuiltinCards()).not.toThrow()
   })
 
-  it('registerBuiltinCards 注册 6 个核心卡片', () => {
+  it('registerBuiltinCards 注册 8 个内置卡片', () => {
     registerBuiltinCards()
-    expect(cardRegistry.list().length).toBe(6)
-    expect(cardRegistry.get('digital-number')).toBeDefined()
-    expect(cardRegistry.get('line-chart')).toBeDefined()
-    expect(cardRegistry.get('bar-chart')).toBeDefined()
-    expect(cardRegistry.get('pie-chart')).toBeDefined()
-    expect(cardRegistry.get('scroll-table')).toBeDefined()
-    expect(cardRegistry.get('text-board')).toBeDefined()
+    expect(cardRegistry.list().length).toBe(8)
+    for (const t of ['digital-number', 'line-chart', 'bar-chart', 'pie-chart', 'scroll-table', 'text-board']) {
+      expect(cardRegistry.get(t)).toBeDefined()
+    }
+    expect(cardRegistry.get('map-chart')).toBeDefined()
+    expect(cardRegistry.get('gauge')).toBeDefined()
   })
 })

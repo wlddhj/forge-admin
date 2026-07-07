@@ -5,6 +5,8 @@ import BarChart from './bar-chart/index.vue'
 import PieChart from './pie-chart/index.vue'
 import ScrollTable from './scroll-table/index.vue'
 import TextBoard from './text-board/index.vue'
+import MapChart from './map-chart/index.vue'
+import Gauge from './gauge/index.vue'
 
 export interface Registry<T> {
   register(entry: T): void
@@ -123,6 +125,38 @@ const ENTRIES: ScreenCardComponent[] = [
       }},
       dataShape: { fields: [{ name: 'value', type: 'string' }], sample: { value: '运行正常' } },
       minWidth: 4, minHeight: 3
+    }
+  },
+  {
+    type: 'map-chart',
+    component: MapChart,
+    meta: {
+      title: '中国地图', icon: 'Location',
+      defaultProps: { nameField: 'name', valueField: 'value', mapName: 'china' },
+      configSchema: { type: 'object', properties: {
+        nameField: { type: 'string', default: 'name' },
+        valueField: { type: 'string', default: 'value' },
+        mapName: { type: 'string', enum: ['china', 'beijing', 'shanghai'], default: 'china' }
+      }},
+      dataShape: { fields: [
+        { name: 'name', type: 'string' }, { name: 'value', type: 'number' }
+      ], sample: [{ name: '北京', value: 100 }] },
+      minWidth: 8, minHeight: 6
+    }
+  },
+  {
+    type: 'gauge',
+    component: Gauge,
+    meta: {
+      title: '仪表盘', icon: 'Odometer',
+      defaultProps: { valueField: 'value', min: 0, max: 100 },
+      configSchema: { type: 'object', properties: {
+        valueField: { type: 'string', default: 'value' },
+        min: { type: 'number', default: 0 },
+        max: { type: 'number', default: 100 }
+      }},
+      dataShape: { fields: [{ name: 'value', type: 'number' }], sample: { value: 75 } },
+      minWidth: 6, minHeight: 6
     }
   }
 ]
