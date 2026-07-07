@@ -13,10 +13,12 @@ let startTime = 0
 let from = 0
 let to = 0
 
+const now = (): number => typeof performance !== 'undefined' ? performance.now() : Date.now()
+
 const format = (n: number) => Number(n).toFixed(props.decimals)
 
-const animate = (now: number) => {
-  const elapsed = now - startTime
+const animate = (t: number) => {
+  const elapsed = t - startTime
   const progress = Math.min(elapsed / props.duration, 1)
   const eased = 1 - Math.pow(1 - progress, 3)
   display.value = from + (to - from) * eased
@@ -32,7 +34,7 @@ const start = (newVal: number) => {
   if (raf) cancelAnimationFrame(raf)
   from = display.value
   to = newVal
-  startTime = performance.now()
+  startTime = now()
   raf = requestAnimationFrame(animate)
 }
 
