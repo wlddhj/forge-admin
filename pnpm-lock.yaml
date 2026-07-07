@@ -88,6 +88,9 @@ importers:
       '@hzab/flowlong-designer':
         specifier: ^1.0.9
         version: 1.0.9(@hzab/data-model@2.0.2)(@hzab/deep-list@1.0.2)(@hzab/group-user-selector@0.0.10)(nanoid@3.3.12)(react-dom@19.2.7)(react@19.2.7)
+      '@vueuse/core':
+        specifier: ^14.3.0
+        version: 14.3.0(vue@3.5.38)
       axios:
         specifier: ^1.6.0
         version: 1.18.0
@@ -160,7 +163,7 @@ importers:
         version: 5.3.3
       unplugin-auto-import:
         specifier: ^0.17.0
-        version: 0.17.8
+        version: 0.17.8(@vueuse/core@14.3.0)
       unplugin-vue-components:
         specifier: ^0.26.0
         version: 0.26.0(vue@3.5.38)
@@ -4365,7 +4368,6 @@ packages:
 
   /@types/web-bluetooth@0.0.21:
     resolution: {integrity: sha512-oIQLCGWtcFZy2JW77j9k8nHzAOpqMHLQejDA48XXMWH6tjCQHz5RCFz1bzsmROyL6PUm+LLnUiI4BCn221inxA==}
-    dev: false
 
   /@types/whatwg-mimetype@3.0.2:
     resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
@@ -4717,11 +4719,9 @@ packages:
       '@vueuse/metadata': 14.3.0
       '@vueuse/shared': 14.3.0(vue@3.5.38)
       vue: 3.5.38(typescript@5.3.3)
-    dev: false
 
   /@vueuse/metadata@14.3.0:
     resolution: {integrity: sha512-BwxmbAzwAVF50+MW57GXOUEV61nFBGnlBvrTqj49PqWJu3uw7hdu72ztXeZ33RdZtDY6kO+bfCAE1PCn88Tktw==}
-    dev: false
 
   /@vueuse/shared@14.3.0(vue@3.5.38):
     resolution: {integrity: sha512-bZpge9eSXwa4ToSiqJ7j6KRwhAsneMFoSz3LMWKQDkqimm3D/tbFlrklrs/IOqC8tEcYmXQZJ6N0UrjhBirVCg==}
@@ -4729,7 +4729,6 @@ packages:
       vue: ^3.5.0
     dependencies:
       vue: 3.5.38(typescript@5.3.3)
-    dev: false
 
   /@vxe-ui/core@4.4.14(vue@3.5.38):
     resolution: {integrity: sha512-bEMnvZl+R39+midxlz0vcpWS/w4WsdN9bOfjxWIfz7o95FyxOQWUjHs63IT9wNeUP09WhLkmUDKKjdl7BQYUMw==}
@@ -9182,7 +9181,7 @@ packages:
     engines: {node: '>= 0.8'}
     dev: true
 
-  /unplugin-auto-import@0.17.8:
+  /unplugin-auto-import@0.17.8(@vueuse/core@14.3.0):
     resolution: {integrity: sha512-CHryj6HzJ+n4ASjzwHruD8arhbdl+UXvhuAIlHDs15Y/IMecG3wrf7FVg4pVH/DIysbq/n0phIjNHAjl7TG7Iw==}
     engines: {node: '>=14'}
     peerDependencies:
@@ -9196,6 +9195,7 @@ packages:
     dependencies:
       '@antfu/utils': 0.7.10
       '@rollup/pluginutils': 5.4.0
+      '@vueuse/core': 14.3.0(vue@3.5.38)
       fast-glob: 3.3.3
       local-pkg: 0.5.1
       magic-string: 0.30.21
