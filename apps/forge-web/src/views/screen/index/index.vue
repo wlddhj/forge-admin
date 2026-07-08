@@ -156,7 +156,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  getScreenList, createScreen, copyScreen, deleteScreen, publishScreen,
+  getScreenList, createScreen, updateScreen, copyScreen, deleteScreen, publishScreen,
   type ScreenListQuery, type ScreenDetailResponse, type ScreenCopyRequest
 } from '@/api/screen'
 import { SCREEN_THEMES } from '@/constants/screen'
