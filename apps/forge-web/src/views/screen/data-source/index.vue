@@ -58,18 +58,23 @@
         @change="getList"
       />
     </el-card>
+
+    <DataSourceEditor
+      v-model="editorVisible"
+      :data-source="editingSource"
+      @saved="onSaved"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDataSourceList, deleteDataSource, type DataSourceListQuery, type ScreenDataSource } from '@/api/screen'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
+import DataSourceEditor from './editor.vue'
 
-const router = useRouter()
 const { tableHeight } = useTableHeight()
 const pageNum = computed({ get: () => queryParams.pageNum, set: v => { queryParams.pageNum = v } })
 const pageSize = computed({ get: () => queryParams.pageSize, set: v => { queryParams.pageSize = v } })
@@ -81,6 +86,9 @@ const total = ref(0)
 const loading = ref(false)
 const tableRef = ref()
 const toolbarRef = ref()
+
+const editorVisible = ref(false)
+const editingSource = ref<ScreenDataSource | null>(null)
 
 const getList = async () => {
   loading.value = true
@@ -95,11 +103,12 @@ const getList = async () => {
 
 const handleQuery = () => { queryParams.pageNum = 1; getList() }
 const handleReset = () => { queryParams.name = ''; queryParams.type = undefined; handleQuery() }
-const handleCreate = () => router.push('/screen/data-source/editor?type=HTTP')
-const handleEdit = (row: ScreenDataSource) => router.push(`/screen/data-source/editor?id=${row.id}`)
+const handleCreate = () => { editingSource.value = null; editorVisible.value = true }
+const handleEdit = (row: ScreenDataSource) => { editingSource.value = row; editorVisible.value = true }
 const handleDelete = (row: ScreenDataSource) =>
   ElMessageBox.confirm(`确认删除数据源"${row.name}"？`, '危险操作', { type: 'error' })
     .then(async () => { await deleteDataSource([row.id!]); ElMessage.success('删除成功'); getList() })
+const onSaved = () => { getList() }
 
 onMounted(() => {
   tableRef.value?.connect(toolbarRef.value)
