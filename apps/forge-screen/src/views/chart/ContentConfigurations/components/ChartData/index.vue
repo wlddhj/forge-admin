@@ -27,7 +27,6 @@ const ChartDataStatic = loadAsyncComponent(() => import('./components/ChartDataS
 const ChartDataAjax = loadAsyncComponent(() => import('./components/ChartDataAjax/index.vue'))
 const ChartDataPond = loadAsyncComponent(() => import('./components/ChartDataPond/index.vue'))
 const ChartDataForge = loadAsyncComponent(() => import('./components/ChartDataForge/index.vue'))
-const ChartDataForge = loadAsyncComponent(() => import('./components/ChartDataForge/index.vue'))
 
 const { targetData } = useTargetData()
 

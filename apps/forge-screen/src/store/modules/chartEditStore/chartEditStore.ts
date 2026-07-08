@@ -995,7 +995,7 @@ export const useChartEditStore = defineStore({
         this.getEditCanvas.userScale = scale
         this.getEditCanvas.scale = scale
       }
-    }
+    },
 
     // ========== forge-admin API ==========
 
@@ -1025,6 +1025,6 @@ export const useChartEditStore = defineStore({
 
     async publishProjectToApi(code: string) {
       await publishScreen(code)
-    },
+    }
   }
 })

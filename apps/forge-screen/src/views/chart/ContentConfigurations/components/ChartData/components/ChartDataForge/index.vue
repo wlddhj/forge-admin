@@ -37,9 +37,9 @@
 import { ref, computed, toRaw } from 'vue'
 import { SettingItemBox } from '@/components/Pages/ChartItemSetting'
 import { icon } from '@/plugins'
-import { useTargetData } from '../../hooks/useTargetData.hook'
+import { useTargetData } from '../../../hooks/useTargetData.hook'
 import { executeDataSource } from '@/api/forge/dataSource'
-import { ElMessage } from '@/utils'
+// ElMessage via window['$message']
 
 const { FlashIcon } = icon.carbon
 
