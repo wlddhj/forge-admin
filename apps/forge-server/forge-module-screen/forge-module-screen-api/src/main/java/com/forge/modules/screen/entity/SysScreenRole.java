@@ -9,16 +9,15 @@ import java.io.Serializable;
 
 /**
  * 大屏角色授权关系
- *
- * <p>复合主键：screenId + roleId
  */
 @Data
 @TableName("sys_screen_role")
 public class SysScreenRole implements Serializable {
 
-    @TableId(type = IdType.INPUT)
+    @TableId(type = IdType.AUTO)
+    private Long id;
+
     private Long screenId;
 
-    @TableId(type = IdType.INPUT)
     private Long roleId;
 }

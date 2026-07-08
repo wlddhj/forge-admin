@@ -5,9 +5,11 @@
 -- 一条记录代表一个角色对一个 screen 的访问权限。
 
 CREATE TABLE IF NOT EXISTS `sys_screen_role` (
+    `id`        BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
     `screen_id` BIGINT NOT NULL COMMENT '大屏 ID',
     `role_id`   BIGINT NOT NULL COMMENT '角色 ID',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    PRIMARY KEY (`screen_id`, `role_id`),
+    PRIMARY KEY (`id`),
+    KEY `idx_screen_id` (`screen_id`),
     KEY `idx_role_id` (`role_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='大屏角色授权关系表';
