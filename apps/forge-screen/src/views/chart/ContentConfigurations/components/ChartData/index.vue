@@ -9,6 +9,8 @@
     <chart-data-ajax v-if="targetData.request.requestDataType === RequestDataTypeEnum.AJAX"></chart-data-ajax>
     <!-- 数据池 -->
     <chart-data-pond v-if="targetData.request.requestDataType === RequestDataTypeEnum.Pond"></chart-data-pond>
+    <!-- forge 数据源 -->
+    <chart-data-forge v-if="targetData.request.requestDataType === RequestDataTypeEnum.FORGE"></chart-data-forge>
   </div>
 </template>
 
@@ -24,6 +26,8 @@ import { SelectCreateDataType, SelectCreateDataEnum } from './index.d'
 const ChartDataStatic = loadAsyncComponent(() => import('./components/ChartDataStatic/index.vue'))
 const ChartDataAjax = loadAsyncComponent(() => import('./components/ChartDataAjax/index.vue'))
 const ChartDataPond = loadAsyncComponent(() => import('./components/ChartDataPond/index.vue'))
+const ChartDataForge = loadAsyncComponent(() => import('./components/ChartDataForge/index.vue'))
+const ChartDataForge = loadAsyncComponent(() => import('./components/ChartDataForge/index.vue'))
 
 const { targetData } = useTargetData()
 
@@ -40,6 +44,10 @@ const selectOptions: SelectCreateDataType[] = [
   {
     label: SelectCreateDataEnum.Pond,
     value: RequestDataTypeEnum.Pond
+  },
+  {
+    label: SelectCreateDataEnum.FORGE,
+    value: RequestDataTypeEnum.FORGE
   }
 ]
 

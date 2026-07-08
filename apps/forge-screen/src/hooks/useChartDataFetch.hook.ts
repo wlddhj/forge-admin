@@ -60,7 +60,40 @@ export const useChartDataFetch = (
     } = toRefs(targetComponent.request)
 
     // 非请求类型
-    if (requestDataType.value !== RequestDataTypeEnum.AJAX) return
+    if (
+      requestDataType.value !== RequestDataTypeEnum.AJAX &&
+      requestDataType.value !== RequestDataTypeEnum.FORGE
+    ) return
+
+    // forge 数据源分支：调 forge-admin /api/screen/data-source/execute/{id}
+    if (requestDataType.value === RequestDataTypeEnum.FORGE) {
+      const forgeDataSourceId = (targetComponent.request as any).forgeDataSourceId
+      const forgeParams = (targetComponent.request as any).forgeParams || {}
+      if (!forgeDataSourceId) return
+
+      clearInterval(fetchInterval)
+      const fetchFn = async () => {
+        try {
+          const { executeDataSource } = await import('@/api/forge/dataSource')
+          const res = await executeDataSource(Number(forgeDataSourceId), { params: forgeParams })
+          if (res && res.data) {
+            const filter = targetComponent.filter
+            echartsUpdateHandle(newFunctionHandle(res.data, res, filter))
+            if (updateCallback) {
+              updateCallback(newFunctionHandle(res.data, res, filter))
+            }
+          }
+        } catch (e) {
+          console.error('[forge data source] fetch failed', e)
+        }
+      }
+      watch(
+        () => (targetComponent.request as any).forgeParams,
+        () => fetchFn(),
+        { immediate: true, deep: true }
+      )
+      return
+    }
 
     try {
       // 处理地址

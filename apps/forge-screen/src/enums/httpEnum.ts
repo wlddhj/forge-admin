@@ -17,7 +17,9 @@ export enum RequestDataTypeEnum {
   // 请求数据
   AJAX = 1,
   // 数据池
-  Pond = 2
+  Pond = 2,
+  // forge 数据源（调 forge-admin /api/screen/data-source/execute）
+  FORGE = 3
 }
 
 // 请求主体类型
