@@ -16,6 +16,7 @@ import { PreviewEnum } from '@/enums/pageEnum'
 import { StorageEnum } from '@/enums/storageEnum'
 import { useRoute } from 'vue-router'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
+import { publishScreen as forgePublishScreen, getScreenDetail, getScreenIdFromUrl } from '@/api/forge/screen'
 import { syncData } from '../../ContentEdit/components/EditTools/hooks/useSyncUpdate.hook'
 import { icon } from '@/plugins'
 import { cloneDeep } from 'lodash'
@@ -56,13 +57,29 @@ const previewHandle = () => {
 }
 
 // 发布
-const sendHandle = () => {
-  goDialog({
-    message: '想体验发布功能，请前往 master-fetch 分支查看: https://gitee.com/MTrun/go-view/tree/master-fetch',
-    positiveText: '了然',
-    closeNegativeText: true,
-    onPositiveCallback: () => {}
-  })
+const sendHandle = async () => {
+  const id = getScreenIdFromUrl()
+  if (!id) {
+    window['$message']?.error('未找到大屏 ID，请从 forge-admin 列表进入')
+    return
+  }
+  try {
+    // 先保存草稿到 forge-admin
+    await chartEditStore.saveProjectToApi(
+      id,
+      window['$message']?.info // placeholder
+        ? (await getScreenDetail(id)).code
+        : (await getScreenDetail(id)).code,
+      (await getScreenDetail(id)).name
+    )
+    // 再发布
+    const detail = await getScreenDetail(id)
+    await forgePublishScreen(detail.code)
+    window['$message']?.success('发布成功')
+  } catch (e: any) {
+    console.error('[发布失败]', e)
+    window['$message']?.error('发布失败：' + (e?.message || String(e)))
+  }
 }
 
 const btnList = [

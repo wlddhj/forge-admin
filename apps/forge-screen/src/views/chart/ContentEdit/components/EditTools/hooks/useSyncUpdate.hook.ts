@@ -8,17 +8,33 @@ import { ChartEnum } from '@/enums/pageEnum'
 import { SavePageEnum } from '@/enums/editPageEnum'
 import { editToJsonInterval } from '@/settings/designSetting'
 import { goDialog } from '@/utils'
+import { getScreenDetail, getScreenIdFromUrl } from '@/api/forge/screen'
 
 const { updateComponent } = useSync()
 const chartEditStore = useChartEditStore()
 
+/**
+ * 同步内容（保存草稿到 forge-admin + 同步到 sessionStorage 给预览用）
+ */
 export const syncData = () => {
   goDialog({
     message: '是否覆盖源视图内容，此操作不可撤回?',
     isMaskClosable: true,
     transformOrigin: 'center',
-    onPositiveCallback: () => {
+    onPositiveCallback: async () => {
       window['$message'].success('正在同步编辑器...')
+      // 1. 保存草稿到 forge-admin API
+      const id = getScreenIdFromUrl()
+      if (id) {
+        try {
+          const detail = await getScreenDetail(id)
+          await chartEditStore.saveProjectToApi(id, detail.code, detail.name)
+          window['$message'].success('已保存草稿到 forge-admin')
+        } catch (e: any) {
+          window['$message'].error('保存失败：' + (e?.message || String(e)))
+        }
+      }
+      // 2. 同步到 sessionStorage（给预览标签页用）
       dispatchEvent(new CustomEvent(SavePageEnum.CHART, { detail: chartEditStore.getStorageInfo() }))
     }
   })
