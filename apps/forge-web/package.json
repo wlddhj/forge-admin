@@ -20,6 +20,8 @@
     "@fortawesome/fontawesome-free": "^7.2.0",
     "@hzab/flowlong-designer": "^1.0.9",
     "@vueuse/core": "^14.3.0",
+    "grid-layout-plus": "^1.1.1",
+    "nanoid": "^5.1.16",
     "axios": "^1.6.0",
     "bpmn-js": "^18.16.1",
     "bpmn-js-properties-panel": "^5.58.0",

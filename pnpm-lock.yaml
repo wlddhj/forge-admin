@@ -11,12 +11,6 @@ importers:
       '@stomp/stompjs':
         specifier: ^7.3.0
         version: 7.3.0
-      grid-layout-plus:
-        specifier: ^1.1.1
-        version: 1.1.1(vue@3.5.38)
-      nanoid:
-        specifier: ^5.1.16
-        version: 5.1.16
       sockjs-client:
         specifier: ^1.6.1
         version: 1.6.1
@@ -93,7 +87,7 @@ importers:
         version: 7.2.0
       '@hzab/flowlong-designer':
         specifier: ^1.0.9
-        version: 1.0.9(@hzab/data-model@2.0.2)(@hzab/deep-list@1.0.2)(@hzab/group-user-selector@0.0.10)(nanoid@3.3.12)(react-dom@19.2.7)(react@19.2.7)
+        version: 1.0.9(@hzab/data-model@2.0.2)(@hzab/deep-list@1.0.2)(@hzab/group-user-selector@0.0.10)(nanoid@5.1.16)(react-dom@19.2.7)(react@19.2.7)
       '@vueuse/core':
         specifier: ^14.3.0
         version: 14.3.0(vue@3.5.38)
@@ -112,12 +106,18 @@ importers:
       element-plus:
         specifier: ^2.4.0
         version: 2.14.2(vue@3.5.38)
+      grid-layout-plus:
+        specifier: ^1.1.1
+        version: 1.1.1(vue@3.5.38)
       highlight.js:
         specifier: ^11.11.1
         version: 11.11.1
       marked:
         specifier: ^18.0.5
         version: 18.0.5
+      nanoid:
+        specifier: ^5.1.16
+        version: 5.1.16
       nprogress:
         specifier: ^0.2.0
         version: 0.2.0
@@ -2754,7 +2754,7 @@ packages:
       - webpack
     dev: false
 
-  /@hzab/flowlong-designer@1.0.9(@hzab/data-model@2.0.2)(@hzab/deep-list@1.0.2)(@hzab/group-user-selector@0.0.10)(nanoid@3.3.12)(react-dom@19.2.7)(react@19.2.7):
+  /@hzab/flowlong-designer@1.0.9(@hzab/data-model@2.0.2)(@hzab/deep-list@1.0.2)(@hzab/group-user-selector@0.0.10)(nanoid@5.1.16)(react-dom@19.2.7)(react@19.2.7):
     resolution: {integrity: sha512-ns2FAcYS/M9rQ9oct23/dIrrzRYr3viVqXHFxkwrwlRsqJ4LiQ6Hh7pXUUoyrvgw3q8TM0i4SkjGgruSdFqHdQ==}
     peerDependencies:
       '@hzab/data-model': '>=1.7.0'
@@ -2765,7 +2765,7 @@ packages:
       '@hzab/data-model': 2.0.2(axios@1.18.0)(js-cookie@3.0.8)
       '@hzab/deep-list': 1.0.2(axios@1.18.0)(js-cookie@3.0.8)(less@4.6.7)(react-dom@19.2.7)(react@19.2.7)
       '@hzab/group-user-selector': 0.0.10(axios@1.18.0)(js-cookie@3.0.8)
-      nanoid: 3.3.12
+      nanoid: 5.1.16
       react-draggable: 4.7.0(react-dom@19.2.7)(react@19.2.7)
     transitivePeerDependencies:
       - react
@@ -4424,7 +4424,7 @@ packages:
       '@floating-ui/dom': 1.7.6
       '@juggle/resize-observer': 3.4.0
       '@vexip-ui/utils': 2.16.4
-      vue: 3.5.38
+      vue: 3.5.38(typescript@5.3.3)
     dev: false
 
   /@vexip-ui/utils@2.16.4:
@@ -4724,7 +4724,7 @@ packages:
     dependencies:
       '@vue/compiler-ssr': 3.5.38
       '@vue/shared': 3.5.38
-      vue: 3.5.38
+      vue: 3.5.38(typescript@5.3.3)
 
   /@vue/shared@3.4.21:
     resolution: {integrity: sha512-PuJe7vDIi6VYSinuEbUIQgMIRZGgM8e4R+G+/dQTk0X1NEdvgvvgv7m+rfmDH1gZzyA1OjjoWskvHlfRNfQf3g==}
@@ -6384,7 +6384,7 @@ packages:
       '@vexip-ui/hooks': 2.9.4(vue@3.5.38)
       '@vexip-ui/utils': 2.16.4
       interactjs: 1.10.27
-      vue: 3.5.38
+      vue: 3.5.38(typescript@5.3.3)
     dev: false
 
   /happy-dom@20.10.4:
@@ -9614,7 +9614,7 @@ packages:
       '@vue/composition-api':
         optional: true
     dependencies:
-      vue: 3.5.38(typescript@5.4.5)
+      vue: 3.5.38(typescript@5.3.3)
 
   /vue-router@4.4.4(vue@3.5.38):
     resolution: {integrity: sha512-3MlnDqwRwZwCQVbtVfpsU+nrNymNjnXSsQtXName5925NVC1+326VVfYH9vSrA0N13teGEo8z5x7gbRnGjCDiQ==}
@@ -9652,20 +9652,6 @@ packages:
       semver: 7.8.4
       typescript: 5.3.3
     dev: true
-
-  /vue@3.5.38:
-    resolution: {integrity: sha512-vAMKHfImQlYSy0C+PBue4s3ERZ2xGKfgZg5GXAsLInq1dyh2H78ILVP5sK0KPFPVW4kv+OGCIvBEondcjpZp7A==}
-    peerDependencies:
-      typescript: '*'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-    dependencies:
-      '@vue/compiler-dom': 3.5.38
-      '@vue/compiler-sfc': 3.5.38
-      '@vue/runtime-dom': 3.5.38
-      '@vue/server-renderer': 3.5.38(vue@3.5.38)
-      '@vue/shared': 3.5.38
 
   /vue@3.5.38(typescript@5.3.3):
     resolution: {integrity: sha512-vAMKHfImQlYSy0C+PBue4s3ERZ2xGKfgZg5GXAsLInq1dyh2H78ILVP5sK0KPFPVW4kv+OGCIvBEondcjpZp7A==}
