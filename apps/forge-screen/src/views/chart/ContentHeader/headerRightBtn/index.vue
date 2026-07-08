@@ -1,6 +1,6 @@
 <template>
   <n-space class="go-mt-0" :wrap="false">
-    <n-button v-for="item in comBtnList" :key="item.title" :type="item.type" ghost @click="item.event" :loading="item.loading">
+    <n-button v-for="item in comBtnList" :key="item.title" :type="item.type" ghost @click="item.event" :loading="getLoading(item.title)">
       <template #icon>
         <component :is="item.icon"></component>
       </template>
@@ -19,7 +19,6 @@ import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore
 import { publishScreen as forgePublishScreen, getScreenDetail, getScreenIdFromUrl } from '@/api/forge/screen'
 import { syncData } from '../../ContentEdit/components/EditTools/hooks/useSyncUpdate.hook'
 import { icon } from '@/plugins'
-import { cloneDeep } from 'lodash'
 
 const { BrowsersOutlineIcon, SendIcon, AnalyticsIcon, SaveIcon } = icon.ionicons5
 const chartEditStore = useChartEditStore()
@@ -27,6 +26,12 @@ const chartEditStore = useChartEditStore()
 const routerParamsInfo = useRoute()
 const saving = ref(false)
 const publishing = ref(false)
+
+const getLoading = (title: string) => {
+  if (title === '保存') return saving.value
+  if (title === '发布') return publishing.value
+  return false
+}
 
 // 保存
 const saveHandle = async () => {
@@ -105,8 +110,7 @@ const btnList = [
     title: '保存',
     type: 'primary' as const,
     icon: renderIcon(SaveIcon),
-    event: saveHandle,
-    loading: saving
+    event: saveHandle
   },
   {
     select: true,
@@ -118,8 +122,7 @@ const btnList = [
     select: true,
     title: '发布',
     icon: renderIcon(SendIcon),
-    event: sendHandle,
-    loading: publishing
+    event: sendHandle
   }
 ]
 
@@ -127,9 +130,7 @@ const comBtnList = computed(() => {
   if (chartEditStore.getEditCanvas.isCodeEdit) {
     return btnList
   }
-  const cloneList = cloneDeep(btnList)
-  cloneList.shift()
-  return cloneList
+  return btnList.slice(1)
 })
 </script>
 
