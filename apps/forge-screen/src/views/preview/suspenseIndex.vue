@@ -38,11 +38,30 @@ import { PreviewScaleEnum } from '@/enums/styleEnum'
 import type { ChartEditStorageType } from './index.d'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { useInitVChartsTheme } from '@/hooks'
+import { getScreenByCode } from '@/api/forge/screen'
 
-// const localStorageInfo: ChartEditStorageType = getSessionStorageInfo() as ChartEditStorageType
+// forge-admin 集成：当 sessionStorage 无数据时，从 URL query code 加载
+const urlHash = document.location.hash
+const queryStr = urlHash.split('?')[1] || ''
+const urlParams = new URLSearchParams(queryStr)
+const forgeCode = urlParams.get('code')
 
-await getSessionStorageInfo()
 const chartEditStore = useChartEditStore() as unknown as ChartEditStorageType
+
+if (forgeCode) {
+  // forge-admin 预览模式：从 API 加载大屏配置
+  const detail = await getScreenByCode(forgeCode)
+  if (detail) {
+    const raw = detail.config || detail.configDraft
+    if (raw) {
+      const cfg = JSON.parse(raw)
+      if (cfg.editCanvasConfig) Object.assign(chartEditStore.editCanvasConfig, cfg.editCanvasConfig)
+      if (cfg.componentList) chartEditStore.componentList = cfg.componentList
+    }
+  }
+} else {
+  await getSessionStorageInfo()
+}
 
 setTitle(`预览-${chartEditStore.editCanvasConfig.projectName}`)
 

@@ -39,11 +39,13 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { loadAsyncComponent } from '@/utils'
 import { LayoutHeaderPro } from '@/layout/components/LayoutHeaderPro'
 import { useContextMenu } from './hooks/useContextMenu.hook'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { useChartHistoryStore } from '@/store/modules/chartHistoryStore/chartHistoryStore'
+import { getScreenIdFromUrl } from '@/api/forge/screen'
 
 const chartHistoryStoreStore = useChartHistoryStore()
 const chartEditStore = useChartEditStore()

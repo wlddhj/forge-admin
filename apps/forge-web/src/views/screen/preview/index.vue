@@ -23,7 +23,7 @@ const goViewUrl = computed(() => {
   const base = import.meta.env.DEV
     ? 'http://localhost:8001'
     : '/screen-app'
-  return `${base}/#/preview?code=${code}&token=${token}`
+  return `${base}/#/chart/preview/forge?code=${code}&token=${token}`
 })
 
 const handleError = () => {

@@ -46,14 +46,19 @@ export const copyScreen = (
 ): Promise<number> =>
   request.post(`/screen/copy/${code}`, data)
 
-/** 从 URL hash query 取当前大屏 id */
+/** 从 URL hash 取当前大屏 id（支持路径参数 /chart/home/:id 和 query 参数 ?id=xx） */
 export function getScreenIdFromUrl(): number | null {
   try {
     const hash = window.location.hash
+    // 先尝试 query 参数
     const queryStr = hash.split('?')[1] || ''
     const params = new URLSearchParams(queryStr)
-    const id = params.get('id')
-    return id ? Number(id) : null
+    const queryId = params.get('id')
+    if (queryId) return Number(queryId)
+    // 再尝试路径参数 /chart/home/8
+    const match = hash.match(/\/chart\/home\/(\d+)/)
+    if (match) return Number(match[1])
+    return null
   } catch {
     return null
   }

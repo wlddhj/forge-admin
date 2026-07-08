@@ -17,6 +17,7 @@ export function createRouterGuards(router: Router) {
     const isErrorPage = router.getRoutes().findIndex((item) => item.name === to.name);
     if (isErrorPage === -1) {
       next({ name: PageEnum.ERROR_PAGE_NAME_404 })
+      return
     }
 
     // forge-admin 集成：URL query 中有 token 参数时直接信任（iframe 模式）
@@ -25,8 +26,10 @@ export function createRouterGuards(router: Router) {
     if (!loginCheck() && !hasForgeToken) {
       if (to.name === PageEnum.BASE_LOGIN_NAME) {
         next()
+        return
       }
       next({ name: PageEnum.BASE_LOGIN_NAME })
+      return
     }
     next()
   })
