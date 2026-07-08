@@ -32,11 +32,6 @@
         <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
         <vxe-column field="name" title="名称" min-width="160" />
         <vxe-column field="code" title="路由编码" min-width="140" />
-        <vxe-column title="主题" width="100">
-          <template #default="{ row }">
-            <el-tag size="small">{{ themeLabel(row.theme) }}</el-tag>
-          </template>
-        </vxe-column>
         <vxe-column title="状态" width="100">
           <template #default="{ row }">
             <el-tag v-if="row.status === 1" type="success" size="small">已发布</el-tag>
@@ -53,10 +48,9 @@
         <vxe-column field="updateTime" title="更新时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.updateTime) }}</template>
         </vxe-column>
-        <vxe-column title="操作" width="430" fixed="right">
+        <vxe-column title="操作" width="380" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'screen:screen:edit'" type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button link size="small" @click="openThemeDialog(row)">主题</el-button>
             <el-button type="success" link size="small" @click="handlePreview(row)">预览</el-button>
             <el-button v-if="row.status === 1" link size="small" @click="handleRender(row)">渲染</el-button>
             <el-button v-if="row.status === 1" link size="small" @click="handleCopyLink(row)">使用链接</el-button>
@@ -96,32 +90,10 @@
         <el-form-item label="名称" required>
           <el-input v-model="createForm.name" placeholder="显示名" />
         </el-form-item>
-        <el-form-item label="主题" required>
-          <el-select v-model="createForm.theme" style="width: 100%">
-            <el-option v-for="t in SCREEN_THEMES" :key="t.value" :label="t.label" :value="t.value" />
-          </el-select>
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="createDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="creating" @click="confirmCreate">创建并打开编辑器</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="themeDialogVisible" title="设置主题" width="420px">
-      <el-form label-width="80px">
-        <el-form-item label="当前主题">
-          <el-tag>{{ themeLabel(themeForm.theme) }}</el-tag>
-        </el-form-item>
-        <el-form-item label="切换为">
-          <el-select v-model="themeForm.theme" style="width: 100%">
-            <el-option v-for="t in SCREEN_THEMES" :key="t.value" :label="t.label" :value="t.value" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="themeDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="themeSaving" @click="confirmTheme">确定</el-button>
       </template>
     </el-dialog>
 
@@ -205,8 +177,6 @@ import {
   type ScreenListQuery, type ScreenDetailResponse, type ScreenCopyRequest
 } from '@/api/screen'
 import { getAllRoles, type Role } from '@/api/system'
-import { SCREEN_THEMES } from '@/constants/screen'
-import type { ScreenTheme } from '@/types/screen'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
 import { formatDateTime } from '@/utils/dateFormat'
@@ -224,9 +194,6 @@ const loading = ref(false)
 const tableRef = ref()
 const toolbarRef = ref()
 
-const themeLabel = (theme: string): string =>
-  SCREEN_THEMES.find(t => t.value === theme)?.label ?? theme
-
 const getList = async () => {
   loading.value = true
   try {
@@ -243,10 +210,9 @@ const handleReset = () => { queryParams.name = ''; queryParams.status = undefine
 
 const createDialogVisible = ref(false)
 const creating = ref(false)
-const createForm = reactive({ name: '未命名大屏', theme: 'dark-tech' as ScreenTheme })
+const createForm = reactive({ name: '未命名大屏' })
 const openCreateDialog = () => {
   createForm.name = '未命名大屏'
-  createForm.theme = 'dark-tech'
   createDialogVisible.value = true
 }
 const confirmCreate = async () => {
@@ -256,7 +222,7 @@ const confirmCreate = async () => {
     const newId = await createScreen({
       code: `screen-${Date.now()}`,
       name: createForm.name,
-      theme: createForm.theme
+      theme: 'dark-tech'
     })
     ElMessage.success('创建成功')
     createDialogVisible.value = false
@@ -266,37 +232,6 @@ const confirmCreate = async () => {
     ElMessage.error('创建大屏失败：' + (e instanceof Error ? e.message : String(e)))
   } finally {
     creating.value = false
-  }
-}
-
-const themeDialogVisible = ref(false)
-const themeSaving = ref(false)
-const themeForm = reactive<{ id: number; code: string; name: string; theme: ScreenTheme }>({
-  id: 0, code: '', name: '', theme: 'dark-tech'
-})
-const openThemeDialog = (row: ScreenDetailResponse) => {
-  themeForm.id = row.id
-  themeForm.code = row.code
-  themeForm.name = row.name
-  themeForm.theme = (row.theme as ScreenTheme) || 'dark-tech'
-  themeDialogVisible.value = true
-}
-const confirmTheme = async () => {
-  themeSaving.value = true
-  try {
-    await updateScreen({
-      id: themeForm.id,
-      code: themeForm.code,
-      name: themeForm.name,
-      theme: themeForm.theme
-    })
-    ElMessage.success('已切换主题')
-    themeDialogVisible.value = false
-    getList()
-  } catch (e) {
-    ElMessage.error('切换失败：' + (e instanceof Error ? e.message : String(e)))
-  } finally {
-    themeSaving.value = false
   }
 }
 
