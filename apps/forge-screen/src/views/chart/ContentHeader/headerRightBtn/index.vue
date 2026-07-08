@@ -2,7 +2,9 @@
   <n-space class="go-mt-0" :wrap="false">
     <n-button v-for="item in comBtnList" :key="item.title" :type="item.type" ghost @click="item.event" :loading="getLoading(item.title)">
       <template #icon>
-        <component :is="item.icon"></component>
+        <n-icon size="16">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="iconSvg(item.title)"></svg>
+        </n-icon>
       </template>
       <span>{{ item.title }}</span>
     </n-button>
@@ -10,17 +12,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { renderIcon, goDialog, fetchPathByName, routerTurnByPath, setSessionStorage, getSessionStorage } from '@/utils'
+import { computed, ref, h } from 'vue'
+import { goDialog, fetchPathByName, routerTurnByPath, setSessionStorage, getSessionStorage } from '@/utils'
 import { PreviewEnum } from '@/enums/pageEnum'
 import { StorageEnum } from '@/enums/storageEnum'
 import { useRoute } from 'vue-router'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { publishScreen as forgePublishScreen, getScreenDetail, getScreenIdFromUrl } from '@/api/forge/screen'
 import { syncData } from '../../ContentEdit/components/EditTools/hooks/useSyncUpdate.hook'
-import { icon } from '@/plugins'
 
-const { BrowsersOutlineIcon, SendIcon, AnalyticsIcon, SaveIcon } = icon.ionicons5
 const chartEditStore = useChartEditStore()
 
 const routerParamsInfo = useRoute()
@@ -31,6 +31,16 @@ const getLoading = (title: string) => {
   if (title === '保存') return saving.value
   if (title === '发布') return publishing.value
   return false
+}
+
+const iconSvg = (title: string) => {
+  const map: Record<string, string> = {
+    '保存': '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline>',
+    '发布': '<line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>',
+    '预览': '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>',
+    '同步内容': '<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>'
+  }
+  return map[title] || ''
 }
 
 // 保存
@@ -102,26 +112,22 @@ const btnList = [
     select: true,
     title: '同步内容',
     type: 'primary' as const,
-    icon: renderIcon(AnalyticsIcon),
     event: syncData
   },
   {
     select: true,
     title: '保存',
     type: 'primary' as const,
-    icon: renderIcon(SaveIcon),
     event: saveHandle
   },
   {
     select: true,
     title: '预览',
-    icon: renderIcon(BrowsersOutlineIcon),
     event: previewHandle
   },
   {
     select: true,
     title: '发布',
-    icon: renderIcon(SendIcon),
     event: sendHandle
   }
 ]

@@ -46,10 +46,12 @@
         <vxe-column field="updateTime" title="更新时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.updateTime) }}</template>
         </vxe-column>
-        <vxe-column title="操作" width="280" fixed="right">
+        <vxe-column title="操作" width="340" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'screen:screen:edit'" type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
             <el-button type="success" link size="small" @click="handlePreview(row)">预览</el-button>
+            <el-button v-if="row.status === 1" link size="small" @click="handleRender(row)">渲染</el-button>
+            <el-button v-if="row.status === 1" link size="small" @click="handleCopyLink(row)">使用链接</el-button>
             <el-button v-permission="'screen:screen:copy'" link size="small" @click="handleCopy(row)">复制</el-button>
             <el-button v-permission="'screen:screen:publish'" link size="small" :disabled="row.status === 1" @click="handlePublish(row)">发布</el-button>
             <el-button v-permission="'screen:screen:remove'" type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
@@ -78,6 +80,34 @@
         <el-button @click="copyDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="copying" @click="confirmCopy">确定</el-button>
       </template>
+    </el-dialog>
+
+    <el-dialog v-model="linkDialogVisible" title="使用链接" width="640px">
+      <el-alert
+        title="使用方法"
+        type="info"
+        :closable="false"
+        show-icon
+        description="将下方链接复制到浏览器、iframe 嵌入、移动端 H5 中打开；调用方需携带有效的 forge-admin 登录 Token。"
+        style="margin-bottom: 16px"
+      />
+      <el-form label-width="90px">
+        <el-form-item label="渲染地址">
+          <el-input v-model="linkInfo.url" readonly>
+            <template #append>
+              <el-button @click="copyToClipboard(linkInfo.url)">复制</el-button>
+            </template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="iframe 嵌入">
+          <el-input
+            v-model="linkInfo.iframe"
+            type="textarea"
+            :autosize="{ minRows: 3, maxRows: 6 }"
+            readonly
+          />
+        </el-form-item>
+      </el-form>
     </el-dialog>
   </div>
 </template>
@@ -139,6 +169,25 @@ const handleCreate = async () => {
 
 const handleEdit = (row: ScreenDetailResponse) => window.open(`/screen/editor/${row.id}`, '_blank')
 const handlePreview = (row: ScreenDetailResponse) => window.open(`/screen/preview/${row.code}`, '_blank')
+const handleRender = (row: ScreenDetailResponse) => window.open(`/screen/render/${row.code}`, '_blank')
+
+const linkDialogVisible = ref(false)
+const linkInfo = reactive({ url: '', iframe: '' })
+const handleCopyLink = (row: ScreenDetailResponse) => {
+  const base = window.location.origin
+  const url = `${base}/screen/render/${row.code}`
+  linkInfo.url = url
+  linkInfo.iframe = `<iframe\n  src="${url}"\n  width="100%"\n  height="100%"\n  frameborder="0"\n  allowfullscreen\n  style="border:none;display:block"\n></iframe>`
+  linkDialogVisible.value = true
+}
+const copyToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('已复制到剪贴板')
+  } catch (e) {
+    ElMessage.error('复制失败，请手动复制')
+  }
+}
 
 const copyDialogVisible = ref(false)
 const copying = ref(false)
