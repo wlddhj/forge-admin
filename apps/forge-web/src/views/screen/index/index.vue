@@ -43,15 +43,23 @@
             <el-tag v-else type="info" size="small">草稿</el-tag>
           </template>
         </vxe-column>
+        <vxe-column title="访问授权" width="140">
+          <template #default="{ row }">
+            <el-tag v-if="row.isPublic === 1" type="warning" size="small">公开访问</el-tag>
+            <el-tag v-else-if="row.accessType === 1" size="small">指定角色</el-tag>
+            <el-tag v-else type="info" size="small">登录可访问</el-tag>
+          </template>
+        </vxe-column>
         <vxe-column field="updateTime" title="更新时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.updateTime) }}</template>
         </vxe-column>
-        <vxe-column title="操作" width="340" fixed="right">
+        <vxe-column title="操作" width="380" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'screen:screen:edit'" type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
             <el-button type="success" link size="small" @click="handlePreview(row)">预览</el-button>
             <el-button v-if="row.status === 1" link size="small" @click="handleRender(row)">渲染</el-button>
             <el-button v-if="row.status === 1" link size="small" @click="handleCopyLink(row)">使用链接</el-button>
+            <el-button link size="small" @click="openAccessDialog(row)">授权</el-button>
             <el-button v-permission="'screen:screen:copy'" link size="small" @click="handleCopy(row)">复制</el-button>
             <el-button v-permission="'screen:screen:publish'" link size="small" :disabled="row.status === 1" @click="handlePublish(row)">发布</el-button>
             <el-button v-permission="'screen:screen:remove'" type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
@@ -79,6 +87,38 @@
       <template #footer>
         <el-button @click="copyDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="copying" @click="confirmCopy">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="accessDialogVisible" title="访问授权" width="480px">
+      <el-form :model="accessForm" label-width="100px">
+        <el-form-item label="大屏名称">
+          <span>{{ accessForm.name }}</span>
+        </el-form-item>
+        <el-form-item label="访问方式">
+          <el-radio-group v-model="accessForm.isPublic">
+            <el-radio :value="0">登录可访问</el-radio>
+            <el-radio :value="1">公开访问（无需登录）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-alert
+          v-if="accessForm.isPublic === 1"
+          title="公开大屏可通过 URL/iframe 直接访问，无需任何授权；请确保内容不涉及敏感数据。"
+          type="warning"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 16px"
+        />
+        <el-form-item label="授权类型" v-if="accessForm.isPublic === 0">
+          <el-radio-group v-model="accessForm.accessType">
+            <el-radio :value="0">所有登录用户</el-radio>
+            <el-radio :value="1" disabled>指定角色（即将开放）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="accessDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="accessSaving" @click="confirmAccess">确定</el-button>
       </template>
     </el-dialog>
 
@@ -179,6 +219,37 @@ const handleCopyLink = (row: ScreenDetailResponse) => {
   linkInfo.url = url
   linkInfo.iframe = `<iframe\n  src="${url}"\n  width="100%"\n  height="100%"\n  frameborder="0"\n  allowfullscreen\n  style="border:none;display:block"\n></iframe>`
   linkDialogVisible.value = true
+}
+
+const accessDialogVisible = ref(false)
+const accessSaving = ref(false)
+const accessForm = reactive<{ id: number; code: string; name: string; isPublic: 0 | 1; accessType: 0 | 1 }>({
+  id: 0, code: '', name: '', isPublic: 0, accessType: 0
+})
+const openAccessDialog = (row: ScreenDetailResponse) => {
+  accessForm.id = row.id
+  accessForm.code = row.code
+  accessForm.name = row.name
+  accessForm.isPublic = (row.isPublic ?? 0) as 0 | 1
+  accessForm.accessType = (row.accessType ?? 0) as 0 | 1
+  accessDialogVisible.value = true
+}
+const confirmAccess = async () => {
+  accessSaving.value = true
+  try {
+    await updateScreen({
+      id: accessForm.id,
+      code: accessForm.code,
+      name: accessForm.name,
+      isPublic: accessForm.isPublic,
+      accessType: accessForm.accessType
+    })
+    ElMessage.success('已保存')
+    accessDialogVisible.value = false
+    getList()
+  } finally {
+    accessSaving.value = false
+  }
 }
 const copyToClipboard = async (text: string) => {
   try {

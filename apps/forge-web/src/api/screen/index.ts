@@ -20,6 +20,10 @@ export interface ScreenDetailResponse {
   configDraft: string
   theme: string
   status: 0 | 1
+  /** 0=登录可访问 1=公开访问（无需登录） */
+  isPublic?: 0 | 1
+  /** 0=登录可访问 1=指定角色可访问（当前版本保留位，未实现） */
+  accessType?: 0 | 1
   version: number
   createTime: string
   updateTime: string
@@ -34,6 +38,8 @@ export interface ScreenCreateRequest {
   description?: string
   theme?: string
   remark?: string
+  isPublic?: 0 | 1
+  accessType?: 0 | 1
 }
 
 export interface ScreenCopyRequest {

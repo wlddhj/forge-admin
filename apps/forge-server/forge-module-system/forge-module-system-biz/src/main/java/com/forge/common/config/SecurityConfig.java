@@ -58,6 +58,7 @@ public class SecurityConfig {
             "/admin-api/userinfo",
             "/admin-api/connect/logout",
             "/admin-api/ai/chat/message/stream",  // SSE 流式接口（权限在 Controller 中已检查）
+            "/admin-api/screen/code/**",  // 大屏运行时接口（公开/授权校验在 Controller/Service 完成）
     };
 
     private static final String[] GLOBAL_WHITE_LIST = {

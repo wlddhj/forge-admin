@@ -52,6 +52,19 @@ public class SysScreen {
      */
     private Integer status;
 
+    /**
+     * 是否公开访问（0=否 1=是）。
+     * 公开大屏无需登录即可通过 /screen/render/{code} 访问；
+     * 非公开大屏需登录用户访问，访问范围由 accessType 决定。
+     */
+    private Integer isPublic;
+
+    /**
+     * 访问授权类型（仅在 isPublic=0 时生效）：
+     * 0=登录可访问（任何登录用户），1=指定角色可访问。
+     */
+    private Integer accessType;
+
     @Version
     private Integer version;
 

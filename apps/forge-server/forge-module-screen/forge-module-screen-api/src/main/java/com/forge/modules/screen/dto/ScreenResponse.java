@@ -30,6 +30,10 @@ public class ScreenResponse {
 
     private Integer status;
 
+    private Integer isPublic;
+
+    private Integer accessType;
+
     private Integer version;
 
     private LocalDateTime createTime;

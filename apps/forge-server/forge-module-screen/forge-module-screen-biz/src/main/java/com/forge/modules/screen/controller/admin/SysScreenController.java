@@ -51,7 +51,7 @@ public class SysScreenController {
 
     @Operation(summary = "按 code 查询大屏（运行时使用）")
     @GetMapping("/code/{code}")
-    @PreAuthorize("hasAuthority('screen:screen:view:' + #code)")
+    @PreAuthorize("permitAll()")
     public Result<ScreenResponse> getByCode(@PathVariable String code) {
         return Result.success(sysScreenService.getByCode(code));
     }

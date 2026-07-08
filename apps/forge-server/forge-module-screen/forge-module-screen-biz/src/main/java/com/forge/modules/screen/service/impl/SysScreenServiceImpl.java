@@ -64,6 +64,20 @@ public class SysScreenServiceImpl implements SysScreenService {
         if (entity == null) {
             throw new BusinessException("大屏不存在: " + code);
         }
+        // 仅已发布状态可通过运行时 API 访问
+        if (entity.getStatus() == null || entity.getStatus() != ScreenStatus.PUBLISHED.getCode()) {
+            throw new BusinessException("大屏未发布，无法访问");
+        }
+        // 非公开大屏需要登录用户访问
+        if (entity.getIsPublic() == null || entity.getIsPublic() == 0) {
+            org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+                throw new BusinessException("大屏未公开，请登录后访问");
+            }
+            // accessType=1 时需要检查授权角色（这里暂以"已登录即通过"实现，
+            // 后续如需精细化角色控制，可在 sys_screen_role 表中保存授权关系）
+        }
         return toResponse(entity);
     }
 
@@ -75,6 +89,8 @@ public class SysScreenServiceImpl implements SysScreenService {
         entity.setStatus(ScreenStatus.DRAFT.getCode());
         entity.setVersion(1);
         entity.setTheme(request.getTheme() != null ? request.getTheme() : "dark-tech");
+        if (entity.getIsPublic() == null) entity.setIsPublic(0);
+        if (entity.getAccessType() == null) entity.setAccessType(0);
         mapper.insert(entity);
         return entity.getId();
     }
@@ -107,15 +123,11 @@ public class SysScreenServiceImpl implements SysScreenService {
         if (entity == null) {
             throw new BusinessException("大屏不存在: " + code);
         }
-        // 防御：旧数据 / 复制导入可能 version 为 null，先归一为 0，
-        // 由 {@code OptimisticLockerInnerInterceptor} 在 updateById 时 +1。
         if (entity.getVersion() == null) {
             entity.setVersion(0);
         }
         entity.setConfig(entity.getConfigDraft());
         entity.setStatus(ScreenStatus.PUBLISHED.getCode());
-        // 不手动 +1：{@code OptimisticLockerInnerInterceptor}（已在 MybatisPlusConfig 注册）
-        // 会自动在 SET 中 +1，并在 WHERE 中校验原 version，确保并发 publish 不相互覆盖。
         mapper.updateById(entity);
     }
 
@@ -135,6 +147,8 @@ public class SysScreenServiceImpl implements SysScreenService {
         dst.setTheme(src.getTheme());
         dst.setStatus(ScreenStatus.DRAFT.getCode());
         dst.setVersion(1);
+        dst.setIsPublic(src.getIsPublic());
+        dst.setAccessType(src.getAccessType());
         mapper.insert(dst);
         return dst.getId();
     }

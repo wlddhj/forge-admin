@@ -39,4 +39,10 @@ public class ScreenRequest {
 
     @Schema(description = "草稿配置（JSON 字符串）")
     private String config;
+
+    @Schema(description = "是否公开访问（0=否 1=是）")
+    private Integer isPublic;
+
+    @Schema(description = "访问授权类型（0=登录可访问 1=指定角色可访问）")
+    private Integer accessType;
 }
