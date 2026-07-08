@@ -89,7 +89,7 @@ router.beforeEach(async (to, from, next) => {
       }
     }
   } else {
-    if (whiteList.includes(to.path)) {
+    if (whiteList.includes(to.path) || to.meta?.noAuth) {
       next()
     } else {
       next(`/login?redirect=${to.path}`)
