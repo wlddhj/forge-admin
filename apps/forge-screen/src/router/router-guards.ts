@@ -19,7 +19,10 @@ export function createRouterGuards(router: Router) {
       next({ name: PageEnum.ERROR_PAGE_NAME_404 })
     }
 
-    if (!loginCheck()) {
+    // forge-admin 集成：URL query 中有 token 参数时直接信任（iframe 模式）
+    const hasForgeToken = to.query?.token && String(to.query.token).length > 10
+
+    if (!loginCheck() && !hasForgeToken) {
       if (to.name === PageEnum.BASE_LOGIN_NAME) {
         next()
       }
