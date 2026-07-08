@@ -91,6 +91,26 @@ export const CONSTANT_ROUTES = [
       hidden: true,
       noAuth: false
     }
+  },
+  {
+    path: '/screen/preview/:code',
+    name: 'ScreenPreview',
+    component: () => import('@/views/screen/preview/index.vue'),
+    meta: {
+      title: '大屏预览',
+      hidden: true,
+      noAuth: false
+    }
+  },
+  {
+    path: '/screen/editor/:code',
+    name: 'ScreenEditor',
+    component: () => import('@/views/screen/editor/index.vue'),
+    meta: {
+      title: '大屏编辑',
+      hidden: true,
+      noAuth: false
+    }
   }
 ]
 

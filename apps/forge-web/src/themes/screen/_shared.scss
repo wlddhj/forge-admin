@@ -1,0 +1,16 @@
+// 大屏通用基础类（在 main.ts 由 styles/screen.scss 引入，仅在 /screen 路由下生效）
+%screen-card-base {
+  background: var(--screen-card-bg, rgba(8, 22, 40, 0.85));
+  border: 1px solid var(--screen-border, #1e3a5f);
+  color: var(--screen-text-primary, #e0e6f1);
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+%screen-deco-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--screen-accent, #1e88e5);
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px var(--screen-accent, #1e88e5);
+}

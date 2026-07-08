@@ -3,7 +3,6 @@ package com.forge.modules.screen.executor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forge.modules.screen.config.ScreenProperties;
 import com.forge.modules.screen.safety.SqlSafetyException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpRequest;
@@ -59,12 +58,16 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class HttpDataSourceExecutor {
 
     private final ScreenProperties props;
     /** 可注入；为 null 时在执行阶段延迟构造。 */
     private final RestClient restClient;
+
+    public HttpDataSourceExecutor(ScreenProperties props, RestClient restClient) {
+        this.props = props;
+        this.restClient = restClient;
+    }
 
     /**
      * 执行 HTTP 调用并解析 JSON。

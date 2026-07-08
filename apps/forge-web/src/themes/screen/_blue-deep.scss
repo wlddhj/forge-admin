@@ -1,0 +1,9 @@
+:root[data-screen-theme='blue-deep'] {
+  --screen-bg: radial-gradient(ellipse at top, #051c3f 0%, #020814 100%);
+  --screen-card-bg: rgba(7, 35, 75, 0.85);
+  --screen-border: #1c4d8f;
+  --screen-accent: var(--palette-primary, #1e88e5);
+  --screen-text-primary: #d6e6ff;
+  --screen-text-secondary: #7e9bc6;
+  --screen-grid-line: rgba(28, 77, 143, 0.3);
+}

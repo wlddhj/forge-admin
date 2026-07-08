@@ -1,0 +1,9 @@
+:root[data-screen-theme='dark-tech'] {
+  --screen-bg: radial-gradient(ellipse at top, #0a1929 0%, #000 100%);
+  --screen-card-bg: rgba(8, 22, 40, 0.85);
+  --screen-border: #1e3a5f;
+  --screen-accent: var(--palette-primary, #1e88e5);
+  --screen-text-primary: #e0e6f1;
+  --screen-text-secondary: #8a96a8;
+  --screen-grid-line: rgba(30, 58, 95, 0.3);
+}

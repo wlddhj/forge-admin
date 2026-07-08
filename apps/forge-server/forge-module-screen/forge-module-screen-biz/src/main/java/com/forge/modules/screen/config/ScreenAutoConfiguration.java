@@ -2,7 +2,9 @@ package com.forge.modules.screen.config;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.web.client.RestClient;
 
 /**
  * 大屏模块自动装配入口。
@@ -24,4 +26,9 @@ import org.springframework.context.annotation.ComponentScan;
 @EnableConfigurationProperties(ScreenProperties.class)
 @ComponentScan(basePackages = "com.forge.modules.screen")
 public class ScreenAutoConfiguration {
+
+    @Bean
+    public RestClient restClient() {
+        return RestClient.create();
+    }
 }
