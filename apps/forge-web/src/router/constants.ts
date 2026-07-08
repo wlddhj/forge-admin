@@ -111,6 +111,16 @@ export const CONSTANT_ROUTES = [
       hidden: true,
       noAuth: false
     }
+  },
+  {
+    path: '/screen/render/:code',
+    name: 'ScreenRender',
+    component: () => import('@/views/screen/render/index.vue'),
+    meta: {
+      title: '大屏渲染',
+      hidden: true,
+      noAuth: false
+    }
   }
 ]
 
