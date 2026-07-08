@@ -969,9 +969,9 @@ export const useChartEditStore = defineStore({
           const scaleHeight = parseFloat((width / baseProportion / editCanvasHeight).toFixed(5))
           this.setScale(scaleHeight > 1 ? 1 : scaleHeight)
         }
-      } else {
-        window['$message'].warning('请先创建画布，再进行缩放')
       }
+      // DOM 未挂载时静默忽略（useSync.updateComponent 在挂载前会调用一次 computedScale，
+      // 画布布局会在 DOM 挂载后通过 listenerScale resize 自动校正）
     },
     // * 监听缩放
     listenerScale(): Function {
