@@ -588,7 +588,7 @@ pnpm build                      # tsc + vite build 通过
 | 9 | ScreenRenderer + 渲染/预览/模板 | 2d | 渲染页 + 预览页 + 6 预设模板 + 3 单测 |
 | 10 | 拖拽编辑器 | 3d | grid-layout-plus + 撤销/重做 + PropertyPanel + FieldMapping + TemplateSelector + 6 单测 |
 | 11 | 路由 + Playwright | 1.5d | CONSTANT_ROUTES + 2 E2E + 5 视觉基线 |
-| **合计** | | **15 工作日** | |
+| **合计** | | **15.5 工作日** | |
 
 **执行方式**：使用 `superpowers:subagent-driven-development` skill（推荐）或 `superpowers:executing-plans` skill，每个 Task 单独 commit。
 
