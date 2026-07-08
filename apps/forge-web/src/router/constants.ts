@@ -111,6 +111,16 @@ export const CONSTANT_ROUTES = [
       hidden: true,
       noAuth: false
     }
+  },
+  {
+    path: '/screen/data-source/editor',
+    name: 'ScreenDataSourceEditor',
+    component: () => import('@/views/screen/data-source/editor.vue'),
+    meta: {
+      title: '数据源编辑',
+      hidden: true,
+      noAuth: false
+    }
   }
 ]
 
