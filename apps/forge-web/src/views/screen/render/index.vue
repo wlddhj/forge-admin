@@ -29,7 +29,9 @@ const goViewUrl = computed(() => {
   const base = import.meta.env.DEV
     ? 'http://localhost:8001'
     : '/screen-app'
-  return `${base}/#/chart/preview/forge?code=${code}&token=${token}&runtime=1`
+  // 公开大屏无需 token；登录用户带上 token 供 goView axios 拦截器使用
+  const query = token ? `code=${code}&token=${token}&runtime=1` : `code=${code}&runtime=1`
+  return `${base}/#/chart/preview/forge?${query}`
 })
 
 const load = async () => {

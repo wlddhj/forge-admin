@@ -21,7 +21,7 @@
     <el-card shadow="never" class="table-card">
       <vxe-toolbar ref="toolbarRef" custom>
         <template #buttons>
-          <el-button v-permission="'screen:screen:add'" type="primary" @click="handleCreate">新增大屏</el-button>
+          <el-button v-permission="'screen:screen:add'" type="primary" @click="openCreateDialog">新增大屏</el-button>
         </template>
       </vxe-toolbar>
 
@@ -53,9 +53,10 @@
         <vxe-column field="updateTime" title="更新时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.updateTime) }}</template>
         </vxe-column>
-        <vxe-column title="操作" width="380" fixed="right">
+        <vxe-column title="操作" width="430" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'screen:screen:edit'" type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button link size="small" @click="openThemeDialog(row)">主题</el-button>
             <el-button type="success" link size="small" @click="handlePreview(row)">预览</el-button>
             <el-button v-if="row.status === 1" link size="small" @click="handleRender(row)">渲染</el-button>
             <el-button v-if="row.status === 1" link size="small" @click="handleCopyLink(row)">使用链接</el-button>
@@ -87,6 +88,40 @@
       <template #footer>
         <el-button @click="copyDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="copying" @click="confirmCopy">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="createDialogVisible" title="新增大屏" width="480px">
+      <el-form :model="createForm" label-width="80px">
+        <el-form-item label="名称" required>
+          <el-input v-model="createForm.name" placeholder="显示名" />
+        </el-form-item>
+        <el-form-item label="主题" required>
+          <el-select v-model="createForm.theme" style="width: 100%">
+            <el-option v-for="t in SCREEN_THEMES" :key="t.value" :label="t.label" :value="t.value" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="creating" @click="confirmCreate">创建并打开编辑器</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="themeDialogVisible" title="设置主题" width="420px">
+      <el-form label-width="80px">
+        <el-form-item label="当前主题">
+          <el-tag>{{ themeLabel(themeForm.theme) }}</el-tag>
+        </el-form-item>
+        <el-form-item label="切换为">
+          <el-select v-model="themeForm.theme" style="width: 100%">
+            <el-option v-for="t in SCREEN_THEMES" :key="t.value" :label="t.label" :value="t.value" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="themeDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="themeSaving" @click="confirmTheme">确定</el-button>
       </template>
     </el-dialog>
 
@@ -171,6 +206,7 @@ import {
 } from '@/api/screen'
 import { getAllRoles, type Role } from '@/api/system'
 import { SCREEN_THEMES } from '@/constants/screen'
+import type { ScreenTheme } from '@/types/screen'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
 import { formatDateTime } from '@/utils/dateFormat'
@@ -205,17 +241,63 @@ const getList = async () => {
 const handleQuery = () => { queryParams.pageNum = 1; getList() }
 const handleReset = () => { queryParams.name = ''; queryParams.status = undefined; handleQuery() }
 
-const handleCreate = async () => {
-  const newId = await createScreen({
-    code: `screen-${Date.now()}`,
-    name: '未命名大屏',
-    theme: 'dark-tech'
-  }).catch((e) => {
-    console.error('创建大屏失败', e)
+const createDialogVisible = ref(false)
+const creating = ref(false)
+const createForm = reactive({ name: '未命名大屏', theme: 'dark-tech' as ScreenTheme })
+const openCreateDialog = () => {
+  createForm.name = '未命名大屏'
+  createForm.theme = 'dark-tech'
+  createDialogVisible.value = true
+}
+const confirmCreate = async () => {
+  if (!createForm.name) { ElMessage.warning('请填写名称'); return }
+  creating.value = true
+  try {
+    const newId = await createScreen({
+      code: `screen-${Date.now()}`,
+      name: createForm.name,
+      theme: createForm.theme
+    })
+    ElMessage.success('创建成功')
+    createDialogVisible.value = false
+    getList()
+    window.open(`/screen/editor/${newId}?template=blank`, '_blank')
+  } catch (e) {
     ElMessage.error('创建大屏失败：' + (e instanceof Error ? e.message : String(e)))
-    return null
-  })
-  if (newId) window.open(`/screen/editor/${newId}?template=blank`, '_blank')
+  } finally {
+    creating.value = false
+  }
+}
+
+const themeDialogVisible = ref(false)
+const themeSaving = ref(false)
+const themeForm = reactive<{ id: number; code: string; name: string; theme: ScreenTheme }>({
+  id: 0, code: '', name: '', theme: 'dark-tech'
+})
+const openThemeDialog = (row: ScreenDetailResponse) => {
+  themeForm.id = row.id
+  themeForm.code = row.code
+  themeForm.name = row.name
+  themeForm.theme = (row.theme as ScreenTheme) || 'dark-tech'
+  themeDialogVisible.value = true
+}
+const confirmTheme = async () => {
+  themeSaving.value = true
+  try {
+    await updateScreen({
+      id: themeForm.id,
+      code: themeForm.code,
+      name: themeForm.name,
+      theme: themeForm.theme
+    })
+    ElMessage.success('已切换主题')
+    themeDialogVisible.value = false
+    getList()
+  } catch (e) {
+    ElMessage.error('切换失败：' + (e instanceof Error ? e.message : String(e)))
+  } finally {
+    themeSaving.value = false
+  }
 }
 
 const handleEdit = (row: ScreenDetailResponse) => window.open(`/screen/editor/${row.id}`, '_blank')

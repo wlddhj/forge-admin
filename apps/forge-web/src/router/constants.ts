@@ -119,7 +119,7 @@ export const CONSTANT_ROUTES = [
     meta: {
       title: '大屏渲染',
       hidden: true,
-      noAuth: false
+      noAuth: true
     }
   }
 ]
