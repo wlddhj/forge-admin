@@ -36,4 +36,7 @@ public class ScreenRequest {
 
     @Schema(description = "备注")
     private String remark;
+
+    @Schema(description = "草稿配置（JSON 字符串）")
+    private String config;
 }

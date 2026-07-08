@@ -139,7 +139,9 @@ export const useChartEditStore = defineStore({
       }
     },
     // 图表数组（需存储给后端）
-    componentList: []
+    componentList: [],
+    // forge-admin: 是否完成初始加载
+    _loaded: false
   }),
   getters: {
     getMousePosition(): MousePositionType {
@@ -1001,6 +1003,7 @@ export const useChartEditStore = defineStore({
 
     async loadProjectById(id: number) {
       try {
+        this._loaded = false
         const detail = await getScreenDetail(id)
         const raw = detail.configDraft || detail.config
         if (raw) {
@@ -1012,6 +1015,8 @@ export const useChartEditStore = defineStore({
       } catch (e) {
         console.error('[chartEditStore] loadProjectById failed', e)
         throw e
+      } finally {
+        this._loaded = true
       }
     },
 

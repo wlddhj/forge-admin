@@ -80,7 +80,7 @@ import { useRoute } from 'vue-router'
 import { GoSystemSet } from '@/components/GoSystemSet/index'
 import { exportHandle } from './utils'
 import { useFile } from './hooks/useFile.hooks'
-import { useSyncUpdate } from './hooks/useSyncUpdate.hook'
+import { useSyncUpdate, useAutoSave } from './hooks/useSyncUpdate.hook'
 import { BtnListType, TypeEnum } from './index.d'
 import { icon } from '@/plugins'
 
@@ -90,6 +90,8 @@ const chartEditStore = useChartEditStore()
 const routerParamsInfo = useRoute()
 // 初始化编辑 JSON 模块
 useSyncUpdate()
+// 初始化自动保存（componentList / editCanvasConfig 变更后 3s debounce）
+useAutoSave()
 
 // 鼠标悬停定时器
 let mouseTime: any = null

@@ -1,6 +1,7 @@
 import { watch } from 'vue'
 import { useRoute } from 'vue-router'
 import throttle from 'lodash/throttle'
+import debounce from 'lodash/debounce'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { EditCanvasTypeEnum } from '@/store/modules/chartEditStore/chartEditStore.d'
 import { useSync } from '@/views/chart/hooks/useSync.hook'
@@ -12,6 +13,50 @@ import { getScreenDetail, getScreenIdFromUrl } from '@/api/forge/screen'
 
 const { updateComponent } = useSync()
 const chartEditStore = useChartEditStore()
+
+/**
+ * 自动保存：组件列表或画布配置变更后 debounce 3s 保存到 forge-admin API
+ */
+export const useAutoSave = () => {
+  let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+  const doSave = async () => {
+    const id = getScreenIdFromUrl()
+    if (!id) return
+    try {
+      const detail = await getScreenDetail(id)
+      await chartEditStore.saveProjectToApi(id, detail.code, detail.name)
+      console.log('[auto-save] 已保存')
+    } catch (e) {
+      console.error('[auto-save] 保存失败', e)
+    }
+  }
+
+  const debouncedSave = debounce(doSave, 3000)
+
+  // 监听组件列表和画布配置变化
+  watch(
+    () => [chartEditStore.componentList, chartEditStore.editCanvasConfig],
+    () => {
+      if (!chartEditStore._loaded) return
+      debouncedSave()
+    },
+    { deep: true }
+  )
+
+  // 失焦时立即保存
+  const onBlur = () => {
+    if (!chartEditStore._loaded) return
+    debouncedSave.flush()
+  }
+  addEventListener('blur', onBlur)
+
+  // cleanup
+  return () => {
+    debouncedSave.cancel()
+    removeEventListener('blur', onBlur)
+  }
+}
 
 /**
  * 同步内容（保存草稿到 forge-admin + 同步到 sessionStorage 给预览用）

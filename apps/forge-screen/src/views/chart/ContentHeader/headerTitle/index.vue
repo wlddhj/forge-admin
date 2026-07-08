@@ -32,6 +32,7 @@ import { ref, nextTick, computed } from 'vue'
 import { fetchRouteParamsLocation, setTitle } from '@/utils'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { EditCanvasConfigEnum } from '@/store/modules/chartEditStore/chartEditStore.d'
+import { getScreenDetail, getScreenIdFromUrl } from '@/api/forge/screen'
 import { icon } from '@/plugins'
 
 const { FishIcon } = icon.ionicons5
@@ -39,6 +40,7 @@ const chartEditStore = useChartEditStore()
 
 const focus = ref<boolean>(false)
 const inputInstRef = ref(null)
+const oldTitle = ref<string>('')
 
 // 根据路由 id 参数获取项目信息
 const fetchProhectInfoById = () => {
@@ -61,14 +63,27 @@ const comTitle = computed(() => {
 })
 
 const handleFocus = () => {
+  oldTitle.value = title.value
   focus.value = true
   nextTick(() => {
     inputInstRef.value && (inputInstRef.value as any).focus()
   })
 }
 
-const handleBlur = () => {
+const handleBlur = async () => {
   focus.value = false
+  // 名称变更后同步到后端
+  if (title.value !== oldTitle.value) {
+    const id = getScreenIdFromUrl()
+    if (id) {
+      try {
+        const detail = await getScreenDetail(id)
+        await chartEditStore.saveProjectToApi(id, detail.code, title.value || '新项目')
+      } catch (e) {
+        console.error('[headerTitle] 名称同步失败', e)
+      }
+    }
+  }
 }
 </script>
 <style lang="scss" scoped>

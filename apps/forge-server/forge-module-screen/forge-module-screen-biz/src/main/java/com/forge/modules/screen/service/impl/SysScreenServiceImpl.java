@@ -87,6 +87,9 @@ public class SysScreenServiceImpl implements SysScreenService {
         }
         SysScreen entity = new SysScreen();
         BeanUtils.copyProperties(request, entity);
+        if (request.getConfig() != null) {
+            entity.setConfigDraft(request.getConfig());
+        }
         mapper.updateById(entity);
     }
 
