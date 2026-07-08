@@ -62,7 +62,7 @@
             <el-button link size="small" @click="openAccessDialog(row)">授权</el-button>
             <el-button v-permission="'screen:screen:copy'" link size="small" @click="handleCopy(row)">复制</el-button>
             <el-button v-permission="'screen:screen:publish'" link size="small" :disabled="row.status === 1" @click="handlePublish(row)">发布</el-button>
-            <el-button v-permission="'screen:screen:remove'" type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button v-if="row.status !== 1" v-permission="'screen:screen:remove'" type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>
@@ -112,8 +112,18 @@
         <el-form-item label="授权类型" v-if="accessForm.isPublic === 0">
           <el-radio-group v-model="accessForm.accessType">
             <el-radio :value="0">所有登录用户</el-radio>
-            <el-radio :value="1" disabled>指定角色（即将开放）</el-radio>
+            <el-radio :value="1">指定角色</el-radio>
           </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="accessForm.isPublic === 0 && accessForm.accessType === 1" label="选择角色">
+          <el-select v-model="accessForm.roleIds" multiple filterable placeholder="请选择允许访问的角色" style="width: 100%">
+            <el-option
+              v-for="r in roleOptions"
+              :key="r.id"
+              :label="r.name"
+              :value="r.id"
+            />
+          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -159,6 +169,7 @@ import {
   getScreenList, createScreen, updateScreen, copyScreen, deleteScreen, publishScreen,
   type ScreenListQuery, type ScreenDetailResponse, type ScreenCopyRequest
 } from '@/api/screen'
+import { getAllRoles, type Role } from '@/api/system'
 import { SCREEN_THEMES } from '@/constants/screen'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
@@ -223,18 +234,36 @@ const handleCopyLink = (row: ScreenDetailResponse) => {
 
 const accessDialogVisible = ref(false)
 const accessSaving = ref(false)
-const accessForm = reactive<{ id: number; code: string; name: string; isPublic: 0 | 1; accessType: 0 | 1 }>({
-  id: 0, code: '', name: '', isPublic: 0, accessType: 0
+const roleOptions = ref<Role[]>([])
+const accessForm = reactive<{
+  id: number; code: string; name: string
+  isPublic: 0 | 1; accessType: 0 | 1; roleIds: number[]
+}>({
+  id: 0, code: '', name: '', isPublic: 0, accessType: 0, roleIds: []
 })
-const openAccessDialog = (row: ScreenDetailResponse) => {
+const loadRoles = async () => {
+  try {
+    roleOptions.value = await getAllRoles()
+  } catch (e) {
+    console.error('加载角色列表失败', e)
+  }
+}
+const openAccessDialog = async (row: ScreenDetailResponse) => {
   accessForm.id = row.id
   accessForm.code = row.code
   accessForm.name = row.name
   accessForm.isPublic = (row.isPublic ?? 0) as 0 | 1
   accessForm.accessType = (row.accessType ?? 0) as 0 | 1
+  accessForm.roleIds = [...(row.roleIds ?? [])]
   accessDialogVisible.value = true
+  if (roleOptions.value.length === 0) await loadRoles()
 }
 const confirmAccess = async () => {
+  if (accessForm.isPublic === 0 && accessForm.accessType === 1 &&
+      (!accessForm.roleIds || accessForm.roleIds.length === 0)) {
+    ElMessage.warning('请至少选择一个角色')
+    return
+  }
   accessSaving.value = true
   try {
     await updateScreen({
@@ -242,8 +271,9 @@ const confirmAccess = async () => {
       code: accessForm.code,
       name: accessForm.name,
       isPublic: accessForm.isPublic,
-      accessType: accessForm.accessType
-    })
+      accessType: accessForm.accessType,
+      roleIds: accessForm.accessType === 1 ? accessForm.roleIds : []
+    } as any)
     ElMessage.success('已保存')
     accessDialogVisible.value = false
     getList()

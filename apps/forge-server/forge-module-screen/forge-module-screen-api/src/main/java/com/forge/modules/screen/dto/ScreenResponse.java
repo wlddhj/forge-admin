@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 大屏响应
@@ -33,6 +34,9 @@ public class ScreenResponse {
     private Integer isPublic;
 
     private Integer accessType;
+
+    /** 已授权角色 ID 列表（accessType=1 时使用） */
+    private List<Long> roleIds;
 
     private Integer version;
 

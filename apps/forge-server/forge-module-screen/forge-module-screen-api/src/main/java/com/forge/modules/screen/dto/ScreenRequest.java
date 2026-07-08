@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 大屏新增/修改请求
  *
@@ -45,4 +47,7 @@ public class ScreenRequest {
 
     @Schema(description = "访问授权类型（0=登录可访问 1=指定角色可访问）")
     private Integer accessType;
+
+    @Schema(description = "已授权角色 ID 列表（accessType=1 时使用）")
+    private List<Long> roleIds;
 }
