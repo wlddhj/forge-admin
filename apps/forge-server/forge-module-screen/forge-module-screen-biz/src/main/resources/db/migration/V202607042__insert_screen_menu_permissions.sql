@@ -12,11 +12,11 @@
 
 -- 大屏管理目录（顶级目录，sort_order=10，位于工作流之后）
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(2300, '大屏管理', 0, '/screen', 'Layout', '/screen/screen', 'Monitor', 10, 0, NULL, 1, 1, 0, 0);
+(2300, '大屏管理', 0, '/screen', 'Layout', '/screen/index', 'Monitor', 10, 0, NULL, 1, 1, 0, 0);
 
 -- 大屏管理菜单
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(2310, '大屏列表', 2300, '/screen/screen', '/views/screen/screen/index', NULL, 'Document', 1, 1, 'screen:screen:list', 1, 1, 0, 0);
+(2310, '大屏列表', 2300, '/screen/index', '/views/screen/index/index', NULL, 'Document', 1, 1, 'screen:screen:list', 1, 1, 0, 0);
 
 -- 大屏管理按钮权限（list/query/add/edit/remove/publish/copy）
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
