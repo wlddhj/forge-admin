@@ -46,6 +46,11 @@ export default defineConfig({
         target: 'http://localhost:8181',
         changeOrigin: true,
         ws: true
+      },
+      // goView 大屏独立前端（开发 iframe 跨域代理）
+      '/screen-app': {
+        target: 'http://localhost:8001',
+        changeOrigin: true
       }
     }
   },
