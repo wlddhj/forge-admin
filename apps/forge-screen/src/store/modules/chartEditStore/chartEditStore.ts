@@ -1008,8 +1008,20 @@ export const useChartEditStore = defineStore({
         const raw = detail.configDraft || detail.config
         if (raw) {
           const cfg = JSON.parse(raw)
-          if (cfg.editCanvasConfig) Object.assign(this.editCanvasConfig, cfg.editCanvasConfig)
-          if (cfg.componentList) this.componentList = cfg.componentList
+          // 优先走 goView 原生 useSync.updateComponent 流程：注册 chartKey 组件 + createComponent 重建实例
+          try {
+            const { useSync } = await import('@/views/chart/hooks/useSync.hook')
+            const { updateComponent } = useSync()
+            await updateComponent({
+              editCanvasConfig: cfg.editCanvasConfig,
+              componentList: cfg.componentList,
+              requestGlobalConfig: cfg.requestGlobalConfig
+            } as any, true, false)
+          } catch (e) {
+            console.error('[chartEditStore] updateComponent failed, fallback to direct assign', e)
+            if (cfg.editCanvasConfig) Object.assign(this.editCanvasConfig, cfg.editCanvasConfig)
+            if (cfg.componentList) this.componentList = cfg.componentList
+          }
         }
         return detail
       } catch (e) {
