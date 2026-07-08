@@ -8,6 +8,9 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
+  main:
+    allow-bean-definition-overriding: true
+
   # 数据源配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver

@@ -1,4 +1,4 @@
-package com.forge.modules.screen.controller;
+package com.forge.modules.screen.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.response.PageResult;

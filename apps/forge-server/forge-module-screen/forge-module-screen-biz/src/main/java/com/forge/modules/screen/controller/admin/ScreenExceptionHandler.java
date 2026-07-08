@@ -1,4 +1,4 @@
-package com.forge.modules.screen.controller;
+package com.forge.modules.screen.controller.admin;
 
 import com.forge.common.response.Result;
 import com.forge.modules.screen.safety.SqlSafetyException;
