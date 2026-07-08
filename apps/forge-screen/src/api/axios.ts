@@ -1,34 +1,46 @@
 import axios, { AxiosResponse, InternalAxiosRequestConfig, AxiosError } from 'axios'
-import { ResultEnum } from "@/enums/httpEnum"
-import { ErrorPageNameMap } from "@/enums/pageEnum"
-import { redirectErrorPage } from '@/utils'
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.DEV ? import.meta.env.VITE_DEV_PATH : import.meta.env.VITE_PRO_PATH,
-  timeout: ResultEnum.TIMEOUT,
+  // forge-admin API baseURL（开发: localhost:8181/admin-api，生产: /admin-api）
+  baseURL: import.meta.env.VITE_API_BASE || '/admin-api',
+  timeout: 15000,
 })
 
+// 请求拦截器：从 URL query 读 token（iframe 模式 /#/chart?id=5&token=xxx）
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    try {
+      const hash = window.location.hash
+      const queryStr = hash.split('?')[1] || ''
+      const params = new URLSearchParams(queryStr)
+      const token = params.get('token')
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    } catch { /* URL 解析失败，跳过头 */ }
     return config
   },
-  (error: AxiosError) => {
-    Promise.reject(error)
-  }
+  (error: AxiosError) => Promise.reject(error)
 )
 
-// 响应拦截器
+// 响应拦截器：适配 forge-admin Result 格式 { code: 200, data: ... }
 axiosInstance.interceptors.response.use(
   (res: AxiosResponse) => {
-    const { code } = res.data as { code: number }
-    if (code === undefined || code === null) return Promise.resolve(res.data)
-    if (code === ResultEnum.DATA_SUCCESS) return Promise.resolve(res.data)
-    // 重定向
-    if (ErrorPageNameMap.get(code)) redirectErrorPage(code)
-    return Promise.resolve(res.data)
+    const data = res.data
+    // forge-admin 格式：{ code: 200, message: 'success', data: ... }
+    if (data && data.code === 200) {
+      return data.data  // 自动解包，goView 组件拿到的是 data.data
+    }
+    // 非 200 的响应
+    if (data && data.code) {
+      console.error('[goview api] error', data.code, data.message)
+      return Promise.reject(new Error(data.message || `API error: ${data.code}`))
+    }
+    return data
   },
-  (err: AxiosResponse) => {
-    Promise.reject(err)
+  (err: AxiosError) => {
+    console.error('[goview api] request error', err)
+    return Promise.reject(err)
   }
 )
 
