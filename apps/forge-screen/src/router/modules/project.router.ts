@@ -12,8 +12,11 @@ const importPath = {
 const projectRoutes: RouteRecordRaw = {
   path: PageEnum.BASE_HOME,
   name: PageEnum.BASE_HOME_NAME,
-  component: importPath['PageEnum.BASE_HOME_NAME'],
-  redirect: PageEnum.BASE_HOME_ITEMS,
+  // 不再使用项目列表页；自动跳转到 forge-admin 大屏列表
+  redirect: () => {
+    const base = import.meta.env.DEV ? 'http://localhost:3003' : ''
+    window.location.href = `${base}/screen/screen`
+  },
   meta: {
     title: '项目',
     isRoot: true
