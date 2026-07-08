@@ -48,6 +48,19 @@ import { useChartHistoryStore } from '@/store/modules/chartHistoryStore/chartHis
 const chartHistoryStoreStore = useChartHistoryStore()
 const chartEditStore = useChartEditStore()
 
+
+// 从 URL query 读 id，自动从 forge-admin API 加载大屏数据
+onMounted(async () => {
+  const id = getScreenIdFromUrl()
+  if (id) {
+    try {
+      await chartEditStore.loadProjectById(id)
+    } catch (e) {
+      console.error('[chart index] 加载大屏失败', e)
+    }
+  }
+})
+
 // 记录初始化
 chartHistoryStoreStore.canvasInit(chartEditStore.getEditCanvas)
 

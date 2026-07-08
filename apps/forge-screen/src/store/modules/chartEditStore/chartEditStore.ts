@@ -29,6 +29,8 @@ import {
   EditCanvasConfigType
 } from './chartEditStore.d'
 
+import { getScreenDetail, updateScreen, publishScreen, getScreenIdFromUrl } from '@/api/forge/screen'
+
 const chartHistoryStore = useChartHistoryStore()
 const settingStore = useSettingStore()
 
@@ -994,5 +996,35 @@ export const useChartEditStore = defineStore({
         this.getEditCanvas.scale = scale
       }
     }
+
+    // ========== forge-admin API ==========
+
+    async loadProjectById(id: number) {
+      try {
+        const detail = await getScreenDetail(id)
+        const raw = detail.configDraft || detail.config
+        if (raw) {
+          const cfg = JSON.parse(raw)
+          if (cfg.editCanvasConfig) Object.assign(this.editCanvasConfig, cfg.editCanvasConfig)
+          if (cfg.componentList) this.componentList = cfg.componentList
+        }
+        return detail
+      } catch (e) {
+        console.error('[chartEditStore] loadProjectById failed', e)
+        throw e
+      }
+    },
+
+    async saveProjectToApi(id: number, code: string, name: string) {
+      const config = JSON.stringify({
+        editCanvasConfig: toRaw(this.editCanvasConfig),
+        componentList: toRaw(this.componentList)
+      })
+      await updateScreen({ id, code, name, config })
+    },
+
+    async publishProjectToApi(code: string) {
+      await publishScreen(code)
+    },
   }
 })
