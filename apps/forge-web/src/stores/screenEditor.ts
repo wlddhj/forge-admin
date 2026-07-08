@@ -13,6 +13,7 @@ export const useScreenEditorStore = defineStore('screenEditor', () => {
   const isDirty = ref(false)
   const screenId = ref<number | null>(null)
   const screenCode = ref<string>('')
+  const name = ref<string>('')
 
   const activeCard = computed<ScreenCard | null>(() =>
     config.value.cards.find(c => c.id === activeCardId.value) ?? null
@@ -77,10 +78,11 @@ export const useScreenEditorStore = defineStore('screenEditor', () => {
     undoStack.value = []
     redoStack.value = []
     isDirty.value = false
+    name.value = ''
   }
 
   return {
-    config, activeCardId, activeCard, isDirty, screenId, screenCode,
+    config, activeCardId, activeCard, isDirty, screenId, screenCode, name,
     canUndo, canRedo,
     applyChange, undo, redo,
     addCard, removeCard, updateCard,

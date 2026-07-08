@@ -84,7 +84,6 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getScreenList, createScreen, copyScreen, deleteScreen, publishScreen,
@@ -95,7 +94,6 @@ import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
 import { formatDateTime } from '@/utils/dateFormat'
 
-const router = useRouter()
 const { tableHeight } = useTableHeight()
 const pageNum = computed({ get: () => queryParams.pageNum, set: v => { queryParams.pageNum = v } })
 const pageSize = computed({ get: () => queryParams.pageSize, set: v => { queryParams.pageSize = v } })
@@ -131,11 +129,15 @@ const handleCreate = async () => {
     code: `screen-${Date.now()}`,
     name: '未命名大屏',
     theme: 'dark-tech'
-  }).catch(() => null)
-  if (newId) router.push(`/screen/editor/${newId}?template=blank`)
+  }).catch((e) => {
+    console.error('创建大屏失败', e)
+    ElMessage.error('创建大屏失败：' + (e instanceof Error ? e.message : String(e)))
+    return null
+  })
+  if (newId) window.open(`/screen/editor/${newId}?template=blank`, '_blank')
 }
 
-const handleEdit = (row: ScreenDetailResponse) => router.push(`/screen/editor/${row.id}`)
+const handleEdit = (row: ScreenDetailResponse) => window.open(`/screen/editor/${row.id}`, '_blank')
 const handlePreview = (row: ScreenDetailResponse) => window.open(`/screen/preview/${row.code}`, '_blank')
 
 const copyDialogVisible = ref(false)

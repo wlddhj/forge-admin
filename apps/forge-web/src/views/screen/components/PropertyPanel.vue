@@ -21,7 +21,11 @@ const updateDataSource = (id: number | null) => card.value && store.updateCard(c
 <template>
   <div class="property-panel">
     <h3>属性</h3>
-    <el-empty v-if="!card" description="选择一张卡片" :image-size="60" />
+    <el-empty v-if="!card" description="在画布上点击卡片" :image-size="60">
+      <template #image>
+        <el-icon :size="48" color="#8a96a8"><Pointer /></el-icon>
+      </template>
+    </el-empty>
     <template v-else>
       <el-form label-width="80px" size="small">
         <el-form-item label="类型">
