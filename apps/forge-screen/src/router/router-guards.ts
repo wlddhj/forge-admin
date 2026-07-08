@@ -20,10 +20,16 @@ export function createRouterGuards(router: Router) {
       return
     }
 
-    // forge-admin 集成：URL query 中有 token 参数时直接信任（iframe 模式）
-    const hasForgeToken = to.query?.token && String(to.query.token).length > 10
+    // forge-admin 集成的路由（chart/preview/edit）：跳过 goView 自己的登录检查，
+    // 鉴权由 forge-admin URL token 或后端 API 白名单负责。
+    const forgeRoutes = ['ChartHome', 'ChartPreview', 'ChartEdit']
+    if (forgeRoutes.includes(to.name as string)) {
+      next()
+      return
+    }
 
-    if (!loginCheck() && !hasForgeToken) {
+    // goView 自身的页面（project 首页等）：保持原有登录逻辑
+    if (!loginCheck()) {
       if (to.name === PageEnum.BASE_LOGIN_NAME) {
         next()
         return
