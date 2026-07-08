@@ -9,8 +9,8 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [value: Record<string, unknown>] }>()
 
 const properties = computed(() => {
-  const props = props.schema.properties ?? {}
-  return Object.entries(props).map(([key, def]) => ({ key, def: def as JSONSchema7 }))
+  const p = props.schema.properties ?? {}
+  return Object.entries(p).map(([key, def]) => ({ key, def: def as JSONSchema7 }))
 })
 
 const update = (key: string, val: unknown) => {

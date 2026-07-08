@@ -15,11 +15,19 @@ export function applyScreenTheme(theme: ScreenTheme): void {
   const root = document.documentElement
   root.setAttribute('data-screen-theme', theme)
 
-  const pageConfig = usePageConfigStore()
-  const palette = pageConfig.config.value.palette
-  const primary = palette === 'custom'
-    ? (pageConfig.config.value.customPrimary || PALETTE_PRIMARY.custom)
-    : PALETTE_PRIMARY[palette] || PALETTE_PRIMARY.blue
+  let primary = PALETTE_PRIMARY.blue
+  try {
+    const pageConfig = usePageConfigStore()
+    const cfg = pageConfig.config?.value
+    const palette = cfg?.palette
+    if (palette === 'custom') {
+      primary = cfg?.customPrimary || PALETTE_PRIMARY.custom
+    } else if (palette && palette in PALETTE_PRIMARY) {
+      primary = PALETTE_PRIMARY[palette]
+    }
+  } catch (e) {
+    console.warn('[applyScreenTheme] pageConfig not available, use default blue', e)
+  }
   root.style.setProperty('--screen-accent', primary)
 }
 
