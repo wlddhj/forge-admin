@@ -237,6 +237,9 @@ $itemRadius: 2px;
   @include fetch-bg-color('background-color4-shallow');
   &.active {
     color: v-bind('themeColor');
+    font-weight: 600;
+    border: 2px solid v-bind('themeColor');
+    background-color: rgba(81, 214, 169, 0.1);
   }
   .theme-color-item {
     display: inline-block;
