@@ -56,7 +56,7 @@
             <el-button v-if="row.status === 1" link size="small" @click="handleCopyLink(row)">使用链接</el-button>
             <el-button link size="small" @click="openAccessDialog(row)">授权</el-button>
             <el-button v-permission="'screen:screen:copy'" link size="small" @click="handleCopy(row)">复制</el-button>
-            <el-button v-permission="'screen:screen:publish'" link size="small" :disabled="row.status === 1" @click="handlePublish(row)">发布</el-button>
+            <el-button v-permission="'screen:screen:publish'" link size="small" type="warning" v-if="row.status !== 1" @click="handlePublish(row)">发布</el-button>
             <el-button v-if="row.status !== 1" v-permission="'screen:screen:remove'" type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>

@@ -77,6 +77,9 @@ apps/forge-server/
 ├── forge-module-ai/                 # AI 模块
 │   ├── forge-module-ai-api/         # 实体 + DTO
 │   └── forge-module-ai-biz/         # Controller/Service（调用 Python AI 服务）
+├── forge-module-screen/             # 大屏模块
+│   ├── forge-module-screen-api/     # 实体 + DTO + 枚举
+│   └── forge-module-screen-biz/     # Controller/Service/Mapper + 安全层 + 缓存 + 熔断
 └── forge-server/                    # Spring Boot 启动入口（ForgeAdminApplication.java）
 ```
 
@@ -105,6 +108,18 @@ starter-redis ← forge-common
 - `com.forge.modules.system` — system + auth + quartz
 - `com.forge.modules.workflow` — 工作流（FlowLong 集成）
 - `com.forge.modules.ai` — AI 模块（调用 Python 服务）
+- `com.forge.modules.screen` — 大屏（CRUD + 数据源执行器 + SQL 安全层）
+
+### 大屏模块特殊设计
+
+`forge-module-screen-biz` 是少数按子包组织的模块，关键子包：
+
+- `safety/` — SQL 安全三道闸：`SqlSafetyValidator`（AST 规则：SELECT-only、禁 UNION/SET、禁危险函数、必须 LIMIT）、`SqlSafetyGuard`（编排器）、`WhitelistService`（表/列级白名单校验，列级 fail-closed）
+- `executor/` — 数据源执行器：`SqlDataSourceExecutor`（动态 SQL + 参数绑定 + @DataPermission）、`HttpDataSourceExecutor`（SSRF 防护：`ScreenProperties.allowedHosts`）
+- `cache/` — Redis 缓存（key = `dataSourceId + paramsJson`）
+- `fault/` — 熔断器（Redis 滑动窗口统计失败次数，达阈值拒绝请求）
+
+数据源表 `sys_screen_data_source.config` 含 SQL 原文/HTTP URL 等敏感信息。列表接口通过 `qw.select()` 排除 `config` 字段（详见 `SysScreenDataSourceServiceImpl.page`），详情接口正常返回以支持编辑回显。
 
 ### 横切关注点
 
@@ -140,8 +155,9 @@ starter-redis ← forge-common
 
 ### 数据库迁移
 
-位置：`apps/forge-server/forge-server/src/main/resources/db/migration/`
-命名：`V{YYYYMMDD}{seq}__{description}.sql`
+位置：每个模块**各自的** `db/migration/` 目录下（如 `forge-module-screen-biz/src/main/resources/db/migration/`、`forge-server/src/main/resources/db/migration/`）
+命名：`V{YYYYMMDD}{seq}___<description>.sql`
+由 Flyway 在启动时按版本号顺序执行。
 
 ## 前端架构（`apps/forge-web/src/`）
 
@@ -211,6 +227,36 @@ python -m uvicorn src.main:app --reload --port 8000
 - Python 端（AI 服务）：多模型 LLM 对话、文档解析、智能摘要
 
 Java 通过 `WebClient` 调用 Python FastAPI 服务，支持流式响应（SSE）。
+
+## 大屏编辑器架构（`apps/forge-screen/`）
+
+goView 编辑器是独立的前端 SPA，与 forge-admin 主项目解耦，通过 iframe 嵌入到 `apps/forge-web/src/views/screen/editor/` 和 `preview/`：
+
+```
+apps/forge-screen/
+├── src/
+│   ├── api/forge/       # 与 forge-admin 通信的 API（screen.ts、dataSource.ts）
+│   ├── store/           # Pinia stores（chartEditStore 持有 componentList，自动保存到 configDraft）
+│   ├── hooks/           # useChartDataFetch（数据获取/轮询）、useSync（加载/恢复 componentList）
+│   ├── packages/        # 图表组件库（components/Charts、Bars、Lines、Pies、VChart/...）
+│   │   └── public/chart.ts # setOption 工具：合并数据到 vChart/echarts 实例
+│   ├── views/chart/
+│   │   ├── ContentConfigurations/components/ChartData/components/
+│   │   │   ├── ChartDataForge/        # forge 数据源配置面板（ID + params + 测试获取）
+│   │   │   ├── ChartDataAjax/         # 通用 HTTP 数据源
+│   │   │   ├── ChartDataPond/         # 数据池
+│   │   │   └── ChartDataMatchingAndShow/ # 字段映射 UI（dimensions ↔ 数据源字段）
+│   │   └── hooks/useSync.hook.ts      # 组件加载/重建（createComponent + componentMerge）
+│   └── components/GoVChart/index.vue  # vChart 包装（dataset 双向绑定 props.option）
+```
+
+**关键数据流：**
+1. **加载**：`loadProjectById` → 解析 `configDraft` JSON → `useSync.updateComponent` → 重建 componentList
+2. **编辑**：用户在 ChartDataForge 等面板点击"测试获取"→ `testFetch` → 修改 `targetData.option.dataset.source`（**保留 dimensions**）
+3. **保存**：`useAutoSave`（`useSyncUpdate.hook.ts`）监听 `componentList` 变更，debounce 3s 调用 `saveProjectToApi` → 后端 `PUT /screen` 写入 `config_draft`
+4. **预览/渲染**：`useChartDataFetch` 按 `requestDataType` 分发（AJAX/FORGE/Pond）。FORGE 分支调 `executeDataSource(id)`，**必须保留 dimensions**——已有问题见 commit `e8adbfe`（testFetch）和 `be664e8`（fetch hook）
+
+**vChart dataset 绑定（重要）：** `GoVChart/index.vue` 中 `watch(() => dataset.value)` 监听 `props.option.dataset` 变化并重建图表。组件回调（如 `props.chartConfig.option.dataset = newData`）直接修改 option 会触发自动保存，因此 fetch 回调必须保留 `{dimensions, source}` 结构而非只传数组。
 
 ## 重要模式
 
@@ -305,6 +351,11 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 | 数据库迁移目录 | `apps/forge-server/forge-server/src/main/resources/db/migration/` |
 | Python AI 服务 | `apps/forge-ai-python/src/main.py` |
 | FlowLong 设计器 | `apps/forge-web/src/views/workflow/model/FlowLongModelDesigner.vue` |
+| goView 大屏编辑器 | `apps/forge-screen/src/` |
+| 大屏模块后端 | `apps/forge-server/forge-module-screen/` |
+| 大屏 SQL 安全层 | `apps/forge-server/forge-module-screen/forge-module-screen-biz/.../safety/` |
+| 大屏数据源列表（前端） | `apps/forge-web/src/views/screen/data-source/index.vue` |
+| 大屏 SQL 白名单（前端） | `apps/forge-web/src/views/screen/sql-whitelist/index.vue` |
 
 ## 命名约定
 

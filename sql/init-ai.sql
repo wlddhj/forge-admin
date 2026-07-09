@@ -2,7 +2,16 @@
 -- forge-admin AI模块初始化脚本
 -- 数据库版本: MySQL 8.0+
 -- 创建时间: 2026-06-17
+-- 更新时间: 2026-07-09
 -- 依赖文件: sql/init.sql
+--
+-- 与 Flyway 迁移的差异（说明）：
+-- 1. 本脚本中的表结构与 com.forge.modules.ai.entity.* 一致（运行时真实期望）
+-- 2. Flyway 脚本 V2026061701__ai_module_tables.sql 中的 schema 与 entity 存在
+--    字段差异（如 ai_model_config 使用 api_url/entity 使用 api_endpoint），
+--    实际生产部署以迁移为准并人工补齐 entity 期望的列；本脚本仅用于全新建库
+-- 3. 菜单结构以 V2026061703__fix_ai_module_menu.sql 为准（删除了 305-308 对话管理
+--    和 315-317 用量统计菜单）
 -- ========================================
 
 SET NAMES utf8mb4;
@@ -11,7 +20,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 USE `forge_admin`;
 
 -- ========================================
--- 1. AI模型配置表
+-- 1. AI模型配置表（与 AiModelConfig entity 一致）
 -- ========================================
 DROP TABLE IF EXISTS `ai_model_config`;
 CREATE TABLE `ai_model_config` (
@@ -39,7 +48,7 @@ CREATE TABLE `ai_model_config` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI模型配置表';
 
 -- ========================================
--- 2. AI对话会话表
+-- 2. AI对话会话表（与 AiConversation entity 一致）
 -- ========================================
 DROP TABLE IF EXISTS `ai_chat_conversation`;
 CREATE TABLE `ai_chat_conversation` (
@@ -66,7 +75,7 @@ CREATE TABLE `ai_chat_conversation` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI对话会话表';
 
 -- ========================================
--- 3. AI对话消息表
+-- 3. AI对话消息表（与 AiMessage entity 一致）
 -- ========================================
 DROP TABLE IF EXISTS `ai_chat_message`;
 CREATE TABLE `ai_chat_message` (
@@ -92,32 +101,33 @@ CREATE TABLE `ai_chat_message` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI对话消息表';
 
 -- ========================================
--- 4. AI文档表
+-- 4. AI文档表（与 AiDocument entity 一致）
 -- ========================================
 DROP TABLE IF EXISTS `ai_document`;
 CREATE TABLE `ai_document` (
-    `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `user_id` bigint NOT NULL COMMENT '用户ID',
-    `attachment_id` bigint DEFAULT NULL COMMENT '附件ID',
-    `file_name` varchar(255) NOT NULL COMMENT '文件名称',
-    `content` longtext COMMENT '提取的文本内容',
-    `summary` text COMMENT 'AI生成的摘要',
-    `model_name` varchar(100) DEFAULT NULL COMMENT '使用的模型名称',
-    `status` tinyint NOT NULL DEFAULT '0' COMMENT '状态(0:待处理 1:处理中 2:已完成 3:失败)',
-    `error_message` varchar(500) DEFAULT NULL COMMENT '错误信息',
-    `model_provider` varchar(50) DEFAULT NULL COMMENT '处理模型提供商',
-    `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '删除标记',
-    PRIMARY KEY (`id`),
-    KEY `idx_user_id` (`user_id`),
-    KEY `idx_status` (`status`),
-    KEY `idx_create_time` (`create_time`),
-    KEY `idx_attachment_id` (`attachment_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='AI文档表';
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `attachment_id` bigint DEFAULT NULL COMMENT '附件ID',
+  `file_name` varchar(255) NOT NULL COMMENT '文件名称',
+  `content` longtext COMMENT '提取的文本内容',
+  `summary` text COMMENT 'AI生成的摘要',
+  `model_name` varchar(100) DEFAULT NULL COMMENT '使用的模型名称',
+  `status` tinyint NOT NULL DEFAULT '0' COMMENT '状态(0:待处理 1:处理中 2:已完成 3:失败)',
+  `error_message` varchar(500) DEFAULT NULL COMMENT '错误信息',
+  `model_provider` varchar(50) DEFAULT NULL COMMENT '处理模型提供商',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '删除标记',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_create_time` (`create_time`),
+  KEY `idx_attachment_id` (`attachment_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI文档表';
 
 -- ========================================
--- 5. AI API用量统计表
+-- 5. AI API用量统计表（与 AiApiUsage entity 一致）
+-- 注：该 entity 当前无业务代码引用，保留以便后续接入用量统计功能
 -- ========================================
 DROP TABLE IF EXISTS `ai_api_usage`;
 CREATE TABLE `ai_api_usage` (
@@ -142,65 +152,65 @@ CREATE TABLE `ai_api_usage` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI API用量统计表';
 
 -- ========================================
--- 初始化菜单数据 (AI模块完整菜单)
+-- 初始化菜单数据（与 V2026061703__fix_ai_module_menu.sql 一致）
 -- ========================================
--- AI助手主菜单 (目录)
+-- AI管理目录（顶级目录）
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(300, 'AI助手', 0, '/ai', 'Layout', '/ai/model-config', 'MagicStick', 3, 0, NULL, 1, 1, 0, 0);
+(300, 'AI管理', 0, '/ai', 'Layout', '/ai/chat', 'MagicStick', 3, 0, NULL, 1, 1, 0, 0);
 
--- 模型配置管理 (菜单)
+-- 智能对话菜单
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(301, '模型配置', 300, '/ai/model-config', '/views/ai/model-config/index', NULL, 'Setting', 1, 1, 'ai:model-config:list', 1, 1, 0, 0),
-(302, '模型查询', 301, '', '', NULL, '', 1, 2, 'ai:model-config:query', 1, 1, 0, 0),
-(303, '模型新增', 301, '', '', NULL, '', 2, 2, 'ai:model-config:add', 1, 1, 0, 0),
-(304, '模型编辑', 301, '', '', NULL, '', 3, 2, 'ai:model-config:edit', 1, 1, 0, 0),
-(309, '模型删除', 301, '', '', NULL, '', 4, 2, 'ai:model-config:delete', 1, 1, 0, 0);
+(301, '智能对话', 300, '/ai/chat', '/views/ai/chat/index', NULL, 'ChatDotRound', 1, 1, 'ai:chat:list', 1, 1, 0, 0);
 
--- 对话管理 (菜单)
+-- 智能对话按钮权限
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(305, '对话管理', 300, '/ai/conversation', '/views/ai/conversation/index', NULL, 'ChatDotRound', 2, 1, 'ai:conversation:list', 1, 1, 0, 0),
-(306, '对话查询', 305, '', '', NULL, '', 1, 2, 'ai:conversation:query', 1, 1, 0, 0),
-(307, '对话删除', 305, '', '', NULL, '', 2, 2, 'ai:conversation:delete', 1, 1, 0, 0),
-(308, '查看详情', 305, '', '', NULL, '', 3, 2, 'ai:conversation:detail', 1, 1, 0, 0);
+(302, '对话查询', 301, '', '', NULL, '', 1, 2, 'ai:chat:query',   1, 1, 0, 0),
+(303, '发送消息', 301, '', '', NULL, '', 2, 2, 'ai:chat:create',  1, 1, 0, 0),
+(304, '删除对话', 301, '', '', NULL, '', 3, 2, 'ai:chat:delete',  1, 1, 0, 0);
 
--- 文档管理 (菜单)
+-- 文档管理菜单
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(310, '文档管理', 300, '/ai/document', '/views/ai/document/index', NULL, 'Document', 3, 1, 'ai:document:list', 1, 1, 0, 0),
-(311, '文档查询', 310, '', '', NULL, '', 1, 2, 'ai:document:query', 1, 1, 0, 0),
-(312, '文档上传', 310, '', '', NULL, '', 2, 2, 'ai:document:upload', 1, 1, 0, 0),
-(313, '文档删除', 310, '', '', NULL, '', 3, 2, 'ai:document:delete', 1, 1, 0, 0),
-(314, '文档分析', 310, '', '', NULL, '', 4, 2, 'ai:document:analyze', 1, 1, 0, 0);
+(310, '文档管理', 300, '/ai/document', '/views/ai/document/index', NULL, 'Document', 2, 1, 'ai:document:list', 1, 1, 0, 0);
 
--- API用量统计 (菜单)
+-- 文档管理按钮权限
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(315, '用量统计', 300, '/ai/api-usage', '/views/ai/api-usage/index', NULL, 'DataLine', 4, 1, 'ai:api-usage:list', 1, 1, 0, 0),
-(316, '统计查询', 315, '', '', NULL, '', 1, 2, 'ai:api-usage:query', 1, 1, 0, 0),
-(317, '导出报表', 315, '', '', NULL, '', 2, 2, 'ai:api-usage:export', 1, 1, 0, 0);
+(311, '文档查询', 310, '', '', NULL, '', 1, 2, 'ai:document:query',   1, 1, 0, 0),
+(312, '上传文档', 310, '', '', NULL, '', 2, 2, 'ai:document:upload',  1, 1, 0, 0),
+(313, '生成摘要', 310, '', '', NULL, '', 3, 2, 'ai:document:summary', 1, 1, 0, 0),
+(314, '删除文档', 310, '', '', NULL, '', 4, 2, 'ai:document:delete',  1, 1, 0, 0);
+
+-- 模型配置菜单
+INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(320, '模型配置', 300, '/ai/model', '/views/ai/model/index', NULL, 'Setup', 3, 1, 'ai:model:list', 1, 1, 0, 0);
+
+-- 模型配置按钮权限
+INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(321, '模型查询', 320, '', '', NULL, '', 1, 2, 'ai:model:query',  1, 1, 0, 0),
+(322, '配置管理', 320, '', '', NULL, '', 2, 2, 'ai:model:config', 1, 1, 0, 0),
+(323, '切换模型', 320, '', '', NULL, '', 3, 2, 'ai:model:switch', 1, 1, 0, 0);
 
 -- ========================================
--- 补充角色菜单关联 (超级管理员拥有所有AI菜单)
+-- 角色菜单关联（超级管理员拥有所有AI菜单）
 -- ========================================
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
--- AI主菜单
+-- AI 主菜单
 (1, 300),
--- 模型配置管理
-(1, 301), (1, 302), (1, 303), (1, 304), (1, 309),
--- 对话管理
-(1, 305), (1, 306), (1, 307), (1, 308),
+-- 智能对话
+(1, 301), (1, 302), (1, 303), (1, 304),
 -- 文档管理
 (1, 310), (1, 311), (1, 312), (1, 313), (1, 314),
--- API用量统计
-(1, 315), (1, 316), (1, 317);
+-- 模型配置
+(1, 320), (1, 321), (1, 322), (1, 323);
 
 -- ========================================
 -- 初始化模型配置数据
 -- ========================================
 INSERT INTO `ai_model_config` (`id`, `model_name`, `model_code`, `provider`, `api_endpoint`, `max_tokens`, `temperature`, `context_window`, `input_price`, `output_price`, `is_default`, `status`, `remark`) VALUES
-(1, 'DeepSeek Chat', 'deepseek-chat', 'deepseek', 'https://api.deepseek.com/v1/chat/completions', 4096, 0.7, 64000, 0.001, 0.002, 1, 1, 'DeepSeek通用对话模型(默认)'),
-(2, 'DeepSeek Coder', 'deepseek-coder', 'deepseek', 'https://api.deepseek.com/v1/chat/completions', 4096, 0.5, 16000, 0.001, 0.002, 0, 1, 'DeepSeek代码专用模型'),
-(3, '通义千问 Turbo', 'qwen-turbo', 'qwen', 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', 4096, 0.7, 8192, 0.002, 0.006, 0, 1, '阿里通义千问快速版'),
-(4, '通义千问 Plus', 'qwen-plus', 'qwen', 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', 4096, 0.7, 32768, 0.004, 0.012, 0, 1, '阿里通义千问增强版'),
-(5, '智谱 GLM-4-Flash', 'glm-4-flash', 'glm', 'https://open.bigmodel.cn/api/paas/v4/chat/completions', 4096, 0.7, 128000, 0.0001, 0.0001, 0, 1, '智谱AI GLM-4极速版');
+(1, 'DeepSeek Chat',  'deepseek-chat',  'deepseek', 'https://api.deepseek.com/v1/chat/completions',                                          4096, 0.7,  64000, 0.001,   0.002, 1, 1, 'DeepSeek通用对话模型(默认)'),
+(2, 'DeepSeek Coder', 'deepseek-coder', 'deepseek', 'https://api.deepseek.com/v1/chat/completions',                                          4096, 0.5,  16000, 0.001,   0.002, 0, 1, 'DeepSeek代码专用模型'),
+(3, '通义千问 Turbo', 'qwen-turbo',     'qwen',     'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',     4096, 0.7,   8192, 0.002,   0.006, 0, 1, '阿里通义千问快速版'),
+(4, '通义千问 Plus',  'qwen-plus',      'qwen',     'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',     4096, 0.7,  32768, 0.004,   0.012, 0, 1, '阿里通义千问增强版'),
+(5, '智谱 GLM-4-Flash','glm-4-flash',  'glm',      'https://open.bigmodel.cn/api/paas/v4/chat/completions',                               4096, 0.7, 128000, 0.0001,  0.0001,0, 1, '智谱AI GLM-4极速版');
 
 SET FOREIGN_KEY_CHECKS = 1;
 
