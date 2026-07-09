@@ -193,11 +193,13 @@ watch(
   }
 )
 
-// 监听 VChart 主题变化，强制重建图表应用新主题
+// 监听 VChart 主题变化，销毁旧图表并重建
 watch(
   () => chartEditStore.getEditCanvasConfig.vChartThemeName,
   () => {
     if (chart) {
+      chart.release()
+      chart = undefined as unknown as IVChart
       nextTick(() => {
         createOrUpdateChart(props.option)
       })
