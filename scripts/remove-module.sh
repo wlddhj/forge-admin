@@ -90,24 +90,30 @@ done
 
 # 5. 删除数据库迁移脚本（可选）
 echo "[5/6] 检查数据库迁移脚本..."
-MIGRATION_DIR="$SERVER_DIR/forge-server/src/main/resources/db/migration"
-if [ -d "$MIGRATION_DIR" ]; then
-    # 查找包含模块名称的迁移脚本
-    migration_files=$(find "$MIGRATION_DIR" -name "*.sql" -exec grep -l "$MODULE_NAME\|wf" {} \; 2>/dev/null)
-    if [ -n "$migration_files" ]; then
-        echo "  发现相关迁移脚本:"
-        echo "$migration_files"
-        read -p "  是否删除这些迁移脚本? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "$migration_files" | xargs rm -f
-            echo "  ✓ 已删除迁移脚本"
-        else
-            echo "  - 跳过删除迁移脚本"
-        fi
+# 扫描 forge-server 下所有 db/migration 目录
+# （兼容单仓库统一目录 + 子模块独立目录两种模式：
+#   forge-server/src/main/resources/db/migration/  与
+#   forge-module-X/forge-module-X-biz/src/main/resources/db/migration/）
+# 排除 target/ 构建产物目录
+SEARCH_PATTERN="$MODULE_NAME"
+# workflow 模块的迁移文件使用 wf_ 前缀（如 V2026052701__wf_expression_listener.sql），
+# 删除 workflow 时需要兼容这个命名约定
+[ "$MODULE_NAME" = "workflow" ] && SEARCH_PATTERN="(workflow|wf)"
+migration_files=$(find "$SERVER_DIR" -path "*/db/migration/*.sql" -not -path "*/target/*" -exec grep -lE "$SEARCH_PATTERN" {} + 2>/dev/null)
+if [ -n "$migration_files" ]; then
+    echo "  发现相关迁移脚本:"
+    echo "$migration_files"
+    read -p "  是否删除这些迁移脚本? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        # 使用 xargs -d '\n' -r：-r 防止空输入，-d '\n' 兼容路径含空格
+        printf '%s\n' "$migration_files" | xargs -d '\n' -r rm -f
+        echo "  ✓ 已删除迁移脚本"
     else
-        echo "  - 未发现相关迁移脚本"
+        echo "  - 跳过删除迁移脚本"
     fi
+else
+    echo "  - 未发现相关迁移脚本"
 fi
 
 # 6. 删除模块目录
