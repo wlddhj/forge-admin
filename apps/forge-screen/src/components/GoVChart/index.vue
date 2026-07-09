@@ -193,16 +193,16 @@ watch(
   }
 )
 
-// 监听 VChart 主题变化，销毁旧图表并重建
+// 监听 VChart 主题变化，更新现有图表主题
 watch(
   () => chartEditStore.getEditCanvasConfig.vChartThemeName,
-  () => {
-    if (chart) {
-      chart.release()
-      chart = undefined as unknown as IVChart
-      nextTick(() => {
-        createOrUpdateChart(props.option)
-      })
+  (newTheme) => {
+    if (chart && newTheme) {
+      try {
+        chart.setCurrentThemeSync(newTheme)
+      } catch (e) {
+        console.error('[GoVChart] 切换主题失败', e)
+      }
     }
   }
 )
@@ -219,6 +219,8 @@ const createOrUpdateChart = (
       { ...spec, data: chartProps.dataset },
       {
         dom: vChartRef.value,
+        // 创建时显式传 theme，确保使用最新的 vChartThemeName
+        theme: chartEditStore.getEditCanvasConfig.vChartThemeName,
         ...props.initOptions
       }
     )
