@@ -42,13 +42,6 @@ CREATE TABLE sys_screen_data_source (
     UNIQUE KEY uk_screen_ds_code (code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='大屏数据源';
 
--- 大屏与数据源关系
-CREATE TABLE sys_screen_data_source_ref (
-    screen_id       BIGINT NOT NULL COMMENT '大屏ID',
-    data_source_id  BIGINT NOT NULL COMMENT '数据源ID',
-    PRIMARY KEY (screen_id, data_source_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='大屏数据源关系';
-
 -- SQL 白名单（列级控制）
 CREATE TABLE sys_screen_sql_whitelist (
     id           BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
