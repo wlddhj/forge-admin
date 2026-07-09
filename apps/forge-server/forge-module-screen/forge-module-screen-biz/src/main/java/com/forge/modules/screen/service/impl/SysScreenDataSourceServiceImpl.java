@@ -70,6 +70,7 @@ public class SysScreenDataSourceServiceImpl implements SysScreenDataSourceServic
     public Page<SysScreenDataSource> page(ScreenPageRequest request) {
         Page<SysScreenDataSource> p = new Page<>(request.getPageNum(), request.getPageSize());
         LambdaQueryWrapper<SysScreenDataSource> qw = new LambdaQueryWrapper<>();
+        qw.select(SysScreenDataSource.class, info -> !"config".equals(info.getColumn()));
         if (request.getName() != null && !request.getName().isBlank()) {
             qw.like(SysScreenDataSource::getName, request.getName());
         }

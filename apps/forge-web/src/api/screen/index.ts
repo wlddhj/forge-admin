@@ -131,3 +131,40 @@ export const updateDataSource = (data: ScreenDataSource) => dataSourceApi.update
 export const deleteDataSource = (ids: number[]) => dataSourceApi.remove(ids).then(r => r.data)
 export const executeDataSource = (id: number, data: DataSourceExecuteRequest) =>
   dataSourceApi.execute(id, data).then(r => r.data)
+
+// ===== SQL 白名单 API =====
+
+export interface SqlWhitelistItem {
+  id?: number
+  schemaName: string
+  tableName: string
+  columnList: string
+  riskLevel: 0 | 1 | 2
+  enabled: 0 | 1
+  remark?: string
+}
+
+export interface SqlWhitelistQuery {
+  pageNum: number
+  pageSize: number
+  name?: string
+}
+
+export const sqlWhitelistApi = {
+  page: (params: SqlWhitelistQuery) =>
+    request.get<PageResult<SqlWhitelistItem>>('/screen/sql-whitelist/list', { params }),
+  get: (id: number) =>
+    request.get<SqlWhitelistItem>(`/screen/sql-whitelist/${id}`),
+  create: (data: SqlWhitelistItem) =>
+    request.post<number>('/screen/sql-whitelist', data),
+  update: (data: SqlWhitelistItem) =>
+    request.put<void>('/screen/sql-whitelist', data),
+  remove: (ids: number[]) =>
+    request.delete<void>('/screen/sql-whitelist', { data: ids })
+}
+
+export const getSqlWhitelistList = (params: SqlWhitelistQuery) => sqlWhitelistApi.page(params).then(r => r.data)
+export const getSqlWhitelistDetail = (id: number) => sqlWhitelistApi.get(id).then(r => r.data)
+export const createSqlWhitelist = (data: SqlWhitelistItem) => sqlWhitelistApi.create(data).then(r => r.data)
+export const updateSqlWhitelist = (data: SqlWhitelistItem) => sqlWhitelistApi.update(data).then(r => r.data)
+export const deleteSqlWhitelist = (ids: number[]) => sqlWhitelistApi.remove(ids).then(r => r.data)
