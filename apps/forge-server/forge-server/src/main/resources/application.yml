@@ -139,6 +139,8 @@ forge:
         - 127.0.0.1
         - forge-server
         - forge-ai-python
+        - jsonplaceholder.typicode.com
+        - api.github.com
       http-timeout-ms: 5000
       http-max-body-bytes: 1048576
       require-https: false
