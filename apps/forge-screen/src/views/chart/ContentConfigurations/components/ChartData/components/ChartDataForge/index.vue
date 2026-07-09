@@ -30,6 +30,8 @@
     <setting-item-box v-if="testResult" name="测试结果" :alone="true">
       <pre class="result">{{ JSON.stringify(testResult, null, 2) }}</pre>
     </setting-item-box>
+
+    <chart-data-matching-and-show :show="!!testResult" :ajax="false"></chart-data-matching-and-show>
   </div>
 </template>
 
@@ -39,6 +41,7 @@ import { SettingItemBox } from '@/components/Pages/ChartItemSetting'
 import { icon } from '@/plugins'
 import { useTargetData } from '../../../hooks/useTargetData.hook'
 import { executeDataSource } from '@/api/forge/dataSource'
+import { ChartDataMatchingAndShow } from '../ChartDataMatchingAndShow'
 // ElMessage via window['$message']
 
 const { FlashIcon } = icon.carbon
@@ -73,6 +76,10 @@ const testFetch = async () => {
       params: toRaw((targetData.value.request as any).forgeParams || {})
     })
     testResult.value = res
+    // 写入 dataset，触发 ChartDataMatchingAndShow 字段映射
+    if (res && res.data && targetData.value.option) {
+      targetData.value.option.dataset = res.data
+    }
     window['$message']?.success('获取成功')
   } catch (e: any) {
     window['$message']?.error('获取失败：' + (e?.message || String(e)))
