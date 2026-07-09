@@ -13,6 +13,9 @@ import { VChart, type IVChart, type IInitOption } from '@visactor/vchart'
 import { transformHandler } from './transformProps'
 import { IOption } from '@/packages/components/VChart/index.d'
 import { registerChartsAndComponents } from './register'
+import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
+
+const chartEditStore = useChartEditStore()
 
 // VChart按需加载: 注册图表及组件
 registerChartsAndComponents()
@@ -187,6 +190,18 @@ watch(
   },
   {
     deep: false
+  }
+)
+
+// 监听 VChart 主题变化，强制重建图表应用新主题
+watch(
+  () => chartEditStore.getEditCanvasConfig.vChartThemeName,
+  () => {
+    if (chart) {
+      nextTick(() => {
+        createOrUpdateChart(props.option)
+      })
+    }
   }
 )
 
