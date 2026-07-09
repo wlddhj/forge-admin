@@ -78,9 +78,17 @@ export const useChartDataFetch = (
           const res = await executeDataSource(Number(forgeDataSourceId), { params: forgeParams })
           if (res && res.data) {
             const filter = targetComponent.filter
-            echartsUpdateHandle(newFunctionHandle(res.data, res, filter))
+            const rawData = newFunctionHandle(res.data, res, filter)
+            const source = Array.isArray(rawData) ? rawData : (rawData?.records ?? rawData?.list ?? rawData?.data ?? [])
+            // 保留现有 dimensions 映射，只替换 source
+            const existingDataset = targetComponent.option?.dataset
+            const dimensions = existingDataset?.dimensions || []
+            const dataset = { dimensions, source }
+            if (chartFrame === ChartFrameEnum.ECHARTS && vChartRef.value) {
+              vChartRef.value.setOption({ dataset }, false)
+            }
             if (updateCallback) {
-              updateCallback(newFunctionHandle(res.data, res, filter))
+              updateCallback(dataset)
             }
           }
         } catch (e) {
