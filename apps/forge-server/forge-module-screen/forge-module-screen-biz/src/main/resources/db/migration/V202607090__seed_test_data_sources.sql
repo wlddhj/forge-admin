@@ -3,7 +3,7 @@
 -- ========================================
 -- 包含 HTTP 和 SQL 类型数据源，便于功能验证。
 
-INSERT INTO sys_screen_data_source (code, name, type, config, cache_seconds, enabled, create_time, remark) VALUES
+INSERT INTO sys_screen_data_source (code, name, type, config, cache_seconds, enabled, create_time, update_time, remark) VALUES
 ('ds-http-users', '模拟用户列表（JSONPlaceholder）',
  'HTTP',
  '{"method":"GET","url":"https://jsonplaceholder.typicode.com/users","headers":"{}","params":"{}","timeout":5}',
