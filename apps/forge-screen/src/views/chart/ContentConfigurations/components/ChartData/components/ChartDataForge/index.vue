@@ -76,9 +76,14 @@ const testFetch = async () => {
       params: toRaw((targetData.value.request as any).forgeParams || {})
     })
     testResult.value = res
-    // 写入 dataset，触发 ChartDataMatchingAndShow 字段映射
+    // 只替换 dataset.source，保留现有 dimensions 映射
     if (res && res.data && targetData.value.option) {
-      targetData.value.option.dataset = res.data
+      if (!targetData.value.option.dataset) {
+        targetData.value.option.dataset = { dimensions: [], source: [] }
+      }
+      const data = res.data as any
+      const source = Array.isArray(data) ? data : (data?.records ?? data?.list ?? data?.data ?? [])
+      targetData.value.option.dataset.source = source
     }
     window['$message']?.success('获取成功')
   } catch (e: any) {
