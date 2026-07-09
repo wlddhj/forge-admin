@@ -1,4 +1,7 @@
 <template>
+  <div class="go-my-2" style="color: var(--text-color, #999); font-size: 12px">
+    VChart 主题仅作用于 VChart 框架组件（"VChart"分类下的图表）。
+  </div>
   <n-grid :x-gap="8" :y-gap="8" :cols="2">
     <n-gi v-for="item in list" :key="item.value">
       <div
