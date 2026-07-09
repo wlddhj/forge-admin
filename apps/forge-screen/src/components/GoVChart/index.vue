@@ -193,16 +193,22 @@ watch(
   }
 )
 
-// 监听 VChart 主题变化，更新现有图表主题
+// 监听 VChart 主题变化，销毁并重建图表（VChart 不支持热切换已渲染主题）
 watch(
   () => chartEditStore.getEditCanvasConfig.vChartThemeName,
   (newTheme) => {
     if (chart && newTheme) {
+      // VChart.setCurrentThemeSync 对已渲染实例不生效，
+      // 唯一可靠方案是销毁旧实例并用新主题创建新实例。
       try {
-        chart.setCurrentThemeSync(newTheme)
+        chart.release()
       } catch (e) {
-        console.error('[GoVChart] 切换主题失败', e)
+        console.warn('[GoVChart] release 失败', e)
       }
+      chart = undefined as unknown as IVChart
+      nextTick(() => {
+        createOrUpdateChart(props.option)
+      })
     }
   }
 )
