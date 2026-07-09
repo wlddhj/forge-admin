@@ -65,7 +65,7 @@ const updateForgeParams = (v: string) => {
 const testFetch = async () => {
   const id = (targetData.value.request as any).forgeDataSourceId
   if (!id) {
-    ElMessage.warning('请填写数据源 ID')
+    window['$message']?.warning('请填写数据源 ID')
     return
   }
   try {
@@ -73,9 +73,9 @@ const testFetch = async () => {
       params: toRaw((targetData.value.request as any).forgeParams || {})
     })
     testResult.value = res
-    ElMessage.success('获取成功')
+    window['$message']?.success('获取成功')
   } catch (e: any) {
-    ElMessage.error('获取失败：' + (e?.message || String(e)))
+    window['$message']?.error('获取失败：' + (e?.message || String(e)))
   }
 }
 </script>
