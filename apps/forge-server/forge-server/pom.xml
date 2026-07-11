@@ -33,6 +33,12 @@
             <artifactId>forge-module-screen-biz</artifactId>
         </dependency>
 
+        <!-- 多租户 -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-tenant</artifactId>
+        </dependency>
+
         <!-- 数据库驱动 -->
         <dependency>
             <groupId>com.mysql</groupId>

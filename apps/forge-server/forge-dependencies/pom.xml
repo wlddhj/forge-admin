@@ -66,6 +66,11 @@
             </dependency>
             <dependency>
                 <groupId>com.forge</groupId>
+                <artifactId>forge-spring-boot-starter-tenant</artifactId>
+                <version>${forge.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forge</groupId>
                 <artifactId>forge-module-system-api</artifactId>
                 <version>${forge.version}</version>
             </dependency>
