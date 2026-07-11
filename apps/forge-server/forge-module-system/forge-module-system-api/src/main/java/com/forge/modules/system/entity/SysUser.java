@@ -61,6 +61,11 @@ public class SysUser {
     private Long deptId;
 
     /**
+     * 租户ID
+     */
+    private Long tenantId;
+
+    /**
      * 岗位ID
      */
     private Long positionId;
