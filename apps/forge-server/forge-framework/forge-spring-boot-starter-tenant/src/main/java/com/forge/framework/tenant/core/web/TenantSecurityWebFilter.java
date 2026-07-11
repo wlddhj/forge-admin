@@ -43,7 +43,7 @@ public class TenantSecurityWebFilter extends OncePerRequestFilter {
         UserContext user = UserContext.get();
 
         // (a) 登录用户：校验越权（平台管理员不校验）
-        boolean isPlatformAdmin = user != null && user.getAccountType() != null && user.getAccountType() == 2;
+        boolean isPlatformAdmin = user != null && user.isPlatformAdmin();
         if (user != null && !isPlatformAdmin) {
             if (tenantId == null) {
                 tenantId = user.getDeptId() == null ? null : extractTenantIdFromUser(user);
@@ -89,9 +89,7 @@ public class TenantSecurityWebFilter extends OncePerRequestFilter {
     }
 
     private Long extractTenantIdFromUser(UserContext user) {
-        // LoginUser 需要新增 tenantId 字段；此处先用 placeholder
-        // 实际实现依赖 UserContext 扩展
-        return null;
+        return user.getTenantId();
     }
 
     private boolean isIgnoreUrl(HttpServletRequest request) {

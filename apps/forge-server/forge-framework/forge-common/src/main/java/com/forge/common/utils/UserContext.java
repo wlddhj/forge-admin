@@ -24,7 +24,12 @@ public class UserContext {
     private String deptName;
 
     /**
-     * 账户类型（0:普通 1:管理员）
+     * 租户ID
+     */
+    private Long tenantId;
+
+    /**
+     * 账户类型（0:普通 1:管理员 2:平台超管）
      */
     private Integer accountType;
 
@@ -73,6 +78,13 @@ public class UserContext {
      */
     public boolean isAdmin() {
         return accountType != null && accountType == 1;
+    }
+
+    /**
+     * 是否为平台超管
+     */
+    public boolean isPlatformAdmin() {
+        return accountType != null && accountType == 2;
     }
 
     /**
