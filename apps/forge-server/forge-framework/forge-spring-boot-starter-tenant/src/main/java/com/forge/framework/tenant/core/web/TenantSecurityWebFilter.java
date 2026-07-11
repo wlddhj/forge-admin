@@ -42,8 +42,9 @@ public class TenantSecurityWebFilter extends OncePerRequestFilter {
         Long tenantId = TenantContextHolder.getTenantId();
         UserContext user = UserContext.get();
 
-        // (a) 登录用户：校验越权
-        if (user != null && !Boolean.TRUE.equals(user.getAccountType() != null && user.getAccountType() == 2)) {
+        // (a) 登录用户：校验越权（平台管理员不校验）
+        boolean isPlatformAdmin = user != null && user.getAccountType() != null && user.getAccountType() == 2;
+        if (user != null && !isPlatformAdmin) {
             if (tenantId == null) {
                 tenantId = user.getDeptId() == null ? null : extractTenantIdFromUser(user);
                 if (tenantId != null) {
@@ -61,7 +62,6 @@ public class TenantSecurityWebFilter extends OncePerRequestFilter {
         boolean ignoreUrl = isIgnoreUrl(request);
         if (!ignoreUrl) {
             if (tenantId == null) {
-                boolean isPlatformAdmin = user != null && user.getAccountType() != null && user.getAccountType() == 2;
                 if (!isPlatformAdmin) {
                     log.error("[tenant] URL({}) 未传递租户编号", request.getRequestURI());
                     writeError(response, ResultCode.VALIDATE_FAILED.getCode(), "请求的租户标识未传递，请检查请求头 X-Tenant-Id");
@@ -81,7 +81,11 @@ public class TenantSecurityWebFilter extends OncePerRequestFilter {
             }
         }
 
-        chain.doFilter(request, response);
+        try {
+            chain.doFilter(request, response);
+        } finally {
+            TenantContextHolder.clear();
+        }
     }
 
     private Long extractTenantIdFromUser(UserContext user) {
