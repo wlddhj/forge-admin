@@ -3,7 +3,16 @@
 -- 前提：sys_tenant(id=1) 和 sys_tenant_package(id=1) 已存在
 -- =============================================================================
 
+INSERT IGNORE INTO sys_tenant (id, name, code, status, expire_time, remark)
+VALUES (1, '默认租户', 'default', 1, NULL, '系统初始租户');
+
+INSERT IGNORE INTO sys_tenant_package (id, name, code, status, remark)
+VALUES (1, '默认套餐', 'default', 1, '包含全部菜单');
+
+UPDATE sys_tenant SET package_id = 1 WHERE id = 1 AND package_id IS NULL;
+
 -- 系统模块业务表
+UPDATE sys_user SET tenant_id = 1 WHERE tenant_id IS NULL OR tenant_id = 0;
 UPDATE sys_notice SET tenant_id = 1 WHERE tenant_id IS NULL OR tenant_id = 0;
 UPDATE sys_attachment SET tenant_id = 1 WHERE tenant_id IS NULL OR tenant_id = 0;
 UPDATE sys_login_log SET tenant_id = 1 WHERE tenant_id IS NULL OR tenant_id = 0;
