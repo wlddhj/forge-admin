@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.forge</groupId>
+        <artifactId>forge-framework</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>forge-spring-boot-starter-tenant</artifactId>
+    <name>forge-spring-boot-starter-tenant</name>
+    <description>多租户框架 - 基于 MyBatis Plus TenantLineInnerInterceptor</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-mybatis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>transmittable-thread-local</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+    </dependencies>
+</project>

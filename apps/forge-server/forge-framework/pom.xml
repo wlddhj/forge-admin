@@ -21,5 +21,6 @@
         <module>forge-spring-boot-starter-redis</module>
         <module>forge-spring-boot-starter-security</module>
         <module>forge-spring-boot-starter-web</module>
+        <module>forge-spring-boot-starter-tenant</module>
     </modules>
 </project>
