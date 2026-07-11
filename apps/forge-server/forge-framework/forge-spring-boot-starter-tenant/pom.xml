@@ -17,6 +17,10 @@
     <dependencies>
         <dependency>
             <groupId>com.forge</groupId>
+            <artifactId>forge-module-system-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forge</groupId>
             <artifactId>forge-common</artifactId>
         </dependency>
         <dependency>
