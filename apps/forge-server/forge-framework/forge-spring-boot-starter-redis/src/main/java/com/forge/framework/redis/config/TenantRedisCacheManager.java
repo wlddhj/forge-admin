@@ -8,6 +8,7 @@ import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.lang.Nullable;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 
 public class TenantRedisCacheManager extends RedisCacheManager {
@@ -16,8 +17,9 @@ public class TenantRedisCacheManager extends RedisCacheManager {
 
     public TenantRedisCacheManager(RedisCacheWriter cacheWriter,
                                    RedisCacheConfiguration defaultConfig,
-                                   Set<String> ignoreCaches) {
-        super(cacheWriter, defaultConfig);
+                                   Set<String> ignoreCaches,
+                                   Map<String, RedisCacheConfiguration> initialCacheConfigurations) {
+        super(cacheWriter, defaultConfig, initialCacheConfigurations);
         this.ignoreCaches = ignoreCaches == null ? Collections.emptySet() : ignoreCaches;
     }
 

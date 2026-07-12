@@ -99,7 +99,8 @@ public class CacheConfig implements CachingConfigurer {
         return new TenantRedisCacheManager(
                 RedisCacheWriter.lockingRedisCacheWriter(factory),
                 defaultConfig,
-                Set.of("dictData", "dictType", "sysConfig", "menu", "dept")  // ignoreCaches
+                Set.of("dictData", "dictType", "sysConfig", "menu", "dept"),  // ignoreCaches
+                cacheConfigurations  // per-cache TTL 配置
         );
     }
 
