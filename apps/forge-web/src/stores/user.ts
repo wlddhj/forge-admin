@@ -148,11 +148,14 @@ export const useUserStore = defineStore('user', () => {
     localStorage.setItem('token', res.accessToken)
     localStorage.setItem('refreshToken', res.refreshToken)
     setTokenExpireTime(res.expiresIn)
-    // 优先用 LoginResponse.tenantId；后备从 JWT claim 解码
-    const resolvedTenantId = res.tenantId !== undefined && res.tenantId !== null
-      ? Number(res.tenantId)
-      : getTokenTenantId(res.accessToken)
-    setTenantId(resolvedTenantId)
+    // 直接使用后端 LoginResponse.tenantId（后端已明确返回，无需解码 JWT）
+    if (res.tenantId !== undefined && res.tenantId !== null) {
+      setTenantId(Number(res.tenantId))
+    } else {
+      // 兼容旧后端：从 JWT claim 解码
+      const fallback = getTokenTenantId(res.accessToken)
+      if (fallback !== null) setTenantId(fallback)
+    }
     resetExpiredState()
     // 登录成功后启动心跳
     startHeartbeat()

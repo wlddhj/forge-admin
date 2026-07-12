@@ -25,6 +25,24 @@ public class LoginResponse {
     private String accessToken;
 
     /**
+     * 租户ID（前端可不再解码 JWT，直接用此值填 X-Tenant-Id 请求头）
+     */
+    @Schema(description = "租户ID", example = "1")
+    private Long tenantId;
+
+    /**
+     * 租户标识（登录时使用的 tenantCode 原样回显）
+     */
+    @Schema(description = "租户标识", example = "default")
+    private String tenantCode;
+
+    /**
+     * 租户名称（用于前端展示）
+     */
+    @Schema(description = "租户名称", example = "默认租户")
+    private String tenantName;
+
+    /**
      * 刷新令牌
      */
     @Schema(description = "刷新令牌", example = "abc123...xyz789")

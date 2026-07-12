@@ -18,7 +18,12 @@ export interface LoginResponse {
   message?: string
   passwordExpireDays?: number
   passwordExpired?: boolean
+  /** 租户ID（后端 LoginResponse 直接返回，前端无需解码 JWT） */
   tenantId?: number | null
+  /** 租户标识（登录时输入的 tenantCode 原样回显） */
+  tenantCode?: string
+  /** 租户名称（用于前端展示） */
+  tenantName?: string
 }
 
 // 验证码响应

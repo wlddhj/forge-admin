@@ -223,6 +223,9 @@ public class AuthController {
                     .tokenType("Bearer")
                     .expiresIn(jwtProperties.getExpiration())
                     .refreshExpiresIn(jwtProperties.getRefreshExpiration())
+                    .tenantId(tenantId)
+                    .tenantCode(request.getTenantCode())
+                    .tenantName(tenant.getName())
                     .passwordExpireDays(passwordExpireDays)
                     .passwordExpired(passwordExpired)
                     .build();
@@ -391,8 +394,12 @@ public class AuthController {
         // 生成新的 tokenId
         String tokenId = java.util.UUID.randomUUID().toString().replace("-", "");
 
-        // 生成新的 Access Token（使用 tokenId 关联会话）
-        String newAccessToken = jwtTokenProvider.generateTokenWithId(username, tokenId);
+        // 保存新会话到 Redis
+        SysUser user = sysUserService.getByUsername(UserContext.get().getTenantId(), username);
+
+        // 生成新的 Access Token（使用 tokenId 关联会话，写入 tenantId claim）
+        Long tenantId = user != null ? user.getTenantId() : null;
+        String newAccessToken = jwtTokenProvider.generateTokenWithId(username, tokenId, tenantId);
 
         // 生成新的 Refresh Token
         String newRefreshToken = refreshTokenService.generateRefreshToken(
@@ -400,8 +407,6 @@ public class AuthController {
                 jwtProperties.getRefreshExpiration()
         );
 
-        // 保存新会话到 Redis
-        SysUser user = sysUserService.getByUsername(UserContext.get().getTenantId(), username);
         if (user != null) {
             String loginIp = IpUtils.getClientIp(httpRequest);
             String userAgent = httpRequest.getHeader("User-Agent");
@@ -427,6 +432,7 @@ public class AuthController {
                 .tokenType("Bearer")
                 .expiresIn(jwtProperties.getExpiration())
                 .refreshExpiresIn(jwtProperties.getRefreshExpiration())
+                .tenantId(tenantId)
                 .build();
 
         return Result.success(response);
