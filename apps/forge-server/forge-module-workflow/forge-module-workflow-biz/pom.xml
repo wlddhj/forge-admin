@@ -54,6 +54,15 @@
         <dependency>
             <groupId>com.aizuda</groupId>
             <artifactId>flowlong-spring-boot-starter</artifactId>
+            <exclusions>
+                <!-- FlowLong 1.2.5 传递引入 mybatis-plus-boot-starter (Spring Boot 2 版本) 3.5.14
+                     与本项目的 mybatis-plus-spring-boot3-starter:3.5.17 冲突
+                     (3.5.14 autoconfigure 找不到 3.5.17 重构后的 MybatisSqlSessionFactoryBean) -->
+                <exclusion>
+                    <groupId>com.baomidou</groupId>
+                    <artifactId>mybatis-plus-boot-starter</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.github.xiaoymin</groupId>
