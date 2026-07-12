@@ -68,6 +68,14 @@ flowlong:
 forge:
   info:
     base-package: com.forge
+  tenant:
+    enable: ${TENANT_ENABLE:true}
+    # 跨租户共享的表（不注入 tenant_id）
+    ignore-tables:
+      - sys_tenant
+      - sys_tenant_package
+      - sys_tenant_package_menu
+      - sys_tenant_package_role
   web:
     admin-api:
       prefix: /admin-api
