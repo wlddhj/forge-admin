@@ -12,10 +12,10 @@
 -- EXECUTE stmt;
 -- DEALLOCATE PREPARE stmt;
 ALTER TABLE sys_user
-  ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER id;
+    ADD COLUMN tenant_id BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER id;
 
 -- 删除原 username 唯一索引
-ALTER TABLE sys_user DROP INDEX IF EXISTS uk_username;
+ALTER TABLE sys_user DROP INDEX  uk_username;
 
 -- 加联合唯一索引 (tenant_id, username)
 ALTER TABLE sys_user ADD UNIQUE INDEX uk_tenant_username (tenant_id, username);
