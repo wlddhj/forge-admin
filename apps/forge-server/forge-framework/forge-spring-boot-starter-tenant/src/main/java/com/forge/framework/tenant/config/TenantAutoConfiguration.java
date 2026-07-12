@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
 import com.forge.framework.tenant.core.aop.TenantIgnoreAspect;
 import com.forge.framework.tenant.core.db.TenantDatabaseInterceptor;
+import com.forge.framework.tenant.core.job.TenantJobAspect;
 import com.forge.framework.tenant.core.service.TenantFrameworkService;
 import com.forge.framework.tenant.core.service.TenantFrameworkServiceImpl;
 import com.forge.framework.tenant.core.web.TenantContextWebFilter;
@@ -29,6 +30,11 @@ public class TenantAutoConfiguration {
     @Bean
     public TenantIgnoreAspect tenantIgnoreAspect() {
         return new TenantIgnoreAspect();
+    }
+
+    @Bean
+    public TenantJobAspect tenantJobAspect() {
+        return new TenantJobAspect();
     }
 
     @Bean
