@@ -97,7 +97,8 @@ public class TenantSecurityWebFilter extends OncePerRequestFilter {
         if (CollUtil.isEmpty(ignoreUrls)) {
             return false;
         }
-        String uri = request.getRequestURI();
+        // 使用相对于 context path 的路径，避免 context-path 配置（如 /api）干扰匹配
+        String uri = request.getServletPath();
         if (ignoreUrls.contains(uri)) {
             return true;
         }
