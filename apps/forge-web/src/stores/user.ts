@@ -26,12 +26,34 @@ const getTokenExp = (token: string): number | null => {
   }
 }
 
+// 解码 JWT 获取 tenantId（后端在 JWT claim 中写入 tenantId）
+const getTokenTenantId = (token: string): number | null => {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(atob(parts[1]))
+    if (payload.tenantId === undefined || payload.tenantId === null) return null
+    const num = Number(payload.tenantId)
+    return Number.isNaN(num) ? null : num
+  } catch {
+    return null
+  }
+}
+
 export const useUserStore = defineStore('user', () => {
   const token = ref<string>(localStorage.getItem('token') || '')
   const refreshTokenValue = ref<string>(localStorage.getItem('refreshToken') || '')
   const tokenExpireTime = ref<number>(Number(localStorage.getItem('tokenExpireTime')) || 0)
   const userInfo = ref<UserInfo | null>(null)
   const menus = ref<MenuTree[]>([])
+  const tenantId = ref<number | null>(
+    (() => {
+      const stored = localStorage.getItem('tenantId')
+      if (stored === null) return null
+      const num = Number(stored)
+      return Number.isNaN(num) ? null : num
+    })()
+  )
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
   let isRefreshingToken = false
 
@@ -41,6 +63,16 @@ export const useUserStore = defineStore('user', () => {
     const expireAt = Date.now() + ms
     tokenExpireTime.value = expireAt
     localStorage.setItem('tokenExpireTime', String(expireAt))
+  }
+
+  // 设置租户ID（持久化到 localStorage）
+  const setTenantId = (id: number | null) => {
+    tenantId.value = id
+    if (id === null) {
+      localStorage.removeItem('tenantId')
+    } else {
+      localStorage.setItem('tenantId', String(id))
+    }
   }
 
   // 获取 token 过期时间（优先用存储值，后备 JWT 解码）
@@ -116,6 +148,11 @@ export const useUserStore = defineStore('user', () => {
     localStorage.setItem('token', res.accessToken)
     localStorage.setItem('refreshToken', res.refreshToken)
     setTokenExpireTime(res.expiresIn)
+    // 优先用 LoginResponse.tenantId；后备从 JWT claim 解码
+    const resolvedTenantId = res.tenantId !== undefined && res.tenantId !== null
+      ? Number(res.tenantId)
+      : getTokenTenantId(res.accessToken)
+    setTenantId(resolvedTenantId)
     resetExpiredState()
     // 登录成功后启动心跳
     startHeartbeat()
@@ -126,6 +163,11 @@ export const useUserStore = defineStore('user', () => {
   const updateToken = (newToken: string) => {
     token.value = newToken
     localStorage.setItem('token', newToken)
+    // token 刷新后 tenantId 可能变化，重新解码同步
+    const jwtTenantId = getTokenTenantId(newToken)
+    if (jwtTenantId !== null && jwtTenantId !== tenantId.value) {
+      setTenantId(jwtTenantId)
+    }
   }
 
   // 更新 Refresh Token
@@ -138,6 +180,10 @@ export const useUserStore = defineStore('user', () => {
   const getUserInfoAction = async () => {
     const res = await getUserInfo()
     userInfo.value = res
+    // 如果响应中携带 tenantId，回填到 store（后端 UserInfoResponse 未返回时保持 JWT 解码值）
+    if (res.tenantId !== undefined && res.tenantId !== null) {
+      setTenantId(Number(res.tenantId))
+    }
     return res
   }
 
@@ -161,6 +207,7 @@ export const useUserStore = defineStore('user', () => {
       tokenExpireTime.value = 0
       userInfo.value = null
       menus.value = []
+      setTenantId(null)
       localStorage.removeItem('token')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('tokenExpireTime')
@@ -172,6 +219,9 @@ export const useUserStore = defineStore('user', () => {
     if (userInfo.value) {
       userInfo.value = { ...userInfo.value, ...info }
     }
+    if (info.tenantId !== undefined && info.tenantId !== null) {
+      setTenantId(Number(info.tenantId))
+    }
   }
 
   // 如果已有 token，启动心跳
@@ -182,12 +232,15 @@ export const useUserStore = defineStore('user', () => {
   return {
     token,
     refreshTokenValue,
+    tokenExpireTime,
     userInfo,
     menus,
+    tenantId,
     loginAction,
     updateToken,
     updateRefreshToken,
     setTokenExpireTime,
+    setTenantId,
     getUserInfoAction,
     getMenusAction,
     logoutAction,

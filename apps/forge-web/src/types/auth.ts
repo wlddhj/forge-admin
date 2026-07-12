@@ -18,6 +18,7 @@ export interface LoginResponse {
   message?: string
   passwordExpireDays?: number
   passwordExpired?: boolean
+  tenantId?: number | null
 }
 
 // 验证码响应
@@ -43,4 +44,5 @@ export interface UserInfo {
   permissions: string[]
   passwordExpireDays?: number
   passwordExpired?: boolean
+  tenantId?: number | null
 }

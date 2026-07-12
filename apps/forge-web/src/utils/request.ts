@@ -146,6 +146,12 @@ service.interceptors.request.use(
     }
 
     const userStore = useUserStore()
+
+    // 注入租户ID请求头（后端通过 X-Tenant-Id 识别租户上下文）
+    if (userStore.tenantId !== null && userStore.tenantId !== undefined) {
+      config.headers['X-Tenant-Id'] = String(userStore.tenantId)
+    }
+
     if (!userStore.token) return config
 
     // token 未过期，正常添加 header
