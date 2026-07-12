@@ -82,6 +82,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
                 String username = jwtTokenProvider.getUsernameFromToken(token);
                 String tokenId = jwtTokenProvider.getTokenId(token);
+                Long tenantId = jwtTokenProvider.getTenantId(token);
 
                 // 检查会话是否有效（防止强制下线后 Token 仍然可用）
                 Long sessionTTL = loginUserSessionService.getSessionTTL(tokenId);
@@ -95,8 +96,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // 加载用户信息
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                // 设置用户上下文
-                setUserContext(username);
+                // 设置用户上下文（用 JWT 中的 tenantId 按 (tenantId, username) 查询并回填）
+                setUserContext(tenantId, username);
 
                 // 创建认证对象
                 UsernamePasswordAuthenticationToken authentication =
@@ -136,8 +137,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return false;
             }
 
-            // 设置用户上下文
-            setUserContext(clientId);
+            // 设置用户上下文（服务账号无租户概念，tenantId 传 null）
+            setUserContext(null, clientId);
 
             // 加载系统用户的完整权限
             UserDetails userDetails = userDetailsService.loadUserByUsername(clientId);
@@ -179,13 +180,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * 设置用户上下文
      *
      * 借鉴 shi9-boot 设计，加载完整的数据权限信息
+     *
+     * @param tenantId JWT claim 中的 tenantId（旧 token 可能为 null）
+     * @param username 用户名
      */
-    private void setUserContext(String username) {
-        // 1. 查询用户基本信息（使用直接查询避免拦截器）
-        // 认证阶段 UserContext 尚未设置，传入 null 按 username 查找
-        SysUser user = sysUserMapper.selectByUsernameSimple(null, username);
+    private void setUserContext(Long tenantId, String username) {
+        // 1. 查询用户基本信息
+        // JWT 阶段已有 tenantId，按 (tenantId, username) 精确查询；旧 token 无 tenantId 时回退全租户查找
+        SysUser user = sysUserMapper.selectByUsernameSimple(tenantId, username);
         if (user == null) {
-            log.warn("[JWT认证] 用户不存在: {}", username);
+            log.warn("[JWT认证] 用户不存在: tenantId={}, username={}", tenantId, username);
             return;
         }
 
@@ -201,7 +205,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         context.setUsername(user.getUsername());
         context.setNickname(user.getNickname());
         context.setDeptId(user.getDeptId());
-        // context.setDeptName(user.getDeptName()); // SysUser 没有 deptName 字段，如需要可通过 DeptService 查询
+        // 用 user.tenantId 而非 JWT 中的 tenantId（以 DB 为准）
+        context.setTenantId(user.getTenantId());
         context.setAccountType(user.getAccountType());
 
         // 转换角色信息
