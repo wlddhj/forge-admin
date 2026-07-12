@@ -1,5 +1,6 @@
 // 登录请求
 export interface LoginRequest {
+  tenantCode?: string
   username: string
   password: string
   captchaId?: string

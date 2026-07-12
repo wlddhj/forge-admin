@@ -8,6 +8,15 @@
       </div>
 
       <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="login-form">
+        <el-form-item prop="tenantCode">
+          <el-input
+            v-model="loginForm.tenantCode"
+            placeholder="租户标识"
+            prefix-icon="OfficeBuilding"
+            size="large"
+          />
+        </el-form-item>
+
         <el-form-item prop="username">
           <el-input
             v-model="loginForm.username"
@@ -91,6 +100,7 @@ const captchaEnabled = ref(false)
 const captchaImage = ref('')
 
 const loginForm = reactive({
+  tenantCode: '',
   username: 'admin',
   password: '123456',
   captchaId: '',
