@@ -17,7 +17,7 @@ import org.springframework.cache.interceptor.SimpleCacheErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
-import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
@@ -26,6 +26,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 缓存配置
@@ -95,11 +96,11 @@ public class CacheConfig implements CachingConfigurer {
         cacheConfigurations.put("menu", defaultConfig.entryTtl(Duration.ofSeconds(MENU_CACHE_TTL)));
         cacheConfigurations.put("dept", defaultConfig.entryTtl(Duration.ofSeconds(DEPT_CACHE_TTL)));
 
-        return RedisCacheManager.builder(factory)
-                .cacheDefaults(defaultConfig)
-                .withInitialCacheConfigurations(cacheConfigurations)
-                .transactionAware()
-                .build();
+        return new TenantRedisCacheManager(
+                RedisCacheWriter.lockingRedisCacheWriter(factory),
+                defaultConfig,
+                Set.of("dictData", "dictType", "sysConfig", "menu", "dept")  // ignoreCaches
+        );
     }
 
     /**

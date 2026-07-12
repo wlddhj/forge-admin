@@ -20,6 +20,11 @@
             <artifactId>forge-common</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-tenant</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
