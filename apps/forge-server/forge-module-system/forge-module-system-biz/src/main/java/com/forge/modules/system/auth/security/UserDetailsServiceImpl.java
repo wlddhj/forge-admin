@@ -31,7 +31,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         log.info("[登录] 尝试登录用户: {}", username);
 
-        SysUser user = sysUserService.getByUsername(username);
+        // 认证阶段 UserContext 尚未设置，传入 null 按 username 查找
+        // TODO: Task 19 将修改 AuthServiceImpl.login 先查租户再查用户，届时需同步更新
+        SysUser user = sysUserService.getByUsername(null, username);
         if (user == null) {
             log.warn("[登录] 用户不存在: {}", username);
             throw new UsernameNotFoundException("用户不存在: " + username);

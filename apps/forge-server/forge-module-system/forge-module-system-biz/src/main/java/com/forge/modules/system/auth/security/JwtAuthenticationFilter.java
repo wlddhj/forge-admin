@@ -129,7 +129,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             // 尝试用 client_id 作为用户名查找系统用户（服务账号）
-            SysUser user = sysUserMapper.selectByUsernameSimple(clientId);
+            // 服务账号无租户概念，传入 null 按 username 查找
+            SysUser user = sysUserMapper.selectByUsernameSimple(null, clientId);
             if (user == null) {
                 log.warn("[OAuth2认证] 未找到服务账号用户: clientId={}", clientId);
                 return false;
@@ -181,7 +182,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      */
     private void setUserContext(String username) {
         // 1. 查询用户基本信息（使用直接查询避免拦截器）
-        SysUser user = sysUserMapper.selectByUsernameSimple(username);
+        // 认证阶段 UserContext 尚未设置，传入 null 按 username 查找
+        SysUser user = sysUserMapper.selectByUsernameSimple(null, username);
         if (user == null) {
             log.warn("[JWT认证] 用户不存在: {}", username);
             return;

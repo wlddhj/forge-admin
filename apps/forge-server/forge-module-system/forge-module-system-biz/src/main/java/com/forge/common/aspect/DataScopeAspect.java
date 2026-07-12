@@ -40,7 +40,7 @@ public class DataScopeAspect {
             return;
         }
 
-        SysUser user = sysUserService.getByUsername(username);
+        SysUser user = sysUserService.getByUsername(UserContext.get().getTenantId(), username);
         if (user == null) {
             return;
         }

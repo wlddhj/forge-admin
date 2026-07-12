@@ -41,7 +41,7 @@ public class SecurityUtils extends SecurityHelper {
         // 从 UserContext 获取用户名，然后查询完整的用户信息
         String username = getCurrentUsername();
         if (username != null && sysUserService != null) {
-            return sysUserService.getByUsername(username);
+            return sysUserService.getByUsername(UserContext.get().getTenantId(), username);
         }
 
         return null;
