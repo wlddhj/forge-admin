@@ -3,6 +3,7 @@ package com.forge.modules.system.auth.security;
 import com.forge.framework.security.config.JwtProperties;
 import com.forge.common.enumeration.DataScope;
 import com.forge.common.utils.UserContext;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.system.entity.SysRole;
 import com.forge.modules.system.entity.SysUser;
 import com.forge.modules.system.mapper.SysRoleDeptMapper;
@@ -93,7 +94,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
 
-                // 加载用户信息
+                // 先把 tenantId 写入 TenantContextHolder，避免后续 loadUserByUsername / setUserContext 内
+                // 触发的 SQL（如 sys_user_role / sys_role_dept 关联查询）被 TenantLineInterceptor 要求 tenantId
+                if (tenantId != null) {
+                    TenantContextHolder.setTenantId(tenantId);
+                }
+
+                // 加载用户信息（此时 TenantContextHolder 已设置，UserDetailsServiceImpl 可按 (tenantId, username) 查询）
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                 // 设置用户上下文（用 JWT 中的 tenantId 按 (tenantId, username) 查询并回填）
@@ -185,55 +192,66 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * @param username 用户名
      */
     private void setUserContext(Long tenantId, String username) {
-        // 1. 查询用户基本信息
-        // JWT 阶段已有 tenantId，按 (tenantId, username) 精确查询；旧 token 无 tenantId 时回退全租户查找
-        SysUser user = sysUserMapper.selectByUsernameSimple(tenantId, username);
-        if (user == null) {
-            log.warn("[JWT认证] 用户不存在: tenantId={}, username={}", tenantId, username);
-            return;
+        // 先设置 TenantContextHolder，避免后续加载用户角色时
+        // TenantLineInnerInterceptor 查 sys_role_dept / sys_user_role 等关联表报"租户编号不存在"
+        if (tenantId != null) {
+            TenantContextHolder.setTenantId(tenantId);
         }
+        try {
+            // 1. 查询用户基本信息
+            // JWT 阶段已有 tenantId，按 (tenantId, username) 精确查询；旧 token 无 tenantId 时回退全租户查找
+            SysUser user = sysUserMapper.selectByUsernameSimple(tenantId, username);
+            if (user == null) {
+                log.warn("[JWT认证] 用户不存在: tenantId={}, username={}", tenantId, username);
+                return;
+            }
 
-        // 2. 加载角色和数据权限信息
-        List<SysRole> roles = loadUserRolesWithDataScope(user);
+            // 2. 加载角色和数据权限信息
+            List<SysRole> roles = loadUserRolesWithDataScope(user);
 
-        // 3. 计算最大数据权限范围
-        DataScope maxDataScope = calculateMaxDataScope(roles);
+            // 3. 计算最大数据权限范围
+            DataScope maxDataScope = calculateMaxDataScope(roles);
 
-        // 4. 构建 UserContext
-        UserContext context = new UserContext();
-        context.setUserId(user.getId());
-        context.setUsername(user.getUsername());
-        context.setNickname(user.getNickname());
-        context.setDeptId(user.getDeptId());
-        // 用 user.tenantId 而非 JWT 中的 tenantId（以 DB 为准）
-        context.setTenantId(user.getTenantId());
-        context.setAccountType(user.getAccountType());
+            // 4. 构建 UserContext
+            UserContext context = new UserContext();
+            context.setUserId(user.getId());
+            context.setUsername(user.getUsername());
+            context.setNickname(user.getNickname());
+            context.setDeptId(user.getDeptId());
+            // 用 user.tenantId 而非 JWT 中的 tenantId（以 DB 为准）
+            context.setTenantId(user.getTenantId());
+            context.setAccountType(user.getAccountType());
 
-        // 转换角色信息
-        List<UserContext.DataScopeRoleInfo> roleInfos = roles.stream()
-            .map(r -> {
-                UserContext.DataScopeRoleInfo info = new UserContext.DataScopeRoleInfo();
-                info.setRoleId(r.getId());
-                info.setRoleCode(r.getRoleCode());
-                info.setDataScope(DataScope.fromCode(r.getDataScope()));
+            // 转换角色信息
+            List<UserContext.DataScopeRoleInfo> roleInfos = roles.stream()
+                .map(r -> {
+                    UserContext.DataScopeRoleInfo info = new UserContext.DataScopeRoleInfo();
+                    info.setRoleId(r.getId());
+                    info.setRoleCode(r.getRoleCode());
+                    info.setDataScope(DataScope.fromCode(r.getDataScope()));
 
-                // 如果是自定义权限，加载部门列表
-                if (DataScope.CUSTOM.equals(info.getDataScope())) {
-                    List<Long> deptIds = sysRoleDeptMapper.selectDeptIdsByRoleId(r.getId());
-                    info.setDeptIds(deptIds);
-                }
-                return info;
-            })
-            .collect(Collectors.toList());
+                    // 如果是自定义权限，加载部门列表
+                    if (DataScope.CUSTOM.equals(info.getDataScope())) {
+                        List<Long> deptIds = sysRoleDeptMapper.selectDeptIdsByRoleId(r.getId());
+                        info.setDeptIds(deptIds);
+                    }
+                    return info;
+                })
+                .collect(Collectors.toList());
 
-        context.setRoles(roleInfos);
-        context.setMaxDataScope(maxDataScope);
+            context.setRoles(roleInfos);
+            context.setMaxDataScope(maxDataScope);
 
-        // 5. 设置到 ThreadLocal
-        UserContext.set(context);
+            // 5. 设置到 ThreadLocal
+            UserContext.set(context);
 
-        log.debug("[JWT认证] 用户上下文设置完成 - username: {}, maxDataScope: {}, roles: {}",
-            username, maxDataScope, roleInfos.size());
+            log.debug("[JWT认证] 用户上下文设置完成 - username: {}, tenantId: {}, maxDataScope: {}, roles: {}",
+                username, user.getTenantId(), maxDataScope, roleInfos.size());
+        } finally {
+            // clear 由 doFilterInternal 的 finally 处理；这里只对 try 块内的回退场景负责
+            // 如果 user==null 或异常，TenantContextHolder 中的 tenantId 应该被清掉防止泄漏
+            // 但成功路径下需要保留（doFilterInternal 后续 filter 链会用到）
+        }
     }
 
     /**

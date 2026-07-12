@@ -2,6 +2,7 @@ package com.forge.modules.system.auth.security;
 
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.system.entity.SysUser;
 import com.forge.modules.system.service.SysUserService;
 import lombok.RequiredArgsConstructor;
@@ -29,13 +30,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        log.info("[登录] 尝试登录用户: {}", username);
+        // AuthController.login 已在认证前设置 TenantContextHolder.tenantId
+        // 这里取出来按 (tenantId, username) 精确查询
+        Long tenantId = TenantContextHolder.getTenantId();
+        log.info("[登录] 尝试登录租户: {}, 用户: {}", tenantId, username);
 
-        // 认证阶段 UserContext 尚未设置，传入 null 按 username 查找
-        // TODO: Task 19 将修改 AuthServiceImpl.login 先查租户再查用户，届时需同步更新
-        SysUser user = sysUserService.getByUsername(null, username);
+        SysUser user = sysUserService.getByUsername(tenantId, username);
         if (user == null) {
-            log.warn("[登录] 用户不存在: {}", username);
+            log.warn("[登录] 用户不存在: tenantId={}, username={}", tenantId, username);
             throw new UsernameNotFoundException("用户不存在: " + username);
         }
 

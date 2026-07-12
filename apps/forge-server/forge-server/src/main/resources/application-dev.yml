@@ -45,4 +45,4 @@ logging:
 forge:
   security:
     captcha:
-      enabled: true
+      enabled: false  # 临时关闭做集成测试，生产环境必须开启
