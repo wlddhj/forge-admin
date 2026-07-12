@@ -3,7 +3,7 @@ package com.forge.modules.system.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.modules.system.dto.attachment.AttachmentQueryRequest;
 import com.forge.modules.system.dto.attachment.AttachmentResponse;
 import com.forge.modules.system.entity.SysAttachment;

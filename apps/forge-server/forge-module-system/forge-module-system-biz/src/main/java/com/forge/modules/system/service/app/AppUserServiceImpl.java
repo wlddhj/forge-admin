@@ -37,6 +37,14 @@ public class AppUserServiceImpl implements AppUserService {
     }
 
     @Override
+    public AppUser getByTenantIdAndOpenId(Long tenantId, String openId) {
+        return appUserMapper.selectOne(
+                new LambdaQueryWrapper<AppUser>()
+                        .eq(AppUser::getTenantId, tenantId)
+                        .eq(AppUser::getOpenId, openId));
+    }
+
+    @Override
     public AppUser getById(Long id) {
         return appUserMapper.selectById(id);
     }

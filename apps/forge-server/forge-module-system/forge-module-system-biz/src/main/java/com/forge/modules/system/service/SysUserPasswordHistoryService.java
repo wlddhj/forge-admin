@@ -1,6 +1,6 @@
 package com.forge.modules.system.service;
 
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 import com.forge.modules.system.entity.SysUserPasswordHistory;
 
 import java.util.List;

@@ -24,7 +24,7 @@ public class AppAuthController {
     @Operation(summary = "微信登录")
     @PostMapping("/wx-login")
     public Result<AppLoginResponse> wxLogin(@Valid @RequestBody WxLoginRequest request) {
-        return Result.success(appAuthService.wxLogin(request.getCode()));
+        return Result.success(appAuthService.wxLogin(request.getTenantCode(), request.getCode()));
     }
 
     @Operation(summary = "刷新Token")

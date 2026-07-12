@@ -12,6 +12,14 @@ public interface AppUserService {
 
     AppUser getByOpenId(String openId);
 
+    /**
+     * 按 (tenantId, openId) 查询小程序用户
+     *
+     * @param tenantId 租户ID（必传）
+     * @param openId 微信 openId
+     */
+    AppUser getByTenantIdAndOpenId(Long tenantId, String openId);
+
     AppUser getById(Long id);
 
     AppUser createAppUser(AppUser appUser);

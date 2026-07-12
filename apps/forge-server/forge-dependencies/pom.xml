@@ -12,7 +12,7 @@
     <description>BOM - 集中管理所有依赖版本</description>
 
     <properties>
-        <mybatis-plus.version>3.5.7</mybatis-plus.version>
+        <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <mybatis.version>3.5.16</mybatis.version>
         <knife4j.version>4.5.0</knife4j.version>
         <jjwt.version>0.12.3</jjwt.version>
@@ -132,7 +132,11 @@
                 <artifactId>mybatis-plus-annotation</artifactId>
                 <version>${mybatis-plus.version}</version>
             </dependency>
-
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
             <!-- Swagger Annotations (Jakarta) -->
             <dependency>
                 <groupId>io.swagger.core.v3</groupId>

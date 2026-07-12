@@ -1,6 +1,6 @@
 package com.forge.modules.screen.service;
 
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 import com.forge.modules.screen.entity.SysScreenSqlWhitelist;
 
 /**

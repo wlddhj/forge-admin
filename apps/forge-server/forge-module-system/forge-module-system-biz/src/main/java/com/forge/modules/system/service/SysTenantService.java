@@ -1,7 +1,7 @@
 package com.forge.modules.system.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 import com.forge.modules.system.dto.tenant.TenantQueryRequest;
 import com.forge.modules.system.dto.tenant.TenantRequest;
 import com.forge.modules.system.dto.tenant.TenantResponse;
@@ -23,6 +23,14 @@ public interface SysTenantService extends IService<SysTenant> {
      * @return 租户ID，不存在返回 null
      */
     Long getIdByCode(String code);
+
+    /**
+     * 根据租户标识查询租户实体
+     *
+     * @param code 租户标识
+     * @return 租户实体，不存在返回 null
+     */
+    SysTenant getByCode(String code);
 
     /**
      * 获取租户实体

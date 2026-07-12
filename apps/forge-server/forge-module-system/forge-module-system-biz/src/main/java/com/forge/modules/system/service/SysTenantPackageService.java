@@ -1,7 +1,7 @@
 package com.forge.modules.system.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 import com.forge.modules.system.dto.tenant.TenantPackageQueryRequest;
 import com.forge.modules.system.dto.tenant.TenantPackageRequest;
 import com.forge.modules.system.dto.tenant.TenantPackageResponse;

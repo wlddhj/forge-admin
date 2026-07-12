@@ -4,7 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
@@ -45,6 +45,16 @@ public class SysTenantServiceImpl extends ServiceImpl<SysTenantMapper, SysTenant
         }
         // 登录阶段 TenantContextHolder 尚未设置，使用 ignore 跳过租户拦截器
         return runIgnore(() -> sysTenantMapper.selectIdByCode(code));
+    }
+
+    @Override
+    public SysTenant getByCode(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        return runIgnore(() -> sysTenantMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SysTenant>()
+                        .eq(SysTenant::getCode, code)));
     }
 
     @Override

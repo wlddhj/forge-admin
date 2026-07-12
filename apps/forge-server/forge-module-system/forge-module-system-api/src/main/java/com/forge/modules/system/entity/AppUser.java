@@ -18,6 +18,11 @@ public class AppUser {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /**
+     * 租户ID（不同租户的小程序用户隔离）
+     */
+    private Long tenantId;
+
     private String openId;
 
     private String unionId;

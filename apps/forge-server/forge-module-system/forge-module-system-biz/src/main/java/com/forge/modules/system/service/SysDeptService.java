@@ -1,6 +1,6 @@
 package com.forge.modules.system.service;
 
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 import com.forge.modules.system.dto.dept.DeptRequest;
 import com.forge.modules.system.dto.dept.DeptResponse;
 import com.forge.modules.system.dto.dept.DeptTreeResponse;

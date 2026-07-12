@@ -2,10 +2,15 @@ package com.forge.modules.system.service.app;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.forge.common.exception.BusinessException;
+import com.forge.common.response.ResultCode;
 import com.forge.framework.security.config.JwtProperties;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.system.dto.app.AppLoginResponse;
 import com.forge.modules.system.dto.app.AppUserProfileResponse;
 import com.forge.modules.system.entity.AppUser;
+import com.forge.modules.system.entity.SysTenant;
+import com.forge.modules.system.service.SysTenantService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -29,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 public class AppAuthServiceImpl implements AppAuthService {
 
     private final AppUserService appUserService;
+    private final SysTenantService sysTenantService;
     private final JwtProperties jwtProperties;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
@@ -45,39 +51,61 @@ public class AppAuthServiceImpl implements AppAuthService {
     private static final String WX_CODE2SESSION_URL = "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code";
 
     @Override
-    public AppLoginResponse wxLogin(String code) {
-        String openId = getWxOpenId(code);
-        if (openId == null) {
-            throw new RuntimeException("微信登录失败，无法获取用户标识");
+    public AppLoginResponse wxLogin(String tenantCode, String code) {
+        // 1. 解析租户
+        SysTenant tenant = sysTenantService.getByCode(tenantCode);
+        if (tenant == null) {
+            throw new BusinessException(ResultCode.TENANT_NOT_EXISTS);
         }
+        if (tenant.getStatus() == null || tenant.getStatus() != 1) {
+            throw new BusinessException(ResultCode.TENANT_DISABLED);
+        }
+        if (tenant.getExpireTime() != null && tenant.getExpireTime().isBefore(LocalDateTime.now())) {
+            throw new BusinessException(ResultCode.TENANT_EXPIRED);
+        }
+        Long tenantId = tenant.getId();
+        TenantContextHolder.setTenantId(tenantId);
 
-        AppUser user = appUserService.getByOpenId(openId);
-        if (user == null) {
-            user = AppUser.builder()
-                    .openId(openId)
-                    .status(1)
-                    .lastLoginTime(LocalDateTime.now())
+        try {
+            // 2. 换取微信 openId
+            String openId = getWxOpenId(code);
+            if (openId == null) {
+                throw new RuntimeException("微信登录失败，无法获取用户标识");
+            }
+
+            // 3. 按 (tenantId, openId) 查/创建用户
+            AppUser user = appUserService.getByTenantIdAndOpenId(tenantId, openId);
+            if (user == null) {
+                user = AppUser.builder()
+                        .tenantId(tenantId)
+                        .openId(openId)
+                        .status(1)
+                        .lastLoginTime(LocalDateTime.now())
+                        .build();
+                appUserService.createAppUser(user);
+            } else {
+                appUserService.updateLastLoginTime(user.getId());
+            }
+
+            // 4. 签发 JWT（含 tenantId claim）
+            String tokenId = UUID.randomUUID().toString().replace("-", "");
+            String accessToken = generateAppToken(user.getId().toString(), tokenId, tenantId);
+            String refreshToken = generateRefreshToken(user.getId().toString());
+
+            saveAppSession(tokenId, user.getId(), user.getOpenId(), refreshToken);
+
+            AppUserProfileResponse profile = appUserService.getProfile(user.getId());
+            return AppLoginResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .tokenType("Bearer")
+                    .expiresIn(jwtProperties.getExpiration())
+                    .refreshExpiresIn(jwtProperties.getRefreshExpiration())
+                    .userInfo(profile)
                     .build();
-            appUserService.createAppUser(user);
-        } else {
-            appUserService.updateLastLoginTime(user.getId());
+        } finally {
+            TenantContextHolder.clear();
         }
-
-        String tokenId = UUID.randomUUID().toString().replace("-", "");
-        String accessToken = generateAppToken(user.getId().toString(), tokenId);
-        String refreshToken = generateRefreshToken(user.getId().toString());
-
-        saveAppSession(tokenId, user.getId(), user.getOpenId(), refreshToken);
-
-        AppUserProfileResponse profile = appUserService.getProfile(user.getId());
-        return AppLoginResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .tokenType("Bearer")
-                .expiresIn(jwtProperties.getExpiration())
-                .refreshExpiresIn(jwtProperties.getRefreshExpiration())
-                .userInfo(profile)
-                .build();
     }
 
     @Override
@@ -96,21 +124,29 @@ public class AppAuthServiceImpl implements AppAuthService {
             throw new RuntimeException("用户不存在");
         }
 
-        String tokenId = UUID.randomUUID().toString().replace("-", "");
-        String accessToken = generateAppToken(userId.toString(), tokenId);
-        String newRefreshToken = generateRefreshToken(userId.toString());
+        // 设置租户上下文（app_user 已有 tenantId 字段）
+        if (user.getTenantId() != null) {
+            TenantContextHolder.setTenantId(user.getTenantId());
+        }
+        try {
+            String tokenId = UUID.randomUUID().toString().replace("-", "");
+            String accessToken = generateAppToken(userId.toString(), tokenId, user.getTenantId());
+            String newRefreshToken = generateRefreshToken(userId.toString());
 
-        saveAppSession(tokenId, userId, user.getOpenId(), newRefreshToken);
+            saveAppSession(tokenId, userId, user.getOpenId(), newRefreshToken);
 
-        AppUserProfileResponse profile = appUserService.getProfile(userId);
-        return AppLoginResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(newRefreshToken)
-                .tokenType("Bearer")
-                .expiresIn(jwtProperties.getExpiration())
-                .refreshExpiresIn(jwtProperties.getRefreshExpiration())
-                .userInfo(profile)
-                .build();
+            AppUserProfileResponse profile = appUserService.getProfile(userId);
+            return AppLoginResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(newRefreshToken)
+                    .tokenType("Bearer")
+                    .expiresIn(jwtProperties.getExpiration())
+                    .refreshExpiresIn(jwtProperties.getRefreshExpiration())
+                    .userInfo(profile)
+                    .build();
+        } finally {
+            TenantContextHolder.clear();
+        }
     }
 
     @Override
@@ -174,7 +210,7 @@ public class AppAuthServiceImpl implements AppAuthService {
         }
     }
 
-    private String generateAppToken(String subject, String tokenId) {
+    private String generateAppToken(String subject, String tokenId, Long tenantId) {
         SecretKey key = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.getExpiration());
@@ -182,6 +218,7 @@ public class AppAuthServiceImpl implements AppAuthService {
                 .subject(subject)
                 .claim("tokenId", tokenId)
                 .claim("type", "app")
+                .claim("tenantId", tenantId)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
