@@ -28,8 +28,9 @@ describe('auth API', () => {
     }
     vi.mocked(request.post).mockResolvedValue(mockResponse)
 
-    const result = await login({ username: 'admin', password: '123' })
+    const result = await login({ tenantCode: 'default', username: 'admin', password: '123' })
     expect(request.post).toHaveBeenCalledWith('/auth/login', {
+      tenantCode: 'default',
       username: 'admin',
       password: '123'
     })

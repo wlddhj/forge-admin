@@ -71,6 +71,7 @@ const sourceNameMap: Record<string, string> = {
 const sourceName = ref('')
 
 const loginForm = reactive({
+  tenantCode: 'default',
   username: '',
   password: ''
 })

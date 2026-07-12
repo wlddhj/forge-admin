@@ -100,7 +100,7 @@ const captchaEnabled = ref(false)
 const captchaImage = ref('')
 
 const loginForm = reactive({
-  tenantCode: '',
+  tenantCode: 'default',
   username: 'admin',
   password: '123456',
   captchaId: '',
@@ -108,6 +108,7 @@ const loginForm = reactive({
 })
 
 const loginRules: FormRules = {
+  tenantCode: [{ required: true, message: '请输入租户标识', trigger: 'blur' }],
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
   captchaCode: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
