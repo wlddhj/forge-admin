@@ -142,12 +142,13 @@
       </div>
     </el-card>
 
-    <!-- 新增/编辑对话框 -->
-    <el-dialog
+    <!-- 新增/编辑抽屉 -->
+    <el-drawer
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="680px"
+      size="720px"
       :close-on-click-modal="false"
+      destroy-on-close
     >
       <el-form
         ref="formRef"
@@ -200,7 +201,8 @@
               :props="{ label: 'menuName', children: 'children' }"
               node-key="id"
               show-checkbox
-              :default-expand-all="menuExpandAll"
+              :default-expanded-keys="defaultExpandedKeys"
+              :default-checked-keys="defaultCheckedKeys"
               @check="handleMenuCheck"
             />
           </div>
@@ -210,7 +212,7 @@
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
       </template>
-    </el-dialog>
+    </el-drawer>
   </div>
 </template>
 
@@ -281,6 +283,10 @@ const menuTree = ref<MenuTree[]>([])
 const treeRef = ref<any>(null)
 const menuExpandAll = ref(false)
 const menuCheckAll = ref(false)
+// el-tree 仅在初始化时读 default-*-keys，切换值不响应；但仅作为初始展开/选中的载体，
+// 实际切换由 ref 实例方法控制
+const defaultExpandedKeys = ref<number[]>([])
+const defaultCheckedKeys = ref<number[]>([])
 
 // 表单数据
 const formData = reactive<TenantPackageRequest>({
@@ -378,9 +384,11 @@ const handleAdd = async () => {
   dialogTitle.value = '新增套餐'
   resetForm()
   await loadMenuTree()
+  // 抽屉打开前预设默认展开/选中（destroy-on-close 后 tree 会重新渲染读这些 keys）
+  defaultExpandedKeys.value = []
+  defaultCheckedKeys.value = []
+  menuExpandAll.value = false
   dialogVisible.value = true
-  await nextTick()
-  treeRef.value?.setCheckedKeys([])
 }
 
 // 编辑
@@ -394,17 +402,25 @@ const handleEdit = async (row: TenantPackageEntity) => {
   } catch {
     detail = row
   }
+  const ids = detail.menuIds || []
   Object.assign(formData, {
     id: detail.id,
     name: detail.name,
     code: detail.code,
     status: detail.status,
     remark: detail.remark || '',
-    menuIds: detail.menuIds || []
+    menuIds: ids
   })
+  // 默认展开包含选中节点的父链 + 选中节点本身；展开全部由用户点击切换
+  defaultExpandedKeys.value = ids
+  defaultCheckedKeys.value = ids
+  menuExpandAll.value = false
   dialogVisible.value = true
   await nextTick()
-  treeRef.value?.setCheckedKeys(detail.menuIds || [])
+  // setCheckedKeys 用于精确控制半选状态（父子联动）
+  treeRef.value?.setCheckedKeys(ids, false)
+  // 同步全选 checkbox 状态
+  handleMenuCheck()
 }
 
 // 提交
@@ -459,10 +475,13 @@ const handleMenuCheckAll = (val: any) => {
 }
 
 const handleMenuExpandToggle = (expand: boolean) => {
+  if (!treeRef.value) return
   menuExpandAll.value = expand
-  const walk = (nodes: any[]) => {
+  // Element Plus Tree 没有公开 expandAll API，通过 Node.expanded 属性直接控制
+  const walk = (nodes: MenuTree[]) => {
     nodes.forEach((n) => {
-      treeRef.value?.store?.nodesMap?.[n.id]?.toggleExpanded?.(expand)
+      const node = treeRef.value?.getNode(n.id)
+      if (node) node.expanded = expand
       if (n.children?.length) walk(n.children)
     })
   }
