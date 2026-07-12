@@ -69,13 +69,35 @@ forge:
   info:
     base-package: com.forge
   tenant:
-    enable: ${TENANT_ENABLE:true}
+    enable: ${TENANT_ENABLE:true}          # 关闭多租户时改为 false
+    header: X-Tenant-Id
+    # 忽略租户识别的 URL（登录、刷新、租户公开信息等）
+    ignore-urls:
+      - /admin-api/auth/login
+      - /admin-api/auth/refresh
+      - /admin-api/system/tenant/public/**
+      - /app-api/auth/wx-login
     # 跨租户共享的表（不注入 tenant_id）
     ignore-tables:
+      - sys_menu
+      - sys_role
+      - sys_role_menu
+      - sys_dict_type
+      - sys_dict_data
+      - sys_config
+      - sys_file_config
+      - sys_job
       - sys_tenant
       - sys_tenant_package
       - sys_tenant_package_menu
       - sys_tenant_package_role
+    # 跨租户共享的缓存名（key 不加 tenantId 前缀）
+    ignore-caches:
+      - dictData
+      - dictType
+      - sysConfig
+      - menu
+      - dept
   web:
     admin-api:
       prefix: /admin-api
