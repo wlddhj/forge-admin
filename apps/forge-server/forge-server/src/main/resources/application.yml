@@ -75,8 +75,16 @@ forge:
     ignore-urls:
       - /admin-api/auth/login
       - /admin-api/auth/refresh
+      - /admin-api/auth/captcha
+      - /admin-api/auth/captcha-image
       - /admin-api/system/tenant/public/**
       - /app-api/auth/wx-login
+      - /doc.html
+      - /swagger-ui/**
+      - /v3/api-docs/**
+      - /swagger-resources/**
+      - /webjars/**
+      - /error
     # 跨租户共享的表（不注入 tenant_id）
     ignore-tables:
       - sys_menu
