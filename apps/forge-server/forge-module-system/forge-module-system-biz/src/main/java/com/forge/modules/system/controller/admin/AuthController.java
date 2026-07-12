@@ -68,6 +68,7 @@ public class AuthController {
     private final LoginPolicyProperties loginPolicyProperties;
     private final PasswordPolicyProperties passwordPolicyProperties;
     private final SysTenantService sysTenantService;
+    private final com.forge.framework.tenant.config.TenantProperties tenantProperties;
 
         @Operation(summary = "登录")
     @PostMapping("/login")
@@ -91,26 +92,47 @@ public class AuthController {
             return Result.failed("验证码错误或已过期");
         }
 
-        // 2.5 解析租户（tenantCode → tenantId），并设置到上下文
-        Long tenantId = sysTenantService.getIdByCode(request.getTenantCode());
-        if (tenantId == null) {
-            sysLoginLogService.recordLoginLog(username, 0, "租户不存在", loginIp, userAgent);
-            throw new BusinessException(ResultCode.TENANT_NOT_EXISTS);
+        // 2.5 解析租户：启用多租户时按 tenantCode 查；关闭时使用默认租户(id=1, code='default')
+        Long tenantId;
+        SysTenant tenant;
+        if (Boolean.FALSE.equals(tenantProperties.getEnable())) {
+            // 单租户模式：跳过 tenantCode 校验，使用默认租户
+            tenantId = 1L;
+            tenant = sysTenantService.getById(tenantId);
+            if (tenant == null) {
+                // 兜底：若默认租户不存在（迁移未执行），允许继续但 tenant 字段为 null
+                log.warn("[登录] 多租户已关闭且默认租户不存在，按无租户上下文处理");
+                tenantId = null;
+            }
+        } else {
+            // 多租户模式：tenantCode 必填
+            if (request.getTenantCode() == null || request.getTenantCode().isBlank()) {
+                sysLoginLogService.recordLoginLog(username, 0, "租户标识未传递", loginIp, userAgent);
+                throw new BusinessException(ResultCode.VALIDATE_FAILED, "租户标识不能为空");
+            }
+            tenantId = sysTenantService.getIdByCode(request.getTenantCode());
+            if (tenantId == null) {
+                sysLoginLogService.recordLoginLog(username, 0, "租户不存在", loginIp, userAgent);
+                throw new BusinessException(ResultCode.TENANT_NOT_EXISTS);
+            }
+            tenant = sysTenantService.getById(tenantId);
+            if (tenant == null) {
+                sysLoginLogService.recordLoginLog(username, 0, "租户不存在", loginIp, userAgent);
+                throw new BusinessException(ResultCode.TENANT_NOT_EXISTS);
+            }
+            if (tenant.getStatus() != null && tenant.getStatus() != 1) {
+                sysLoginLogService.recordLoginLog(username, 0, "租户已被禁用", loginIp, userAgent);
+                throw new BusinessException(ResultCode.TENANT_DISABLED);
+            }
+            if (tenant.getExpireTime() != null && tenant.getExpireTime().isBefore(java.time.LocalDateTime.now())) {
+                sysLoginLogService.recordLoginLog(username, 0, "租户已过期", loginIp, userAgent);
+                throw new BusinessException(ResultCode.TENANT_EXPIRED);
+            }
         }
-        SysTenant tenant = sysTenantService.getById(tenantId);
-        if (tenant == null) {
-            sysLoginLogService.recordLoginLog(username, 0, "租户不存在", loginIp, userAgent);
-            throw new BusinessException(ResultCode.TENANT_NOT_EXISTS);
+        // 单租户模式下 tenantId 可能为 null（默认租户不存在时），不设置 TenantContextHolder
+        if (tenantId != null) {
+            TenantContextHolder.setTenantId(tenantId);
         }
-        if (tenant.getStatus() != null && tenant.getStatus() != 1) {
-            sysLoginLogService.recordLoginLog(username, 0, "租户已被禁用", loginIp, userAgent);
-            throw new BusinessException(ResultCode.TENANT_DISABLED);
-        }
-        if (tenant.getExpireTime() != null && tenant.getExpireTime().isBefore(java.time.LocalDateTime.now())) {
-            sysLoginLogService.recordLoginLog(username, 0, "租户已过期", loginIp, userAgent);
-            throw new BusinessException(ResultCode.TENANT_EXPIRED);
-        }
-        TenantContextHolder.setTenantId(tenantId);
 
         try {
             // 认证
@@ -225,7 +247,7 @@ public class AuthController {
                     .refreshExpiresIn(jwtProperties.getRefreshExpiration())
                     .tenantId(tenantId)
                     .tenantCode(request.getTenantCode())
-                    .tenantName(tenant.getName())
+                    .tenantName(tenant != null ? tenant.getName() : null)
                     .passwordExpireDays(passwordExpireDays)
                     .passwordExpired(passwordExpired)
                     .build();

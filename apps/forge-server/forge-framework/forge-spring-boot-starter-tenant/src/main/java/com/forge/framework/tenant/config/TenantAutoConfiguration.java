@@ -13,13 +13,11 @@ import com.forge.modules.system.api.tenant.TenantApi;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 
 @AutoConfiguration
 @ConditionalOnProperty(prefix = "forge.tenant", value = "enable", havingValue = "true", matchIfMissing = true)
-@EnableConfigurationProperties(TenantProperties.class)
 public class TenantAutoConfiguration {
 
     @Bean
@@ -47,7 +45,6 @@ public class TenantAutoConfiguration {
     public TenantLineInnerInterceptor tenantLineInnerInterceptor(TenantDatabaseInterceptor handler,
                                                                   MybatisPlusInterceptor interceptor) {
         TenantLineInnerInterceptor inner = new TenantLineInnerInterceptor(handler);
-        // 必须添加到第一个，确保在分页、乐观锁之前
         interceptor.addInnerInterceptor(inner);
         return inner;
     }

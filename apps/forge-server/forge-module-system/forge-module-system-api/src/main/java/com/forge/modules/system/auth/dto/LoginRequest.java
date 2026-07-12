@@ -27,7 +27,6 @@ public class LoginRequest {
     @Schema(description = "验证码", example = "ABCD")
     private String captchaCode;
 
-    @NotBlank(message = "租户标识不能为空")
-    @Schema(description = "租户标识")
+    @Schema(description = "租户标识（启用多租户时必填；关闭时可省略）")
     private String tenantCode;
 }

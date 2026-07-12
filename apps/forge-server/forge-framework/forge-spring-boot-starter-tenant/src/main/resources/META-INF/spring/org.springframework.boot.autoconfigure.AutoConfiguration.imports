@@ -1,1 +1,2 @@
+com.forge.framework.tenant.config.TenantPropertiesConfiguration
 com.forge.framework.tenant.config.TenantAutoConfiguration
