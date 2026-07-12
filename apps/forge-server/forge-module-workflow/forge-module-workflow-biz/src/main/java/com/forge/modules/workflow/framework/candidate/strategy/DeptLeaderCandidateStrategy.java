@@ -1,5 +1,6 @@
 package com.forge.modules.workflow.framework.candidate.strategy;
 
+import com.forge.common.utils.UserContext;
 import com.forge.modules.system.entity.SysDept;
 import com.forge.modules.system.entity.SysUser;
 import com.forge.modules.system.mapper.SysDeptMapper;
@@ -62,7 +63,7 @@ public class DeptLeaderCandidateStrategy implements BpmTaskCandidateStrategy {
                 SysDept dept = sysDeptMapper.selectById(deptId);
                 if (dept != null && dept.getLeader() != null && !dept.getLeader().isEmpty()) {
                     // leader 字段是用户名，需要转换为用户ID
-                    SysUser leaderUser = sysUserMapper.selectByUsernameSimple(dept.getLeader());
+                    SysUser leaderUser = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), dept.getLeader());
                     if (leaderUser != null) {
                         userIds.add(leaderUser.getId());
                     }

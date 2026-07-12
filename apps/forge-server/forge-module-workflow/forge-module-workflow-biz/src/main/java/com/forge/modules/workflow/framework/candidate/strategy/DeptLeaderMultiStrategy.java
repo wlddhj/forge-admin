@@ -1,5 +1,6 @@
 package com.forge.modules.workflow.framework.candidate.strategy;
 
+import com.forge.common.utils.UserContext;
 import com.forge.modules.system.entity.SysDept;
 import com.forge.modules.system.entity.SysUser;
 import com.forge.modules.system.mapper.SysDeptMapper;
@@ -73,7 +74,7 @@ public class DeptLeaderMultiStrategy implements BpmTaskCandidateStrategy {
             if (dept == null) break;
 
             if (dept.getLeader() != null && !dept.getLeader().isEmpty()) {
-                SysUser leaderUser = sysUserMapper.selectByUsernameSimple(dept.getLeader());
+                SysUser leaderUser = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), dept.getLeader());
                 if (leaderUser != null) {
                     leaders.add(leaderUser.getId());
                 }

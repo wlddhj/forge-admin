@@ -1,5 +1,6 @@
 package com.forge.modules.workflow.framework.candidate.strategy;
 
+import com.forge.common.utils.UserContext;
 import com.forge.modules.system.entity.SysDept;
 import com.forge.modules.system.entity.SysUser;
 import com.forge.modules.system.mapper.SysDeptMapper;
@@ -60,7 +61,7 @@ public class StartUserDeptLeaderStrategy implements BpmTaskCandidateStrategy {
                 return Collections.emptySet();
             }
 
-            SysUser leaderUser = sysUserMapper.selectByUsernameSimple(dept.getLeader());
+            SysUser leaderUser = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), dept.getLeader());
             if (leaderUser != null) {
                 log.debug("发起人部门负责人候选人: startUserId={}, deptId={}, leaderId={}",
                         startUserId, startUser.getDeptId(), leaderUser.getId());

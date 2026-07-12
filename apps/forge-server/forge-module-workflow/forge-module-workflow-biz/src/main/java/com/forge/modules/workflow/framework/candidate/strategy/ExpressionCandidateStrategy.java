@@ -1,6 +1,7 @@
 package com.forge.modules.workflow.framework.candidate.strategy;
 
 import cn.hutool.core.util.StrUtil;
+import com.forge.common.utils.UserContext;
 import com.forge.modules.system.entity.SysDept;
 import com.forge.modules.system.entity.SysUser;
 import com.forge.modules.system.mapper.SysDeptMapper;
@@ -195,7 +196,7 @@ public class ExpressionCandidateStrategy implements BpmTaskCandidateStrategy {
             return Collections.emptySet();
         }
 
-        SysUser leaderUser = sysUserMapper.selectByUsernameSimple(dept.getLeader());
+        SysUser leaderUser = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), dept.getLeader());
         if (leaderUser != null) {
             log.debug("表达式解析发起人部门负责人: startUserId={}, deptId={}, leaderId={}",
                     startUserId, startUser.getDeptId(), leaderUser.getId());
@@ -285,7 +286,7 @@ public class ExpressionCandidateStrategy implements BpmTaskCandidateStrategy {
                 return Long.parseLong(strValue);
             }
             // 尝试用户名查找
-            SysUser user = sysUserMapper.selectByUsernameSimple(strValue);
+            SysUser user = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), strValue);
             if (user != null) {
                 return user.getId();
             }
@@ -329,7 +330,7 @@ public class ExpressionCandidateStrategy implements BpmTaskCandidateStrategy {
                         userIds.add(Long.parseLong(trimmedPart));
                     } else {
                         // 尝试用户名查找
-                        SysUser user = sysUserMapper.selectByUsernameSimple(trimmedPart);
+                        SysUser user = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), trimmedPart);
                         if (user != null) {
                             userIds.add(user.getId());
                         }
@@ -339,7 +340,7 @@ public class ExpressionCandidateStrategy implements BpmTaskCandidateStrategy {
             }
 
             // 单个用户名
-            SysUser user = sysUserMapper.selectByUsernameSimple(strValue);
+            SysUser user = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), strValue);
             if (user != null) {
                 return Set.of(user.getId());
             }
