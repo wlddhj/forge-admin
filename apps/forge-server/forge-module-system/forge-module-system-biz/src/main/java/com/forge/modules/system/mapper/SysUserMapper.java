@@ -24,8 +24,8 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
      * 直接查询用户（不触发数据权限拦截器）
      * 用于 JWT 认证等场景，避免循环依赖
      */
-    @Select("SELECT * FROM sys_user WHERE username = #{username} AND deleted = 0 LIMIT 1")
-    SysUser selectByUsernameSimple(@Param("username") String username);
+    @Select("SELECT * FROM sys_user WHERE tenant_id = #{tenantId} AND username = #{username} AND deleted = 0 LIMIT 1")
+    SysUser selectByUsernameSimple(@Param("tenantId") Long tenantId, @Param("username") String username);
 
     /**
      * 根据用户ID查询角色编码列表

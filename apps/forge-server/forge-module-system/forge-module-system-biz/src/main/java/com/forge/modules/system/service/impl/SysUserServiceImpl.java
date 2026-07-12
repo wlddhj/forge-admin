@@ -65,10 +65,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     @DataPermission(enable = false) // 禁用数据权限，避免循环依赖
-    public SysUser getByUsername(String username) {
-        log.info("[用户查询] 查询用户名: '{}', 长度: {}", username, username != null ? username.length() : 0);
+    public SysUser getByUsername(Long tenantId, String username) {
+        log.info("[用户查询] 查询租户: {}, 用户名: '{}'", tenantId, username);
         // 使用原生 SQL 查询，避免 MyBatis-Plus 拦截器问题
-        SysUser user = sysUserMapper.selectByUsernameSimple(username);
+        SysUser user = sysUserMapper.selectByUsernameSimple(tenantId, username);
         log.info("[用户查询] 查询结果: {}", user != null ? "找到用户: " + user.getUsername() + " (ID: " + user.getId() + ")" : "用户不存在");
         if (user != null) {
             // 加载用户角色并设置 deptIds
@@ -144,8 +144,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void addUser(UserRequest request) {
-        // 检查用户名是否存在
-        if (getByUsername(request.getUsername()) != null) {
+        // 检查用户名是否存在（同一租户下不能重复）
+        if (getByUsername(UserContext.get().getTenantId(), request.getUsername()) != null) {
             throw new BusinessException(ResultCode.USER_EXISTS);
         }
 
@@ -170,9 +170,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
 
-        // 检查用户名是否重复
+        // 检查用户名是否重复（同一租户下不能重复）
         if (!user.getUsername().equals(request.getUsername())) {
-            if (getByUsername(request.getUsername()) != null) {
+            if (getByUsername(UserContext.get().getTenantId(), request.getUsername()) != null) {
                 throw new BusinessException(ResultCode.USER_EXISTS);
             }
         }
@@ -328,7 +328,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             return null;
         }
         String username = authentication.getName();
-        return getByUsername(username);
+        Long tenantId = UserContext.get().getTenantId();
+        return getByUsername(tenantId, username);
     }
 
     @Override
@@ -445,8 +446,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                     continue;
                 }
 
-                // 判断用户名是否已存在
-                SysUser existUser = sysUserMapper.selectByUsernameSimple(importUser.getUsername());
+                // 判断用户名是否已存在（同一租户下不能重复）
+                SysUser existUser = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), importUser.getUsername());
 
                 if (existUser == null) {
                     // 新增用户
