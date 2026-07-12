@@ -2,7 +2,10 @@ package com.forge.modules.system.controller.admin;
 
 import com.forge.framework.web.annotation.RateLimiter;
 import com.forge.framework.security.config.JwtProperties;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
+import com.forge.common.exception.BusinessException;
 import com.forge.common.response.Result;
+import com.forge.common.response.ResultCode;
 import com.forge.common.utils.IpUtils;
 import com.forge.common.utils.UserContext;
 import com.forge.modules.system.auth.dto.LoginRequest;
@@ -17,10 +20,12 @@ import com.forge.modules.system.auth.properties.LoginPolicyProperties;
 import com.forge.modules.system.auth.properties.PasswordPolicyProperties;
 import com.forge.modules.system.dto.menu.MenuTreeResponse;
 import com.forge.modules.system.dto.online.LoginUserSession;
+import com.forge.modules.system.entity.SysTenant;
 import com.forge.modules.system.entity.SysUser;
 import com.forge.modules.system.service.LoginUserSessionService;
 import com.forge.modules.system.service.SysLoginLogService;
 import com.forge.modules.system.service.SysMenuService;
+import com.forge.modules.system.service.SysTenantService;
 import com.forge.modules.system.service.SysUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -62,6 +67,7 @@ public class AuthController {
     private final LoginAttemptService loginAttemptService;
     private final LoginPolicyProperties loginPolicyProperties;
     private final PasswordPolicyProperties passwordPolicyProperties;
+    private final SysTenantService sysTenantService;
 
         @Operation(summary = "登录")
     @PostMapping("/login")
@@ -85,14 +91,35 @@ public class AuthController {
             return Result.failed("验证码错误或已过期");
         }
 
+        // 2.5 解析租户（tenantCode → tenantId），并设置到上下文
+        Long tenantId = sysTenantService.getIdByCode(request.getTenantCode());
+        if (tenantId == null) {
+            sysLoginLogService.recordLoginLog(username, 0, "租户不存在", loginIp, userAgent);
+            throw new BusinessException(ResultCode.TENANT_NOT_EXISTS);
+        }
+        SysTenant tenant = sysTenantService.getById(tenantId);
+        if (tenant == null) {
+            sysLoginLogService.recordLoginLog(username, 0, "租户不存在", loginIp, userAgent);
+            throw new BusinessException(ResultCode.TENANT_NOT_EXISTS);
+        }
+        if (tenant.getStatus() != null && tenant.getStatus() != 1) {
+            sysLoginLogService.recordLoginLog(username, 0, "租户已被禁用", loginIp, userAgent);
+            throw new BusinessException(ResultCode.TENANT_DISABLED);
+        }
+        if (tenant.getExpireTime() != null && tenant.getExpireTime().isBefore(java.time.LocalDateTime.now())) {
+            sysLoginLogService.recordLoginLog(username, 0, "租户已过期", loginIp, userAgent);
+            throw new BusinessException(ResultCode.TENANT_EXPIRED);
+        }
+        TenantContextHolder.setTenantId(tenantId);
+
         try {
             // 认证
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, request.getPassword())
             );
 
-            // 获取用户信息
-            SysUser user = sysUserService.getByUsername(username);
+            // 获取用户信息（按 tenantId + username 联合过滤）
+            SysUser user = sysUserService.getByUsername(tenantId, username);
             if (user == null) {
                 loginAttemptService.recordFailure(username);
                 return Result.failed("用户不存在");
@@ -111,8 +138,8 @@ public class AuthController {
             // 生成 tokenId
             String tokenId = java.util.UUID.randomUUID().toString().replace("-", "");
 
-            // 生成 Access Token（使用相同的 tokenId 关联会话）
-            String accessToken = jwtTokenProvider.generateTokenWithId(username, tokenId);
+            // 生成 Access Token（使用相同的 tokenId 关联会话，写入 tenantId claim）
+            String accessToken = jwtTokenProvider.generateTokenWithId(username, tokenId, tenantId);
 
             // 生成 Refresh Token
             String refreshToken = refreshTokenService.generateRefreshToken(
@@ -236,7 +263,7 @@ public class AuthController {
             return Result.failed("未登录");
         }
 
-        SysUser user = sysUserService.getByUsername(username);
+        SysUser user = sysUserService.getByUsername(UserContext.get().getTenantId(), username);
         if (user == null) {
             return Result.failed("用户不存在");
         }
@@ -314,6 +341,7 @@ public class AuthController {
 
         // 清除用户上下文
         UserContext.clear();
+        TenantContextHolder.clear();
 
         // 清除 access_token Cookie
         Cookie tokenCookie = new Cookie("access_token", null);
@@ -373,7 +401,7 @@ public class AuthController {
         );
 
         // 保存新会话到 Redis
-        SysUser user = sysUserService.getByUsername(username);
+        SysUser user = sysUserService.getByUsername(UserContext.get().getTenantId(), username);
         if (user != null) {
             String loginIp = IpUtils.getClientIp(httpRequest);
             String userAgent = httpRequest.getHeader("User-Agent");

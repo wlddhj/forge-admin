@@ -53,6 +53,11 @@ public enum ResultCode {
     ATTACHMENT_TYPE_INVALID(5801, "文件类型不支持"),
     ATTACHMENT_SIZE_EXCEEDED(5802, "文件大小超过限制"),
 
+    // 租户相关 59xx
+    TENANT_NOT_EXISTS(5901, "租户不存在"),
+    TENANT_DISABLED(5902, "租户已被禁用"),
+    TENANT_EXPIRED(5903, "租户已过期"),
+
     // 用户状态相关
     USER_DEACTIVATED(5106, "账号已注销");
 

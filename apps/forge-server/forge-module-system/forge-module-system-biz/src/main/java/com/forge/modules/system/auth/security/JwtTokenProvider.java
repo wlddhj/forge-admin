@@ -46,16 +46,52 @@ public class JwtTokenProvider {
      * @return JWT Token
      */
     public String generateTokenWithId(String username, String tokenId) {
+        return generateTokenWithId(username, tokenId, null);
+    }
+
+    /**
+     * 生成包含 tokenId 与 tenantId 的 Token
+     *
+     * @param username 用户名
+     * @param tokenId  Token ID（用于关联 Refresh Token）
+     * @param tenantId 租户ID（可空）
+     * @return JWT Token
+     */
+    public String generateTokenWithId(String username, String tokenId, Long tenantId) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtProperties.getExpiration());
 
         return Jwts.builder()
                 .subject(username)
                 .claim("tokenId", tokenId)
+                .claim("tenantId", tenantId)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
                 .compact();
+    }
+
+    /**
+     * 从 Token 中获取租户ID
+     */
+    public Long getTenantId(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        Object value = claims.get("tenantId");
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number n) {
+            return n.longValue();
+        }
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**
