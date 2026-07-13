@@ -51,9 +51,11 @@ public interface SysTenantService extends IService<SysTenant> {
     TenantResponse getTenantDetail(Long id);
 
     /**
-     * 新增租户
+     * 新增租户（自动生成租户管理员账号并关联 TENANT_ADMIN 角色）
+     *
+     * @return 包含初始管理员明文密码（仅本次返回）
      */
-    void addTenant(TenantRequest request);
+    TenantResponse addTenant(TenantRequest request);
 
     /**
      * 更新租户

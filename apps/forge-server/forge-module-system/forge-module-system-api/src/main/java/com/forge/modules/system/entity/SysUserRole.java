@@ -16,6 +16,11 @@ public class SysUserRole {
     private Long id;
 
     /**
+     * 租户ID（多租户隔离）
+     */
+    private Long tenantId;
+
+    /**
      * 用户ID
      */
     private Long userId;

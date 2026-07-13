@@ -49,4 +49,10 @@ public class TenantResponse {
 
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
+
+    /**
+     * 仅 addTenant 首次返回的初始管理员密码（前端展示给用户保存，之后不再返回）
+     */
+    @Schema(description = "初始管理员密码（仅创建时返回）")
+    private String initialAdminPassword;
 }

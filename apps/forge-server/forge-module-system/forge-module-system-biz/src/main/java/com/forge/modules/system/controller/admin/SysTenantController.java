@@ -49,18 +49,18 @@ public class SysTenantController {
         return Result.success(tenantService.getTenantDetail(id));
     }
 
-    @Operation(summary = "新增租户")
+    @Operation(summary = "新增租户（自动生成租户管理员账号）")
     @PostMapping
     @PreAuthorize("hasAuthority('system:tenant:add')")
     @OperationLog(title = "租户管理", businessType = OperationLog.BusinessType.INSERT)
-    public Result<Void> add(@Valid @RequestBody TenantRequest request) {
+    public Result<TenantResponse> add(@Valid @RequestBody TenantRequest request) {
         TenantContextHolder.setIgnore(true);
         try {
-            tenantService.addTenant(request);
+            // 返回包含初始管理员明文密码（前端务必展示并提示用户保存）
+            return Result.success(tenantService.addTenant(request));
         } finally {
             TenantContextHolder.setIgnore(false);
         }
-        return Result.success();
     }
 
     @Operation(summary = "更新租户")

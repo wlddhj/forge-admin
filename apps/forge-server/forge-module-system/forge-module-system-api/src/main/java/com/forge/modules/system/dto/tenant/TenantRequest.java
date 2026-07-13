@@ -46,4 +46,11 @@ public class TenantRequest {
 
     @Schema(description = "备注")
     private String remark;
+
+    @Schema(description = "租户管理员用户名（不传则默认 'admin'）")
+    private String adminUsername;
+
+    @Schema(description = "租户管理员初始密码（不传则自动生成16位强密码，首次登录强制改密）",
+            hidden = true)  // 不暴露给前端（前端用自动生成的）
+    private String adminPassword;
 }
