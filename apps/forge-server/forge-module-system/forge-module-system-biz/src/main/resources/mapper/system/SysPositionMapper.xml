@@ -7,6 +7,7 @@
         FROM sys_position p
         LEFT JOIN sys_dept d ON p.dept_id = d.id
         <where>
+            AND p.deleted = 0
             <if test="positionName != null and positionName != ''">
                 AND p.position_name LIKE CONCAT('%', #{positionName}, '%')
             </if>
@@ -28,6 +29,7 @@
         FROM sys_position p
         LEFT JOIN sys_dept d ON p.dept_id = d.id
         <where>
+            AND p.deleted = 0
             <if test="positionName != null and positionName != ''">
                 AND p.position_name LIKE CONCAT('%', #{positionName}, '%')
             </if>
