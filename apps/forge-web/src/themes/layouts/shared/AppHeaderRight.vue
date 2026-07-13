@@ -44,6 +44,9 @@
       </el-icon>
     </el-tooltip>
 
+    <!-- 租户切换（仅平台超管可见） -->
+    <TenantSwitcher />
+
     <!-- 设置按钮 -->
     <el-tooltip content="页面设置" placement="bottom">
       <el-icon class="header-icon" @click="pageConfigStore.openSettings()">
@@ -81,6 +84,7 @@ import { useResponsive } from '@/composables/useResponsive'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { resetRouter } from '@/router'
 import { Sunny, Moon, Setting, Bell, ArrowDown } from '@element-plus/icons-vue'
+import TenantSwitcher from '@/themes/layouts/shared/TenantSwitcher.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
