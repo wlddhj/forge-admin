@@ -94,25 +94,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
 
-                // 先把 tenantId 写入 TenantContextHolder，避免后续 loadUserByUsername / setUserContext 内
-                // 触发的 SQL（如 sys_user_role / sys_role_dept 关联查询）被 TenantLineInterceptor 要求 tenantId
-                if (tenantId != null) {
-                    TenantContextHolder.setTenantId(tenantId);
+                // 加载用户阶段：临时把 TenantContextHolder 切到 JWT.tenantId
+                // 平台超管切换租户场景：header.tenantId=目标租户，但 JWT.tenantId=admin 所属租户
+                // 查用户/角色必须按 JWT.tenantId，否则会查到目标租户的同名用户或越权
+                // 加载完成后恢复 header 中的 tenantId，让后续业务 SQL 按目标租户过滤
+                Long prevTenantId = TenantContextHolder.getTenantId();
+                try {
+                    if (tenantId != null) {
+                        TenantContextHolder.setTenantId(tenantId);
+                    }
+
+                    // 加载用户信息（按 JWT.tenantId 精确查询）
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+                    // 设置用户上下文
+                    setUserContext(tenantId, username);
+
+                    // 创建认证对象
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                    // 设置到 SecurityContext
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                } finally {
+                    // 恢复 TenantContextHolder 为 header 值，让后续业务 SQL 按 header 过滤
+                    if (prevTenantId != null) {
+                        TenantContextHolder.setTenantId(prevTenantId);
+                    }
                 }
-
-                // 加载用户信息（此时 TenantContextHolder 已设置，UserDetailsServiceImpl 可按 (tenantId, username) 查询）
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
-                // 设置用户上下文（用 JWT 中的 tenantId 按 (tenantId, username) 查询并回填）
-                setUserContext(tenantId, username);
-
-                // 创建认证对象
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                // 设置到 SecurityContext
-                SecurityContextHolder.getContext().setAuthentication(authentication);
             } else if (StringUtils.hasText(token)) {
                 // 系统 JWT 验证失败，尝试作为 OAuth2 token 处理
                 handleOAuth2Token(token);

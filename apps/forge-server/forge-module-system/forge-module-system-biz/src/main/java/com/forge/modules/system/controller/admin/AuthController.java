@@ -288,14 +288,31 @@ public class AuthController {
             return Result.failed("未登录");
         }
 
-        SysUser user = sysUserService.getByUsername(UserContext.get().getTenantId(), username);
+        // 平台超管切换租户时，UserContext.tenantId(JWT) 与 TenantContextHolder.tenantId(header) 可能不同
+        // 用 setIgnore 跳过 MP 自动注入，selectByUsernameSimple 自带 tenant_id 条件按 UserContext.tenantId 查
+        Long userTenantId = UserContext.get().getTenantId();
+        boolean prevIgnore = TenantContextHolder.isIgnore();
+        TenantContextHolder.setIgnore(true);
+        SysUser user;
+        try {
+            user = sysUserService.getByUsername(userTenantId, username);
+        } finally {
+            TenantContextHolder.setIgnore(prevIgnore);
+        }
         if (user == null) {
             return Result.failed("用户不存在");
         }
 
-        // 获取角色和权限
-        List<String> roles = sysUserService.getUserRoleCodes(user.getId());
-        List<String> permissions = sysUserService.getUserPermissionCodes(user.getId());
+        // 获取角色和权限（同样需要 setIgnore，因为这些查询按 user.tenantId 而非 header.tenantId）
+        List<String> roles;
+        List<String> permissions;
+        try {
+            TenantContextHolder.setIgnore(true);
+            roles = sysUserService.getUserRoleCodes(user.getId());
+            permissions = sysUserService.getUserPermissionCodes(user.getId());
+        } finally {
+            TenantContextHolder.setIgnore(prevIgnore);
+        }
 
         // 密码过期检查
         Integer passwordExpireDays = null;
