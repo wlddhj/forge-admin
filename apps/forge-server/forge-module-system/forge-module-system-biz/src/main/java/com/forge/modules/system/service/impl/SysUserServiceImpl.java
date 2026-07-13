@@ -145,7 +145,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Transactional(rollbackFor = Exception.class)
     public void addUser(UserRequest request) {
         // 检查用户名是否存在（同一租户下不能重复）
-        if (getByUsername(UserContext.get().getTenantId(), request.getUsername()) != null) {
+        Long tenantId = UserContext.get().getTenantId();
+        if (tenantId == null) {
+            throw new BusinessException("无法识别当前租户，请检查请求头 X-Tenant-Id");
+        }
+        if (getByUsername(tenantId, request.getUsername()) != null) {
             throw new BusinessException(ResultCode.USER_EXISTS);
         }
 
@@ -153,6 +157,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         BeanUtil.copyProperties(request, user, "password", "roleIds", "positionIds");
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setStatus(1);
+        // tenantId 由 MyBatis Plus TenantLineInnerInterceptor 从 TenantContextHolder 自动注入
         save(user);
 
         // 保存用户角色关联
@@ -170,9 +175,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
 
+        // 跨租户防护：不允许跨租户修改用户（仅平台超管可跨租户）
+        Long currentTenantId = UserContext.get().getTenantId();
+        UserContext currentUser = UserContext.get();
+        boolean isPlatformAdmin = currentUser != null && currentUser.isPlatformAdmin();
+        if (currentTenantId != null && !isPlatformAdmin
+                && !currentTenantId.equals(user.getTenantId())) {
+            throw new BusinessException("无权修改其他租户的用户");
+        }
+
         // 检查用户名是否重复（同一租户下不能重复）
         if (!user.getUsername().equals(request.getUsername())) {
-            if (getByUsername(UserContext.get().getTenantId(), request.getUsername()) != null) {
+            if (getByUsername(user.getTenantId(), request.getUsername()) != null) {
                 throw new BusinessException(ResultCode.USER_EXISTS);
             }
         }
@@ -181,6 +195,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (StrUtil.isNotBlank(request.getPassword())) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
+        // 保留原 tenantId，防止通过 updateUser 迁移用户到其他租户
+        user.setTenantId(user.getTenantId());
         updateById(user);
 
         // 更新用户角色关联

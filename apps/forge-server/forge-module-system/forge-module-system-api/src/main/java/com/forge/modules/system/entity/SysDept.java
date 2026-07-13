@@ -18,6 +18,11 @@ public class SysDept {
     private Long id;
 
     /**
+     * 租户ID（多租户隔离）
+     */
+    private Long tenantId;
+
+    /**
      * 部门名称
      */
     private String deptName;

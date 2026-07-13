@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
+import com.forge.common.utils.UserContext;
 import com.forge.modules.system.dto.dept.DeptRequest;
 import com.forge.modules.system.dto.dept.DeptResponse;
 import com.forge.modules.system.dto.dept.DeptTreeResponse;
@@ -66,13 +67,25 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
     @Override
     @CacheEvict(value = "dept", allEntries = true)
     public void addDept(DeptRequest request) {
+        // 校验请求租户有效（避免 TenantContextHolder 为 null 时 MP 注入失败）
+        Long tenantId = UserContext.get().getTenantId();
+        if (tenantId == null) {
+            throw new BusinessException("无法识别当前租户，请检查请求头 X-Tenant-Id");
+        }
+
         SysDept dept = new SysDept();
         BeanUtil.copyProperties(request, dept);
+
+        // tenantId 由 MyBatis Plus TenantLineInnerInterceptor 从 TenantContextHolder 自动注入
 
         // 设置祖级列表
         if (request.getParentId() != null && request.getParentId() > 0) {
             SysDept parent = getById(request.getParentId());
             if (parent != null) {
+                // 校验父部门同租户，防止跨租户挂部门
+                if (!tenantId.equals(parent.getTenantId())) {
+                    throw new BusinessException("父部门不属于当前租户");
+                }
                 dept.setAncestors(parent.getAncestors() + "," + parent.getId());
             }
         } else {
@@ -90,7 +103,16 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
         if (dept == null) {
             throw new BusinessException("部门不存在");
         }
+        // 跨租户防护：普通用户只能改本租户部门；平台超管（accountType==2）可改任意租户
+        Long currentTenantId = UserContext.get().getTenantId();
+        UserContext currentUser = UserContext.get();
+        boolean isPlatformAdmin = currentUser != null && currentUser.isPlatformAdmin();
+        if (!isPlatformAdmin && currentTenantId != null
+                && !currentTenantId.equals(dept.getTenantId())) {
+            throw new BusinessException("无权修改其他租户的部门");
+        }
         BeanUtil.copyProperties(request, dept);
+        // tenantId 不允许通过 updateDept 变更（防止跨租户迁移），由 TenantLineInnerInterceptor 自动保持
         updateById(dept);
     }
 
