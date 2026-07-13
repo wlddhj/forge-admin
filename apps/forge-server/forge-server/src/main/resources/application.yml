@@ -85,6 +85,14 @@ forge:
       - /swagger-resources/**
       - /webjars/**
       - /error
+      # WebSocket 端点（SockJS 信息接口、STOMP 子协议、xhr 流传输），不会自动带 X-Tenant-Id
+      - /ws
+      - /ws/**
+      - /ws/info
+      - /ws/*/websocket
+      - /ws/*/xhr
+      - /ws/*/xhr_send
+      - /ws/*/xhr_streaming
     # 跨租户共享的表（不注入 tenant_id）
     ignore-tables:
       - sys_menu
