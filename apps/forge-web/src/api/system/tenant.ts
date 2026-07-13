@@ -17,6 +17,10 @@ export interface TenantEntity {
   website: string | null
   remark: string | null
   createTime: string
+  /**
+   * 初始管理员密码（仅 addTenant 首次响应返回，前端必须展示给用户保存）
+   */
+  initialAdminPassword?: string
 }
 
 /**
@@ -45,6 +49,8 @@ export interface TenantRequest {
   expireTime?: string | null
   website?: string
   remark?: string
+  /** 租户管理员用户名（不传则默认 admin） */
+  adminUsername?: string
 }
 
 // API 对象
@@ -57,7 +63,8 @@ export const tenantApi = {
   get: (id: number) => request.get<TenantEntity>(`/system/tenant/${id}`),
 
   // 新增租户
-  add: (data: TenantRequest) => request.post('/system/tenant', data),
+  add: (data: TenantRequest) =>
+    request.post<TenantEntity>('/system/tenant', data).then(res => res.data),
 
   // 更新租户
   update: (data: TenantRequest) => request.put('/system/tenant', data),

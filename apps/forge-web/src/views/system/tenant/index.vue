@@ -239,6 +239,14 @@
             maxlength="200"
           />
         </el-form-item>
+        <el-form-item v-if="!formData.id" label="管理员账号">
+          <el-input
+            v-model="formData.adminUsername"
+            placeholder="租户管理员用户名（默认 admin）"
+            maxlength="20"
+          />
+          <div class="form-tip">创建后系统会自动生成初始密码，请妥善保存。</div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -323,7 +331,8 @@ const formData = reactive<TenantRequest>({
   packageId: null,
   expireTime: null,
   website: '',
-  remark: ''
+  remark: '',
+  adminUsername: 'admin'
 })
 
 // 表单校验规则
@@ -437,15 +446,48 @@ const handleSubmit = async () => {
     if (formData.id) {
       await updateTenant(formData)
       ElMessage.success('更新成功')
+      dialogVisible.value = false
     } else {
-      await addTenant(formData)
-      ElMessage.success('新增成功')
+      const result = await addTenant(formData)
+      dialogVisible.value = false
+      // 创建成功：弹窗展示初始凭据，提示用户保存
+      showInitialCredentials(result)
     }
-    dialogVisible.value = false
     getList()
   } finally {
     submitLoading.value = false
   }
+}
+
+// 展示初始管理员凭据
+const showInitialCredentials = (tenant: TenantEntity) => {
+  const adminUsername = formData.adminUsername || 'admin'
+  const password = tenant.initialAdminPassword || '(未返回)'
+  ElMessageBox.alert(
+    `<div style="line-height: 1.8">
+      <p style="margin: 0 0 8px 0">租户「<strong>${tenant.name}</strong>」已创建，请保存以下管理员凭据：</p>
+      <p style="margin: 4px 0">租户标识：<code style="background: #f5f7fa; padding: 2px 6px; border-radius: 3px;">${tenant.code}</code></p>
+      <p style="margin: 4px 0">登录账号：<code style="background: #f5f7fa; padding: 2px 6px; border-radius: 3px;">${adminUsername}</code></p>
+      <p style="margin: 4px 0">初始密码：<code style="background: #fff7e6; padding: 2px 6px; border-radius: 3px; color: #d46b08; font-weight: 600;">${password}</code></p>
+      <p style="margin: 12px 0 0 0; color: #d46b08; font-size: 13px;">
+        ⚠ 该密码仅本次显示，无法再次查看。租户管理员首次登录需强制修改密码。
+      </p>
+    </div>`,
+    '租户创建成功',
+    {
+      dangerouslyUseHTMLString: true,
+      confirmButtonText: '我已保存',
+      type: 'success',
+      callback: () => {
+        // 自动复制密码到剪贴板
+        if (navigator.clipboard && password !== '(未返回)') {
+          navigator.clipboard.writeText(password).then(() => {
+            ElMessage.success('初始密码已复制到剪贴板')
+          }).catch(() => {})
+        }
+      }
+    }
+  )
 }
 
 // 删除
@@ -484,6 +526,13 @@ onMounted(() => {
 
   .search-card {
     margin-bottom: 15px;
+  }
+
+  .form-tip {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    margin-top: 4px;
+    line-height: 1.5;
   }
 
   .table-card {
