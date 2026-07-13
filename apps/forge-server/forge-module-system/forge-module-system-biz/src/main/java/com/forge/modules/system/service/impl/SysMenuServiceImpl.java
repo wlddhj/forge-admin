@@ -56,6 +56,12 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     @Override
     @Cacheable(value = "menu", key = "'user:' + #userId", unless = "#result == null || #result.isEmpty()")
     public List<MenuTreeResponse> getUserMenuTree(Long userId) {
+        // TODO 多租户套餐未接入：当前 SQL 仅按 sys_user_role + sys_role_menu 过滤，
+        //   未与 sys_tenant_package_menu 取交集。
+        //   结果：租户管理员可给本租户用户分配任意菜单（含其他租户/平台超管菜单），
+        //   sys_tenant_package_menu 表形同虚设。
+        //   设计目标：可见菜单 = 角色菜单 ∩ 租户套餐菜单
+        //   待业务需要时改造：selectMenusByUserId SQL JOIN sys_tenant + sys_tenant_package_menu
         List<SysMenu> menus = sysMenuMapper.selectMenusByUserId(userId);
         return buildMenuTree(menus, 0L, true);
     }

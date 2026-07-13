@@ -67,6 +67,10 @@ public class TenantApiImpl implements TenantApi {
 
     @Override
     public List<Long> getTenantPackageMenuIds(Long tenantId) {
+        // TODO 此接口当前无任何调用方。sys_tenant_package_menu 表的套餐-菜单关联
+        //   仅由 SysTenantPackageController 维护，未接入实际鉴权链路。
+        //   设计目标：登录后菜单加载时调用本接口，与角色菜单取交集。
+        //   详见 SysMenuServiceImpl.getUserMenuTree 的 TODO 注释。
         if (tenantId == null) {
             return Collections.emptyList();
         }
