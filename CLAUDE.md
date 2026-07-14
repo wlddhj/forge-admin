@@ -417,7 +417,6 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 | 租户管理前端 | `apps/forge-web/src/views/system/tenant/index.vue` |
 | 租户切换器（前端） | `apps/forge-web/src/themes/layouts/shared/TenantSwitcher.vue` |
 | 多租户 SQL 迁移 | `apps/forge-server/docs/manual-migrations/` |
-| 多租户设计文档 | `docs/superpowers/specs/2026-07-11-multi-tenant-design.md` |
 
 ## 命名约定
 
