@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import NProgress from 'nprogress'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
+import { useTenantConfig } from '@/composables/useTenantConfig'
 import { CONSTANT_ROUTES, WHITE_LIST } from './constants'
 
 // 静态路由（不需要权限）
@@ -46,6 +47,10 @@ router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
   const permissionStore = usePermissionStore()
   const token = userStore.token
+
+  // 等待多租户配置加载完成,避免登录页/头部切换器在 enabled 未确定时渲染
+  const { loadIfNeeded } = useTenantConfig()
+  await loadIfNeeded()
 
   if (token) {
     if (to.path === '/login') {

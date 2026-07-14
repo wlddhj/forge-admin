@@ -4,19 +4,15 @@ import request from '@/utils/request'
 /**
  * 多租户配置 composable
  *
- * 前端启动时调用 /system/tenant/public/enabled 一次,缓存到本地 storage
+ * 前端启动时调用 /system/tenant/public/enabled 一次
  * 登录页、头部 TenantSwitcher 等根据此值决定是否显示租户相关 UI
+ *
+ * 注意:不缓存到 localStorage,因为后端配置可能动态变化
+ *      接口未返回前 enabled 默认 false(避免关闭多租户时短暂闪现)
  */
-const TENANT_ENABLED_KEY = 'forge.tenant.enabled'
 
-function readCached(): boolean {
-  const v = localStorage.getItem(TENANT_ENABLED_KEY)
-  if (v === 'true') return true
-  if (v === 'false') return false
-  return true
-}
-
-const _enabled = ref<boolean>(readCached())
+// 全局单例,默认 false(关闭多租户场景的安全默认值)
+const _enabled = ref<boolean>(false)
 let _loaded = false
 let _loading: Promise<void> | null = null
 
@@ -27,11 +23,9 @@ export function useTenantConfig() {
     _loading = (async () => {
       try {
         const res: any = await request.get('/system/tenant/public/enabled')
-        const enabled = !!res?.data?.enabled
-        _enabled.value = enabled
-        localStorage.setItem(TENANT_ENABLED_KEY, String(enabled))
+        _enabled.value = !!res?.data?.enabled
       } catch {
-        // 失败用本地缓存值
+        // 失败保持 false
       } finally {
         _loaded = true
         _loading = null
@@ -42,6 +36,7 @@ export function useTenantConfig() {
 
   return {
     enabled: _enabled,
+    loadIfNeeded,
     refresh: async () => {
       _loaded = false
       await loadIfNeeded()
