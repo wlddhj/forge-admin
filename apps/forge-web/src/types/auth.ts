@@ -50,4 +50,8 @@ export interface UserInfo {
   passwordExpireDays?: number
   passwordExpired?: boolean
   tenantId?: number | null
+  /**
+   * 账户类型：0=普通用户 1=管理员 2=平台超管
+   */
+  accountType?: number
 }

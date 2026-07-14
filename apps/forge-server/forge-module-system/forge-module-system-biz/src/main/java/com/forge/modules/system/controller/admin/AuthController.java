@@ -341,6 +341,8 @@ public class AuthController {
                 .permissions(permissions)
                 .passwordExpireDays(passwordExpireDays)
                 .passwordExpired(passwordExpired)
+                .tenantId(user.getTenantId())
+                .accountType(user.getAccountType())
                 .build();
 
         return Result.success(response);

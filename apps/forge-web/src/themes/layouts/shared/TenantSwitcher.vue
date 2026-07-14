@@ -31,7 +31,6 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { OfficeBuilding, ArrowDown, Check } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { hasPermission } from '@/directives/permission'
 import { useTenantConfig } from '@/composables/useTenantConfig'
 import request from '@/utils/request'
 
@@ -45,9 +44,10 @@ const userStore = useUserStore()
 const tenants = ref<TenantSimple[]>([])
 const { enabled: tenantConfigEnabled } = useTenantConfig()
 
-// 平台超管才显示（拥有 system:tenant:list 权限 + 后端多租户已启用）
+// 仅"多租户启用 + 平台超管(accountType=2)"才显示切换器
+// 用 accountType 判断而非权限码,避免角色误分配租户管理权限后普通管理员也看到切换器
 const visible = computed(() =>
-  tenantConfigEnabled.value && hasPermission('system:tenant:list')
+  tenantConfigEnabled.value && userStore.userInfo?.accountType === 2
 )
 
 const currentTenantName = computed(() => {

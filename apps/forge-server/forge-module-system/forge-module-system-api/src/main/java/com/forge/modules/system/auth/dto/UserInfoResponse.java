@@ -67,4 +67,14 @@ public class UserInfoResponse {
      * 密码是否已过期
      */
     private Boolean passwordExpired;
+
+    /**
+     * 租户ID
+     */
+    private Long tenantId;
+
+    /**
+     * 账户类型：0=普通用户 1=管理员 2=平台超管
+     */
+    private Integer accountType;
 }
