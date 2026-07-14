@@ -8,7 +8,7 @@
       </div>
 
       <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="login-form">
-        <el-form-item v-if="tenantConfig.enabled" prop="tenantCode">
+        <el-form-item v-if="tenantConfig" prop="tenantCode">
           <el-input
             v-model="loginForm.tenantCode"
             placeholder="租户标识"
@@ -102,7 +102,6 @@ const captchaImage = ref('')
 
 // 多租户配置（关闭多租户时不显示租户输入框）
 const { enabled: tenantConfig } = useTenantConfig()
-
 const loginForm = reactive({
   tenantCode: 'default',
   username: 'admin',

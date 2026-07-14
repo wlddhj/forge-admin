@@ -23,7 +23,7 @@ export function useTenantConfig() {
     _loading = (async () => {
       try {
         const res: any = await request.get('/system/tenant/public/enabled')
-        _enabled.value = !!res?.data?.enabled
+        _enabled.value = res?.data?.enabled
       } catch {
         // 失败保持 false
       } finally {
