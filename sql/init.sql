@@ -796,6 +796,128 @@ INSERT INTO `sys_notice` (`id`, `notice_title`, `notice_type`, `notice_content`,
 INSERT INTO `sys_key_sequence` (`key_category`, `key_prefix`, `date_rule`, `seq_length`, `remark`) VALUES
 ('process_no', 'WF', 'yyyyMMdd', 4, '流程编号');
 
+-- ========================================
+-- 多租户支持（V2026071101 起）
+-- ========================================
+
+-- 1) 业务表加 tenant_id 字段（跨租户共享表不加：sys_menu/sys_dict_*/sys_config/sys_file_config/sys_job/sys_role/sys_role_menu）
+ALTER TABLE `sys_attachment`        ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_dept`              ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_login_log`         ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_notice`            ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_operation_log`     ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_position`          ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_role_dept`         ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID';
+ALTER TABLE `sys_user`              ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_user_role`         ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID';
+ALTER TABLE `sys_user_position`     ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID';
+ALTER TABLE `sys_user_password_history` ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID';
+ALTER TABLE `sys_job_log`           ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID';
+ALTER TABLE `app_user`              ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);
+
+-- 2) sys_user 用户名唯一索引改为 (tenant_id, username) 联合唯一（允许跨租户重名）
+ALTER TABLE `sys_user` DROP INDEX `uk_username`;
+ALTER TABLE `sys_user` ADD UNIQUE INDEX `uk_tenant_username` (`tenant_id`, `username`);
+
+-- 3) 创建租户主表与套餐表
+CREATE TABLE IF NOT EXISTS `sys_tenant` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL COMMENT '租户名称',
+  `code` varchar(32) NOT NULL COMMENT '租户标识（登录用）',
+  `contact_name` varchar(32) DEFAULT NULL,
+  `contact_phone` varchar(32) DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT 1 COMMENT '0禁用 1启用',
+  `package_id` bigint DEFAULT NULL COMMENT '套餐ID',
+  `expire_time` datetime DEFAULT NULL COMMENT '到期时间（NULL=永久）',
+  `website` varchar(255) DEFAULT NULL,
+  `remark` varchar(500) DEFAULT NULL,
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `create_by` bigint DEFAULT NULL,
+  `update_by` bigint DEFAULT NULL,
+  `deleted` tinyint NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_code` (`code`),
+  KEY `idx_status` (`status`),
+  KEY `idx_package` (`package_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='租户表';
+
+CREATE TABLE IF NOT EXISTS `sys_tenant_package` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL,
+  `code` varchar(32) NOT NULL,
+  `status` tinyint NOT NULL DEFAULT 1,
+  `remark` varchar(500) DEFAULT NULL,
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `create_by` bigint DEFAULT NULL,
+  `update_by` bigint DEFAULT NULL,
+  `deleted` tinyint NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='租户套餐';
+
+CREATE TABLE IF NOT EXISTS `sys_tenant_package_menu` (
+  `tenant_package_id` bigint NOT NULL,
+  `menu_id` bigint NOT NULL,
+  PRIMARY KEY (`tenant_package_id`, `menu_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='套餐-菜单关联';
+
+CREATE TABLE IF NOT EXISTS `sys_tenant_package_role` (
+  `tenant_package_id` bigint NOT NULL,
+  `role_id` bigint NOT NULL,
+  PRIMARY KEY (`tenant_package_id`, `role_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='套餐-角色关联';
+
+-- 4) 初始化默认租户、默认套餐
+INSERT IGNORE INTO `sys_tenant` (`id`, `name`, `code`, `status`, `package_id`, `remark`) VALUES
+(1, '默认租户', 'default', 1, 1, '系统初始租户');
+
+INSERT IGNORE INTO `sys_tenant_package` (`id`, `name`, `code`, `status`, `remark`) VALUES
+(1, '默认套餐', 'default', 1, '包含全部菜单');
+
+-- 5) admin 升级为平台超管（account_type=2 跨租户）
+UPDATE `sys_user` SET `account_type` = 2 WHERE `username` = 'admin' AND `tenant_id` = 1;
+
+-- 6) 新增"租户管理员"角色（区别于平台超管，仅管本租户）
+INSERT IGNORE INTO `sys_role` (`id`, `role_name`, `role_code`, `description`, `is_fixed`, `status`, `data_scope`, `sort_order`) VALUES
+(3, '租户管理员', 'TENANT_ADMIN', '本租户内全权管理（用户/部门/角色等）', 1, 1, '1', 50);
+
+-- 7) 给"租户管理员"分配菜单（排除平台专属：菜单管理/OAuth2/App用户/租户管理）
+INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
+SELECT 3, `id` FROM `sys_menu`
+WHERE `id` NOT IN (4, 70, 246, 2400, 2401, 2402, 2403, 2404, 2405, 2410, 2411, 2412, 2413, 2414)
+  AND `deleted` = 0;
+
+-- 8) 默认套餐绑定所有菜单
+INSERT IGNORE INTO `sys_tenant_package_menu` (`tenant_package_id`, `menu_id`)
+SELECT 1, `id` FROM `sys_menu` WHERE `deleted` = 0;
+
+-- 9) 新增"租户管理"菜单（顶级在系统管理目录下，仅平台超管可见）
+INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`, `create_time`, `update_time`, `deleted`) VALUES
+(2400, '租户管理', 1, '/system/tenant',           'system/tenant/index',           'OfficeBuilding', 90, 1, 'system:tenant:list',           1, 1, 0, 0, NOW(), NOW(), 0),
+(2410, '套餐管理', 1, '/system/tenant-package',   'system/tenant-package/index',   'Box',            91, 1, 'system:tenant-package:list',  1, 1, 0, 0, NOW(), NOW(), 0);
+
+INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `menu_type`, `permission`, `sort_order`, `status`, `visible`, `is_external`, `is_cached`, `create_time`, `update_time`, `deleted`) VALUES
+(2401, '租户查询', 2400, 2, 'system:tenant:query',           1, 1, 1, 0, 0, NOW(), NOW(), 0),
+(2402, '租户新增', 2400, 2, 'system:tenant:add',             2, 1, 1, 0, 0, NOW(), NOW(), 0),
+(2403, '租户修改', 2400, 2, 'system:tenant:update',          3, 1, 1, 0, 0, NOW(), NOW(), 0),
+(2404, '租户删除', 2400, 2, 'system:tenant:delete',          4, 1, 1, 0, 0, NOW(), NOW(), 0),
+(2405, '状态切换', 2400, 2, 'system:tenant:status',          5, 1, 1, 0, 0, NOW(), NOW(), 0),
+(2411, '套餐查询', 2410, 2, 'system:tenant-package:query',   1, 1, 1, 0, 0, NOW(), NOW(), 0),
+(2412, '套餐新增', 2410, 2, 'system:tenant-package:add',     2, 1, 1, 0, 0, NOW(), NOW(), 0),
+(2413, '套餐修改', 2410, 2, 'system:tenant-package:update',  3, 1, 1, 0, 0, NOW(), NOW(), 0),
+(2414, '套餐删除', 2410, 2, 'system:tenant-package:delete',  4, 1, 1, 0, 0, NOW(), NOW(), 0);
+
+-- 10) 把租户管理菜单分配给超级管理员（id=1）和默认套餐
+INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
+(1, 2400), (1, 2401), (1, 2402), (1, 2403), (1, 2404), (1, 2405),
+(1, 2410), (1, 2411), (1, 2412), (1, 2413), (1, 2414);
+
+INSERT IGNORE INTO `sys_tenant_package_menu` (`tenant_package_id`, `menu_id`) VALUES
+(1, 2400), (1, 2401), (1, 2402), (1, 2403), (1, 2404), (1, 2405),
+(1, 2410), (1, 2411), (1, 2412), (1, 2413), (1, 2414);
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- 完成
