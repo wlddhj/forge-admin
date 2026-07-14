@@ -363,6 +363,8 @@ const handleAdd = () => {
     phone: '', email: '', sortOrder: 0, status: 1
   })
   dialogVisible.value = true
+  // 弹窗打开时主动拉取部门树（避免平台超管切换租户后看到旧租户数据）
+  getDeptTreeData()
 }
 
 const handleAddChild = (row: DeptTree) => {
@@ -374,6 +376,8 @@ const handleAddChild = (row: DeptTree) => {
     phone: '', email: '', sortOrder: 0, status: 1
   })
   dialogVisible.value = true
+  // 同上：每次弹窗都重新拉取部门树
+  getDeptTreeData()
 }
 
 const handleEdit = (row: DeptTree) => {
@@ -385,6 +389,8 @@ const handleEdit = (row: DeptTree) => {
     phone: row.phone, email: row.email, sortOrder: row.sortOrder, status: row.status
   })
   dialogVisible.value = true
+  // 同上：编辑也要重新拉（可能权限变化）
+  getDeptTreeData()
 }
 
 const handleSubmit = async () => {

@@ -1,5 +1,6 @@
 package com.forge.framework.mybatis.handler;
 
+import cn.hutool.core.util.StrUtil;
 import com.forge.framework.mybatis.holder.CryptoUtilsHolder;
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.JdbcType;
@@ -24,8 +25,12 @@ public class EncryptTypeHandler extends BaseTypeHandler<String> {
     @Override
     public void setNonNullParameter(PreparedStatement ps, int i, String parameter, JdbcType jdbcType) throws SQLException {
         // 写入时加密
-        String encrypted = CryptoUtilsHolder.get().encrypt(parameter);
-        ps.setString(i, encrypted);
+        if (StrUtil.isBlank(parameter)) {
+            ps.setString(i, "");
+        } else {
+            String encrypted = CryptoUtilsHolder.get().encrypt(parameter);
+            ps.setString(i, encrypted);
+        }
     }
 
     @Override

@@ -47,7 +47,8 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
     }
 
     @Override
-    @Cacheable(value = "dept", key = "'tree'", unless = "#result == null || #result.isEmpty()")
+    // 不缓存:平台超管切换租户场景下,所有租户共享 key="'tree'" 会导致数据串台
+    // 每次按当前 TenantContextHolder.tenantId 查(MP 自动注入)
     public List<DeptTreeResponse> getDeptTree() {
         List<SysDept> depts = lambdaQuery()
                 .eq(SysDept::getStatus, 1)
