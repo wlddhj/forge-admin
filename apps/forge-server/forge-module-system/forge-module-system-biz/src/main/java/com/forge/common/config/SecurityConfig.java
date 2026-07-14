@@ -57,6 +57,8 @@ public class SecurityConfig {
             "/admin-api/.well-known/**",
             "/admin-api/userinfo",
             "/admin-api/connect/logout",
+            // 多租户配置（公共接口，前端登录页/头部启动时调用）
+            "/admin-api/system/tenant/public/**",
             "/admin-api/ai/chat/message/stream",  // SSE 流式接口（权限在 Controller 中已检查）
             "/admin-api/screen/code/**",  // 大屏运行时接口（公开/授权校验在 Controller/Service 完成）
     };

@@ -8,7 +8,7 @@
       </div>
 
       <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="login-form">
-        <el-form-item prop="tenantCode">
+        <el-form-item v-if="tenantConfig.enabled" prop="tenantCode">
           <el-input
             v-model="loginForm.tenantCode"
             placeholder="租户标识"
@@ -84,6 +84,7 @@ import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getCaptcha } from '@/api/auth'
+import { useTenantConfig } from '@/composables/useTenantConfig'
 import SocialLogin from './components/social-login.vue'
 
 const appTitle = import.meta.env.VITE_APP_TITLE
@@ -98,6 +99,9 @@ const loading = ref(false)
 // 验证码状态
 const captchaEnabled = ref(false)
 const captchaImage = ref('')
+
+// 多租户配置（关闭多租户时不显示租户输入框）
+const { enabled: tenantConfig } = useTenantConfig()
 
 const loginForm = reactive({
   tenantCode: 'default',

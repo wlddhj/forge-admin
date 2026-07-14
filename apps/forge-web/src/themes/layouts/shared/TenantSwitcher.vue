@@ -32,6 +32,7 @@ import { ElMessageBox, ElMessage } from 'element-plus'
 import { OfficeBuilding, ArrowDown, Check } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { hasPermission } from '@/directives/permission'
+import { useTenantConfig } from '@/composables/useTenantConfig'
 import request from '@/utils/request'
 
 interface TenantSimple {
@@ -42,9 +43,12 @@ interface TenantSimple {
 
 const userStore = useUserStore()
 const tenants = ref<TenantSimple[]>([])
+const { enabled: tenantConfigEnabled } = useTenantConfig()
 
-// 平台超管才显示（拥有 system:tenant:list 权限）
-const visible = computed(() => hasPermission('system:tenant:list'))
+// 平台超管才显示（拥有 system:tenant:list 权限 + 后端多租户已启用）
+const visible = computed(() =>
+  tenantConfigEnabled.value && hasPermission('system:tenant:list')
+)
 
 const currentTenantName = computed(() => {
   const t = tenants.value.find((x) => x.id === userStore.tenantId)
@@ -56,7 +60,8 @@ const loadTenants = async () => {
   try {
     // 平台超管拉租户列表（不分页，最多 100 个）
     const res: any = await request.get('/system/tenant/list', { params: { pageNum: 1, pageSize: 100 } })
-    tenants.value = (res?.list || []).map((t: any) => ({
+    console.log('租户列表', res)
+    tenants.value = (res?.data.list || []).map((t: any) => ({
       id: Number(t.id),
       name: t.name,
       code: t.code

@@ -78,6 +78,7 @@ forge:
       - /admin-api/auth/captcha
       - /admin-api/auth/captcha-image
       - /admin-api/system/tenant/public/**
+      - /admin-api/system/public/**
       - /app-api/auth/wx-login
       - /doc.html
       - /swagger-ui/**

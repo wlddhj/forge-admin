@@ -3,6 +3,7 @@ package com.forge.modules.system.controller.admin;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
+import com.forge.framework.tenant.config.TenantProperties;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.framework.web.annotation.OperationLog;
 import com.forge.modules.system.dto.tenant.TenantQueryRequest;
@@ -17,6 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 租户管理控制器
@@ -30,6 +32,13 @@ import java.util.List;
 public class SysTenantController {
 
     private final SysTenantService tenantService;
+    private final TenantProperties tenantProperties;
+
+    @Operation(summary = "查询多租户是否启用（公共接口，前端登录页与头部用）")
+    @GetMapping("/public/enabled")
+    public Result<Map<String, Object>> publicEnabled() {
+        return Result.success(Map.of("enabled", Boolean.TRUE.equals(tenantProperties.getEnable())));
+    }
 
     @Operation(summary = "分页查询租户")
     @GetMapping("/list")
