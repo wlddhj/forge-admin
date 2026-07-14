@@ -629,7 +629,6 @@ docker-compose up -d
 **多租户部署：**
 - 全新初始化：直接执行 `sql/init.sql`（已集成多租户结构）
 - 已有数据库升级：按顺序执行 `apps/forge-server/docs/manual-migrations/V2026071101~V2026071301*.sql`（共 7 个增量脚本）
-- 设计文档：`docs/superpowers/specs/2026-07-11-multi-tenant-design.md`
 
 ## 数据库迁移
 
