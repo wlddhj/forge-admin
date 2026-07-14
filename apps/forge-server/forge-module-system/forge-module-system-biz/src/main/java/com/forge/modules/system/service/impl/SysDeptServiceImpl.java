@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
 import com.forge.common.utils.UserContext;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.system.dto.dept.DeptRequest;
 import com.forge.modules.system.dto.dept.DeptResponse;
 import com.forge.modules.system.dto.dept.DeptTreeResponse;
@@ -67,8 +68,10 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
     @Override
     @CacheEvict(value = "dept", allEntries = true)
     public void addDept(DeptRequest request) {
-        // 校验请求租户有效（避免 TenantContextHolder 为 null 时 MP 注入失败）
-        Long tenantId = UserContext.get().getTenantId();
+        // 使用 TenantContextHolder.tenantId（来自 X-Tenant-Id header，当前操作租户）
+        // 而不是 UserContext.tenantId（来自 JWT，平台超管切换租户时仍是其所属租户）
+        // 平台超管切换租户场景: header=acme(3), JWT=default(1), 用 header 才能正确操作 acme
+        Long tenantId = TenantContextHolder.getTenantId();
         if (tenantId == null) {
             throw new BusinessException("无法识别当前租户，请检查请求头 X-Tenant-Id");
         }
@@ -80,14 +83,17 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
 
         // 设置祖级列表
         if (request.getParentId() != null && request.getParentId() > 0) {
+            // getById 触发 MP 拦截器按 TenantContextHolder.tenantId(=header) 注入 sys_dept.tenant_id
+            // 跨租户场景 parent 查不到 (null),必须拒绝,避免 parent_id 指向其他租户数据
             SysDept parent = getById(request.getParentId());
-            if (parent != null) {
-                // 校验父部门同租户，防止跨租户挂部门
-                if (!tenantId.equals(parent.getTenantId())) {
-                    throw new BusinessException("父部门不属于当前租户");
-                }
-                dept.setAncestors(parent.getAncestors() + "," + parent.getId());
+            if (parent == null) {
+                throw new BusinessException("父部门不存在或不属于当前租户");
             }
+            // 校验父部门属于当前操作租户（不是平台超管个人所属租户）
+            if (!tenantId.equals(parent.getTenantId())) {
+                throw new BusinessException("父部门不属于当前租户");
+            }
+            dept.setAncestors(parent.getAncestors() + "," + parent.getId());
         } else {
             dept.setParentId(0L);
             dept.setAncestors("0");
