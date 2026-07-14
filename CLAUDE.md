@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-forge-admin 是一个基于 RBAC 的企业级后台管理系统，采用 monorepo 结构，前后端分离，已通过 GB/T 22239-2019 二级等保技术改造。
+forge-admin 是一个基于 RBAC 的企业级后台管理系统，采用 monorepo 结构，前后端分离，已通过 GB/T 22239-2019 二级等保技术改造。支持 B2B SaaS 多租户架构（可配置开关）。
 
 **技术栈：**
 - 前端：Vue 3.4 + TypeScript + Element Plus + vxe-table + Pinia + Vite 5
-- 后端：Spring Boot 3.2.0 + MyBatis Plus 3.5.7 + MySQL + Redis + FlowLong 1.2.5
+- 后端：Spring Boot 3.2.0 + MyBatis Plus 3.5.17 + MySQL + Redis + FlowLong 1.2.5
 - 认证：JWT Token（访问令牌 2 小时，刷新令牌 7 天）
+- 多租户：MyBatis Plus `TenantLineInnerInterceptor`（SQL 自动注入 `WHERE tenant_id = ?`）
 - 加密：AES-256-GCM（敏感字段）+ BCrypt（密码哈希）+ jasypt（配置文件）
 - API 文档：Knife4j，地址 `/api/doc.html`
 
@@ -67,6 +68,7 @@ apps/forge-server/
 │   ├── forge-spring-boot-starter-mybatis/   # MyBatis Plus 配置、数据权限框架
 │   ├── forge-spring-boot-starter-redis/     # Redis 配置、缓存配置
 │   ├── forge-spring-boot-starter-security/  # JWT、OAuth2、JustAuth 社交登录
+│   ├── forge-spring-boot-starter-tenant/    # 多租户（TenantLineInnerInterceptor + 过滤器 + AOP）
 │   └── forge-spring-boot-starter-web/       # Jackson、全局异常、WebSocket、Excel、限流
 ├── forge-module-system/             # 系统模块
 │   ├── forge-module-system-api/     # 实体 + DTO（82 个文件）
@@ -130,6 +132,59 @@ starter-redis ← forge-common
 - `@Valid @RequestBody` — Jakarta DTO 校验
 - `@EncryptField` — 敏感字段自动加解密（starter-mybatis 中，配合 `EncryptTypeHandler`，使用 AES-256-GCM）
 - `@XssIgnore` — 跳过 XSS 过滤（starter-web 中，标注在 Controller 方法或类上）
+- `@TenantIgnore` — 跳过租户隔离（starter-tenant 中，标注在 Service 方法上，跨租户访问用）
+
+### 多租户架构
+
+基于 MyBatis Plus 官方 `TenantLineInnerInterceptor` 实现，可配置开关 `forge.tenant.enable`（默认 true）。
+
+**核心组件（`forge-spring-boot-starter-tenant`）：**
+- `TenantContextHolder` — ThreadLocal 持有当前请求租户 ID（TransmittableThreadLocal 支持线程池透传）
+- `TenantContextWebFilter` — 从请求头 `X-Tenant-Id` 解析到 TenantContextHolder（order=0）
+- `TenantSecurityWebFilter` — 越权检测 + 租户合法性校验（status=1、未过期），平台超管绕过
+- `TenantDatabaseInterceptor` — 实现 `TenantLineHandler`，SQL 自动注入 `WHERE tenant_id = ?` / INSERT 自动填 tenantId
+- `TenantIgnoreAspect` — `@TenantIgnore` 注解 AOP，方法级跳过租户过滤
+- `TenantRedisCacheManager` — 缓存 key 自动加 `tenantId:` 前缀（除 `ignore-caches` 白名单）
+- `TenantJobAspect` — Quartz 跨线程透传 TenantContextHolder
+
+**过滤器链顺序：**
+```
+HTTP → TenantContextWebFilter (order=0) → Spring Security (JwtAuthenticationFilter)
+     → TenantSecurityWebFilter (order=1) → Controller → Service → Mapper
+     → TenantLineInnerInterceptor（自动注入 WHERE tenant_id = ?）
+```
+
+**业务约定：**
+- 平台超管 `sys_user.account_type = 2`：跨租户访问，可通过 `X-Tenant-Id` header 切换操作租户上下文
+- 普通用户 `account_type = 0/1`：JWT.tenantId 必须与 X-Tenant-Id 一致，否则 403
+- 用户单租户制：`sys_user.tenant_id` 字段固定，username 联合唯一索引 `(tenant_id, username)` 允许跨租户重名
+- 跨租户共享表（不加 tenant_id）：sys_menu / sys_role / sys_role_menu / sys_dict_*  / sys_config / sys_file_config / sys_job / sys_tenant*
+
+**配置开关：**
+```yaml
+forge:
+  tenant:
+    enable: ${TENANT_ENABLE:true}      # false 时所有多租户能力关闭，回归单租户行为
+    header: X-Tenant-Id
+    ignore-urls:                        # 不需要 X-Tenant-Id 的 URL（登录、验证码、WebSocket 等）
+      - /admin-api/auth/login
+      - /admin-api/system/tenant/public/**
+      - /ws/**
+    ignore-tables:                      # 跨租户共享表
+      - sys_menu
+      - sys_role
+      - sys_role_menu
+    ignore-caches:                      # 跨租户共享缓存（key 不加前缀）
+      - dictData
+      - sysConfig
+```
+
+**关键约束（业务开发必读）：**
+- 新增业务表加 `tenant_id BIGINT NOT NULL DEFAULT 1` 列 + 索引
+- 业务实体继承 `TenantBaseDO`（带 tenantId 字段）
+- 手写 SQL（XML mapper）的 `<where>` 块首行必须显式 `AND xxx.deleted = 0`，`@TableLogic` 不自动注入
+- Service 写入操作不需要显式 setTenantId，由 TenantLineInnerInterceptor 自动注入
+- 平台超管切换租户场景：业务层用 `TenantContextHolder.getTenantId()`（header 值），不是 `UserContext.getTenantId()`（JWT 值）
 
 ### 等保二级安全改造
 
@@ -356,6 +411,13 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 | 大屏 SQL 安全层 | `apps/forge-server/forge-module-screen/forge-module-screen-biz/.../safety/` |
 | 大屏数据源列表（前端） | `apps/forge-web/src/views/screen/data-source/index.vue` |
 | 大屏 SQL 白名单（前端） | `apps/forge-web/src/views/screen/sql-whitelist/index.vue` |
+| 多租户 Starter | `apps/forge-server/forge-framework/forge-spring-boot-starter-tenant/` |
+| 多租户配置入口 | `apps/forge-server/forge-framework/forge-spring-boot-starter-tenant/.../config/TenantProperties.java` |
+| 租户管理 Controller | `apps/forge-server/forge-module-system/forge-module-system-biz/.../controller/admin/SysTenantController.java` |
+| 租户管理前端 | `apps/forge-web/src/views/system/tenant/index.vue` |
+| 租户切换器（前端） | `apps/forge-web/src/themes/layouts/shared/TenantSwitcher.vue` |
+| 多租户 SQL 迁移 | `apps/forge-server/docs/manual-migrations/` |
+| 多租户设计文档 | `docs/superpowers/specs/2026-07-11-multi-tenant-design.md` |
 
 ## 命名约定
 
@@ -386,7 +448,7 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 
 ### 业务模块权限前缀
 
-用户 `system:user`、角色 `system:role`、菜单 `system:menu`、部门 `system:dept`、岗位 `system:position`、字典 `system:dict`、参数配置 `system:config`、文件配置 `system:file-config`、通知公告 `system:notice`、在线用户 `monitor:online`、登录日志 `monitor:login-log`、操作日志 `monitor:operation-log`、定时任务 `monitor:job`、流程分类 `workflow:category`、流程定义 `workflow:process`、流程实例 `workflow:instance`、待办任务 `workflow:task`、表单管理 `workflow:form`、模型管理 `workflow:model`、表达式管理 `workflow:expression`、监听器管理 `workflow:listener`、AI文档 `ai:document`
+用户 `system:user`、角色 `system:role`、菜单 `system:menu`、部门 `system:dept`、岗位 `system:position`、字典 `system:dict`、参数配置 `system:config`、文件配置 `system:file-config`、通知公告 `system:notice`、在线用户 `monitor:online`、登录日志 `monitor:login-log`、操作日志 `monitor:operation-log`、定时任务 `monitor:job`、流程分类 `workflow:category`、流程定义 `workflow:process`、流程实例 `workflow:instance`、待办任务 `workflow:task`、表单管理 `workflow:form`、模型管理 `workflow:model`、表达式管理 `workflow:expression`、监听器管理 `workflow:listener`、AI文档 `ai:document`、**租户管理 `system:tenant`**、**套餐管理 `system:tenant-package`**
 
 ## 代码模板
 
