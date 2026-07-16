@@ -11,7 +11,7 @@
           <el-input v-model="queryParams.nickname" placeholder="请输入昵称" clearable />
         </el-form-item>
         <el-form-item label="手机号">
-          <el-input v-model="queryParams.phone" placeholder="请输入手机号" clearable />
+          <el-input v-model="queryParams.phone" placeholder="请输入手机号后4位" clearable />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 120px">
@@ -57,7 +57,7 @@
           <el-input v-model="queryParams.nickname" placeholder="请输入昵称" clearable />
         </el-form-item>
         <el-form-item label="手机号">
-          <el-input v-model="queryParams.phone" placeholder="请输入手机号" clearable />
+          <el-input v-model="queryParams.phone" placeholder="请输入手机号后4位" clearable />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 100%">
