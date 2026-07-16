@@ -28,9 +28,58 @@
         WHERE ur.user_id = #{userId} AND r.deleted = 0
     </select>
 
-    <select id="selectUserPageWithPermission" resultType="com.forge.modules.system.entity.SysUser">
+    <!--
+      SysUser 结果映射：phone/email 字段使用 EncryptTypeHandler 解密。
+      原生 XML 不会识别 @TableField(typeHandler=...) 注解，必须在 resultMap 中显式声明，
+      否则分页/列表接口会原样返回 ENCv1: 密文。
+    -->
+    <resultMap id="SysUserWithEncryptMap" type="com.forge.modules.system.entity.SysUser">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="nickname" property="nickname"/>
+        <result column="phone" property="phone"
+                typeHandler="com.forge.framework.mybatis.handler.EncryptTypeHandler"/>
+        <result column="email" property="email"
+                typeHandler="com.forge.framework.mybatis.handler.EncryptTypeHandler"/>
+        <result column="avatar" property="avatar"/>
+        <result column="dept_id" property="deptId"/>
+        <result column="position_id" property="positionId"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="account_type" property="accountType"/>
+        <result column="status" property="status"/>
+        <result column="last_login_time" property="lastLoginTime"/>
+        <result column="last_login_ip" property="lastLoginIp"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByUsernameSimple" resultMap="SysUserWithEncryptMap">
+        SELECT id, username, nickname, password, phone, email, avatar,
+               dept_id, position_id, tenant_id, account_type, status,
+               last_login_time, last_login_ip, password_update_time, first_login,
+               password_error_count, lock_time, phone_suffix, create_time, update_time
+        FROM sys_user
+        WHERE tenant_id = #{tenantId} AND username = #{username} AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <!-- 按 id 范围查询，必须使用 resultMap 触发 EncryptTypeHandler 解密 phone/email，
+         否则后续 updateById 会把密文当明文重新加密导致字段截断。 -->
+    <select id="selectUserRangeById" resultMap="SysUserWithEncryptMap">
+        SELECT id, username, nickname, password, phone, email, avatar,
+               dept_id, position_id, tenant_id, account_type, status,
+               last_login_time, last_login_ip, password_update_time, first_login,
+               password_error_count, lock_time, phone_suffix, create_time, update_time
+        FROM sys_user
+        WHERE id > #{lastId} AND deleted = 0
+        ORDER BY id ASC
+        LIMIT #{batchSize}
+    </select>
+
+    <select id="selectUserPageWithPermission" resultMap="SysUserWithEncryptMap">
         SELECT u.id, u.username, u.nickname, u.phone, u.email, u.avatar,
-               u.dept_id, u.status, u.account_type, u.create_time, u.update_time
+               u.dept_id, u.position_id, u.tenant_id, u.account_type, u.status,
+               u.last_login_time, u.last_login_ip, u.create_time, u.update_time
         FROM sys_user u
         LEFT JOIN sys_dept d ON u.dept_id = d.id
         <where>
@@ -41,8 +90,14 @@
             <if test="nickname != null and nickname != ''">
                 AND u.nickname LIKE CONCAT('%', #{nickname}, '%')
             </if>
-            <if test="phone != null and phone != ''">
-                AND u.phone LIKE CONCAT('%', #{phone}, '%')
+            <if test="phone != null and phone != '' and phone.length() == 4">
+                AND u.phone_suffix = #{phone}
+            </if>
+            <if test="phone != null and phone != '' and phone.length() != 4">
+                AND u.phone_suffix LIKE CONCAT('%', #{phone}, '%')
+            </if>
+            <if test="email != null and email != ''">
+                AND u.email_suffix = #{email}
             </if>
             <if test="status != null">
                 AND u.status = #{status}
@@ -54,9 +109,10 @@
         ORDER BY u.create_time DESC
     </select>
 
-    <select id="selectUserListWithPermission" resultType="com.forge.modules.system.entity.SysUser">
+    <select id="selectUserListWithPermission" resultMap="SysUserWithEncryptMap">
         SELECT u.id, u.username, u.nickname, u.phone, u.email, u.avatar,
-               u.dept_id, u.status, u.account_type, u.create_time, u.update_time
+               u.dept_id, u.position_id, u.tenant_id, u.account_type, u.status,
+               u.last_login_time, u.last_login_ip, u.create_time, u.update_time
         FROM sys_user u
         LEFT JOIN sys_dept d ON u.dept_id = d.id
         <where>
@@ -67,8 +123,14 @@
             <if test="nickname != null and nickname != ''">
                 AND u.nickname LIKE CONCAT('%', #{nickname}, '%')
             </if>
-            <if test="phone != null and phone != ''">
-                AND u.phone LIKE CONCAT('%', #{phone}, '%')
+            <if test="phone != null and phone != '' and phone.length() == 4">
+                AND u.phone_suffix = #{phone}
+            </if>
+            <if test="phone != null and phone != '' and phone.length() != 4">
+                AND u.phone_suffix LIKE CONCAT('%', #{phone}, '%')
+            </if>
+            <if test="email != null and email != ''">
+                AND u.email_suffix = #{email}
             </if>
             <if test="status != null">
                 AND u.status = #{status}

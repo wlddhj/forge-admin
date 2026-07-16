@@ -1,9 +1,11 @@
 package com.forge.common.utils;
 
+import cn.hutool.crypto.digest.DigestUtil;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -38,6 +40,30 @@ public class CryptoUtils {
     public CryptoUtils(String aesKey) {
         byte[] keyBytes = normalizeKey(aesKey);
         this.keySpec = new SecretKeySpec(keyBytes, "AES");
+        // 归一化后的 32 字节 key 字节数组作为搜索字段哈希的 salt
+        this.searchSalt = bytesToHex(keyBytes);
+    }
+
+    private final String searchSalt;
+
+    /**
+     * 生成可搜索的 SHA-256 哈希（用于 email 等需要精确查询的字段）。
+     * 哈希 = SHA256(明文(标准化) + AES_KEY)，
+     * 即使数据库被拖库，攻击者无法通过常见邮箱字典破解。
+     * 输入会做小写化 + 去除首尾空格，保证 foo@x.com 与 FOO@x.com 哈希一致。
+     */
+    public String hashForSearch(String plaintext) {
+        if (plaintext == null) return null;
+        String normalized = plaintext.trim().toLowerCase();
+        return DigestUtil.sha256Hex(normalized + searchSalt);
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     private byte[] normalizeKey(String aesKey) {

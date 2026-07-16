@@ -7,7 +7,6 @@ import com.forge.framework.mybatis.annotation.DataPermission;
 import com.forge.modules.system.entity.SysUser;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 import java.util.Set;
@@ -22,10 +21,16 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
 
     /**
      * 直接查询用户（不触发数据权限拦截器）
-     * 用于 JWT 认证等场景，避免循环依赖
+     * 用于 JWT 认证等场景，避免循环依赖。
+     * 必须使用 resultMap 触发 EncryptTypeHandler 解密 phone/email，否则后续 updateById 会双重加密导致字段截断。
      */
-    @Select("SELECT * FROM sys_user WHERE tenant_id = #{tenantId} AND username = #{username} AND deleted = 0 LIMIT 1")
     SysUser selectByUsernameSimple(@Param("tenantId") Long tenantId, @Param("username") String username);
+
+    /**
+     * 按 id 范围分批查询用户，触发 EncryptTypeHandler 解密 phone/email。
+     * 用于启动时回填 phone_suffix / email_suffix 等需要明文的场景。
+     */
+    java.util.List<SysUser> selectUserRangeById(@Param("lastId") Long lastId, @Param("batchSize") int batchSize);
 
     /**
      * 根据用户ID查询角色编码列表
@@ -64,6 +69,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             @Param("username") String username,
             @Param("nickname") String nickname,
             @Param("phone") String phone,
+            @Param("email") String email,
             @Param("status") Integer status,
             @Param("deptId") Long deptId
     );
@@ -74,6 +80,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
      * @param username 用户名（模糊查询）
      * @param nickname 昵称（模糊查询）
      * @param phone 手机号（模糊查询）
+     * @param email 邮箱（模糊查询）
      * @param status 状态
      * @param deptId 部门ID
      * @return 用户列表
@@ -83,6 +90,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             @Param("username") String username,
             @Param("nickname") String nickname,
             @Param("phone") String phone,
+            @Param("email") String email,
             @Param("status") Integer status,
             @Param("deptId") Long deptId
     );

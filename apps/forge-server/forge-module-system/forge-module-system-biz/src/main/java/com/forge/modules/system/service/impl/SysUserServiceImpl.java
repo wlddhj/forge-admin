@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.framework.mybatis.annotation.DataPermission;
@@ -104,12 +105,17 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     public Page<UserResponse> pageUsers(UserQueryRequest request) {
         Page<SysUser> page = new Page<>(request.getPageNum(), request.getPageSize());
 
+        // email_suffix 存的是加盐 SHA-256 哈希，搜索时把明文转成同样的哈希再传给 mapper
+        String emailHash = StrUtil.isNotBlank(request.getEmail())
+                ? cryptoUtils.hashForSearch(request.getEmail()) : null;
+
         // 使用带数据权限过滤的查询方法
         Page<SysUser> userPage = (Page<SysUser>) sysUserMapper.selectUserPageWithPermission(
                 page,
                 request.getUsername(),
                 request.getNickname(),
                 request.getPhone(),
+                emailHash,
                 request.getStatus(),
                 request.getDeptId()
         );
@@ -141,7 +147,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         return response;
     }
 
-    @Override
+@Override
     @Transactional(rollbackFor = Exception.class)
     public void addUser(UserRequest request) {
         // 检查用户名是否存在（同一租户下不能重复）
@@ -157,6 +163,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         BeanUtil.copyProperties(request, user, "password", "roleIds", "positionIds");
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setStatus(1);
+        // 同步明文搜索字段（phone/email 字段本身会被 EncryptTypeHandler 加密）
+        fillSearchSuffixes(user);
         // tenantId 由 MyBatis Plus TenantLineInnerInterceptor 从 TenantContextHolder 自动注入
         save(user);
 
@@ -195,6 +203,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (StrUtil.isNotBlank(request.getPassword())) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
+        // 同步明文搜索字段
+        fillSearchSuffixes(user);
         // 保留原 tenantId，防止通过 updateUser 迁移用户到其他租户
         user.setTenantId(user.getTenantId());
         updateById(user);
@@ -244,12 +254,16 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         // 生成符合复杂度的随机密码，强制下次登录修改
         String randomPassword = cryptoUtils.generateRandomPassword(passwordPolicyProperties.getRandomPasswordLength());
-        user.setPassword(passwordEncoder.encode(randomPassword));
-        user.setPasswordUpdateTime(java.time.LocalDateTime.now());
-        user.setFirstLogin(1);
-        user.setPasswordErrorCount(0);
-        user.setLockTime(null);
-        updateById(user);
+        String encodedPassword = passwordEncoder.encode(randomPassword);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        // 仅更新密码相关字段，避免覆盖并发修改，并绕过 phone/email 字段 EncryptTypeHandler 重加密
+        update(new LambdaUpdateWrapper<SysUser>()
+                .eq(SysUser::getId, id)
+                .set(SysUser::getPassword, encodedPassword)
+                .set(SysUser::getPasswordUpdateTime, now)
+                .set(SysUser::getFirstLogin, 1)
+                .set(SysUser::getPasswordErrorCount, 0)
+                .set(SysUser::getLockTime, null));
         // 重置后清除历史，避免新密码被旧历史拦截
         passwordHistoryService.remove(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.forge.modules.system.entity.SysUserPasswordHistory>()
                 .eq(com.forge.modules.system.entity.SysUserPasswordHistory::getUserId, id));
@@ -288,6 +302,32 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Override
     public List<String> getUserPermissionCodes(Long userId) {
         return sysUserMapper.selectPermissionCodesByUserId(userId);
+    }
+
+    /**
+     * 同步可搜索的 suffix 字段：
+     * - phone_suffix：取明文手机号后 4 位（精确查询用）
+     * - email_suffix：明文邮箱经 SHA-256 + AES_KEY 盐哈希后存储（即使拖库也无法还原）
+     *
+     * 由于 phone/email 字段在 SysUser 上有 @EncryptField 注解，写入时会自动加密。
+     * suffix 字段在 DB 层支持 phone_suffix 精确 / email_suffix 精确匹配，
+     * 服务端在 service 层把明文输入转成同样的哈希再传给 mapper。
+     */
+    private void fillSearchSuffixes(SysUser user) {
+        String encryptedPrefix = "ENCv1:";
+        String phone = user.getPhone();
+        if (StrUtil.isNotBlank(phone) && !phone.startsWith(encryptedPrefix)) {
+            String digits = phone.replaceAll("\\D", "");
+            user.setPhoneSuffix(digits.length() >= 4 ? digits.substring(digits.length() - 4) : digits);
+        } else if (StrUtil.isBlank(phone)) {
+            user.setPhoneSuffix(null);
+        }
+        String email = user.getEmail();
+        if (StrUtil.isNotBlank(email) && !email.startsWith(encryptedPrefix)) {
+            user.setEmailSuffix(cryptoUtils.hashForSearch(email));
+        } else if (StrUtil.isBlank(email)) {
+            user.setEmailSuffix(null);
+        }
     }
 
     private UserResponse convertToResponse(SysUser user) {
@@ -402,6 +442,46 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void firstLoginChangePassword(Long tenantId, com.forge.modules.system.auth.dto.FirstLoginChangePasswordRequest request) {
+        // 仅 firstLogin=1 的用户允许调用此接口，避免被普通用户滥用
+        SysUser user = getByUsername(tenantId, request.getUsername());
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        if (user.getFirstLogin() == null || user.getFirstLogin() != 1) {
+            throw new BusinessException("该用户无需强制改密，请使用个人中心修改密码");
+        }
+        // 1. 验证旧密码
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new BusinessException("当前密码错误");
+        }
+        // 2. 新旧密码不能相同
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BusinessException("新密码不能与当前密码相同");
+        }
+        // 3. 复杂度校验
+        PasswordValidator.Result vr = passwordValidator.validate(request.getNewPassword());
+        if (!vr.isSuccess()) {
+            throw new BusinessException(vr.getMessage());
+        }
+        // 4. 历史密码校验
+        if (passwordHistoryService.isPasswordInHistory(
+                user.getId(), request.getNewPassword(), passwordPolicyProperties.getHistorySize())) {
+            throw new BusinessException("新密码不能与最近 " + passwordPolicyProperties.getHistorySize() + " 次使用过的密码相同");
+        }
+        // 5. 编码并持久化新密码
+        String newHash = passwordEncoder.encode(request.getNewPassword());
+        user.setPassword(newHash);
+        user.setPasswordUpdateTime(java.time.LocalDateTime.now());
+        user.setFirstLogin(0);
+        updateById(user);
+        // 6. 保存到历史表
+        passwordHistoryService.saveAndTrim(user.getId(), newHash, passwordPolicyProperties.getHistorySize());
+        log.info("[首次登录强制改密] 用户 {} 已修改密码", user.getUsername());
+    }
+
+    @Override
     public void updateAvatar(UserAvatarRequest request) {
         SysUser user = getCurrentUser();
         if (user == null) {
@@ -413,11 +493,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public List<UserExport> getExportList(UserQueryRequest request) {
+        String emailHash = StrUtil.isNotBlank(request.getEmail())
+                ? cryptoUtils.hashForSearch(request.getEmail()) : null;
         // 使用带数据权限过滤的查询方法
         List<SysUser> users = sysUserMapper.selectUserListWithPermission(
                 request.getUsername(),
                 request.getNickname(),
                 request.getPhone(),
+                emailHash,
                 request.getStatus(),
                 request.getDeptId()
         );

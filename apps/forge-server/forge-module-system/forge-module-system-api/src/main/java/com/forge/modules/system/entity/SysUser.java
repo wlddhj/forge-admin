@@ -110,6 +110,10 @@ public class SysUser {
     @TableField("phone_suffix")
     private String phoneSuffix;
 
+    @Schema(description = "邮箱（明文，便于搜索）")
+    @TableField("email_suffix")
+    private String emailSuffix;
+
     /**
      * 角色列表（非数据库字段）
      */
