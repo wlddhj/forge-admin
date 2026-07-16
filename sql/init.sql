@@ -373,7 +373,8 @@ CREATE TABLE `sys_user` (
   `first_login` tinyint NOT NULL DEFAULT 0 COMMENT '是否首次登录需强制改密(0:否 1:是)',
   `password_error_count` int NOT NULL DEFAULT 0 COMMENT '连续登录失败次数',
   `lock_time` datetime DEFAULT NULL COMMENT '账号锁定截止时间',
-  `phone_suffix` varchar(4) DEFAULT NULL COMMENT '手机号后4位（明文，便于精确查询）',
+  `phone_suffix` varchar(4) DEFAULT NULL COMMENT '手机号后4位（明文，用于精确查询）',
+  `email_suffix` varchar(64) DEFAULT NULL COMMENT '邮箱加盐SHA-256哈希（拖库安全，支持精确查询）',
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `deleted` tinyint DEFAULT '0' COMMENT '删除标记',
@@ -381,7 +382,8 @@ CREATE TABLE `sys_user` (
   UNIQUE KEY `uk_username` (`username`),
   KEY `idx_dept_id` (`dept_id`),
   KEY `idx_status` (`status`),
-  KEY `idx_lock_time` (`lock_time`)
+  KEY `idx_lock_time` (`lock_time`),
+  KEY `idx_email_suffix` (`email_suffix`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
 -- ========================================
