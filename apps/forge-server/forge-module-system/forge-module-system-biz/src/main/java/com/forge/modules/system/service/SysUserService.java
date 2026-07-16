@@ -96,6 +96,15 @@ public interface SysUserService extends IService<SysUser> {
     void updatePassword(UserPasswordRequest request);
 
     /**
+     * 首次登录强制改密（不走 token 鉴权，使用用户名 + 旧密码鉴权）。
+     * 仅当用户的 firstLogin=1 时允许调用，改密成功后清除该标记。
+     *
+     * @param tenantId 租户 ID（多租户模式由 Controller 从 request.tenantCode 解析；单租户模式传 1）
+     * @param request  请求体（username / oldPassword / newPassword / tenantCode）
+     */
+    void firstLoginChangePassword(Long tenantId, com.forge.modules.system.auth.dto.FirstLoginChangePasswordRequest request);
+
+    /**
      * 更新头像
      */
     void updateAvatar(UserAvatarRequest request);

@@ -49,6 +49,7 @@ public class SecurityConfig {
             "/admin-api/auth/register",
             "/admin-api/auth/captcha",
             "/admin-api/auth/refresh",
+            "/admin-api/auth/change-password-first-login",
             "/admin-api/auth/social/authorize/**",
             "/admin-api/auth/social/callback/**",
             "/admin-api/oauth2/token",

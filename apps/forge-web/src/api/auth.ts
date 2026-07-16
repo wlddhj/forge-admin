@@ -7,6 +7,18 @@ export function login(data: LoginRequest) {
   return request.post<LoginResponse>('/auth/login', data).then(res => res.data)
 }
 
+// 首次登录强制改密（不走 token 鉴权）
+export interface FirstLoginChangePasswordRequest {
+  username: string
+  tenantCode?: string
+  oldPassword: string
+  newPassword: string
+}
+
+export function changePasswordFirstLogin(data: FirstLoginChangePasswordRequest) {
+  return request.post('/auth/change-password-first-login', data)
+}
+
 // 获取验证码
 export function getCaptcha() {
   return request.get<CaptchaResponse>('/auth/captcha').then(res => res.data)

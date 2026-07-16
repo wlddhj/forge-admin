@@ -143,6 +143,10 @@ export const useUserStore = defineStore('user', () => {
   // 登录
   const loginAction = async (loginForm: LoginRequest) => {
     const res = await login(loginForm)
+    // 首次登录强制改密：后端不返回 token，跳过 token 持久化与心跳，由登录页弹改密弹窗
+    if (res.needChangePassword) {
+      return res
+    }
     token.value = res.accessToken
     refreshTokenValue.value = res.refreshToken
     localStorage.setItem('token', res.accessToken)

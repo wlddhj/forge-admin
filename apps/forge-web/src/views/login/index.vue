@@ -72,6 +72,14 @@
         <p>默认账号: admin / password</p>
       </div>
 
+      <!-- 首次登录强制改密弹窗 -->
+      <FirstLoginChangePwdDialog
+        v-model="changePwdVisible"
+        :username="loginForm.username"
+        :tenant-code="loginForm.tenantCode"
+        @success="onChangePwdSuccess"
+      />
+
       <SocialLogin />
     </div>
   </div>
@@ -86,6 +94,7 @@ import { useUserStore } from '@/stores/user'
 import { getCaptcha } from '@/api/auth'
 import { useTenantConfig } from '@/composables/useTenantConfig'
 import SocialLogin from './components/social-login.vue'
+import FirstLoginChangePwdDialog from './components/FirstLoginChangePwdDialog.vue'
 
 const appTitle = import.meta.env.VITE_APP_TITLE
 const appSubtitle = import.meta.env.VITE_APP_SUBTITLE
@@ -95,6 +104,7 @@ const userStore = useUserStore()
 
 const loginFormRef = ref<FormInstance>()
 const loading = ref(false)
+const changePwdVisible = ref(false)
 
 // 验证码状态
 const captchaEnabled = ref(false)
@@ -150,7 +160,13 @@ const handleLogin = async () => {
     if (valid) {
       loading.value = true
       try {
-        await userStore.loginAction(loginForm)
+        const res = await userStore.loginAction(loginForm)
+        // 首次登录强制改密：弹弹窗，不跳转
+        if (res.needChangePassword) {
+          ElMessage.warning(res.message || '首次登录请修改密码')
+          changePwdVisible.value = true
+          return
+        }
         ElMessage.success('登录成功')
 
         const redirect = route.query.redirect as string
@@ -166,6 +182,18 @@ const handleLogin = async () => {
       }
     }
   })
+}
+
+// 改密成功后用新密码自动重新登录
+const onChangePwdSuccess = async () => {
+  // 让用户在表单中重新点登录（避免自动重试触发锁定）
+  ElMessage.success('密码修改成功，请使用新密码重新登录')
+  changePwdVisible.value = false
+  // 保留用户名（密码由用户重新输入）
+  loginForm.password = ''
+  if (captchaEnabled.value) {
+    refreshCaptcha()
+  }
 }
 </script>
 

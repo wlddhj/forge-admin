@@ -265,8 +265,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, reactive, computed, onMounted, h } from 'vue'
+import { ElMessage, ElMessageBox, ElInput, ElButton } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import {
@@ -445,9 +445,39 @@ const handleResetPwd = (row: User) => {
   ElMessageBox.confirm('确定要重置该用户的密码吗？', '提示', {
     type: 'warning'
   }).then(async () => {
-    await resetPassword(row.id)
-    ElMessage.success('密码已重置为: 123456')
+    const res = await resetPassword(row.id)
+    const newPwd = res.data
+    // 用 alert 弹窗展示新密码（可复制），不使用 ElMessage 避免自动关闭
+    await ElMessageBox.alert(
+      h('div', null, [
+        h('p', { style: 'margin: 0 0 8px 0; color: #e6a23c;' }, '请复制并妥善保管新密码，关闭后将无法再次查看：'),
+        h(ElInput, {
+          modelValue: newPwd,
+          readonly: true,
+          style: 'margin-top: 8px;'
+        }),
+        h('div', { style: 'margin-top: 12px; text-align: right;' }, [
+          h(ElButton, {
+            type: 'primary',
+            size: 'small',
+            onClick: () => copyToClipboard(newPwd)
+          }, '复制密码')
+        ])
+      ]),
+      `用户【${row.username}】密码已重置`,
+      { dangerouslyUseHTMLString: false }
+    ).catch(() => { /* 用户主动关闭 */ })
   })
+}
+
+const copyToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('已复制到剪贴板')
+  } catch {
+    // 降级：选中文本提示用户手动复制
+    ElMessage.warning('复制失败，请手动选中复制')
+  }
 }
 
 // 导出

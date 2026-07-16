@@ -12,6 +12,7 @@ import com.forge.modules.system.auth.dto.LoginRequest;
 import com.forge.modules.system.auth.dto.LoginResponse;
 import com.forge.modules.system.auth.dto.RefreshTokenRequest;
 import com.forge.modules.system.auth.dto.UserInfoResponse;
+import com.forge.modules.system.auth.dto.FirstLoginChangePasswordRequest;
 import com.forge.modules.system.auth.security.JwtTokenProvider;
 import com.forge.modules.system.auth.service.CaptchaService;
 import com.forge.modules.system.auth.service.LoginAttemptService;
@@ -70,7 +71,32 @@ public class AuthController {
     private final SysTenantService sysTenantService;
     private final com.forge.framework.tenant.config.TenantProperties tenantProperties;
 
-        @Operation(summary = "登录")
+        /**
+     * 首次登录强制改密（不走 token 鉴权，使用用户名 + 旧密码鉴权）。
+     * 必须放在 tenant ignore-urls 中，否则会被 TenantSecurityWebFilter 拦截。
+     */
+    @Operation(summary = "首次登录强制改密")
+    @PostMapping("/change-password-first-login")
+    @RateLimiter(keyType = RateLimiter.KeyType.USERNAME, time = 60, count = 10, message = "改密请求过于频繁，请稍后再试")
+    public Result<Void> changePasswordFirstLogin(@Valid @RequestBody FirstLoginChangePasswordRequest request) {
+        // 解析租户：单租户模式用默认租户；多租户模式从请求体 tenantCode 解析
+        Long tenantId;
+        if (Boolean.FALSE.equals(tenantProperties.getEnable())) {
+            tenantId = 1L;
+        } else {
+            if (request.getTenantCode() == null || request.getTenantCode().isBlank()) {
+                throw new BusinessException(ResultCode.VALIDATE_FAILED, "租户标识不能为空");
+            }
+            tenantId = sysTenantService.getIdByCode(request.getTenantCode());
+            if (tenantId == null) {
+                throw new BusinessException(ResultCode.TENANT_NOT_EXISTS);
+            }
+        }
+        sysUserService.firstLoginChangePassword(tenantId, request);
+        return Result.success();
+    }
+
+    @Operation(summary = "登录")
     @PostMapping("/login")
     @RateLimiter(keyType = RateLimiter.KeyType.USERNAME, time = 60, count = 20, message = "登录请求过于频繁，请稍后再试")
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
