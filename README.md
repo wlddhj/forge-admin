@@ -668,6 +668,30 @@ mysql -u root -p < sql/init-screen.sql
 | `V202607090__seed_test_data_sources.sql` | 测试数据源种子数据 |
 | `V202607091__add_sql_whitelist_menu.sql` | SQL 白名单菜单与按钮权限种子数据 |
 
+## 相关文档
+
+### 流程模块(`docs/workflow/`)
+
+按阅读顺序排列,新接手流程模块从 `01` 开始:
+
+| 文档 | 目标读者 | 用途 |
+|------|----------|------|
+| [01.workflow-usage.md](docs/workflow/01.workflow-usage.md) | 流程管理员 / 配置人员 / 最终用户 | 流程管理菜单、完整配置流程、候选人策略、触发器任务、待办/已办、状态码 |
+| [02.condition-node-guide.md](docs/workflow/02.condition-node-guide.md) | 流程设计者 / 后端开发 | 条件节点(type=3 / type=4)实际行为、触发条件使用时机、SpEL 求值、兜底机制 |
+| [03.trigger-bean-guide.md](docs/workflow/03.trigger-bean-guide.md) | 后端开发 | 自定义 `@FlowLongTrigger` Bean、`AbstractFlowLongTrigger` 抽象基类、4 种业务模式、反射调用 |
+
+### 其他文档
+
+| 文档 | 用途 |
+|------|------|
+| [docs/oauth2-guide.md](docs/oauth2-guide.md) | OAuth2 授权服务器使用(第三方应用接入本系统做用户认证) |
+| [docs/template-guide.md](docs/template-guide.md) | 基于本项目创建新管理系统(项目模板化) |
+| [docs/data-permission-guide.md](docs/data-permission-guide.md) | 数据权限(部门级 / 本人级)使用说明 |
+| [docs/database-design-specification.md](docs/database-design-specification.md) | 数据库设计规范(字段命名、索引、关联关系) |
+| [docs/module-development.md](docs/module-development.md) | 新建业务模块的开发规范 |
+| [apps/forge-server/docs/SECURITY-COMPLIANCE.md](apps/forge-server/docs/SECURITY-COMPLIANCE.md) | GB/T 22239-2019 二级等保合规说明(密码/登录/加密/审计) |
+| [apps/forge-server/docs/DEPLOYMENT-CHECKLIST.md](apps/forge-server/docs/DEPLOYMENT-CHECKLIST.md) | 生产环境部署检查清单(环境变量、HTTPS、密钥) |
+
 ## 许可证
 
 MIT License
