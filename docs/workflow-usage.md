@@ -34,7 +34,9 @@ forge-admin 工作流模块基于国产开源引擎 **FlowLong**,提供完整的
 | 7 | 已办任务 | `/workflow/task/done` | 我处理过的 | 普通用户常用 |
 | 8 | 抄送列表 | `/workflow/copy` | 抄送给我的 | 普通用户 |
 | 9 | 表达式管理 | `/workflow/expression` | 候选人表达式 | 高级配置 |
-| 10 | 监听器管理 | `/workflow/listener` | 监听器配置 | 高级配置 |
+| 10 | 监听器管理 | `/workflow/listener` | 流程级监听器(占位,见 §10) | 高级配置 |
+
+> 触发器节点(独立节点,4 种业务模式)是在「模型管理」中拖出,不在监听器管理中。详见 §6。
 
 > 菜单权限通过 `workflow:*` 前缀控制,详见第 11 节。
 
@@ -175,20 +177,138 @@ ${流程变量名}             直接读流程变量,支持单值/逗号分隔/�
 
 ---
 
-## 6. 触发器(任务触发器)
+## 6. 触发器任务(独立节点)
 
-节点的 `extendConfig` 支持配置触发器,任务事件触发时执行一段 SpEL:
+触发器节点(type=7)是**独立的流程节点**,在 FlowLong 模型中作为一个节点存在。引擎到达该节点时,根据 `extendConfig.triggerType` 字段,自动执行一段逻辑后**直接跳到 childNode**,不需要人工审批。
 
-| 字段 | 用途 |
-|---|---|
-| `triggerType` | `expression` 启用 |
-| `triggerExpression` | SpEL 表达式,求值为 true 触发 |
+### 6.1 4 种业务模式
 
-`TaskTriggerHandler` 在任务事件回调时执行。常用于:
+| 模式 | 配置字段 | 适用场景 | 推荐度 |
+|---|---|---|---|
+| `expression` | `triggerExpression` SpEL | 简单条件判断 / 写流程变量 | ★★★ 80% 场景 |
+| `bean` | `triggerBean` + `triggerMethod` | 复杂业务逻辑(调 Spring Bean) | ★★★★★ 90% 复杂场景 |
+| `class` | `triggerClass` FQCN + `triggerMethod` | 第三方 jar 工具类 | ★★ 特殊场景 |
+| `delegateExpression` | `triggerExpression` SpEL(求 Bean 名) + `triggerMethod` | 按 ctx 动态选 Bean | ★★★ 多租户/多业务线 |
 
-- 任务创建后自动改业务表状态
-- 任务完成后自动发消息
-- 流程结束后自动归档
+### 6.2 模式选择速查
+
+```
+需要"写变量"或"简单条件判断"?
+  ├─ 是 → expression 模式
+  └─ 否 → 复杂业务逻辑?
+            ├─ Spring 容器里的 Bean → bean 模式
+            ├─ 第三方 jar / 工具类 → class 模式
+            └─ 按 ctx 动态选 → delegateExpression 模式
+```
+
+### 6.3 expression 模式 — SpEL 表达式
+
+**extendConfig 配置**:
+```json
+{
+  "triggerType": "expression",
+  "triggerExpression": "${amount > 1000000 ? T(SpelUtil).setVar(execution, 'riskLevel', 'A') : false}"
+}
+```
+
+**设计器配置步骤**:
+1. 在触发器节点抽屉,业务模式选 `expression - SpEL 表达式`
+2. 填入 SpEL 文本
+
+**常用 SpEL 例子**:
+
+```spel
+# 简单条件
+${amount > 1000}
+
+# 写流程变量
+${T(SpelUtil).setVar(execution, 'riskLevel', amount >= 1000000 ? 'A' : 'B')}
+
+# 调 Spring Bean
+${@auditService.logEvent('contract_signed', execution.getFlwInstance().getId())}
+```
+
+### 6.4 bean 模式 — 调 Spring Bean(推荐)
+
+**extendConfig 配置**:
+```json
+{
+  "triggerType": "bean",
+  "triggerBean": "contractRiskTrigger",
+  "triggerMethod": "execute"
+}
+```
+
+**前置条件**:
+- Bean 必须带 `@Component` 和 `@FlowLongTrigger` 注解
+- 推荐继承 `AbstractFlowLongTrigger` 抽象基类
+
+**设计器配置步骤**:
+1. 业务模式选 `bean - Spring Bean(白名单)`
+2. 从下拉选 Bean(后端 `GET /workflow/trigger/beans` 拉取)
+3. 填方法名(默认 `execute`)
+
+**示例 Bean**:
+
+```java
+@Component
+@FlowLongTrigger(name = "合同风险评估", description = "根据金额分级")
+public class ContractRiskTrigger extends AbstractFlowLongTrigger {
+    @Override
+    public boolean execute(Execution execution, NodeModel nodeModel, Map<String, Object> ctx) {
+        Long amount = requireArgAs(ctx, "amount", Long.class);
+        String riskLevel = amount >= 1_000_000 ? "A" : amount >= 100_000 ? "B" : "C";
+        setVar(execution, "riskLevel", riskLevel);
+        return true;
+    }
+}
+```
+
+**完整开发指南**: [trigger-bean-guide.md](trigger-bean-guide.md)
+
+### 6.5 class 模式 — 反射 Java 类
+
+**extendConfig 配置**:
+```json
+{
+  "triggerType": "class",
+  "triggerClass": "com.example.LegacyAuditor",
+  "triggerMethod": "execute"
+}
+```
+
+完全脱离 Spring 容器,`@Autowired` 字段为 null。生产建议加包前缀白名单。
+
+### 6.6 delegateExpression 模式 — SpEL 求 Bean 名
+
+**extendConfig 配置**:
+```json
+{
+  "triggerType": "delegateExpression",
+  "triggerExpression": "industry == 'tech' ? 'techContractRiskTrigger' : 'financeContractRiskTrigger'",
+  "triggerMethod": "execute"
+}
+```
+
+SpEL 求值结果必须是带 `@FlowLongTrigger` 注解的 Bean 名。典型场景:多租户按 tenantId 选 Bean。
+
+### 6.7 失败行为
+
+- `return true` → 流程正常流转到 childNode
+- `return false` 或 `throw Exception` → 流程**不流转**,异常向上冒泡
+- 节点配置 `continueOnError=true` → 忽略失败,继续流转
+
+详见 [trigger-bean-guide.md §8](trigger-bean-guide.md#8-返回值约定与异常处理)。
+
+### 6.8 适用场景
+
+- **业务数据预处理**: 提交后自动写库(写风险等级、计算金额)
+- **流程分支前置判断**: 根据表单数据设置流程变量,供下游条件分支读
+- **自动通知/抄送**: 关键节点自动给干系人发消息
+- **业务归档**: 流程结束后自动归档历史数据
+- **跨系统数据同步**: 流程走到某步时自动调外部 API
+
+> **不要**把复杂业务(调 API、写业务表)全堆在触发器节点,触发器最适合"轻量级旁路判断"。
 
 ---
 

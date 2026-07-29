@@ -1,0 +1,677 @@
+# 触发器 Bean 开发指南
+
+> 适用模块: `forge-module-workflow`
+> 适用人员: 后端开发 / 需要扩展流程触发能力的工程师
+> 关联文档: [工作流使用说明](workflow-usage.md) §10 触发器管理
+
+---
+
+## 1. 概述
+
+触发器节点(type=7)在流程中作为"自动执行点"使用。引擎到达该节点时,根据 `extendConfig.triggerType` 字段分发到不同的执行路径。
+
+本文档详细讲解 **TaskTriggerHandler 支持的 4 种业务模式**,每种模式都附完整配置 + 代码示例。
+
+---
+
+## 2. 4 种模式总览
+
+| 模式 | 配置 | 适用场景 | 安全性 |
+|---|---|---|---|
+| `expression` | `triggerExpression` SpEL | 简单条件判断 / 写流程变量 / 调 Bean | 中(SpEL 启用 BeanResolver,生产建议加白名单) |
+| `bean` | `triggerBean` + `triggerMethod` | 复杂业务逻辑(推荐,90% 场景) | 高(注解白名单) |
+| `class` | `triggerClass` FQCN + `triggerMethod` | 第三方类 / 工具类(无 Spring 依赖) | 低(无白名单,生产建议加包前缀白名单) |
+| `delegateExpression` | `triggerExpression` SpEL(求 Bean 名) + `triggerMethod` | 动态选择 Bean(根据 ctx 变量) | 高(注解白名单) |
+
+### 数据流总览
+
+```
+流程引擎到达 type=7 节点
+  → TaskServiceImpl.executeTaskTrigger(nodeModel, execution, ...)
+    → 读 nodeModel.getExtendConfig().get("triggerType")
+    → 按模式分派:
+        ┌─ expression  → SpEL 求值
+        ├─ bean        → TriggerBeanRegistry.get(beanName) → TriggerInvoker.invoke
+        ├─ class       → Class.forName(className).newInstance() → TriggerInvoker.invoke
+        └─ delegate    → SpEL 求 beanName → 同 bean 路径
+  → 返回 boolean
+  → finish.apply(execution) 或 pause
+```
+
+---
+
+## 3. 模式一:expression — SpEL 表达式
+
+### 3.1 工作机制
+
+引擎把 `triggerExpression` 解析为 Spring SpEL,在 StandardEvaluationContext 中求值。上下文变量:
+
+| 变量名 | 类型 | 含义 |
+|---|---|---|
+| `execution` | Execution | FlowLong 执行上下文 |
+| `instance` | FlwInstance | 当前流程实例 |
+| `task` | FlwTask | 当前任务(若有) |
+| `args` | Map | 全部流程变量(ctx),可以直接 `${amount}` 取 |
+| `@beanName` | Object | Spring Bean,通过 `BeanFactoryResolver` 调用 |
+
+返回值:`Boolean` 直接作为触发结果;其他类型视为成功(丢弃)。
+
+### 3.2 extendConfig 配置
+
+```json
+{
+  "triggerType": "expression",
+  "triggerExpression": "${amount > 1000000 ? T(SpelUtil).setVar(execution, 'riskLevel', 'A') : false}"
+}
+```
+
+### 3.3 UI 配置步骤
+
+在流程设计器拖出「触发器任务」节点,抽屉中:
+1. 业务模式 → **expression - SpEL 表达式**
+2. 触发器表达式 → 填入 SpEL 文本
+3. 保存
+
+### 3.4 完整示例:合同金额分级
+
+**场景**:合同提交时,自动根据金额写 `riskLevel` 变量。
+
+```
+触发器表达式:
+T(com.forge.modules.workflow.framework.trigger.SpelUtil)
+    .setVar(execution, 'riskLevel', amount >= 1000000 ? 'A' : (amount >= 100000 ? 'B' : 'C'))
+```
+
+**执行流程**:
+1. 用户提交合同,amount=2000000
+2. 引擎到达触发器节点
+3. SpEL 求值:
+   - `amount >= 1000000` → true
+   - `T(SpelUtil).setVar(execution, 'riskLevel', 'A')` → 写流程变量
+4. SpEL 返回 null(非 boolean)→ 视为成功
+5. 流程继续往下游条件分支流转
+6. 条件分支读 `riskLevel = A` → 走 A 级审批路径
+
+### 3.5 更多例子
+
+```spel
+# 例 1: 简单条件判断
+${amount > 1000}                    # 返回 boolean,直接作为触发结果
+
+# 例 2: 写流程变量
+${T(SpelUtil).setVar(execution, 'urgent', args.urgent == true)}
+
+# 例 3: 调 Spring Bean
+${@auditService.logEvent('contract_signed', execution.getFlwInstance().getId())}
+
+# 例 4: 多条件组合
+${amount > 1000 && (industry == 'finance' || industry == 'insurance')}
+
+# 例 5: 字符串拼接
+${T(SpelUtil).setVar(execution, 'summary', '合同' + amount + '元,行业:' + industry)}
+```
+
+### 3.6 适用场景
+
+- 简单条件判断 / 写流程变量
+- 不想写 Java 类
+- 一次性逻辑(简单可读)
+
+### 3.7 注意事项
+
+- ⚠️ SpEL 启用 `BeanFactoryResolver`,**任何 Spring Bean 都能调**。生产环境建议加白名单(项目 TODO)
+- ⚠️ SpEL 表达式错只有在运行时才暴露,建议设计时测一遍
+- ✅ 推荐用 `T(SpelUtil).setVar(...)` 写流程变量,比直接 `execution.setArg` 更安全
+
+---
+
+## 4. 模式二:bean — 调 Spring Bean(推荐)
+
+### 4.1 工作机制
+
+引擎按 `triggerBean` 从 `TriggerBeanRegistry` 取 Bean 实例(必须带 `@FlowLongTrigger` 注解),按 `triggerMethod` 调用方法。
+
+**两步校验**:
+1. `TriggerBeanRegistry.get(beanName)` — Bean 必须存在且带注解
+2. 反射找到方法,按形参规则注入参数
+
+### 4.2 extendConfig 配置
+
+```json
+{
+  "triggerType": "bean",
+  "triggerBean": "contractRiskTrigger",
+  "triggerMethod": "execute",
+  "continueOnError": false
+}
+```
+
+### 4.3 UI 配置步骤
+
+1. 业务模式 → **bean - Spring Bean(白名单)**
+2. 选择触发器 Bean → 从下拉选(后端 `GET /workflow/trigger/beans` 拉取)
+3. 方法名 → 填 `execute`
+4. 保存
+
+### 4.4 完整示例:合同风险评估(继承基类)
+
+**触发器 Bean**:
+
+```java
+package com.yourcompany.workflow.trigger;
+
+import com.aizuda.bpm.engine.core.Execution;
+import com.aizuda.bpm.engine.model.NodeModel;
+import com.forge.modules.workflow.framework.trigger.AbstractFlowLongTrigger;
+import com.forge.modules.workflow.framework.trigger.FlowLongTrigger;
+import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
+import java.util.Map;
+
+@Component
+@FlowLongTrigger(
+    name = "合同风险评估",
+    description = "根据金额/行业/客户评级计算合同风险等级",
+    category = "业务"
+)
+public class ContractRiskTrigger extends AbstractFlowLongTrigger {
+
+    @Override
+    public boolean execute(Execution execution, NodeModel nodeModel, Map<String, Object> ctx) {
+        // 必填参数 + 类型转换(缺失自动抛错,流程暂停)
+        BigDecimal amount = requireArgAs(ctx, "amount", BigDecimal.class);
+        String industry = requireArg(ctx, "industry").toString();
+
+        // 可选参数(带默认值)
+        String customerLevel = getArg(ctx, "customerLevel", "C");
+
+        // 业务规则
+        String riskLevel = computeRisk(amount, industry, customerLevel);
+
+        // 写流程变量,下游条件分支/审批节点可读
+        setVar(execution, "riskLevel", riskLevel);
+        setVar(execution, "riskEvaluator", getClass().getSimpleName());
+
+        log.info("合同风险评估: amount={}, industry={}, customerLevel={}, riskLevel={}",
+                 amount, industry, customerLevel, riskLevel);
+        return true;
+    }
+
+    private String computeRisk(BigDecimal amount, String industry, String customerLevel) {
+        if (amount.compareTo(new BigDecimal("1000000")) >= 0) return "A";
+        if (amount.compareTo(new BigDecimal("100000")) >= 0
+                && ("finance".equals(industry) || "insurance".equals(industry))) {
+            return "B";
+        }
+        if ("A".equals(customerLevel) && amount.compareTo(new BigDecimal("50000")) >= 0) {
+            return "B";
+        }
+        return "C";
+    }
+}
+```
+
+**下游条件分支**:
+- 条件1: `riskLevel == 'A'` → A 级审批路径
+- 条件2: `riskLevel == 'B'` → B 级审批路径
+- 条件3: `riskLevel == 'C'` → C 级审批路径
+
+### 4.5 完整示例:调用 Service 做副作用(继承基类)
+
+**场景**:合同提交时,同步通知 ERP 系统。
+
+```java
+@Component
+@FlowLongTrigger(name = "合同 ERP 同步", description = "合同发起时同步到 ERP", category = "集成")
+public class ContractErpSyncTrigger extends AbstractFlowLongTrigger {
+
+    private final ErpIntegrationService erpService;  // 注入其他 Service 正常用
+
+    public ContractErpSyncTrigger(ErpIntegrationService erpService) {
+        this.erpService = erpService;
+    }
+
+    @Override
+    public boolean execute(Execution execution, NodeModel nodeModel, Map<String, Object> ctx) {
+        String contractNo = requireArgAs(ctx, "contractNo", String.class);
+        BigDecimal amount = requireArgAs(ctx, "amount", BigDecimal.class);
+
+        try {
+            erpService.syncContract(contractNo, amount);
+            log.info("合同 {} 已同步到 ERP,金额={}", contractNo, amount);
+            setVar(execution, "erpSynced", true);
+            return true;
+        } catch (Exception e) {
+            log.error("ERP 同步失败, contractNo={}", contractNo, e);
+            setVar(execution, "erpSyncError", e.getMessage());
+            // 推荐用 throw 表达失败:消息更清晰,被 FlowLong 引擎的
+            // continueOnError 配置统一控制(详见 §8 返回值约定)
+            throw new IllegalStateException("ERP 同步失败: " + e.getMessage(), e);
+        }
+    }
+}
+```
+
+### 4.6 适用场景
+
+- 复杂业务逻辑(读 ctx → 校验 → 写变量 / 调其他 Service)
+- 需要完整单元测试覆盖
+- 团队多人协作(IDE 提示 + 编译期校验)
+
+### 4.7 注意事项
+
+- ✅ Bean 必须带 `@Component` 和 `@FlowLongTrigger`(双重保险)
+- ✅ 启动日志搜 "注册触发器 Bean" 确认 Bean 已扫描到
+- ✅ 推荐继承 `AbstractFlowLongTrigger` — IDE 编译期校验,工具方法齐全
+- ⚠️ 不要在 `execute` 里写长事务(触发器节点不在事务边界内)
+- ⚠️ 不要阻塞(同步 HTTP 调用会卡住整个流程)
+
+---
+
+## 5. 模式三:class — 反射 Java 类
+
+### 5.1 工作机制
+
+引擎按 `triggerClass` FQCN 反射加载类,`newInstance()` 创建实例,**完全脱离 Spring 容器**。然后按 `triggerMethod` 调用方法。
+
+**与 bean 模式的区别**:
+- `bean` 模式:从 Spring 容器拿 Bean,自动注入 `@Autowired` 字段
+- `class` 模式:用反射 `new` 一个新对象,**`@Autowired` 字段为 null**(没经过 Spring 容器)
+
+### 5.2 extendConfig 配置
+
+```json
+{
+  "triggerType": "class",
+  "triggerClass": "com.example.legacy.LegacyAuditor",
+  "triggerMethod": "execute"
+}
+```
+
+### 5.3 UI 配置步骤
+
+1. 业务模式 → **class - 反射 Java 类**
+2. 类全限定名 → 填 FQCN(如 `com.example.MyTrigger`)
+3. 方法名 → 填 `execute`
+4. 保存
+
+### 5.4 完整示例:调用第三方工具类
+
+**场景**:某个老的工具类(不在 Spring 容器中),按特定规则处理合同数据。
+
+```java
+// 第三方 jar 中的类(不可改源码,无 @Component)
+package com.thirdparty.audit;
+
+public class LegacyAuditor {
+    // 注意:无 @Component,不会被 Spring 扫描
+    // 也无 @FlowLongTrigger,因为不是 Spring Bean
+    public boolean execute(String contractNo, BigDecimal amount) {
+        // 业务逻辑...
+        AuditLog log = new AuditLog();
+        log.setContractNo(contractNo);
+        log.setAmount(amount);
+        return AuditService.save(log);  // 假设静态调用
+    }
+}
+```
+
+**触发器节点配置**:
+- `triggerType`: `class`
+- `triggerClass`: `com.thirdparty.audit.LegacyAuditor`
+- `triggerMethod`: `execute`
+
+**执行流程**:
+1. 引擎按 FQCN 加载类
+2. `LegacyAuditor auditor = Class.forName("com.thirdparty.audit.LegacyAuditor").newInstance();`
+3. 反射调用 `auditor.execute("CONTRACT-001", new BigDecimal("100000"))`
+4. 类内自己处理业务逻辑
+
+### 5.5 class 模式的灵活性
+
+由于 `class` 模式是 `Class.forName().newInstance()`,**任何 public 无参构造的类都能被实例化**。可以配合 `delegateExpression` 模式做高级用法(见下)。
+
+### 5.6 适用场景
+
+- 调第三方 jar 里的类(无法加 `@Component`)
+- 调工具类(完全无状态,不需要 Spring)
+- 调测试桩(Mock 类)
+
+### 5.7 注意事项
+
+- ⚠️ **没有白名单**:任何 FQCN 都能被实例化,**生产环境建议加包前缀白名单**(后续可加 `application.yml` 配置)
+- ⚠️ **`@Autowired` 字段为 null** — 因为没走 Spring 容器;如果类需要 Service,得自己 `new` 或用静态方法
+- ⚠️ 类必须有 public 无参构造,否则 `newInstance()` 失败
+- ⚠️ `continueOnError=true` 应配合 `class` 模式,防止一个工具类崩溃整个流程
+
+---
+
+## 6. 模式四:delegateExpression — SpEL 求 Bean 名
+
+### 6.1 工作机制
+
+引擎先按 `triggerExpression` 解析为 SpEL,求值得到 **Bean 名字符串**;然后按 `bean` 模式从 `TriggerBeanRegistry` 取 Bean,按 `triggerMethod` 调用方法。
+
+**本质**:`delegateExpression` = `expression` 求 Bean 名 + `bean` 调方法
+
+### 6.2 extendConfig 配置
+
+```json
+{
+  "triggerType": "delegateExpression",
+  "triggerExpression": "'contractRisk' + (args.industry == 'tech' ? 'Tech' : 'Standard')",
+  "triggerMethod": "execute"
+}
+```
+
+### 6.3 UI 配置步骤
+
+1. 业务模式 → **delegateExpression - SpEL 求 Bean 名**
+2. Bean 名称 SpEL 表达式 → 填 `'beanName'` 或 `'beanName' + suffix`
+3. 方法名 → 填 `execute`
+4. 保存
+
+### 6.4 完整示例:按行业动态选触发器
+
+**场景**:不同行业用不同的风险评估 Bean,但都走同一节点。
+
+**两个触发器 Bean**:
+
+```java
+@Component
+@FlowLongTrigger(name = "科技行业风险评估", category = "业务", description = "科技行业专用")
+public class TechContractRiskTrigger extends AbstractFlowLongTrigger {
+    @Override
+    public boolean execute(Execution execution, NodeModel nodeModel, Map<String, Object> ctx) {
+        Long amount = requireArgAs(ctx, "amount", Long.class);
+        String industry = requireArg(ctx, "industry").toString();
+        // 科技行业规则: 高估值倍数
+        String riskLevel = amount > 5_000_000L ? "A" : amount > 500_000L ? "B" : "C";
+        setVar(execution, "riskLevel", riskLevel);
+        setVar(execution, "riskStrategy", "tech-multiple-based");
+        log.info("[Tech] 风险评估: amount={}, level={}", amount, riskLevel);
+        return true;
+    }
+}
+
+@Component
+@FlowLongTrigger(name = "金融行业风险评估", category = "业务", description = "金融行业专用")
+public class FinanceContractRiskTrigger extends AbstractFlowLongTrigger {
+    @Override
+    public boolean execute(Execution execution, NodeModel nodeModel, Map<String, Object> ctx) {
+        Long amount = requireArgAs(ctx, "amount", Long.class);
+        String industry = requireArg(ctx, "industry").toString();
+        // 金融行业规则: 严格阈值
+        String riskLevel = amount > 1_000_000L ? "A" : amount > 100_000L ? "B" : "C";
+        setVar(execution, "riskLevel", riskLevel);
+        setVar(execution, "riskStrategy", "finance-strict");
+        log.info("[Finance] 风险评估: amount={}, level={}", amount, riskLevel);
+        return true;
+    }
+}
+```
+
+**触发器节点配置**:
+- `triggerType`: `delegateExpression`
+- `triggerExpression`: `'risk' + (industry == 'tech' ? 'Tech' : 'Standard')` 
+  - ⚠️ 这个例子是错的!Bean 名要写全
+  - 正确:`industry == 'tech' ? 'techContractRiskTrigger' : 'financeContractRiskTrigger'`
+- `triggerMethod`: `execute`
+
+**执行流程**:
+1. 用户提交合同,industry=`tech`
+2. SpEL 求值:`'techContractRiskTrigger'`
+3. `TriggerBeanRegistry.get('techContractRiskTrigger')` 拿到 `TechContractRiskTrigger`
+4. 调用 `execute(...)` → 走科技行业规则
+
+### 6.5 完整示例:按租户选 Bean(多租户场景)
+
+```java
+// SpEL 表达式(从 ctx 读 tenantId 拼接 Bean 名)
+triggerExpression: "'risk' + T(String).valueOf(ctx.get('tenantId'))"
+
+// 求值结果示例: 'risk1' / 'risk2' / 'risk3'
+// 对应 Bean: risk1Trigger / risk2Trigger / risk3Trigger(必须都带 @FlowLongTrigger 注解)
+```
+
+### 6.6 适用场景
+
+- **多租户**:不同租户不同业务逻辑,Bean 名按租户 ID 拼接
+- **多业务线**:同一触发器节点,按业务类型选不同 Bean
+- **A/B 测试**:根据 ctx 变量选不同实现
+
+### 6.7 注意事项
+
+- ⚠️ 求出的 Bean 名必须带 `@FlowLongTrigger` 注解(否则触发失败)
+- ⚠️ 所有候选 Bean 都要存在(否则引擎报 "Bean not found")
+- ✅ 比"在 `bean` 模式里写 if-else 分发"更优雅,职责清晰
+- ✅ 配置上更灵活(不改代码,改 SpEL 就能切 Bean)
+
+---
+
+## 7. 高级做法:`@TriggerParam` 灵活签名
+
+继承基类是推荐做法,但有些场景下想用更灵活的方法签名(不强制三参数),可以用 `@TriggerParam` 注解。
+
+### 7.1 不继承基类的灵活签名
+
+```java
+@Component
+@FlowLongTrigger(name = "灵活签名触发器", description = "用 @TriggerParam 注入")
+public class FlexibleTrigger {
+
+    public boolean execute(Execution execution,
+                          @TriggerParam("amount") Long amount,
+                          @TriggerParam("industry") String industry,
+                          @TriggerParam("urgent") @TriggerParam(required = true) boolean urgent) {
+        if (urgent && amount > 100_000) {
+            log.warn("紧急合同金额 {} 触发失败", amount);
+            // 抛异常表达失败(推荐,详见 §8);return false 等价但消息不清晰
+            throw new IllegalArgumentException("紧急合同金额 " + amount + " 超过 10 万,需人工复核");
+        }
+        SpelUtil.setVar(execution, "triggeredBy", getClass().getSimpleName());
+        return true;
+    }
+}
+```
+
+### 7.2 形参解析规则
+
+按优先级匹配:
+1. 标注 `@TriggerParam("key")` — 从 ctx 取值
+2. 类型为 `Execution` — 注入执行上下文
+3. 类型为 `NodeModel` — 注入节点模型
+4. 类型为 `Map` — 注入整个 ctx
+5. 其他 — 注入 null
+
+### 7.3 何时用灵活签名
+
+| 场景 | 推荐 |
+|---|---|
+| 标准场景(读 ctx、写变量、日志) | 继承 `AbstractFlowLongTrigger` |
+| 复杂业务方法,需要清晰命名的形参 | 用 `@TriggerParam` 灵活签名 |
+| 工具类(无状态)直接调用 | 灵活签名即可,无需继承基类 |
+| 第三方库类不能改 | 灵活签名(配合 `class` 模式) |
+
+### 7.4 注意事项
+
+- ⚠️ 灵活签名走反射路径,比基类直接调用稍慢
+- ✅ 但功能更灵活,适合复杂场景
+- ✅ IDE 不会强制要求 `@Override` — 因为没继承基类
+
+---
+
+## 8. 返回值约定与异常处理
+
+所有模式(`expression` 除外)的方法返回值统一约定:
+
+| 返回类型 | 触发结果 |
+|---|---|
+| `boolean = true` | 视为成功,流程流转到 childNode |
+| `boolean = false` | **翻译为 `FlowLongException`(等同 throw),受 `continueOnError` 控制** |
+| `void` | 视为成功 |
+| 其他类型 | 视为成功,丢弃返回值 |
+
+`expression` 模式特殊:
+- `Boolean` → 触发结果(true 流转,false 抛 `trigger execute error`)
+- 其他类型 → 视为成功(丢弃)
+
+### 失败行为:return false 与 throw 等价
+
+> **核心约定**:`return false` 与 `throw Exception` 在触发器节点的失败行为上是**完全等价的** — 都会让流程不流转到 childNode,并受 `continueOnError` 统一控制。
+
+| 触发器方法返回 | 修复后实际行为 |
+|---|---|
+| `return true` | 流程正常流转到 childNode |
+| `return false` | 翻译为 `FlowLongException("业务返回 false")` → 走 catch + `continueOnError` |
+| `throw Exception` | 走 catch + `continueOnError`(不变) |
+| `throw FlowLongException` | 原样冒泡(避免重复包装) |
+
+### 异常处理
+
+如果方法抛异常(或 `return false`):
+- 默认:流程不流转到 childNode,异常由 `TaskTriggerHandler` 包装为 `FlowLongException` 抛出
+- 节点配置了 `continueOnError=true`:忽略错误,继续流转到 childNode
+- `return false` 和 `throw` 走的是**同一段** `try-catch` 代码,所以行为完全一致
+
+### 推荐写法
+
+✅ **优先用 `throw` 表达业务失败**(消息更清晰):
+
+```java
+if (amount > 100_000_000L) {
+    throw new IllegalArgumentException("合同金额超过 1 亿,需 CEO 特批");
+}
+```
+
+⚠️ `return false` 仍然可用(行为对齐 throw),但异常消息统一是 "业务返回 false",丢失上下文。`throw` 可以带详细原因。
+
+如果想"业务不通过但流程应继续":
+- 配置节点 `continueOnError = true`
+- Bean 中 `return false` 或 `throw` 都会被吞掉,流程继续流转
+
+---
+
+## 9. 4 种模式对比决策
+
+### 9.1 选择流程
+
+```
+需要"什么也不做,只是写变量"或"简单条件判断"?
+  ├─ 是 → expression 模式
+  └─ 否 → 需要复杂业务逻辑?
+            ├─ 是 → Bean 来自哪里?
+            │      ├─ Spring 容器 → bean 模式
+            │      ├─ 第三方 jar / 工具类 → class 模式
+            │      └─ 按 ctx 动态选 → delegateExpression 模式
+            └─ 否 → 不需要触发器节点,审批节点已够用
+```
+
+### 9.2 决策表
+
+| 业务特征 | 推荐模式 |
+|---|---|
+| 写一个 `riskLevel` 变量供下游用 | `expression` |
+| 复杂业务校验 + 写变量 + 调 Service | `bean` (继承基类) |
+| 调老 jar 里的工具类 | `class` |
+| 按租户 / 业务类型选不同 Bean | `delegateExpression` |
+| Bean 需要完整单元测试 | `bean` (继承基类) |
+| 单次简单规则 | `expression` |
+
+---
+
+## 10. 调试与日志
+
+### 10.1 找到你的触发器日志
+
+- 类路径: `TriggerBeanRegistry` 启动日志会列出所有已注册的触发器
+- 单次执行: `TaskTriggerHandler` 在 `INFO` 级输出 `执行触发器: nodeKey=..., nodeName=...`
+- Bean 执行:基类的 `log` 字段已绑定子类,直接 `log.info(...)`
+
+### 10.2 常见问题
+
+| 问题 | 排查 |
+|---|---|
+| 设计器下拉看不到 Bean | 1. 确认类上有 `@Component` 和 `@FlowLongTrigger`<br>2. 启动日志搜 "注册触发器 Bean"<br>3. 检查包是否在 `@SpringBootApplication` 扫描路径下 |
+| 触发器被调用但没生效 | 1. 后端日志搜 `执行触发器`,确认节点被进入<br>2. 确认 `execute` 返回 true(见 §8)<br>3. 检查 `setVar` 写的变量名是否被下游节点正确读取 |
+| 触发器 `return false` 行为 | `return false` 与 `throw Exception` 等价 — 都被翻译为 `FlowLongException`,受 `continueOnError` 控制(详见 §8) |
+| `BeanCurrentlyInCreationException` | 启动时不要在 `@PostConstruct` 主动 `getBean` — 触发器注册用 `ContextRefreshedEvent`,已规避 |
+| `class` 模式报 `ClassNotFoundException` | 1. FQCN 是否正确<br>2. 类是否在 classpath 中<br>3. 类必须有 public 无参构造 |
+| `delegateExpression` 报 "Bean 未找到" | 1. SpEL 求值结果是否对(可在 triggerExpression 加日志验证)<br>2. 对应 Bean 是否带 `@FlowLongTrigger` 注解 |
+| 反射调用失败 | 1. 方法名是否对(基类是 `execute`)<br>2. `@TriggerParam` 的 `value` 是否与 ctx 中变量名一致<br>3. 类型是否能转换(`String` 转 `Long` 失败会抛错) |
+
+### 10.3 单元测试示例
+
+```java
+@SpringBootTest
+class ContractRiskTriggerTest {
+
+    @Autowired
+    private ContractRiskTrigger trigger;
+
+    @Test
+    void bigAmount_gradeA() {
+        Execution execution = mock(Execution.class);
+        NodeModel node = new NodeModel();
+        Map<String, Object> args = new HashMap<>();
+        when(execution.getArgs()).thenReturn(args);
+
+        Map<String, Object> ctx = Map.of("amount", 2_000_000L, "industry", "tech");
+        assertTrue(trigger.execute(execution, node, ctx));
+        assertEquals("A", args.get("riskLevel"));
+    }
+}
+```
+
+---
+
+## 11. 架构图
+
+```
+@FlowLongTrigger Bean(继承 AbstractFlowLongTrigger)
+   ↑
+   │ 启动时扫描
+   │
+TriggerBeanRegistry  (ApplicationListener<ContextRefreshedEvent>)
+   │
+   │ 流程设计器 API GET /workflow/trigger/beans
+   │ 返回 TriggerBeanInfo 列表
+   ↓
+前端 trigger.vue Bean 下拉
+
+   ── 运行时 ──
+
+TaskTriggerHandler.execute(nodeModel, execution, finish)
+   │
+   │ 读 extendConfig.triggerType
+   ↓
+TriggerInvoker.invoke(target, methodName, nodeModel, execution)
+   │
+   ├─ target instanceof AbstractFlowLongTrigger && methodName = "execute"
+   │     → 直接调 target.execute(...)  (无反射)
+   │
+   └─ 否则反射路径 + @TriggerParam 解析
+```
+
+---
+
+## 12. 常见反模式
+
+❌ **在 execute 里写长事务**
+触发器节点不在事务边界内,异常处理仅 `continueOnError` 一道。建议只做轻量副作用(写变量、调 Bean)。
+
+❌ **在 execute 里阻塞**
+不要做 `Thread.sleep` 或同步 HTTP 调用,会卡住整个流程引擎。
+
+❌ **把业务全堆在一个 Bean**
+按业务域拆分 Bean(合同 / 出差 / 报销),每个 Bean 一个职责,便于测试和复用。
+
+❌ **用 `class` 模式做生产逻辑**
+`class` 模式脱离 Spring 容器,无白名单,任何类都能实例化。生产环境推荐 `bean` 模式。
+
+❌ **SpEL 里调危险 Bean**
+`expression` 模式的 SpEL 启用了 `BeanFactoryResolver`,**任何 Spring Bean 都能调**。生产建议加白名单 filter。
+
+❌ **跨触发器节点共享可变状态**
+每个 `execute` 调用应是无状态的,不要依赖 Bean 字段在不同节点间传值(用 `setVar` 写流程变量)。
