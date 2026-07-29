@@ -19,6 +19,14 @@
               <el-icon style="color: #15BC83" @click="addType(4)"><Share /></el-icon>
               <p>条件分支</p>
             </li>
+            <li>
+              <el-icon style="color: #e6a23c" @click="addType(3)"><Filter /></el-icon>
+              <p>条件审批</p>
+            </li>
+            <li>
+              <el-icon style="color: #9b59b6" @click="addType(7)"><Lightning /></el-icon>
+              <p>触发器任务</p>
+            </li>
           </ul>
         </div>
       </el-popover>
@@ -27,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { UserFilled, Promotion, Share } from '@element-plus/icons-vue'
+import { UserFilled, Promotion, Share, Filter, Lightning } from '@element-plus/icons-vue'
 import type { FlowlongNodeModel } from '@/composables/useFlowLongDataTransform'
 
 const props = defineProps<{
@@ -96,6 +104,29 @@ const addType = (type: number) => {
           childNode: undefined
         }
       ],
+      childNode: props.modelValue || undefined
+    }
+  } else if (type == 3) {
+    // 条件审批节点: 满足条件时由该审批人审批,否则跳过
+    node = {
+      nodeName: '条件审批',
+      nodeKey: getNodeKey(),
+      type: 3,
+      setType: 1,
+      nodeAssigneeList: [],
+      examineMode: 1,
+      conditionList: [[]],
+      childNode: props.modelValue || undefined
+    }
+  } else if (type == 7) {
+    // 触发器任务节点: 默认走 expression 模式
+    node = {
+      nodeName: '触发器',
+      nodeKey: getNodeKey(),
+      type: 7,
+      triggerType: 'expression',
+      triggerExpression: '${true}',
+      continueOnError: false,
       childNode: props.modelValue || undefined
     }
   }

@@ -29,7 +29,7 @@ export interface FlowlongAiApprovalConfig {
 export interface FlowlongNodeModel {
   nodeName: string
   nodeKey: string
-  type: number // -1=结束, 0=发起人, 1=审批, 2=抄送, 3=条件审批, 4=条件分支
+  type: number // -1=结束, 0=发起人, 1=审批, 2=抄送, 3=条件审批, 4=条件分支, 7=触发器任务
   setType?: number
   nodeAssigneeList?: FlowlongNodeAssignee[]
   examineLevel?: number // 指定主管层级
@@ -48,7 +48,14 @@ export interface FlowlongNodeModel {
   userSelectFlag?: boolean // 允许发起人自选抄送人
   expression?: string // 表达式
   conditionNodes?: FlowlongConditionNode[]
-  conditionList?: FlowlongCondition[][] // 条件列表（条件组数组）
+  conditionList?: FlowlongCondition[][] // 条件列表（条件组数组；type=3 条件审批用）
+  // 触发器任务（type=7）配置 - 4 种业务模式共享
+  triggerType?: string // expression / bean / class / delegateExpression
+  triggerExpression?: string // expression / delegateExpression 模式用
+  triggerBean?: string // bean 模式: Spring Bean 名
+  triggerClass?: string // class 模式: FQCN
+  triggerMethod?: string // bean/class/delegateExpression 模式: 方法名
+  continueOnError?: boolean // 异常时是否继续流转
   childNode?: FlowlongNodeModel
   // AI 审批配置
   aiApproval?: boolean // 是否启用 AI 审批（开关）
@@ -120,7 +127,7 @@ export function useFlowLongDataTransform() {
         if (node.directorLevel !== undefined) result.directorLevel = node.directorLevel
         if (node.directorMode !== undefined) result.directorMode = node.directorMode
 
-        // extendConfig 用于存储扩展配置（超时提醒、AI审批等）
+        // extendConfig 用于存储扩展配置（超时提醒、AI审批、条件列表等）
         const extendConfig: Record<string, any> = {}
 
         // 超时提醒配置放入 extendConfig
@@ -132,6 +139,11 @@ export function useFlowLongDataTransform() {
         // AI 审批配置放入 extendConfig.aiApproval
         if (node.aiApproval && node.aiApprovalConfig) {
           extendConfig.aiApproval = node.aiApprovalConfig
+        }
+
+        // 条件审批（type=3）条件列表放入 extendConfig.conditionList
+        if (node.type === 3 && node.conditionList !== undefined) {
+          extendConfig.conditionList = node.conditionList
         }
 
         // 如果有扩展配置，添加到 result
@@ -151,6 +163,23 @@ export function useFlowLongDataTransform() {
           conditionList: cn.conditionList,
           childNode: transformNode(cn.childNode)
         })) as any
+      }
+
+      // 触发器任务（type=7）配置放入 extendConfig
+      if (node.type === 7) {
+        // 触发器任务(type=7)多模式配置写入 extendConfig
+        if (node.type === 7) {
+          const triggerConfig: Record<string, any> = {}
+          if (node.triggerType !== undefined) triggerConfig.triggerType = node.triggerType
+          if (node.triggerExpression !== undefined) triggerConfig.triggerExpression = node.triggerExpression
+          if (node.triggerBean !== undefined) triggerConfig.triggerBean = node.triggerBean
+          if (node.triggerClass !== undefined) triggerConfig.triggerClass = node.triggerClass
+          if (node.triggerMethod !== undefined) triggerConfig.triggerMethod = node.triggerMethod
+          if (node.continueOnError !== undefined) triggerConfig.continueOnError = node.continueOnError
+          if (Object.keys(triggerConfig).length > 0) {
+            result.extendConfig = { ...(result.extendConfig || {}), ...triggerConfig }
+          }
+        }
       }
 
       return result
@@ -198,6 +227,21 @@ export function useFlowLongDataTransform() {
         if (node.extendConfig.aiApproval) {
           result.aiApproval = true
           result.aiApprovalConfig = node.extendConfig.aiApproval as FlowlongAiApprovalConfig
+        }
+
+        // 条件审批（type=3）条件列表
+        if (node.type === 3 && node.extendConfig.conditionList !== undefined) {
+          result.conditionList = node.extendConfig.conditionList
+        }
+
+        // 触发器任务(type=7)多模式配置从 extendConfig 读出
+        if (node.type === 7 && node.extendConfig) {
+          if (node.extendConfig.triggerType !== undefined) result.triggerType = node.extendConfig.triggerType
+          if (node.extendConfig.triggerExpression !== undefined) result.triggerExpression = node.extendConfig.triggerExpression
+          if (node.extendConfig.triggerBean !== undefined) result.triggerBean = node.extendConfig.triggerBean
+          if (node.extendConfig.triggerClass !== undefined) result.triggerClass = node.extendConfig.triggerClass
+          if (node.extendConfig.triggerMethod !== undefined) result.triggerMethod = node.extendConfig.triggerMethod
+          if (node.extendConfig.continueOnError !== undefined) result.continueOnError = node.extendConfig.continueOnError
         }
       }
 
