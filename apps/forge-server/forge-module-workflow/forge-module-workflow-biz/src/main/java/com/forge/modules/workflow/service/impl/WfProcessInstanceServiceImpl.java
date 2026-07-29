@@ -263,6 +263,62 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             if (node.callProcessNode() && com.aizuda.bpm.engine.assist.ObjectUtils.isEmpty(node.getCallProcess())) {
                 throw new BusinessException(400, "子流程节点「" + node.getNodeName() + "」未选择子流程");
             }
+
+            // 条件审批节点（type=3）：复用审批人校验 + 校验条件列表
+            if (TaskType.conditionNode.eq(node.getType())) {
+                // 审批人配置（与 type=1 一致）
+                if (com.aizuda.bpm.engine.assist.ObjectUtils.isEmpty(node.getNodeAssigneeList())) {
+                    if (NodeSetType.specifyMembers.eq(node.getSetType())) {
+                        throw new BusinessException(400, "条件审批节点「" + node.getNodeName() + "」未配置处理人员");
+                    }
+                    if (NodeSetType.role.eq(node.getSetType())) {
+                        throw new BusinessException(400, "条件审批节点「" + node.getNodeName() + "」未选择角色");
+                    }
+                }
+                // 条件列表（从 extendConfig.conditionList 读取）
+                Map<String, Object> extendConfig = node.getExtendConfig();
+                Object condListObj = extendConfig == null ? null : extendConfig.get("conditionList");
+                if (!(condListObj instanceof java.util.List) || ((java.util.List<?>) condListObj).isEmpty()) {
+                    throw new BusinessException(400, "条件审批节点「" + node.getNodeName() + "」未配置条件列表");
+                }
+            }
+
+            // 触发器任务节点（type=7）：按 triggerType 模式校验
+            if (TaskType.trigger.eq(node.getType())) {
+                Map<String, Object> extendConfig = node.getExtendConfig();
+                String mode = extendConfig == null ? null
+                        : (extendConfig.get("triggerType") == null ? null : extendConfig.get("triggerType").toString());
+
+                if (mode == null || mode.isEmpty()) {
+                    throw new BusinessException(400, "触发器任务节点「" + node.getNodeName() + "」未配置 triggerType（业务模式）");
+                }
+
+                switch (mode) {
+                    case "expression":
+                        requireField(extendConfig, "triggerExpression", node.getNodeName(), "expression 模式");
+                        break;
+                    case "bean":
+                        requireField(extendConfig, "triggerBean", node.getNodeName(), "bean 模式");
+                        requireField(extendConfig, "triggerMethod", node.getNodeName(), "bean 模式");
+                        break;
+                    case "class":
+                        requireField(extendConfig, "triggerClass", node.getNodeName(), "class 模式");
+                        requireField(extendConfig, "triggerMethod", node.getNodeName(), "class 模式");
+                        break;
+                    case "delegateExpression":
+                        requireField(extendConfig, "triggerExpression", node.getNodeName(), "delegateExpression 模式");
+                        requireField(extendConfig, "triggerMethod", node.getNodeName(), "delegateExpression 模式");
+                        break;
+                    default:
+                        throw new BusinessException(400, "触发器任务节点「" + node.getNodeName()
+                                + "」的 triggerType 非法: " + mode
+                                + "（应为 expression / bean / class / delegateExpression）");
+                }
+
+                if (node.getChildNode() == null) {
+                    throw new BusinessException(400, "触发器任务节点「" + node.getNodeName() + "」未配置 childNode（执行后无下游节点）");
+                }
+            }
         }
     }
 
@@ -533,6 +589,14 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             return null;
         }
         return "%" + name.trim() + "%";
+    }
+
+    private void requireField(Map<String, Object> extendConfig, String field, String nodeName, String mode) {
+        Object value = extendConfig == null ? null : extendConfig.get(field);
+        if (value == null || value.toString().trim().isEmpty()) {
+            throw new BusinessException(400,
+                    "触发器任务节点「" + nodeName + "」(" + mode + ") 未配置 " + field);
+        }
     }
 
     private Long parseInstanceId(String processInstanceId) {
