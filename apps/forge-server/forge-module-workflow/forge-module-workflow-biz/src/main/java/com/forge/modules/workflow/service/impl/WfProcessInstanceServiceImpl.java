@@ -523,6 +523,18 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
 
     // ========== 私有方法 ==========
 
+    /**
+     * 构造流程名称模糊查询字符串，兼容 processName / processDefinitionName 两个入参字段。
+     * 返回 null 表示无名称筛选条件。
+     */
+    private String buildProcessNameLike(ProcessInstanceQueryRequest request) {
+        String name = StrUtil.blankToDefault(request.getProcessName(), request.getProcessDefinitionName());
+        if (StrUtil.isBlank(name)) {
+            return null;
+        }
+        return "%" + name.trim() + "%";
+    }
+
     private Long parseInstanceId(String processInstanceId) {
         try {
             return Long.parseLong(processInstanceId);
@@ -577,9 +589,12 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             wrapper.eq(FlwInstance::getProcessId, Long.parseLong(request.getProcessDefinitionId()));
         }
 
-        // 流程名称筛选
-        if (StrUtil.isNotBlank(request.getProcessName())) {
-            wrapper.like(FlwInstance::getCurrentNodeName, request.getProcessName());
+        // 流程名称筛选（模糊匹配 flw_process.process_name，兼容 processName / processDefinitionName 两个字段）
+        String processNameLike = buildProcessNameLike(request);
+        if (processNameLike != null) {
+            wrapper.apply(true,
+                    "process_id IN (SELECT id FROM flw_process WHERE process_name LIKE {0})",
+                    processNameLike);
         }
 
         // 业务Key精确筛选
@@ -642,13 +657,24 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             wrapper.eq(FlwHisInstance::getPriority, request.getPriority());
         }
 
-        // 状态筛选
+        // 流程名称筛选（模糊匹配 flw_process.process_name，兼容 processName / processDefinitionName 两个字段）
+        String processNameLike = buildProcessNameLike(request);
+        if (processNameLike != null) {
+            wrapper.apply(true,
+                    "process_id IN (SELECT id FROM flw_process WHERE process_name LIKE {0})",
+                    processNameLike);
+        }
+
+        // 状态筛选（对照 FlowLong InstanceState 枚举：1=complete 2=reject 3=revoke 4=timeout 5=terminate 6=autoPass 7=autoReject）
         if ("finished".equals(status)) {
-            // 审批通过：instance_state = 2
-            wrapper.eq(FlwHisInstance::getInstanceState, 2);
+            // 已结束: 审批通过(1) + 自动通过(6)
+            wrapper.in(FlwHisInstance::getInstanceState, 1, 6);
         } else if ("terminated".equals(status)) {
-            // 审批拒绝(3) 或 强制终止(6)
-            wrapper.in(FlwHisInstance::getInstanceState, 3, 6);
+            // 已终止: 审批拒绝(2) + 撤销(3) + 超时(4) + 强制终止(5) + 自动拒绝(7)
+            wrapper.in(FlwHisInstance::getInstanceState, 2, 3, 4, 5, 7);
+        } else {
+            // 全部已结束: state > 0（即排除审批中/暂停/暂存）
+            wrapper.gt(FlwHisInstance::getInstanceState, 0);
         }
 
         // 排序：优先级高的在前，或按创建时间
@@ -676,33 +702,66 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
 
     /**
      * 查询所有流程实例（不区分状态）
-     * 由于 FlowLong 分开存储活动实例和历史实例，需要分别查询后合并
+     * 由于 FlowLong 分开存储活动实例(flw_instance)和历史实例(flw_his_instance),
+     * 需要分别查询后合并。两表 schema 一致,合并后按 startTime 倒序,内存分页。
+     *
+     * 注: 当前实现先全量加载再内存分页,适合单租户万级以内的流程数据。
+     * 数据量超过 5w 时建议改为 SQL UNION ALL + DB 端分页。
      */
     private Page<ProcessInstanceResponse> queryAllInstances(ProcessInstanceQueryRequest request, Long startUserId) {
-        // 先查询运行中的实例
-        ProcessInstanceQueryRequest runningRequest = new ProcessInstanceQueryRequest();
-        runningRequest.setPageNum(request.getPageNum());
-        runningRequest.setPageSize(request.getPageSize());
-        runningRequest.setProcessDefinitionId(request.getProcessDefinitionId());
-        runningRequest.setProcessName(request.getProcessName());
+        // 子查询请求:分页设大,一次性取全量
+        ProcessInstanceQueryRequest allRequest = new ProcessInstanceQueryRequest();
+        allRequest.setPageNum(1);
+        allRequest.setPageSize(Integer.MAX_VALUE);
+        allRequest.setProcessDefinitionId(request.getProcessDefinitionId());
+        allRequest.setProcessName(request.getProcessName());
+        allRequest.setProcessDefinitionName(request.getProcessDefinitionName());
+        allRequest.setStartUserName(request.getStartUserName());
+        allRequest.setBusinessKey(request.getBusinessKey());
+        allRequest.setPriority(request.getPriority());
+        allRequest.setSortByPriority(request.getSortByPriority());
 
-        Page<ProcessInstanceResponse> runningPage = queryRunningInstances(runningRequest, startUserId);
+        // 1) 查运行中实例(flw_instance, state=0)
+        Page<ProcessInstanceResponse> runningPage = queryRunningInstances(allRequest, startUserId);
+        // 2) 查所有已结束实例(flw_his_instance, state>0;含 finished/terminated)
+        Page<ProcessInstanceResponse> hisPage = queryFinishedInstances(allRequest, startUserId, "all");
 
-        // 如果运行中的实例数量不足一页，补充历史实例
-        if (runningPage.getRecords().size() < request.getPageSize()) {
-            int remaining = (int) (request.getPageSize() - runningPage.getRecords().size());
-            ProcessInstanceQueryRequest finishedRequest = new ProcessInstanceQueryRequest();
-            finishedRequest.setPageNum(1);
-            finishedRequest.setPageSize(remaining);
-            finishedRequest.setProcessDefinitionId(request.getProcessDefinitionId());
-            finishedRequest.setProcessName(request.getProcessName());
+        // 合并
+        List<ProcessInstanceResponse> all = new ArrayList<>(runningPage.getRecords().size() + hisPage.getRecords().size());
+        all.addAll(runningPage.getRecords());
+        all.addAll(hisPage.getRecords());
 
-            Page<ProcessInstanceResponse> finishedPage = queryFinishedInstances(finishedRequest, startUserId, "finished");
-            runningPage.getRecords().addAll(finishedPage.getRecords());
-            runningPage.setTotal(runningPage.getTotal() + finishedPage.getTotal());
+        // 排序: 按优先级 / startTime 倒序
+        if (Boolean.TRUE.equals(request.getSortByPriority())) {
+            all.sort((a, b) -> {
+                int p = Integer.compare(
+                        b.getPriority() == null ? 0 : b.getPriority(),
+                        a.getPriority() == null ? 0 : a.getPriority());
+                if (p != 0) return p;
+                return compareStartTimeDesc(a, b);
+            });
+        } else {
+            all.sort((a, b) -> compareStartTimeDesc(a, b));
         }
 
-        return runningPage;
+        // 内存分页
+        int total = all.size();
+        int fromIndex = (int) ((request.getPageNum() - 1) * request.getPageSize());
+        int toIndex = Math.min(fromIndex + request.getPageSize(), total);
+        List<ProcessInstanceResponse> pageRecords = fromIndex >= total
+                ? Collections.emptyList()
+                : new ArrayList<>(all.subList(fromIndex, toIndex));
+
+        Page<ProcessInstanceResponse> result = new Page<>(request.getPageNum(), request.getPageSize(), total);
+        result.setRecords(pageRecords);
+        return result;
+    }
+
+    private int compareStartTimeDesc(ProcessInstanceResponse a, ProcessInstanceResponse b) {
+        if (a.getStartTime() == null && b.getStartTime() == null) return 0;
+        if (a.getStartTime() == null) return 1;
+        if (b.getStartTime() == null) return -1;
+        return b.getStartTime().compareTo(a.getStartTime());
     }
 
     /**
@@ -883,11 +942,17 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             }
         }
 
-        // 状态判断
+        // 状态判断（对照 FlowLong InstanceState 枚举）
         Integer instanceState = hisInstance.getInstanceState();
         if (instanceState != null) {
-            // 2=审批通过, 3=审批拒绝, 5=超时结束, 6=强制终止
-            response.setDeleteReason(instanceState == 3 ? "审批拒绝" : instanceState == 6 ? "强制终止" : null);
+            // 2=审批拒绝, 3=撤销审批, 4=超时结束, 5=强制终止, 7=自动拒绝
+            response.setDeleteReason(
+                    instanceState == 2 ? "审批拒绝"
+                    : instanceState == 3 ? "撤销审批"
+                    : instanceState == 4 ? "超时结束"
+                    : instanceState == 5 ? "强制终止"
+                    : instanceState == 7 ? "自动拒绝"
+                    : null);
         }
 
         return response;
