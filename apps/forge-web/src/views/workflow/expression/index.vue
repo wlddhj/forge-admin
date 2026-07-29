@@ -46,9 +46,11 @@
         stripe
         show-overflow="tooltip"
       >
-        <vxe-column type="seq" title="序号" width="60" />
+        <vxe-column type="seq" title="序号" width="50" align="center" />
+        <vxe-column field="id" title="ID" width="70" align="center" />
         <vxe-column field="name" title="名称" min-width="150" />
-        <vxe-column field="expression" title="表达式" min-width="250" />
+        <vxe-column field="expression" title="表达式" min-width="150" />
+        <vxe-column field="remark" title="备注" min-width="200" />
         <vxe-column field="status" title="状态" width="80">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">

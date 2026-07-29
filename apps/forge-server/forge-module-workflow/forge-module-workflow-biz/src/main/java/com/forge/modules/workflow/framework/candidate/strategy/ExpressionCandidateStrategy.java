@@ -117,10 +117,6 @@ public class ExpressionCandidateStrategy implements BpmTaskCandidateStrategy {
 
         // 提取表达式变量名（去除 ${} 包裹）
         String variableName = extractVariableName(expression);
-        if (variableName == null) {
-            log.warn("表达式格式不正确: {}", expression);
-            return Collections.emptySet();
-        }
 
         log.debug("解析表达式: expression={}, variable={}", expression, variableName);
 
