@@ -1,5 +1,18 @@
 <template>
   <div class="app-container">
+    <!-- 配置说明 -->
+    <el-alert
+      type="warning"
+      :closable="false"
+      style="margin-bottom: 5px"
+    >
+      <template #default>
+        本页面仅用于维护流程监听器配置(<code>wf_process_listener</code>),FlowLong 引擎当前不会读取此表。
+        实际运行中的监听器由项目内的 <code>@Component</code> Bean(如 <code>taskListener</code>、<code>instanceListener</code>)提供,
+        在此页面增删改数据<strong>不会影响流程执行行为</strong>。
+      </template>
+    </el-alert>
+
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card">
       <el-form :model="queryParams" inline>
@@ -101,7 +114,7 @@
           <el-input v-model="formData.name" placeholder="请输入监听器名称" />
         </el-form-item>
         <el-form-item label="监听类型" prop="type">
-          <el-select v-model="formData.type" placeholder="请选择监听类型" style="width: 100%">
+          <el-select v-model="formData.type" placeholder="请选择监听类型" style="width: 100%" @change="handleTypeChange">
             <el-option label="执行监听" value="execution" />
             <el-option label="任务监听" value="task" />
           </el-select>
@@ -145,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { useTableHeight } from '@/composables/useTableHeight'
@@ -238,9 +251,9 @@ const formRules: FormRules = {
 }
 
 // 监听类型变化时清除事件选择
-watch(() => formData.type, () => {
+const handleTypeChange = () => {
   formData.event = ''
-})
+}
 
 const resetForm = () => {
   formData.id = undefined

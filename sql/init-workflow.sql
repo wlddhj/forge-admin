@@ -378,15 +378,11 @@ INSERT INTO `wf_process_listener` (`name`, `status`, `type`, `event`, `value_typ
 ('系统实例事件监听器',         1, 'execution','start',      'delegateExpression',  'instanceListener', '系统内置 InstanceEventListener,发布 WorkflowInstanceEvent 供业务订阅'),
 ('系统实例事件监听器-结束',    1, 'execution','end',        'delegateExpression',  'instanceListener', '流程结束归档时复用同一监听器'),
 -- class 引用项目内真实类
-('流程发起日志-审计',          1, 'execution','start',      'class',               'com.forge.modules.workflow.handler.event.AuditLogEventHandler', '审计日志:记录发起人/时间/业务Key'),
-('流程结束日志-审计',          1, 'execution','end',        'class',               'com.forge.modules.workflow.handler.event.AuditLogEventHandler', '审计日志:记录实例结束'),
 ('任务创建通知',               1, 'task',     'create',     'class',               'com.forge.modules.workflow.listener.TaskNotificationListener', 'WebSocket 推送待办给候选人'),
 ('任务完成通知',               1, 'task',     'complete',   'class',               'com.forge.modules.workflow.listener.TaskNotificationListener', '完成时通知发起人'),
 ('任务转办通知',               1, 'task',     'assignment', 'class',               'com.forge.modules.workflow.listener.TaskNotificationListener', '转办/委派时通知新处理人'),
 ('任务候选人自动分配',         1, 'task',     'create',     'class',               'com.forge.modules.workflow.listener.BpmTaskCandidateListener', '从节点 extendConfig.candidateStrategy 解析策略码并计算候选人'),
-('实例事件转发',               1, 'execution','start',      'class',               'com.forge.modules.workflow.listener.InstanceEventListener', '实例级事件总线,与 instanceListener Bean 等价'),
 -- expression 触发器示例
-('流程发起无条件触发器',       1, 'execution','start',      'expression',          '${true}', 'TaskTriggerHandler 触发器,流程开始时无条件执行'),
 ('任务创建-高优先级触发',      1, 'task',     'create',     'expression',          '${task.priority > 5}', '仅高优先级任务触发,优先级从流程变量读取'),
 ('流程结束-有业务Key触发',     1, 'execution','end',        'expression',          '${instance.businessKey != null}', '有业务Key的实例才触发后续处理');
 
