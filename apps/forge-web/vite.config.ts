@@ -11,11 +11,13 @@ export default defineConfig({
     vue(),
     AutoImport({
       imports: ['vue', 'vue-router', 'pinia'],
-      resolvers: [ElementPlusResolver()],
+      // main.ts 已全量引入 element-plus/dist/index.css，
+      // 再注入按需样式会让 Vite 首次访问页面时发现新依赖并强制整页刷新
+      resolvers: [ElementPlusResolver({ importStyle: false })],
       dts: 'src/auto-imports.d.ts'
     }),
     Components({
-      resolvers: [ElementPlusResolver()],
+      resolvers: [ElementPlusResolver({ importStyle: false })],
       dts: 'src/components.d.ts'
     })
   ],
