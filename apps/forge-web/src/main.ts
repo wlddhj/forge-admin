@@ -15,7 +15,7 @@ import App from './App.vue'
 import router from './router'
 import './styles/index.scss'
 import '@/styles/screen.scss'
-import '@/styles/hiprint.css'
+import "@/assets/css/iconfont.css"
 import '@/assets/css/hiprint-style.css'
 import { permission, role } from './directives/permission'
 

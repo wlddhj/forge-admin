@@ -37,24 +37,52 @@ export default {
     }
 
     const showModal = (...html) => {
+      console.log('[print-view] showModal html:', html)
       show.value = true
       setTimeout(() => {
         const container = document.querySelector('.preview-container')
-        if (container) {
-          container.innerHTML = ''
-          container.insertAdjacentHTML('beforeend', html.join(''))
+        if (!container) {
+          console.error('[print-view] .preview-container not found in DOM')
+          return
         }
-      }, 200)
+        container.innerHTML = ''
+        const $ = window.jQuery || window.$
+        if ($) {
+          const $container = $(container)
+          $container.empty()
+          $container.html(html)
+        } else {
+          const htmlStr = html.map(h => {
+            if (typeof h === 'string') return h
+            if (h?.outerHTML) return h.outerHTML
+            if (h?.toString?.()) return h.toString()
+            return ''
+          }).join('')
+          container.insertAdjacentHTML('beforeend', htmlStr)
+        }
+        console.log('[print-view] container innerHTML length:', container.innerHTML.length)
+      }, 300)
     }
 
     async function loadTemplateData() {
       const data = await PrintTemplateApi.getByCode(templateCode.value)
+      console.log('[print-view] loadTemplateData result:', data)
       if (data && data.contents) {
-        templateRef.value = JSON.parse(data.contents)
+        try {
+          templateRef.value = JSON.parse(data.contents)
+          console.log('[print-view] templateRef parsed:', templateRef.value)
+        } catch (e) {
+          console.error('[print-view] contents JSON parse failed:', e)
+          templateRef.value = {}
+        }
+      } else {
+        console.warn('[print-view] template not found or contents empty')
+        templateRef.value = {}
       }
     }
 
     const prePrint = async (code, data) => {
+      console.log('[print-view] prePrint called with code:', code, 'data:', data)
       templateCode.value = code
       printDataOri = cloneDeep(data)
       printData.value = printDataOri
@@ -63,10 +91,12 @@ export default {
     }
 
     const showPrint = () => {
+      console.log('[print-view] showPrint templateRef:', templateRef.value, 'printData:', printData.value)
       hiprintTemplate = newHiprintPrintTemplate(TEMPLATE_KEY, {
         template: templateRef.value
       })
       const html = hiprintTemplate.getHtml(printData.value)
+      console.log('[print-view] getHtml return type:', typeof html, 'value:', html)
       showModal(html)
     }
 

@@ -384,49 +384,96 @@ export default {
 </style>
 
 <style>
-.rect-printElement-types .hiprint-printElement-type > li > ul > li > a {
-  color: #409eff !important;
-}
-.custom-style-types .hiprint-printElement-type {
+/* ===== 左侧可拖拽元素列表样式（不依赖 hiprint.css，自包含） ===== */
+.provider-container .hiprint-printElement-type {
   display: block;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
-.custom-style-types .hiprint-printElement-type > li > .title {
+.provider-container .hiprint-printElement-type > li {
   display: block;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.provider-container .hiprint-printElement-type > li > .title {
+  display: block;
+  padding: 6px 8px;
+  margin: 4px 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #303133;
+  background: #f0f2f5;
+  border-radius: 3px;
+}
+.provider-container .hiprint-printElement-type > li > ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
   padding: 4px 0;
-  color: #409eff;
+  list-style: none;
 }
-.custom-style-types .hiprint-printElement-type > li > ul {
+.provider-container .hiprint-printElement-type > li > ul > li {
+  display: block;
+  width: 48%;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
-.custom-style-types .hiprint-printElement-type > li > ul > li {
+.provider-container .hiprint-printElement-type > li > ul > li > a {
   display: block;
-  width: 50%;
-  float: left;
-  max-width: 100px;
-}
-.custom-style-types .hiprint-printElement-type > li > ul > li > a {
-  padding: 8px 6px;
+  padding: 8px 4px;
+  font-size: 12px;
   color: #409eff;
+  text-align: center;
   text-decoration: none;
   background: #fff;
-  border: 1px solid #ddd;
-  margin-right: 5px;
-  width: 95%;
-  display: inline-block;
-  text-align: center;
-  margin-bottom: 5px;
-  box-sizing: border-box;
+  border: 1px solid #dcdfe6;
   border-radius: 4px;
-  box-shadow: 0 1px 0 0 rgba(0,0,0,0.15);
+  cursor: grab;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+.provider-container .hiprint-printElement-type > li > ul > li > a:hover {
+  color: #fff;
+  background: #409eff;
+  border-color: #409eff;
+  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3);
+}
+.provider-container .hiprint-printElement-type > li > ul > li > a:active {
+  cursor: grabbing;
+}
+
+/* 兼容 rect-printElement-types / custom-style-types 旧 class（hiprint 内部可能使用） */
+.rect-printElement-types .hiprint-printElement-type > li > ul > li > a,
+.custom-style-types .hiprint-printElement-type > li > ul > li > a {
+  color: #409eff;
+}
+
+/* ===== 右侧参数设置面板样式 ===== */
+#PrintElementOptionSetting .hiprint-option-item {
+  margin-bottom: 8px;
+  padding: 0 8px;
 }
 #PrintElementOptionSetting .hiprint-option-item .hiprint-option-item-label {
-  margin: 10px 5px 3px 0;
+  display: block;
+  margin: 10px 0 4px;
   font-size: 12px;
+  color: #606266;
 }
 #PrintElementOptionSetting .hiprint-option-item-field {
   font-size: 12px;
+}
+#PrintElementOptionSetting .hiprint-option-item input,
+#PrintElementOptionSetting .hiprint-option-item select,
+#PrintElementOptionSetting .hiprint-option-item textarea {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 3px;
+  box-sizing: border-box;
 }
 </style>
