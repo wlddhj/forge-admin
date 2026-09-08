@@ -1,0 +1,111 @@
+/**/
+.hiprint-printPaper .item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: white;
+    padding: 4px 10px;
+    margin: 10px 8px 4px 8px;
+    width: 38%;
+    min-height: 60px;
+    border-radius: 4px;
+    box-shadow: 2px 2px 2px 2px rgba(171, 171, 171, 0.2);
+}
+.hiprint-printPaper .item .iconfont {
+    font-size: 1.5rem;
+}
+.hiprint-printPaper .item span {
+    font-size: 14px;
+}
+
+
+
+
+/* flex */
+.flex-row {
+    display: flex;
+}
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+.flex-wrap {
+    flex-wrap: wrap;
+}
+.align-center {
+    align-items: center;
+}
+.justify-center {
+    justify-content: center;
+}
+
+.flex-1 {
+    flex: 1;
+}
+.flex-2 {
+    flex: 2;
+}
+.flex-3 {
+    flex: 3;
+}
+.flex-4 {
+    flex: 4;
+}
+.flex-5 {
+    flex: 5;
+}
+
+.ml-10 {
+    margin-left: 10px;
+}
+.mr-10 {
+    margin-right: 10px;
+}
+.mt-10 {
+    margin-top: 10px;
+}
+.mb-10 {
+    margin-bottom: 10px;
+}
+
+/* button 样式 为了好看点 */
+button {
+    padding: 10px;
+    min-width: 40px;
+    color: white;
+    opacity: 0.9;
+    cursor: pointer;
+    border-width: 0;
+    border: 1px solid #d9d9d9;
+}
+button:hover {
+    opacity: 1;
+}
+button i {
+    font-size: 16px !important;
+}
+.circle,
+.circle-4 {
+    border-radius: 4px !important;
+}
+.circle-10 {
+    border-radius: 10px !important;
+}
+/* 按钮颜色 */
+.primary {
+    background: purple;
+}
+.info {
+    color: #000;
+    background: none;
+}
+.info:hover {
+    color: purple;
+    border-color: purple;
+}
+.secondary {
+    background: #1976d2;
+}
+.warning {
+    background: #d32f2f;
+}

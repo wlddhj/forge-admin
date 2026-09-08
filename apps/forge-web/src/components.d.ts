@@ -78,6 +78,8 @@ declare module 'vue' {
     MobileMenu: typeof import('./components/MobileMenu.vue')['default']
     MobileSearchButton: typeof import('./components/MobileSearchButton.vue')['default']
     MobileSearchDrawer: typeof import('./components/MobileSearchDrawer.vue')['default']
+    Preview: typeof import('./components/hiprint/preview.vue')['default']
+    PrintView: typeof import('./components/hiprint/print-view.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SettingsPanel: typeof import('./components/SettingsPanel.vue')['default']

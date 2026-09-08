@@ -66,5 +66,8 @@ apps/forge-server/uploads/
 .claude/
 /.playwright-mcp/
 
+# FlowNeo workflow
+.flow-neo/
+
 # Git worktrees
 .worktrees/

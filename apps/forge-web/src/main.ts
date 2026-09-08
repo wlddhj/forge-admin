@@ -8,11 +8,15 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 import 'nprogress/nprogress.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import {VxeUI} from "vxe-pc-ui";
+import jQuery from 'jquery'
+window.$ = window.jQuery = jQuery
 
 import App from './App.vue'
 import router from './router'
 import './styles/index.scss'
 import '@/styles/screen.scss'
+import '@/styles/hiprint.css'
+import '@/assets/css/hiprint-style.css'
 import { permission, role } from './directives/permission'
 
 // 导入 vxe-table 插件

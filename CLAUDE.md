@@ -57,7 +57,7 @@ mvn test -Dtest=ClassName -pl <module>         # 运行单个测试类
 
 ### 多模块结构
 
-后端是一个 14 模块的 Maven 项目，包名基类为 `com.forge`。
+后端是一个 16 模块的 Maven 项目（`forge-dependencies` 1 + `forge-framework` 6 + 4 个业务模块各 api/biz 2 + `forge-server` 1），包名基类为 `com.forge`。
 
 ```
 apps/forge-server/
@@ -111,6 +111,22 @@ starter-redis ← forge-common
 - `com.forge.modules.workflow` — 工作流（FlowLong 集成）
 - `com.forge.modules.ai` — AI 模块（调用 Python 服务）
 - `com.forge.modules.screen` — 大屏（CRUD + 数据源执行器 + SQL 安全层）
+
+### 双端点架构
+
+后端有两套独立端点，按 Controller 包名自动注入前缀，**Controller 类的 `@RequestMapping` 不要再写 `/admin-api` 或 `/app-api` 前缀**：
+
+| 端点前缀 | Controller 包名模式 | 用户主体 | 鉴权机制 |
+|---|---|---|---|
+| `/admin-api/**` | `**.controller.admin.**` | `sys_user` 表 | JWT + `@PreAuthorize` 权限码 |
+| `/app-api/**` | `**.controller.app.**` | `app_user` 表（独立） | `AppJwtAuthenticationFilter` + 微信授权登录 |
+
+机制由 `WebProperties`（`forge-spring-boot-starter-web/.../config/WebProperties.java`）声明 prefix + controller 包匹配模式，实际注入逻辑在 `WebMvcConfig.configurePathMatch()`（`forge-module-system-biz/.../common/config/WebMvcConfig.java`），通过 `PathMatchConfigurer.addPathPrefix(prefix, clazzPredicate)` 按 `@RestController` + 包名 AntPath 匹配生效。
+
+**业务约定：**
+- 后台管理 Controller 放 `controller/admin/` 子包，移动端 Controller 放 `controller/app/` 子包
+- 小程序登录走 `/app-api/auth/wx-login`，其他管理端走 `/admin-api/**`
+- 静态资源（文件上传访问）双路径映射：`/uploads/**` 与 `/app-api/uploads/**` 同源
 
 ### 大屏模块特殊设计
 
