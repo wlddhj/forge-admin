@@ -47,15 +47,15 @@ export interface PrintTemplateRequest {
 export const PrintTemplateApi = {
   /** 分页查询 */
   list: (params: PrintTemplateQuery) =>
-    request.get<PageResult<PrintTemplateEntity>>('/system/print-template/list', { params }),
+    request.get<PageResult<PrintTemplateEntity>>('/system/print-template/list', { params }).then(res => res.data),
 
   /** 详情 */
   get: (id: number) =>
-    request.get<PrintTemplateEntity>(`/system/print-template/${id}`),
+    request.get<PrintTemplateEntity>(`/system/print-template/${id}`).then(res => res.data),
 
   /** 按编号查询 */
   getByCode: (code: string) =>
-    request.get<PrintTemplateEntity>(`/system/print-template/code/${code}`),
+    request.get<PrintTemplateEntity>(`/system/print-template/code/${code}`).then(res => res.data),
 
   /** 新增 */
   create: (data: PrintTemplateRequest) =>

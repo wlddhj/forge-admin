@@ -61,7 +61,7 @@
         <vxe-column field="createTime" title="创建时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
         </vxe-column>
-        <vxe-column title="操作" width="200" fixed="right">
+        <vxe-column title="操作" width="250" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click.stop="handleDesign(row)">设计</el-button>
             <el-button type="primary" link size="small" v-permission="'system:print-template:edit'" @click.stop="handleEdit(row)">编辑</el-button>
@@ -134,6 +134,7 @@ const getList = async () => {
   loading.value = true
   try {
     const res = await PrintTemplateApi.list(queryParams)
+    console.log(res)
     tableData.value = res.list
     total.value = res.total
   } finally {

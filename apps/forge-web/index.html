@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+      <!-- 可以调整成 相对链接/自有链接, 【重要】名称需要一致 【print-lock.css】-->
+      <link rel="stylesheet" type="text/css" media="print" href="/styles/print-lock.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>%VITE_APP_TITLE% - %VITE_APP_SUBTITLE%</title>
   </head>
@@ -13,5 +15,55 @@
     </script>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
+
+    <script>
+
+        function formatDateJs(value) {
+            if (!value){
+                return ''
+            }
+            const date = new Date(value)
+            const year = date.getFullYear();
+            const month = ('0' + (date.getMonth() + 1)).slice(-2);
+            const day = ('0' + date.getDate()).slice(-2);
+            return `${year}-${month}-${day}`;
+        }
+        function formatTimeJs(value) {
+            if (!value){
+                return '1'
+            }
+            const date = new Date(value)
+            const year = date.getFullYear();
+            const month = ('0' + (date.getMonth() + 1)).slice(-2);
+            const day = ('0' + date.getDate()).slice(-2);
+            const hour = ('0' + date.getHours()).slice(-2);
+            const minute = ('0' + date.getMinutes()).slice(-2);
+            const second = ('0' + date.getSeconds()).slice(-2);
+            return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+        }
+        function formatNumber(value, scale) {
+            if (value !== '' && value !== null && value !== undefined) {
+                // 转换为数字
+                const num = parseFloat(value);
+                console.log('formatNumber', num)
+                // 如果是整数或者小数部分为0，则不显示小数
+                if (Number.isInteger(num)) {
+                    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                } else {
+                    // 有小数的情况，四舍五入到指定小数位
+                    const rounded = Number(num.toFixed(scale || 2));
+                    // 如果四舍五入后变成整数，则不显示小数点
+                    if (Number.isInteger(rounded)) {
+                        return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                    } else {
+                        // 保留小数点后不为0的情况
+                        return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                    }
+                }
+            } else {
+                return '';
+            }
+        }
+    </script>
   </body>
 </html>

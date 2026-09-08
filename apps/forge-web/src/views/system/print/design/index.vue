@@ -20,7 +20,7 @@
               <input class="paper-input" v-model.number="paperWidth" type="number" placeholder="宽" />
               <span>x</span>
               <input class="paper-input" v-model.number="paperHeight" type="number" placeholder="高" />
-              <button class="primary-btn" @click.stop="setPaperOther">确定</button>
+              <button class="action-btn primary" @click.stop="setPaperOther">确定</button>
             </div>
           </div>
         </div>
@@ -33,12 +33,12 @@
         <button class="icon-btn" @click="changeScale(true)">+</button>
       </div>
 
-      <button class="action-btn" @click.stop="rotatePaper">旋转纸张</button>
-      <button class="action-btn" @click.stop="clearPaper">清空</button>
-      <button class="action-btn" @click.stop="exportJson">导出JSON</button>
+      <button class="action-btn default" @click.stop="rotatePaper">旋转纸张</button>
+      <button class="action-btn default" @click.stop="clearPaper">清空</button>
+      <button class="action-btn default" @click.stop="exportJson">导出JSON</button>
       <button class="action-btn primary" @click.stop="saveJson">保存模板</button>
-      <button class="action-btn" @click.stop="getHtml">预览</button>
-      <button class="action-btn" @click.stop="print">浏览器打印</button>
+      <button class="action-btn default" @click.stop="getHtml">预览</button>
+      <button class="action-btn default" @click.stop="print">浏览器打印</button>
     </div>
 
     <div class="design-body">
@@ -78,6 +78,7 @@ import { PrintTemplateApi } from '@/api/system/print-template'
 
 export default {
   name: 'print-template-design',
+  components: { startPreview },
   setup() {
     const TEMPLATE_KEY = getCurrentInstance().type.name
     const route = useRoute()
@@ -274,6 +275,7 @@ export default {
   background: #fff;
   cursor: pointer;
   font-size: 12px;
+  color: #000;
 }
 .paper-btn.active {
   background: #409eff;
@@ -311,6 +313,9 @@ export default {
   border: 1px solid #dcdfe6;
   background: #fff;
   cursor: pointer;
+  font-size: 20px;
+  padding: 0;
+  color: #000;
 }
 .zoom-value {
   width: 40px;
@@ -324,6 +329,11 @@ export default {
   cursor: pointer;
   font-size: 12px;
   border-radius: 3px;
+}
+.action-btn.default {
+  background: #217de4;
+  color: #fff;
+  border-color: #67c23a;
 }
 .action-btn.primary {
   background: #67c23a;
