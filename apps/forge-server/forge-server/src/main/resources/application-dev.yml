@@ -39,7 +39,7 @@ justauth:
 logging:
   level:
     com.forge: debug
-    com.forge.modules.system.mapper: info
+    com.forge.modules.system.mapper: debug
 
 # 等保安全策略（开发环境覆盖）
 forge:
