@@ -20,20 +20,6 @@ export const provider1 = function (options) {
           },
         },
         {
-          tid: "providerModule1.type",
-          title: "单据类型",
-          data: "单据类型",
-          type: "text",
-          options: {
-            testData: "单据类型",
-            height: 16,
-            fontSize: 15,
-            fontWeight: "700",
-            textAlign: "center",
-            hideTitle: true,
-          },
-        },
-        {
           tid: "providerModule1.orderNo",
           title: "No",
           data: "XS888888888",
@@ -120,18 +106,6 @@ export const provider1 = function (options) {
             textContentVerticalAlign: "middle",
           },
         },
-        {
-          tid: "providerModule1.warehouseName",
-          title: "出货仓库",
-          type: "text",
-          options: {
-            field: "warehouseName",
-            testData: "扬州众犇仓",
-            height: 16,
-            textAlign: "left",
-            textContentVerticalAlign: "middle",
-          },
-        },
         { tid: "providerModule1.image", field:"logoTest", title: "Logo", data: "", type: "image" },
       ]),
       new hiprint.PrintElementTypeGroup("客户", [
@@ -144,17 +118,7 @@ export const provider1 = function (options) {
             testData: "高级客户",
             height: 16,
             textAlign: "left",
-            textContentVerticalAlign: "middle",
-            "fields": [
-              {
-                "text": "id",
-                "field": "id"
-              },
-              {
-                "text": "客户名称",
-                "field": "customerName"
-              }
-            ]
+            textContentVerticalAlign: "middle"
           },
         },
         {

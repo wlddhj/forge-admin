@@ -29,7 +29,7 @@ export const provider2 = function (options) {
         },
         {
           tid: "providerModule2.table2",
-          title: "订单数据2",
+          title: "订单表格-双表头",
           type: "table",
           options: {
             field: "table2",
@@ -88,39 +88,7 @@ export const provider2 = function (options) {
             ]
           ]
         },
-        { tid: "providerModule2.customText", title: "文本", customText: "自定义文本", custom: true, type: "text" },
-        {
-          tid: "providerModule2.longText",
-          title: "长文本",
-          type: "longText",
-          options: {
-            field: "test.longText",
-            testData: "长文本分页/不分页测试",
-          },
-        },
-      ]),
-      new hiprint.PrintElementTypeGroup("辅助", [
-        {
-          tid: "providerModule2.hline",
-          title: "横线",
-          type: "hline",
-        },
-        {
-          tid: "providerModule2.vline",
-          title: "竖线",
-          type: "vline",
-        },
-        {
-          tid: "providerModule2.rect",
-          title: "矩形",
-          type: "rect",
-        },
-        {
-          tid: "providerModule2.oval",
-          title: "椭圆",
-          type: "oval",
-        },
-      ]),
+      ])
     ]);
   };
   return {

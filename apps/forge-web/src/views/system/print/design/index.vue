@@ -43,9 +43,9 @@
 
     <div class="design-body">
       <div class="left-panel">
-        <div class="panel-title">默认元素</div>
-        <div id="provider-container1" class="provider-container"></div>
         <div class="panel-title">自定义元素</div>
+        <div id="provider-container1" class="provider-container"></div>
+        <div class="panel-title">自定义表格</div>
         <div id="provider-container2" class="provider-container"></div>
         <div class="panel-title">基础元素</div>
         <div id="provider-container3" class="provider-container"></div>
