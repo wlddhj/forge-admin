@@ -69,5 +69,8 @@ apps/forge-server/uploads/
 # FlowNeo workflow
 .flow-neo/
 
+# Superpowers workflow
+.superpowers/
+
 # Git worktrees
 .worktrees/
