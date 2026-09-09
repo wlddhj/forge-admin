@@ -101,6 +101,16 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 | SQL 白名单 | 表/列级白名单维护，三级风险等级（公开/内部/敏感） |
 | 大屏安全 | SQL AST 校验 + 列级白名单 + HTTP SSRF 防护 + 数据源熔断器 |
 
+### 打印管理
+
+| 功能 | 说明 |
+|------|------|
+| 打印模板管理 | 模板 CRUD、按编号唯一（跨租户共享）、版本号、状态控制 |
+| 模板设计器 | 基于 hiprint 的拖拽式设计器（拖元素/绑定字段/纸张/缩放/旋转/清空/导出 JSON） |
+| 打印预览 | 浏览器原生打印预览（el-dialog 弹窗 + jQuery html 兼容多种返回类型） |
+| 按编号调用 | 业务方通过 `GET /admin-api/system/print-template/code/{code}` 取模板 JSON 后调用打印 |
+| 打印 Demo | `/demo/hiprint` 提供按编号调用打印的示例页 |
+
 ### 移动端（小程序）
 
 | 功能 | 说明 |
@@ -146,6 +156,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 - **API 文档**：集成 Knife4j，提供在线 API 文档
 - **移动端支持**：独立的 `/app-api` 端点，支持微信小程序授权登录
 - **强大表格**：vxe-table 提供列自定义、导出、打印等功能
+- **打印模板**：基于 vue-plugin-hiprint 的拖拽式模板设计器，支持纸张/缩放/旋转、浏览器原生打印预览、按编号调用打印，模板跨租户共享
 - **多套 UI 主题**：4 套预设套餐 + 调色板/布局/风格三维度独立切换 + 自定义主色 + 明暗双模式，CSS 变量两阶桥接（业务变量 → Element Plus/vxe-table）实现无刷新切换
 - **等保二级合规**：符合 GB/T 22239-2019 二级等保要求的安全改造
   - **密码安全**：复杂度校验（8-32位、大小写+数字+特殊字符）、历史校验（5条不可重复）、90天有效期、首次登录强制改密、BCrypt 强度=12
@@ -188,6 +199,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 - vxe-pc-ui 4.6
 - Pinia 2.1
 - Vite 5.0
+- vue-plugin-hiprint 0.0.58-fix（打印模板设计器）+ jQuery（hiprint 依赖）+ lodash-es + min-dash
 
 ### 大屏编辑器
 
@@ -375,7 +387,7 @@ forge-admin/
 │   ├── forge-web/                       # 前端应用
 │   │   ├── src/
 │   │   │   ├── api/                     # API 接口定义
-│   │   │   ├── components/              # 公共组件
+│   │   │   ├── components/              # 公共组件（含 components/hiprint 打印组件）
 │   │   │   ├── composables/             # 组合式函数（useTableHeight、useTableSeq 等）
 │   │   │   ├── layouts/                 # 布局组件（BasicLayout 分发器 + LayoutSidebar + LayoutTop）
 │   │   │   ├── plugins/                 # vxe-table 全局配置
@@ -384,15 +396,17 @@ forge-admin/
 │   │   │   ├── styles/                  # 样式文件
 │   │   │   ├── themes/                  # 主题系统（套餐注册表 + 调色板 + 风格 + 运行时颜色派生）
 │   │   │   ├── types/                   # TypeScript 类型定义
-│   │   │   ├── utils/                   # 工具函数
-│   │   │   └── views/                   # 页面组件（含 views/screen 大屏管理）
-│   │   │       └── screen/              # 大屏管理页面
-│   │   │           ├── index/           #   大屏列表
+│   │   │   ├── utils/                   # 工具函数（含 utils/hiprint 打印工具）
+│   │   │   └── views/                   # 页面组件（含 views/screen 大屏管理、views/system/print 打印模板）
+│   │   │       ├── screen/              # 大屏管理页面
+│   │   │       │   ├── index/           #   大屏列表
 │   │   │           ├── editor/          #   编辑器入口（iframe 嵌入 goView）
 │   │   │           ├── preview/         #   大屏预览
 │   │   │           ├── render/          #   公开/登录大屏渲染
 │   │   │           ├── data-source/     #   数据源管理
 │   │   │           └── sql-whitelist/   #   SQL 白名单管理
+│   │   │       ├── system/print/        # 打印模板管理（列表 + 表单 + design/ 设计器）
+│   │   │       └── demo/hiprint/       # 打印调用示例页
 │   │   └── package.json
 │   │
 │   ├── forge-screen/                    # 大屏编辑器（goView，独立 SPA）
@@ -509,6 +523,24 @@ Java 通过 `WebClient` 调用 Python FastAPI 服务，支持流式响应（SSE�
 **API 端点：**
 - `/admin-api/ai/document/**` — Java 文档管理接口
 - `http://localhost:8000/api/**` — Python AI 服务接口
+
+### 打印模板架构
+
+系统基于 `vue-plugin-hiprint` 实现拖拽式打印模板设计与浏览器原生打印：
+
+- **后端**（`forge-module-system`）：`SysPrintTemplate` 实体 + DTO + Mapper + Service + Controller，提供 6 个 REST 端点（list/get/getByCode/create/update/delete）
+- **前端**（`apps/forge-web`）：
+  - `components/hiprint/` — 复用组件（`preview.vue` 预览弹窗、`print-view.vue` 调用打印）
+  - `utils/hiprint/` — 工具（`template-helper.js` 模板工厂、`modal.js` 弹窗辅助）
+  - `views/system/print/` — 列表页 + 表单弹窗 + `design/` 设计器
+  - `views/demo/hiprint/` — 按编号调用打印的示例页
+- **数据表 `sys_print_template`**：跨租户共享表（在 `ignore-tables` 白名单），`template_code` 全表唯一，`contents` 字段存 hiprint JSON
+- **依赖**：`vue-plugin-hiprint@0.0.58-fix`、`jquery`（hiprint 内部依赖，main.ts 全局暴露 `window.$`）、`lodash-es`、`min-dash`
+
+**关键流程：**
+1. 列表 → 新增模板（填编号/名称）→ 路由跳转 `/system/print/design?id=N` 进入设计器
+2. 设计器内拖拽元素、绑定字段、设置纸张/缩放 → 保存（`PUT /admin-api/system/print-template`，contents 携带 JSON）
+3. 业务方调用：`GET /admin-api/system/print-template/code/{code}` 取模板 JSON → 用 `print-view.vue` 触发浏览器打印
 
 ### 权限控制
 
