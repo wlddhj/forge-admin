@@ -42,9 +42,6 @@ public class SysPrintTemplate {
     @Schema(description = "备注")
     private String remark;
 
-    @Schema(description = "租户ID")
-    private Long tenantId;
-
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

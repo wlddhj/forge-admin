@@ -16,7 +16,6 @@ public class PrintTemplateResponse {
     private Integer version;
     private Integer status;
     private String remark;
-    private Long tenantId;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

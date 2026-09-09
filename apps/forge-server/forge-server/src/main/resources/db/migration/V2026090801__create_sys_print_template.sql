@@ -9,21 +9,19 @@
 DROP TABLE IF EXISTS `sys_print_template`;
 CREATE TABLE `sys_print_template` (
   `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `template_code` VARCHAR(64)  NOT NULL COMMENT '模板编号（同租户内唯一）',
+  `template_code` VARCHAR(64)  NOT NULL COMMENT '模板编号（全表唯一）',
   `template_name` VARCHAR(100) NOT NULL COMMENT '模板名称',
   `contents`      LONGTEXT     DEFAULT NULL COMMENT '模板内容（hiprint JSON）',
   `version`       INT          NOT NULL DEFAULT 1 COMMENT '版本号',
   `status`        TINYINT      NOT NULL DEFAULT 1 COMMENT '状态（0:禁用 1:启用）',
   `remark`        VARCHAR(255) DEFAULT NULL COMMENT '备注',
-  `tenant_id`     BIGINT       NOT NULL DEFAULT 1 COMMENT '租户ID',
   `create_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `create_by`     BIGINT       DEFAULT NULL COMMENT '创建人',
   `update_by`     BIGINT       DEFAULT NULL COMMENT '更新人',
   `deleted`       TINYINT      NOT NULL DEFAULT 0 COMMENT '是否删除',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_tenant_code` (`tenant_id`, `template_code`, `deleted`) COMMENT '同租户编号唯一',
-  KEY `idx_tenant_id` (`tenant_id`) COMMENT '租户索引'
+  UNIQUE KEY `uk_template_code` (`template_code`, `deleted`) COMMENT '模板编号唯一'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='打印模板配置表';
 
 -- ========================================

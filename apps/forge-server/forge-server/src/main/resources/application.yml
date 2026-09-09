@@ -109,6 +109,7 @@ forge:
       - sys_tenant_package
       - sys_tenant_package_menu
       - sys_tenant_package_role
+      - sys_print_template
     # 跨租户共享的缓存名（key 不加 tenantId 前缀）
     ignore-caches:
       - dictData

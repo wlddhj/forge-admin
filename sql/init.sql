@@ -305,6 +305,27 @@ CREATE TABLE `sys_position` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位表';
 
 -- ========================================
+-- 13.1 打印模板配置表
+-- ========================================
+DROP TABLE IF EXISTS `sys_print_template`;
+CREATE TABLE `sys_print_template` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `template_code` varchar(64) NOT NULL COMMENT '模板编号',
+  `template_name` varchar(100) NOT NULL COMMENT '模板名称',
+  `contents` longtext DEFAULT NULL COMMENT '模板内容（hiprint JSON）',
+  `version` int NOT NULL DEFAULT 1 COMMENT '版本号',
+  `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态（0:禁用 1:启用）',
+  `remark` varchar(255) DEFAULT NULL COMMENT '备注',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `create_by` bigint DEFAULT NULL COMMENT '创建人',
+  `update_by` bigint DEFAULT NULL COMMENT '更新人',
+  `deleted` tinyint NOT NULL DEFAULT 0 COMMENT '删除标记',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_template_code` (`template_code`, `deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='打印模板配置表';
+
+-- ========================================
 -- 14. 角色表
 -- ========================================
 DROP TABLE IF EXISTS `sys_role`;
@@ -702,7 +723,20 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 (81, '序列查询', 80, '', '', NULL, '', 1, 2, 'system:key-sequence:query', 1, 1, 0, 0),
 (82, '序列新增', 80, '', '', NULL, '', 2, 2, 'system:key-sequence:add', 1, 1, 0, 0),
 (83, '序列编辑', 80, '', '', NULL, '', 3, 2, 'system:key-sequence:edit', 1, 1, 0, 0),
-(84, '序列删除', 80, '', '', NULL, '', 4, 2, 'system:key-sequence:delete', 1, 1, 0, 0);
+(84, '序列删除', 80, '', '', NULL, '', 4, 2, 'system:key-sequence:delete', 1, 1, 0, 0),
+-- 打印管理目录（顶级，sort_order=11，位于系统管理之后）
+(2500, '打印管理', 0, '/system/print', 'Layout', '/system/print/index', 'Printer', 11, 0, NULL, 1, 1, 0, 0),
+-- 打印模板菜单
+(2510, '打印模板', 2500, '/system/print/index', '/views/system/print/index', NULL, 'Document', 1, 1, 'system:print-template:list', 1, 1, 0, 0),
+-- 打印模板按钮权限
+(2511, '模板查询', 2510, '', '', NULL, '', 1, 2, 'system:print-template:query', 1, 1, 0, 0),
+(2512, '模板新增', 2510, '', '', NULL, '', 2, 2, 'system:print-template:add', 1, 1, 0, 0),
+(2513, '模板编辑', 2510, '', '', NULL, '', 3, 2, 'system:print-template:edit', 1, 1, 0, 0),
+(2514, '模板删除', 2510, '', '', NULL, '', 4, 2, 'system:print-template:remove', 1, 1, 0, 0),
+-- 模板设计器（不在侧边栏显示，但仍可路由访问）
+(2520, '模板设计器', 2500, '/system/print/design', '/views/system/print/design/index', NULL, 'EditPen', 2, 1, 'system:print-template:edit', 1, 0, 0, 1),
+-- 打印 Demo
+(2530, '打印 Demo', 2500, '/demo/hiprint', '/views/demo/hiprint/index', NULL, 'View', 3, 1, 'system:print-template:demo', 1, 1, 0, 0);
 
 -- 初始化角色菜单关联 (超级管理员拥有所有菜单)
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)
