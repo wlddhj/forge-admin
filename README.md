@@ -8,7 +8,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 
 系统内置完整的权限管理模块，支持用户、角色、菜单、部门的层级管理，并实现细粒度的数据权限控制（全部/本部门/本部门及以下/仅本人）。集成 OAuth2 授权服务器（基于 Spring Authorization Server），支持微信、钉钉等第三方登录（基于 JustAuth），允许第三方应用通过本系统进行用户认证。此外还集成了 Quartz 定时任务调度、在线 API 文档（Knife4j）、操作日志审计、登录日志等企业级功能。
 
-系统同时内置**数据可视化大屏**模块，提供基于 goView 的拖拽式大屏编辑器、多数据源（SQL / HTTP）配置能力，以及面向纵深防御的 SQL 安全层（AST 校验 + 表/列白名单 + 运行时 LIMIT 限制），可安全地支持业务指标监控、运营驾驶舱等场景。支持 Docker 容器化部署，提供项目模板化工具，可快速基于此项目创建新的管理系统。
+系统同时内置**数据可视化大屏**模块，提供基于 goView 的拖拽式大屏编辑器、多数据源（SQL / HTTP）配置能力，以及面向纵深防御的 SQL 安全层（AST 校验 + 表/列白名单 + 运行时 LIMIT 限制），可安全地支持业务指标监控、运营驾驶舱等场景。内置**打印模板**模块，基于 vue-plugin-hiprint 提供拖拽式打印模板设计与浏览器原生打印，模板跨租户共享、按编号调用。支持 Docker 容器化部署，提供项目模板化工具，可快速基于此项目创建新的管理系统。
 
 ## 项目截图
 
@@ -400,13 +400,13 @@ forge-admin/
 │   │   │   └── views/                   # 页面组件（含 views/screen 大屏管理、views/system/print 打印模板）
 │   │   │       ├── screen/              # 大屏管理页面
 │   │   │       │   ├── index/           #   大屏列表
-│   │   │           ├── editor/          #   编辑器入口（iframe 嵌入 goView）
-│   │   │           ├── preview/         #   大屏预览
-│   │   │           ├── render/          #   公开/登录大屏渲染
-│   │   │           ├── data-source/     #   数据源管理
-│   │   │           └── sql-whitelist/   #   SQL 白名单管理
+│   │   │       │   ├── editor/          #   编辑器入口（iframe 嵌入 goView）
+│   │   │       │   ├── preview/         #   大屏预览
+│   │   │       │   ├── render/          #   公开/登录大屏渲染
+│   │   │       │   ├── data-source/     #   数据源管理
+│   │   │       │   └── sql-whitelist/   #   SQL 白名单管理
 │   │   │       ├── system/print/        # 打印模板管理（列表 + 表单 + design/ 设计器）
-│   │   │       └── demo/hiprint/       # 打印调用示例页
+│   │   │       └── demo/hiprint/        # 打印调用示例页
 │   │   └── package.json
 │   │
 │   ├── forge-screen/                    # 大屏编辑器（goView，独立 SPA）
@@ -439,7 +439,7 @@ forge-admin/
 
 ### 后端多模块架构
 
-后端采用 17 模块的 Maven 多项目结构，各模块职责清晰：
+后端采用 16 模块的 Maven 多项目结构，各模块职责清晰：
 
 ```
 forge-dependencies        → BOM 版本管理
@@ -662,18 +662,6 @@ docker-compose up -d
 - 全新初始化：直接执行 `sql/init.sql`（已集成多租户结构）
 - 已有数据库升级：按顺序执行 `apps/forge-server/docs/manual-migrations/V2026071101~V2026071301*.sql`（共 7 个增量脚本）
 
-## 数据库迁移
-
-### 等保改造
-
-等保改造的数据库迁移脚本位于 `apps/forge-server/forge-server/src/main/resources/db/migration/V2026061901__sys_user_security_extend.sql`，扩展了 `sys_user` 表的安全字段并新增 `sys_user_password_history` 密码历史表。
-
-手动执行可使用幂等版本：`apps/forge-server/docs/MANUAL-MIGRATION.sql`
-
-```bash
-mysql -h <host> -u <user> -p <database> < apps/forge-server/docs/MANUAL-MIGRATION.sql
-```
-
 ### 大屏模块
 
 大屏模块提供两种使用方式：**全新初始化**使用 `sql/init-screen.sql`；**已有数据库增量更新**按版本号顺序手动执行模块的 `db/migration/` 脚本。
@@ -700,6 +688,14 @@ mysql -u root -p < sql/init-screen.sql
 | `V202607090__seed_test_data_sources.sql` | 测试数据源种子数据 |
 | `V202607091__add_sql_whitelist_menu.sql` | SQL 白名单菜单与按钮权限种子数据 |
 
+### 打印模板
+
+`sys_print_template` 表在多租户 `ignore-tables` 白名单中（跨租户共享），不注入 tenant_id。
+
+全新初始化使用 `sql/init.sql`（已集成 sys_print_template 表 + 菜单种子）。
+
+详见 [docs/print-template-guide.md](docs/print-template-guide.md)。
+
 ## 相关文档
 
 ### 流程模块(`docs/workflow/`)
@@ -721,6 +717,7 @@ mysql -u root -p < sql/init-screen.sql
 | [docs/data-permission-guide.md](docs/data-permission-guide.md) | 数据权限(部门级 / 本人级)使用说明 |
 | [docs/database-design-specification.md](docs/database-design-specification.md) | 数据库设计规范(字段命名、索引、关联关系) |
 | [docs/module-development.md](docs/module-development.md) | 新建业务模块的开发规范 |
+| [docs/print-template-guide.md](docs/print-template-guide.md) | 打印模板使用指南（hiprint 设计器/调用打印/多租户行为/常见问题） |
 | [apps/forge-server/docs/SECURITY-COMPLIANCE.md](apps/forge-server/docs/SECURITY-COMPLIANCE.md) | GB/T 22239-2019 二级等保合规说明(密码/登录/加密/审计) |
 | [apps/forge-server/docs/DEPLOYMENT-CHECKLIST.md](apps/forge-server/docs/DEPLOYMENT-CHECKLIST.md) | 生产环境部署检查清单(环境变量、HTTPS、密钥) |
 
