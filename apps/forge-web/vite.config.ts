@@ -56,6 +56,31 @@ export default defineConfig({
       }
     }
   },
+  // 路由懒加载页面不在默认扫描入口内，Vite 运行期才发现新依赖会触发
+  // re-optimize 并整页刷新；entries 让启动期扫描全部页面一次性预构建。
+  // 按需注入的 element-plus 组件深层路径与 vxe 语言包无法被静态扫描穷尽，
+  // 用 glob 全量预构建彻底杜绝运行期发现新依赖。
+  optimizeDeps: {
+    include: [
+      'vue',
+      'vue-router',
+      'pinia',
+      'axios',
+      'dayjs',
+      'nprogress',
+      'vxe-table',
+      'vxe-pc-ui',
+      'vxe-pc-ui/lib/language/zh-CN',
+      'xe-utils',
+      '@wangeditor/editor',
+      '@wangeditor/editor-for-vue',
+      '@stomp/stompjs',
+      'sockjs-client',
+      '@element-plus/icons-vue',
+      'element-plus/es/components/**'
+    ],
+    entries: ['index.html', 'src/views/**/*.vue']
+  },
   test: {
     environment: 'happy-dom',
     globals: true,
