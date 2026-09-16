@@ -86,6 +86,8 @@
 
         <!-- 分组（桌面端） -->
         <vxe-column v-if="!isMobile" field="configGroup" title="分组" width="100" />
+        <!-- 备注（桌面端） -->
+        <vxe-column v-if="!isMobile" field="remark" title="备注" min-width="120" />
 
         <!-- 创建时间（桌面端） -->
         <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="180">
