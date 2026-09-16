@@ -79,6 +79,7 @@ forge:
       - /admin-api/auth/captcha-image
       - /admin-api/auth/change-password-first-login
       - /admin-api/system/tenant/public/**
+      - /admin-api/system/brand/public
       - /admin-api/system/public/**
       - /app-api/auth/wx-login
       - /doc.html

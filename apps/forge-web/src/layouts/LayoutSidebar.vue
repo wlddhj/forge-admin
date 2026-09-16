@@ -3,8 +3,8 @@
     <!-- 侧边栏（移动端隐藏） -->
     <el-aside v-show="!isMobile" :width="isCollapse ? '64px' : '220px'" class="layout-aside">
       <div class="logo">
-        <img src="/logo.svg" alt="logo" />
-        <span v-show="!isCollapse">{{ appTitle }}</span>
+        <img :src="brandStore.logoUrl" alt="logo" />
+        <span v-show="!isCollapse">{{ brandStore.brand.name }}</span>
       </div>
       <el-scrollbar>
         <el-menu
@@ -99,6 +99,7 @@ import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { useTabsStore } from '@/stores/tabs'
 import { usePageConfigStore } from '@/stores/pageConfig'
+import { useBrandStore } from '@/stores/brand'
 import { useResponsive } from '@/composables/useResponsive'
 import { HomeFilled, Menu, Fold, Expand } from '@element-plus/icons-vue'
 import TabsView from '@/components/TabsView.vue'
@@ -116,7 +117,7 @@ const { isMobile } = useResponsive()
 
 const isCollapse = ref(false)
 
-const appTitle = import.meta.env.VITE_APP_TITLE
+const brandStore = useBrandStore()
 const mobileMenuVisible = ref(false)
 
 // 当前激活菜单

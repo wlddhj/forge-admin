@@ -72,6 +72,16 @@ public class SysConfigServiceImpl extends ServiceImpl<SysConfigMapper, SysConfig
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = "sysConfig", key = "#configKey")
+    public boolean updateValueByKey(String configKey, String configValue) {
+        return lambdaUpdate()
+                .eq(SysConfig::getConfigKey, configKey)
+                .set(SysConfig::getConfigValue, configValue)
+                .update();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "sysConfig", allEntries = true)
     public void addConfig(ConfigRequest request) {
         if (lambdaQuery().eq(SysConfig::getConfigKey, request.getConfigKey()).exists()) {

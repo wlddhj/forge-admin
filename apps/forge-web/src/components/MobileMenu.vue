@@ -10,8 +10,8 @@
       <!-- Logo -->
       <div class="mobile-menu-header">
         <div class="logo">
-          <img src="/logo.svg" alt="logo" />
-          <span>forge-admin</span>
+          <img :src="brandStore.logoUrl" alt="logo" />
+          <span>{{ brandStore.brand.name }}</span>
         </div>
         <el-icon class="close-btn" @click="visible = false">
           <Close />
@@ -86,6 +86,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { useTabsStore } from '@/stores/tabs'
+import { useBrandStore } from '@/stores/brand'
 import { resetRouter } from '@/router'
 import { HomeFilled, Close, SwitchButton } from '@element-plus/icons-vue'
 
@@ -105,6 +106,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const permissionStore = usePermissionStore()
 const tabsStore = useTabsStore()
+const brandStore = useBrandStore()
 
 // 显示状态
 const visible = computed({

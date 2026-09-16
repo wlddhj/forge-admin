@@ -27,6 +27,7 @@ import { setupFormCreate } from './plugins/formCreate'
 import {CACHE_KEY, useCache} from "@/hooks/web/useCache.ts";
 import {isDark} from "@/utils/is.ts";
 import { usePageConfigStore } from '@/stores/pageConfig'
+import { useBrandStore } from '@/stores/brand'
 
 const { wsCache } = useCache()
 const app = createApp(App)
@@ -66,5 +67,9 @@ pageConfigStore.applyPalette(pageConfigStore.config.palette)
 pageConfigStore.applyLayout(pageConfigStore.config.layout)
 pageConfigStore.applyStyle(pageConfigStore.config.style)
 pageConfigStore.applyTheme(pageConfigStore.config.theme)
+
+// 加载品牌配置（异步不阻塞挂载；document.title/favicon 在数据返回后应用，接口异常回退 .env 默认值）
+const brandStore = useBrandStore()
+brandStore.loadBrand()
 
 app.mount('#app')

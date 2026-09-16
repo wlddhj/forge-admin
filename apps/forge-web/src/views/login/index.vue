@@ -2,9 +2,9 @@
   <div class="login-container">
     <div class="login-box">
       <div class="login-header">
-        <img src="/logo.svg" alt="logo" />
-        <h1>{{ appTitle }}</h1>
-        <p>{{ appSubtitle }}</p>
+        <img :src="brandStore.logoUrl" alt="logo" />
+        <h1>{{ brandStore.brand.loginTitle }}</h1>
+        <p>{{ brandStore.brand.loginSubtitle }}</p>
       </div>
 
       <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="login-form">
@@ -91,13 +91,13 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { useBrandStore } from '@/stores/brand'
 import { getCaptcha } from '@/api/auth'
 import { useTenantConfig } from '@/composables/useTenantConfig'
 import SocialLogin from './components/social-login.vue'
 import FirstLoginChangePwdDialog from './components/FirstLoginChangePwdDialog.vue'
 
-const appTitle = import.meta.env.VITE_APP_TITLE
-const appSubtitle = import.meta.env.VITE_APP_SUBTITLE
+const brandStore = useBrandStore()
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
@@ -151,6 +151,8 @@ const clearStaleAuth = () => {
 onMounted(() => {
   clearStaleAuth()
   refreshCaptcha()
+  // 刷新品牌配置（token 过期重定向回登录页时 main.ts 不会重新执行）
+  brandStore.loadBrand()
 })
 
 const handleLogin = async () => {

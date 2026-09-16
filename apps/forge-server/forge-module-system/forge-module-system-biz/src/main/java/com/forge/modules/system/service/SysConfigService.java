@@ -11,6 +11,7 @@ public interface SysConfigService {
     Page<ConfigResponse> pageConfigs(ConfigQueryRequest request);
     ConfigResponse getConfigDetail(Long id);
     String getConfigValueByKey(String configKey);
+    boolean updateValueByKey(String configKey, String configValue);
     void addConfig(ConfigRequest request);
     void updateConfig(ConfigRequest request);
     void deleteConfigs(List<Long> ids);

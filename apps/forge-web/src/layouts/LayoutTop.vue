@@ -3,8 +3,8 @@
     <el-header class="layout-header">
       <div class="header-left">
         <div class="logo">
-          <img src="/logo.svg" alt="logo" />
-          <span>{{ appTitle }}</span>
+          <img :src="brandStore.logoUrl" alt="logo" />
+          <span>{{ brandStore.brand.name }}</span>
         </div>
         <el-menu
           :default-active="activeMenu"
@@ -66,6 +66,7 @@ import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { useTabsStore } from '@/stores/tabs'
 import { usePageConfigStore } from '@/stores/pageConfig'
+import { useBrandStore } from '@/stores/brand'
 import { useResponsive } from '@/composables/useResponsive'
 import { HomeFilled } from '@element-plus/icons-vue'
 import TabsView from '@/components/TabsView.vue'
@@ -80,7 +81,7 @@ const tabsStore = useTabsStore()
 const pageConfigStore = usePageConfigStore()
 const { isMobile } = useResponsive()
 
-const appTitle = import.meta.env.VITE_APP_TITLE
+const brandStore = useBrandStore()
 
 const activeMenu = computed(() => route.path)
 
