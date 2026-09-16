@@ -123,21 +123,21 @@ $tablet-breakpoint: $breakpoint-lg;
 
 // ==================== Element Plus 响应式优化 ====================
 
-// 按钮移动端优化
+// 按钮移动端优化（is-circle 圆形按钮排除，避免横向 padding/min-width 把正圆撑成椭圆）
 @include mobile {
-  .el-button {
+  .el-button:not(.is-circle) {
     @include touch-target;
     padding: 12px 20px;
     font-size: 14px;
   }
 
-  .el-button--small {
+  .el-button--small:not(.is-circle) {
     min-height: 36px;
     padding: 8px 16px;
     font-size: 13px;
   }
 
-  .el-button--large {
+  .el-button--large:not(.is-circle) {
     min-height: 48px;
     padding: 14px 24px;
     font-size: 16px;

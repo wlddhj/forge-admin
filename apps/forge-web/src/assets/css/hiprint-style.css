@@ -68,8 +68,8 @@
     margin-bottom: 10px;
 }
 
-/* button 样式 为了好看点 */
-button {
+/* button 样式 为了好看点（:not(.el-button) 排除 Element Plus 按钮，避免 min-width/padding 把圆形按钮撑成椭圆、color/border 覆盖主题样式） */
+button:not(.el-button) {
     padding: 10px;
     min-width: 40px;
     color: white;
@@ -78,10 +78,10 @@ button {
     border-width: 0;
     border: 1px solid #d9d9d9;
 }
-button:hover {
+button:not(.el-button):hover {
     opacity: 1;
 }
-button i {
+button:not(.el-button) i {
     font-size: 16px !important;
 }
 .circle,
