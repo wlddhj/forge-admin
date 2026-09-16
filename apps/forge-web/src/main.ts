@@ -16,7 +16,7 @@ import router from './router'
 import './styles/index.scss'
 import '@/styles/screen.scss'
 import "@/assets/css/iconfont.css"
-import '@/assets/css/hiprint-style.css'
+// import '@/assets/css/hiprint-style.css'
 import { permission, role } from './directives/permission'
 
 // 导入 vxe-table 插件
