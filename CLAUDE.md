@@ -463,7 +463,7 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 
 ### 业务模块权限前缀
 
-用户 `system:user`、角色 `system:role`、菜单 `system:menu`、部门 `system:dept`、岗位 `system:position`、字典 `system:dict`、参数配置 `system:config`、文件配置 `system:file-config`、通知公告 `system:notice`、在线用户 `monitor:online`、登录日志 `monitor:login-log`、操作日志 `monitor:operation-log`、定时任务 `monitor:job`、流程分类 `workflow:category`、流程定义 `workflow:process`、流程实例 `workflow:instance`、待办任务 `workflow:task`、表单管理 `workflow:form`、模型管理 `workflow:model`、表达式管理 `workflow:expression`、监听器管理 `workflow:listener`、AI文档 `ai:document`、**租户管理 `system:tenant`**、**套餐管理 `system:tenant-package`**
+用户 `system:user`、角色 `system:role`、菜单 `system:menu`、部门 `system:dept`、岗位 `system:position`、字典 `system:dict`、参数配置 `system:config`、文件配置 `system:file-config`、通知公告 `system:notice`、在线用户 `monitor:online`、登录日志 `monitor:login-log`、操作日志 `monitor:operation-log`、定时任务 `monitor:job`、流程分类 `workflow:category`、流程定义 `workflow:process`、流程实例 `workflow:instance`、待办任务 `workflow:task`、表单管理 `workflow:form`、模型管理 `workflow:model`、表达式管理 `workflow:expression`、监听器管理 `workflow:listener`、AI文档 `ai:document`、**租户管理 `system:tenant`**、**套餐管理 `system:tenant-package`**、**品牌设置 `system:brand`**
 
 ## 代码模板
 

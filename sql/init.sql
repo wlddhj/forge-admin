@@ -736,7 +736,11 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 -- 模板设计器（不在侧边栏显示，但仍可路由访问）
 (2520, '模板设计器', 2500, '/system/print/design', '/views/system/print/design/index', NULL, 'EditPen', 2, 1, 'system:print-template:edit', 1, 0, 0, 1),
 -- 打印 Demo
-(2530, '打印 Demo', 2500, '/demo/hiprint', '/views/demo/hiprint/index', NULL, 'View', 3, 1, 'system:print-template:demo', 1, 1, 0, 0);
+(2530, '打印 Demo', 2500, '/demo/hiprint', '/views/demo/hiprint/index', NULL, 'View', 3, 1, 'system:print-template:demo', 1, 1, 0, 0),
+-- 品牌设置菜单（系统管理下）
+(2540, '品牌设置', 1, '/system/brand', '/views/system/brand/index', NULL, 'Brush', 9, 1, 'system:brand:query', 1, 1, 0, 0),
+-- 品牌设置按钮权限
+(2541, '品牌保存', 2540, '', '', NULL, '', 1, 2, 'system:brand:update', 1, 1, 0, 0);
 
 -- 初始化角色菜单关联 (超级管理员拥有所有菜单)
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)
@@ -808,15 +812,18 @@ INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dic
 
 -- 初始化系统配置
 INSERT INTO `sys_config` (`id`, `config_name`, `config_key`, `config_value`, `config_type`, `config_group`, `is_system`, `status`, `remark`) VALUES
-(1, '系统名称', 'sys.system.name', 'forge-admin', 'text', 'system', 1, 1, '系统名称'),
+(1, '系统名称', 'sys.system.name', 'forge-admin', 'text', 'system', 1, 1, '系统名称（品牌设置-项目名称）'),
 (2, '系统版本', 'sys.system.version', '1.0.0', 'text', 'system', 1, 1, '系统版本'),
 (3, '文件上传路径', 'sys.upload.path', '/tmp/upload', 'text', 'system', 0, 1, '文件上传路径'),
 (4, '验证码开关', 'sys.captcha.enabled', 'true', 'boolean', 'security', 1, 1, '验证码开关'),
-(5, '密码最小长度', 'sys.password.minLength', '6', 'number', 'security', 1, 1, '密码最小长度');
+(5, '密码最小长度', 'sys.password.minLength', '6', 'number', 'security', 1, 1, '密码最小长度'),
+(6, '品牌Logo', 'sys.brand.logo', '', 'text', 'brand', 1, 1, '品牌Logo图片URL，空则使用系统默认 /logo.svg'),
+(7, '登录页主标题', 'sys.brand.login.title', 'forge-admin', 'text', 'brand', 1, 1, '登录页主标题，空则前端回退构建默认值'),
+(8, '登录页副标题', 'sys.brand.login.subtitle', '聚能后台管理系统', 'text', 'brand', 1, 1, '登录页副标题，空则前端回退构建默认值');
 
--- 初始化文件存储配置
+-- 初始化文件存储配置（base_path 相对后端进程工作目录；domain 为访问文件 URL 前缀，须与后端实际地址一致）
 INSERT INTO `sys_file_config` (`id`, `config_name`, `storage_type`, `base_path`, `domain`, `is_default`, `status`, `remark`) VALUES
-(1, '本地存储', 'local', '/uploads', 'http://localhost:8181/api/uploads', 1, 1, '默认本地存储配置');
+(1, '本地存储', 'local', './uploads', 'http://localhost:8181/uploads', 1, 1, '默认本地存储配置');
 
 -- 初始化定时任务
 INSERT INTO `sys_job` (`id`, `job_name`, `job_group`, `invoke_target`, `cron_expression`, `status`, `concurrent`, `remark`) VALUES
@@ -919,15 +926,16 @@ UPDATE `sys_user` SET `account_type` = 2 WHERE `username` = 'admin' AND `tenant_
 INSERT IGNORE INTO `sys_role` (`id`, `role_name`, `role_code`, `description`, `is_fixed`, `status`, `data_scope`, `sort_order`) VALUES
 (3, '租户管理员', 'TENANT_ADMIN', '本租户内全权管理（用户/部门/角色等）', 1, 1, '1', 50);
 
--- 7) 给"租户管理员"分配菜单（排除平台专属：菜单管理/OAuth2/App用户/租户管理）
+-- 7) 给"租户管理员"分配菜单（排除平台专属：菜单管理/OAuth2/App用户/租户管理/品牌设置）
 INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
 SELECT 3, `id` FROM `sys_menu`
-WHERE `id` NOT IN (4, 70, 246, 2400, 2401, 2402, 2403, 2404, 2405, 2410, 2411, 2412, 2413, 2414)
+WHERE `id` NOT IN (4, 70, 246, 2400, 2401, 2402, 2403, 2404, 2405, 2410, 2411, 2412, 2413, 2414, 2540, 2541)
   AND `deleted` = 0;
 
--- 8) 默认套餐绑定所有菜单
+-- 8) 默认套餐绑定所有菜单（品牌设置为平台全局配置，不对租户套餐开放）
 INSERT IGNORE INTO `sys_tenant_package_menu` (`tenant_package_id`, `menu_id`)
-SELECT 1, `id` FROM `sys_menu` WHERE `deleted` = 0;
+SELECT 1, `id` FROM `sys_menu`
+WHERE `id` NOT IN (2540, 2541) AND `deleted` = 0;
 
 -- 9) 新增"租户管理"菜单（顶级在系统管理目录下，仅平台超管可见）
 INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`, `create_time`, `update_time`, `deleted`) VALUES
