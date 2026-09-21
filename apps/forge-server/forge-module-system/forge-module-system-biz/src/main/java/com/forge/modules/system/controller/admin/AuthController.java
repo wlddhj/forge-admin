@@ -36,6 +36,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -70,6 +71,7 @@ public class AuthController {
     private final PasswordPolicyProperties passwordPolicyProperties;
     private final SysTenantService sysTenantService;
     private final com.forge.framework.tenant.config.TenantProperties tenantProperties;
+    private final StringRedisTemplate stringRedisTemplate;
 
         /**
      * 首次登录强制改密（不走 token 鉴权，使用用户名 + 旧密码鉴权）。
@@ -444,7 +446,6 @@ public class AuthController {
 
     @Operation(summary = "刷新 Token")
     @PostMapping("/refresh")
-    @RateLimiter(time = 60, count = 30, message = "Token刷新请求过于频繁，请稍后再试")
     public Result<LoginResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request,
                                                HttpServletRequest httpRequest) {
         String refreshToken = request.getRefreshToken();
@@ -452,6 +453,8 @@ public class AuthController {
         // 验证 Refresh Token 并获取用户名
         String username = refreshTokenService.validateAndGetUsername(refreshToken);
         if (username == null) {
+            // 仅对无效刷新令牌按 IP 计数限流（防枚举），正常刷新不受限制
+            checkRefreshFailureLimit(httpRequest);
             return Result.failed("刷新令牌无效或已过期");
         }
 
@@ -503,5 +506,23 @@ public class AuthController {
                 .build();
 
         return Result.success(response);
+    }
+
+    /**
+     * 无效刷新令牌的 IP 计数限流：60 秒内超过 10 次失败视为枚举攻击，临时封禁。
+     * 替代原先对全部刷新请求按 IP 限流 30 次/分钟的做法——同出口 IP 的正常用户
+     * 会在 Token 到期集中刷新时被误伤（"Token刷新请求过于频繁"即来源于此）。
+     */
+    private void checkRefreshFailureLimit(HttpServletRequest httpRequest) {
+        String ip = com.forge.common.utils.IpUtils.getClientIp(httpRequest);
+        String key = "auth:refresh:fail:" + ip;
+        Long count = stringRedisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1) {
+            stringRedisTemplate.expire(key, java.time.Duration.ofSeconds(60));
+        }
+        if (count != null && count > 10) {
+            log.warn("刷新令牌校验失败次数过多: ip={}, count={}", ip, count);
+            throw new com.forge.common.exception.BusinessException(429, "刷新失败次数过多，请稍后再试");
+        }
     }
 }
