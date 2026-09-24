@@ -115,7 +115,7 @@ const { enabled: tenantConfig } = useTenantConfig()
 const loginForm = reactive({
   tenantCode: 'default',
   username: 'admin',
-  password: '123456',
+  password: 'password',
   captchaId: '',
   captchaCode: ''
 })
