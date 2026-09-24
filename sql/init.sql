@@ -819,7 +819,11 @@ INSERT INTO `sys_config` (`id`, `config_name`, `config_key`, `config_value`, `co
 (5, '密码最小长度', 'sys.password.minLength', '6', 'number', 'security', 1, 1, '密码最小长度'),
 (6, '品牌Logo', 'sys.brand.logo', '', 'text', 'brand', 1, 1, '品牌Logo图片URL，空则使用系统默认 /logo.svg'),
 (7, '登录页主标题', 'sys.brand.login.title', 'forge-admin', 'text', 'brand', 1, 1, '登录页主标题，空则前端回退构建默认值'),
-(8, '登录页副标题', 'sys.brand.login.subtitle', '聚能后台管理系统', 'text', 'brand', 1, 1, '登录页副标题，空则前端回退构建默认值');
+(8, '登录页副标题', 'sys.brand.login.subtitle', '聚能后台管理系统', 'text', 'brand', 1, 1, '登录页副标题，空则前端回退构建默认值'),
+(9, '默认主题-调色板', 'sys.brand.theme.palette', 'blue', 'text', 'brand', 1, 1, '系统默认主题调色板：blue/purple/green/crimson/orange/cyan/teal'),
+(10, '默认主题-布局', 'sys.brand.theme.layout', 'sidebar', 'text', 'brand', 1, 1, '系统默认主题布局：sidebar/top'),
+(11, '默认主题-风格', 'sys.brand.theme.style', 'flat', 'text', 'brand', 1, 1, '系统默认主题风格：flat/glass/card/compact'),
+(12, '默认主题-明暗模式', 'sys.brand.theme.mode', 'auto', 'text', 'brand', 1, 1, '系统默认明暗模式：light/dark/auto（auto 跟随浏览器）');
 
 -- 初始化文件存储配置（base_path 相对后端进程工作目录；domain 为访问文件 URL 前缀，须与后端实际地址一致）
 INSERT INTO `sys_file_config` (`id`, `config_name`, `storage_type`, `base_path`, `domain`, `is_default`, `status`, `remark`) VALUES

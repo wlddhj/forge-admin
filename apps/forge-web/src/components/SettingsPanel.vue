@@ -36,17 +36,25 @@
         <el-collapse-item name="advanced" title="高级设置">
           <p class="section-desc">独立调整调色板、布局、风格（与套餐预设解耦）</p>
 
-          <!-- 调色板 -->
+          <!-- 调色板（选项较多，segmented 放不下，改用可换行色块组） -->
           <div class="setting-item">
             <div class="item-label">
               <span>调色板</span>
               <p class="item-desc">主色与派生色</p>
             </div>
-            <el-segmented
-              v-model="localConfig.palette"
-              :options="paletteOptions"
-              @change="(val: Palette) => handlePaletteChange(val)"
-            />
+            <div class="palette-swatches">
+              <button
+                v-for="opt in paletteOptions"
+                :key="opt.value"
+                type="button"
+                class="palette-swatch"
+                :class="{ active: localConfig.palette === opt.value }"
+                @click="handlePaletteChange(opt.value)"
+              >
+                <span class="swatch-dot" :data-palette="opt.value"></span>
+                <span>{{ opt.label }}</span>
+              </button>
+            </div>
           </div>
 
           <!-- 自定义主色（仅 palette='custom' 时显示） -->
@@ -98,6 +106,17 @@
       <!-- 主题设置 -->
       <div class="setting-section">
         <h3 class="section-title">主题设置</h3>
+
+        <div class="setting-item">
+          <div class="item-label">
+            <span>跟随系统默认主题</span>
+            <p class="item-desc">开启后使用管理员配置的默认主题；手动调整任一主题项后自动关闭</p>
+          </div>
+          <el-switch
+            v-model="localConfig.followSystemTheme"
+            @change="handleFollowChange"
+          />
+        </div>
 
         <div class="setting-item">
           <div class="item-label">
@@ -202,8 +221,10 @@ import { ElMessage } from 'element-plus'
 import { usePageConfigStore, type ThemeType } from '@/stores/pageConfig'
 import { PRESETS, DEFAULT_CUSTOM_PRIMARY, isValidPrimary } from '@/themes'
 import type { Palette, LayoutKind, StyleKind } from '@/themes'
+import { useBrandStore } from '@/stores/brand'
 
 const pageConfigStore = usePageConfigStore()
+const brandStore = useBrandStore()
 
 // 主题选项
 const themeOptions = [
@@ -212,11 +233,14 @@ const themeOptions = [
 ]
 
 // 高级设置三维度选项
-const paletteOptions = [
+const paletteOptions: { label: string; value: Palette }[] = [
   { label: '蓝', value: 'blue' },
   { label: '紫', value: 'purple' },
   { label: '绿', value: 'green' },
   { label: '红', value: 'crimson' },
+  { label: '橙', value: 'orange' },
+  { label: '青', value: 'cyan' },
+  { label: '碧', value: 'teal' },
   { label: '自定义', value: 'custom' }
 ]
 const layoutOptions = [
@@ -304,6 +328,16 @@ const handlePresetChange = (presetId: string) => {
   pageConfigStore.changePreset(presetId)
 }
 
+// 切换「跟随系统默认主题」：开启时先置回跟随再立即应用当前系统默认
+const handleFollowChange = (val: string | number | boolean) => {
+  if (val) {
+    pageConfigStore.updateConfig('followSystemTheme', true)
+    pageConfigStore.applySystemDefault(brandStore.brand.defaultTheme)
+  } else {
+    pageConfigStore.updateConfig('followSystemTheme', false)
+  }
+}
+
 // 保存设置
 const handleSave = () => {
   pageConfigStore.updateMultipleConfig(localConfig.value)
@@ -368,6 +402,9 @@ const handleReset = () => {
       &[data-palette='purple']  { background: linear-gradient(135deg, #f9f0ff, #722ed1); }
       &[data-palette='green']   { background: linear-gradient(135deg, #f6ffed, #52c41a); }
       &[data-palette='crimson'] { background: linear-gradient(135deg, #fff1f0, #f5222d); }
+      &[data-palette='orange']  { background: linear-gradient(135deg, #fff7e6, #fa8c16); }
+      &[data-palette='cyan']    { background: linear-gradient(135deg, #e6fffb, #13c2c2); }
+      &[data-palette='teal']    { background: linear-gradient(135deg, #e6fffb, #0d9488); }
 
       // 风格映射：圆角差异
       &[data-style='flat']      { border-radius: 4px; }
@@ -466,6 +503,54 @@ const handleReset = () => {
           font-size: 12px;
           color: var(--el-text-color-secondary);
           text-transform: uppercase;
+        }
+      }
+
+      .palette-swatches {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 6px;
+        max-width: 216px;
+      }
+
+      .palette-swatch {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 9px;
+        border: 1px solid var(--el-border-color);
+        border-radius: 12px;
+        background: transparent;
+        font-size: 12px;
+        color: var(--el-text-color-regular);
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          border-color: var(--app-color-primary);
+        }
+
+        &.active {
+          border-color: var(--app-color-primary);
+          color: var(--app-color-primary);
+          background: var(--el-color-primary-light-9);
+        }
+
+        .swatch-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          flex-shrink: 0;
+
+          &[data-palette='blue']    { background: #409EFF; }
+          &[data-palette='purple']  { background: #722ed1; }
+          &[data-palette='green']   { background: #52c41a; }
+          &[data-palette='crimson'] { background: #f5222d; }
+          &[data-palette='orange']  { background: #fa8c16; }
+          &[data-palette='cyan']    { background: #13c2c2; }
+          &[data-palette='teal']    { background: #0d9488; }
+          &[data-palette='custom']  { background: conic-gradient(#f56c6c, #fa8c16, #52c41a, #13c2c2, #722ed1, #f56c6c); }
         }
       }
     }

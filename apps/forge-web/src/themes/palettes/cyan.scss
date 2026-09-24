@@ -1,0 +1,31 @@
+@use '../color-utils' as *;
+
+:root[data-palette='cyan'] {
+  --app-color-primary: #13c2c2;
+  --app-color-success: #52c41a;
+  --app-color-warning: #faad14;
+  --app-color-danger:  #f5222d;
+
+  --el-color-primary:        var(--app-color-primary);
+  --el-color-success:        var(--app-color-success);
+  --el-color-warning:        var(--app-color-warning);
+  --el-color-danger:         var(--app-color-danger);
+  --el-color-primary-light-3: #{light-step(#13c2c2, 30%)};
+  --el-color-primary-light-5: #{light-step(#13c2c2, 50%)};
+  --el-color-primary-light-7: #{light-step(#13c2c2, 70%)};
+  --el-color-primary-light-9: #{light-step(#13c2c2, 90%)};
+  --el-color-primary-dark-2:  #{dark-step(#13c2c2, 20%)};
+
+  --vxe-ui-primary-color: var(--app-color-primary);
+
+  &[data-layout='sidebar'] {
+    --app-sidebar-bg:     #0b2a2e;
+    --app-sidebar-text:   #b5d8db;
+    --app-sidebar-active: var(--app-color-primary);
+  }
+}
+
+:root[data-palette='cyan'][data-theme='dark'] {
+  --app-color-primary:         #36cfc9;
+  --el-color-primary-light-3:  #{light-step(#36cfc9, 30%)};
+}

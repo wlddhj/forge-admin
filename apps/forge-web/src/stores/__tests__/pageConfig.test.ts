@@ -241,4 +241,132 @@ describe('pageConfig store - 三维度独立切换', () => {
       expect(document.documentElement.style.getPropertyValue('--el-color-primary')).toBe('')
     })
   })
+
+  describe('系统默认主题（首次访问）', () => {
+    it('首次访问 firstVisit=true 且不落盘', () => {
+      const store = usePageConfigStore()
+      expect(store.firstVisit).toBe(true)
+      expect(localStorage.getItem('forge_admin-page-config')).toBeNull()
+    })
+
+    it('已有本地配置 firstVisit=false', () => {
+      localStorage.setItem('forge_admin-page-config', JSON.stringify({ palette: 'green' }))
+      const store = usePageConfigStore()
+      expect(store.firstVisit).toBe(false)
+    })
+
+    it('applySystemDefault 应用三维度并落盘定稿', () => {
+      const store = usePageConfigStore()
+      store.applySystemDefault({ palette: 'teal', layout: 'top', style: 'glass', mode: 'dark' })
+      expect(store.config.palette).toBe('teal')
+      expect(store.config.layout).toBe('top')
+      expect(store.config.style).toBe('glass')
+      expect(store.config.theme).toBe('dark')
+      expect(document.documentElement.getAttribute('data-palette')).toBe('teal')
+      expect(store.firstVisit).toBe(false)
+      expect(localStorage.getItem('forge_admin-page-config')).toContain('"palette":"teal"')
+    })
+
+    it('applySystemDefault mode=auto 跟随浏览器（happy-dom 默认 light）', () => {
+      const store = usePageConfigStore()
+      store.applySystemDefault({ palette: 'cyan', mode: 'auto' })
+      expect(store.config.theme).toBe('light')
+      expect(store.firstVisit).toBe(false)
+    })
+
+    it('applySystemDefault 非法/缺失字段逐项回退默认', () => {
+      const store = usePageConfigStore()
+      store.applySystemDefault({ palette: 'custom', layout: 'invalid' as any, style: undefined, mode: 'wrong' as any })
+      expect(store.config.palette).toBe('blue')
+      expect(store.config.layout).toBe('sidebar')
+      expect(store.config.style).toBe('flat')
+      expect(store.config.theme).toBe('light')  // mode 回退 auto → prefers light
+    })
+
+    it('applySystemDefault(null) 全量回退默认值', () => {
+      const store = usePageConfigStore()
+      store.applySystemDefault(null)
+      expect(store.config.palette).toBe('blue')
+      expect(store.firstVisit).toBe(false)
+      expect(localStorage.getItem('forge_admin-page-config')).toBeTruthy()
+    })
+
+    it('finalizeFirstVisit 落盘并结束首次访问态', () => {
+      const store = usePageConfigStore()
+      store.finalizeFirstVisit()
+      expect(store.firstVisit).toBe(false)
+      expect(localStorage.getItem('forge_admin-page-config')).toBeTruthy()
+      // happy-dom prefers-color-scheme 默认 light
+      expect(store.config.theme).toBe('light')
+    })
+  })
+
+  describe('跟随系统默认主题（followSystemTheme）', () => {
+    it('默认开启', () => {
+      const store = usePageConfigStore()
+      expect(store.config.followSystemTheme).toBe(true)
+    })
+
+    it('存量老数据（无 follow 字段）合并后为 true', () => {
+      localStorage.setItem('forge_admin-page-config', JSON.stringify({ palette: 'green' }))
+      const store = usePageConfigStore()
+      store.loadConfig()
+      expect(store.config.followSystemTheme).toBe(true)
+    })
+
+    it('手动切换套餐后自动关闭', () => {
+      const store = usePageConfigStore()
+      store.changePreset('geek')
+      expect(store.config.followSystemTheme).toBe(false)
+    })
+
+    it('手动切换调色板/布局/风格后自动关闭', () => {
+      const store = usePageConfigStore()
+      store.changePalette('orange')
+      expect(store.config.followSystemTheme).toBe(false)
+      const store2 = usePageConfigStore()
+      store2.changeLayout('top')
+      expect(store2.config.followSystemTheme).toBe(false)
+    })
+
+    it('updateConfig 更新主题维度后自动关闭', () => {
+      const store = usePageConfigStore()
+      store.updateConfig('theme', 'dark')
+      expect(store.config.followSystemTheme).toBe(false)
+    })
+
+    it('toggleTheme 后自动关闭', () => {
+      const store = usePageConfigStore()
+      store.toggleTheme()
+      expect(store.config.followSystemTheme).toBe(false)
+    })
+
+    it('resetConfig（用户显式动作）后关闭', () => {
+      const store = usePageConfigStore()
+      store.resetConfig()
+      expect(store.config.followSystemTheme).toBe(false)
+    })
+
+    it('applySystemDefault（系统应用）不影响跟随状态', () => {
+      const store = usePageConfigStore()
+      store.applySystemDefault({ palette: 'teal', mode: 'dark' })
+      expect(store.config.followSystemTheme).toBe(true)
+    })
+
+    it('updateConfig 非主题键不影响跟随状态', () => {
+      const store = usePageConfigStore()
+      store.updateConfig('showTabs', false)
+      expect(store.config.followSystemTheme).toBe(true)
+    })
+
+    it('手动关闭后可重新开启跟随（设置面板开关路径）', () => {
+      const store = usePageConfigStore()
+      store.changePalette('orange')
+      expect(store.config.followSystemTheme).toBe(false)
+      store.updateConfig('followSystemTheme', true)
+      store.applySystemDefault({ palette: 'teal', layout: 'sidebar', style: 'compact', mode: 'dark' })
+      expect(store.config.followSystemTheme).toBe(true)
+      expect(store.config.palette).toBe('teal')
+    })
+  })
 })

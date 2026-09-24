@@ -4,6 +4,7 @@ import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.system.dto.brand.BrandRequest;
+import com.forge.modules.system.dto.brand.BrandTheme;
 import com.forge.modules.system.dto.brand.BrandResponse;
 import com.forge.modules.system.entity.SysConfig;
 import com.forge.modules.system.mapper.SysConfigMapper;
@@ -26,6 +27,10 @@ public class SysBrandServiceImpl implements SysBrandService {
     private static final String KEY_NAME = "sys.system.name";
     private static final String KEY_LOGIN_TITLE = "sys.brand.login.title";
     private static final String KEY_LOGIN_SUBTITLE = "sys.brand.login.subtitle";
+    private static final String KEY_THEME_PALETTE = "sys.brand.theme.palette";
+    private static final String KEY_THEME_LAYOUT = "sys.brand.theme.layout";
+    private static final String KEY_THEME_STYLE = "sys.brand.theme.style";
+    private static final String KEY_THEME_MODE = "sys.brand.theme.mode";
 
     /**
      * 不含 svg：与附件服务 FileUploadValidator 的安全校验对齐（svg 可内嵌脚本，禁止上传）
@@ -44,7 +49,17 @@ public class SysBrandServiceImpl implements SysBrandService {
         response.setName(StrUtil.nullToEmpty(sysConfigService.getConfigValueByKey(KEY_NAME)));
         response.setLoginTitle(StrUtil.nullToEmpty(sysConfigService.getConfigValueByKey(KEY_LOGIN_TITLE)));
         response.setLoginSubtitle(StrUtil.nullToEmpty(sysConfigService.getConfigValueByKey(KEY_LOGIN_SUBTITLE)));
+        response.setDefaultTheme(getDefaultTheme());
         return response;
+    }
+
+    private BrandTheme getDefaultTheme() {
+        BrandTheme theme = new BrandTheme();
+        theme.setPalette(sysConfigService.getConfigValueByKey(KEY_THEME_PALETTE));
+        theme.setLayout(sysConfigService.getConfigValueByKey(KEY_THEME_LAYOUT));
+        theme.setStyle(sysConfigService.getConfigValueByKey(KEY_THEME_STYLE));
+        theme.setMode(sysConfigService.getConfigValueByKey(KEY_THEME_MODE));
+        return BrandTheme.normalize(theme);
     }
 
     @Override
@@ -54,6 +69,18 @@ public class SysBrandServiceImpl implements SysBrandService {
         upsert(KEY_NAME, "系统名称", request.getName(), "system");
         upsert(KEY_LOGIN_TITLE, "登录页主标题", StrUtil.nullToEmpty(request.getLoginTitle()), "brand");
         upsert(KEY_LOGIN_SUBTITLE, "登录页副标题", StrUtil.nullToEmpty(request.getLoginSubtitle()), "brand");
+        updateDefaultTheme(request.getDefaultTheme());
+    }
+
+    private void updateDefaultTheme(BrandTheme theme) {
+        if (theme == null) {
+            return;
+        }
+        BrandTheme normalized = BrandTheme.normalize(theme);
+        upsert(KEY_THEME_PALETTE, "默认主题-调色板", normalized.getPalette(), "brand");
+        upsert(KEY_THEME_LAYOUT, "默认主题-布局", normalized.getLayout(), "brand");
+        upsert(KEY_THEME_STYLE, "默认主题-风格", normalized.getStyle(), "brand");
+        upsert(KEY_THEME_MODE, "默认主题-明暗模式", normalized.getMode(), "brand");
     }
 
     @Override

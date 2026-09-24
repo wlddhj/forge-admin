@@ -46,6 +46,44 @@
           <el-input v-model="form.loginSubtitle" maxlength="100" show-word-limit placeholder="登录页副标题" />
         </el-form-item>
 
+        <el-divider content-position="left">默认主题</el-divider>
+        <p class="theme-section-desc">新用户或清除本地缓存的用户首次进入系统时使用的初始主题；用户自行修改后将始终尊重用户选择</p>
+
+        <el-form-item label="主题套餐">
+          <div class="theme-preset-grid">
+            <div
+              v-for="preset in PRESETS"
+              :key="preset.id"
+              class="theme-preset-card"
+              :class="{ active: isPresetActive(preset) }"
+              @click="applyPreset(preset)"
+            >
+              <span class="theme-preset-dot" :data-palette="preset.palette"></span>
+              <span class="theme-preset-name">{{ preset.name }}</span>
+            </div>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="调色板">
+          <el-segmented v-model="form.defaultTheme.palette" :options="paletteOptions" />
+        </el-form-item>
+
+        <el-form-item label="布局">
+          <el-segmented v-model="form.defaultTheme.layout" :options="layoutOptions" />
+        </el-form-item>
+
+        <el-form-item label="风格">
+          <el-segmented v-model="form.defaultTheme.style" :options="styleOptions" />
+        </el-form-item>
+
+        <el-form-item label="明暗模式">
+          <el-radio-group v-model="form.defaultTheme.mode">
+            <el-radio value="light">明亮</el-radio>
+            <el-radio value="dark">暗黑</el-radio>
+            <el-radio value="auto">跟随浏览器</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
         <el-form-item>
           <el-button v-permission="'system:brand:update'" type="primary" :loading="saving" @click="handleSave">
             保存
@@ -60,9 +98,10 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { brandApi, type BrandConfig } from '@/api/system/brand'
+import { brandApi, type BrandConfig, type BrandThemeConfig } from '@/api/system/brand'
 import { useBrandStore } from '@/stores/brand'
 import { useUserStore } from '@/stores/user'
+import { PRESETS, DEFAULT_THEME, type Preset } from '@/themes'
 
 const brandStore = useBrandStore()
 const userStore = useUserStore()
@@ -70,12 +109,49 @@ const userStore = useUserStore()
 const formRef = ref<FormInstance>()
 const saving = ref(false)
 
-const form = reactive<BrandConfig>({
+// 表单中 defaultTheme 恒有值（后端缺失字段由 DEFAULT_THEME 兜底）
+type BrandFormData = Omit<BrandConfig, 'defaultTheme'> & { defaultTheme: BrandThemeConfig }
+
+const form = reactive<BrandFormData>({
   logo: '',
   name: '',
   loginTitle: '',
-  loginSubtitle: ''
+  loginSubtitle: '',
+  defaultTheme: { ...DEFAULT_THEME }
 })
+
+// 默认主题选项（palette 不含 custom：系统默认无自定义主色入口）
+const paletteOptions = [
+  { label: '蓝', value: 'blue' },
+  { label: '紫', value: 'purple' },
+  { label: '绿', value: 'green' },
+  { label: '红', value: 'crimson' },
+  { label: '橙', value: 'orange' },
+  { label: '青', value: 'cyan' },
+  { label: '碧', value: 'teal' }
+]
+const layoutOptions = [
+  { label: '侧栏', value: 'sidebar' },
+  { label: '顶栏', value: 'top' }
+]
+const styleOptions = [
+  { label: '扁平', value: 'flat' },
+  { label: '玻璃', value: 'glass' },
+  { label: '卡片', value: 'card' },
+  { label: '紧凑', value: 'compact' }
+]
+
+const isPresetActive = (preset: Preset) =>
+  form.defaultTheme?.palette === preset.palette
+  && form.defaultTheme?.layout === preset.layout
+  && form.defaultTheme?.style === preset.style
+
+const applyPreset = (preset: Preset) => {
+  if (!form.defaultTheme) form.defaultTheme = { ...DEFAULT_THEME }
+  form.defaultTheme.palette = preset.palette
+  form.defaultTheme.layout = preset.layout
+  form.defaultTheme.style = preset.style
+}
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }]
@@ -87,7 +163,11 @@ const uploadHeaders = computed(() => ({ Authorization: `Bearer ${userStore.token
 onMounted(async () => {
   try {
     const data = await brandApi.getBrand()
-    if (data) Object.assign(form, data)
+    if (data) {
+      const { defaultTheme, ...rest } = data
+      Object.assign(form, rest)
+      form.defaultTheme = { ...DEFAULT_THEME, ...defaultTheme } as BrandThemeConfig
+    }
   } catch (error) {
     console.error('加载品牌配置失败', error)
   }
@@ -140,6 +220,60 @@ const handleSave = async () => {
 <style scoped lang="scss">
 .brand-form {
   max-width: 560px;
+
+  .theme-section-desc {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    line-height: 1.5;
+    margin: 0 0 16px 0;
+  }
+
+  .theme-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .theme-preset-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 4px;
+    border: 2px solid var(--el-border-color-lighter);
+    border-radius: var(--el-border-radius-base);
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      border-color: var(--app-color-primary);
+    }
+
+    &.active {
+      border-color: var(--app-color-primary);
+      background: var(--el-color-primary-light-9);
+    }
+  }
+
+  .theme-preset-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+
+    &[data-palette='blue']    { background: #409EFF; }
+    &[data-palette='purple']  { background: #722ed1; }
+    &[data-palette='green']   { background: #52c41a; }
+    &[data-palette='crimson'] { background: #f5222d; }
+    &[data-palette='orange']  { background: #fa8c16; }
+    &[data-palette='cyan']    { background: #13c2c2; }
+    &[data-palette='teal']    { background: #0d9488; }
+  }
+
+  .theme-preset-name {
+    font-size: 12px;
+    color: var(--el-text-color-primary);
+  }
 }
 
 .logo-editor {

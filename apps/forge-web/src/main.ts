@@ -68,8 +68,22 @@ pageConfigStore.applyLayout(pageConfigStore.config.layout)
 pageConfigStore.applyStyle(pageConfigStore.config.style)
 pageConfigStore.applyTheme(pageConfigStore.config.theme)
 
-// 加载品牌配置（异步不阻塞挂载；document.title/favicon 在数据返回后应用，接口异常回退 .env 默认值）
+// 加载品牌配置（document.title/favicon 在数据返回后应用，接口异常回退 .env 默认值）
 const brandStore = useBrandStore()
-brandStore.loadBrand()
+const loadBrandTask = brandStore.loadBrand()
 
-app.mount('#app')
+if (pageConfigStore.firstVisit || pageConfigStore.config.followSystemTheme) {
+  // 首次访问或跟随系统默认主题：等默认主题返回并应用后再挂载，避免主题闪烁；
+  // 接口挂起时 5s 兜底挂载（axios 全局 timeout 30s 过长，不能让首屏白屏等它）
+  let mounted = false
+  const mountOnce = () => {
+    if (mounted) return
+    mounted = true
+    app.mount('#app')
+  }
+  loadBrandTask.finally(mountOnce)
+  setTimeout(mountOnce, 5000)
+} else {
+  // 已自定义主题的用户：不阻塞挂载
+  app.mount('#app')
+}

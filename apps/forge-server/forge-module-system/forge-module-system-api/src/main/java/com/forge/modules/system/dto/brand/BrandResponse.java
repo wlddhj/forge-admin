@@ -24,4 +24,9 @@ public class BrandResponse {
      * 登录页副标题
      */
     private String loginSubtitle;
+
+    /**
+     * 系统默认主题（空值字段由前端回退默认）
+     */
+    private BrandTheme defaultTheme;
 }

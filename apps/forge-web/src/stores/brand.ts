@@ -7,6 +7,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { brandApi, type BrandConfig } from '@/api/system/brand'
+import { usePageConfigStore } from '@/stores/pageConfig'
 
 const DEFAULT_BRAND: BrandConfig = {
   logo: '',
@@ -23,6 +24,7 @@ export const useBrandStore = defineStore('brand', () => {
   const logoUrl = computed(() => brand.value.logo || '/logo.svg')
 
   async function loadBrand() {
+    const pageConfigStore = usePageConfigStore()
     try {
       const data = await brandApi.getPublicBrand()
       if (data) {
@@ -30,9 +32,17 @@ export const useBrandStore = defineStore('brand', () => {
         if (data.name) brand.value.name = data.name
         if (data.loginTitle) brand.value.loginTitle = data.loginTitle
         if (data.loginSubtitle) brand.value.loginSubtitle = data.loginSubtitle
+        if (data.defaultTheme) brand.value.defaultTheme = data.defaultTheme
+      }
+      // 首次访问或跟随系统默认的用户：应用管理员配置的默认主题（main.ts 在 await 后才挂载，无闪烁）
+      if (pageConfigStore.firstVisit || pageConfigStore.config.followSystemTheme) {
+        pageConfigStore.applySystemDefault(data?.defaultTheme)
       }
     } catch {
-      // 接口不可用时保持默认值，保证登录页可用
+      // 接口不可用时保持默认值，保证登录页可用；首次访问回退既有行为（跟随用户沿用本地值）
+      if (pageConfigStore.firstVisit) {
+        pageConfigStore.finalizeFirstVisit()
+      }
     } finally {
       loaded.value = true
       applyBrand()

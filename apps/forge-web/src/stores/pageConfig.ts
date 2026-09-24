@@ -5,7 +5,7 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import {CACHE_KEY, useCache} from "@/hooks/web/useCache.ts";
 import {VxeUI} from "vxe-pc-ui";
-import { getPreset, type Palette, type LayoutKind, type StyleKind, DEFAULT_CUSTOM_PRIMARY, isValidPrimary } from '@/themes'
+import { getPreset, type Palette, type LayoutKind, type StyleKind, type ThemeMode, type DefaultThemeConfig, DEFAULT_CUSTOM_PRIMARY, DEFAULT_THEME, isValidPrimary } from '@/themes'
 import { lightStep, darkStep } from '@/themes/color-utils'
 const { wsCache } = useCache()
 export type ThemeType = 'light' | 'dark'
@@ -22,6 +22,8 @@ export interface PageConfig {
   customPrimary: string // custom 调色板的主色（HEX）
   layout: LayoutKind
   style: StyleKind
+  /** 跟随系统默认主题：true 时每次加载应用管理员配置的默认主题；用户手动改动任一主题项后自动置 false */
+  followSystemTheme: boolean
 
   // 侧边栏设置
   sidebarCollapsed: boolean
@@ -35,9 +37,14 @@ export interface PageConfig {
 const LOCAL_STORAGE_KEY = 'forge_admin-page-config'
 
 // 三维度合法性枚举（防止 localStorage 被篡改为未知值）
-const VALID_PALETTES: Palette[] = ['blue', 'purple', 'green', 'crimson', 'custom']
+const VALID_PALETTES: Palette[] = ['blue', 'purple', 'green', 'crimson', 'orange', 'cyan', 'teal', 'custom']
+// 系统默认主题可用调色板（不含 custom：后端无自定义主色配置入口）
+const VALID_SYSTEM_PALETTES: Palette[] = ['blue', 'purple', 'green', 'crimson', 'orange', 'cyan', 'teal']
 const VALID_LAYOUTS: LayoutKind[] = ['sidebar', 'top']
 const VALID_STYLES: StyleKind[] = ['flat', 'glass', 'card', 'compact']
+const VALID_THEME_MODES: ThemeMode[] = ['light', 'dark', 'auto']
+// 用户手动变更的主题维度键（updateConfig 据此退出跟随系统默认）
+const USER_THEME_KEYS: (keyof PageConfig)[] = ['theme', 'palette', 'layout', 'style', 'customPrimary']
 
 // 默认配置
 const defaultConfig: PageConfig = {
@@ -49,6 +56,7 @@ const defaultConfig: PageConfig = {
   customPrimary: DEFAULT_CUSTOM_PRIMARY,
   layout: 'sidebar',
   style: 'flat',
+  followSystemTheme: true,
   sidebarCollapsed: false,
   showBreadcrumb: true,
   showPageTransition: true,
@@ -58,6 +66,9 @@ const defaultConfig: PageConfig = {
 export const usePageConfigStore = defineStore('pageConfig', () => {
   // 配置对象
   const config = ref<PageConfig>({ ...defaultConfig })
+
+  // 首次访问标记（localStorage 无记录；待品牌接口返回系统默认主题后定稿落盘）
+  const firstVisit = ref(false)
 
   // 设置对话框显示状态
   const settingsVisible = ref(false)
@@ -87,11 +98,14 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
         if (!isValidPrimary(config.value.customPrimary)) {
           config.value.customPrimary = DEFAULT_CUSTOM_PRIMARY
         }
-      } else {
-        // 首次访问，跟随系统主题偏好
-        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-          config.value.theme = 'dark'
+
+        // 校验 followSystemTheme 类型（默认跟随）
+        if (typeof config.value.followSystemTheme !== 'boolean') {
+          config.value.followSystemTheme = true
         }
+      } else {
+        // 首次访问：暂不定稿，待品牌接口返回系统默认主题后应用（见 applySystemDefault）
+        firstVisit.value = true
       }
     } catch (error) {
       console.error('加载页面配置失败:', error)
@@ -108,8 +122,16 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     }
   }
 
+  // 用户手动变更主题任一维度 → 退出跟随，固定为个人选择
+  const markUserChoice = () => {
+    config.value.followSystemTheme = false
+  }
+
   // 更新配置
   const updateConfig = (key: keyof PageConfig, value: any) => {
+    if (USER_THEME_KEYS.includes(key)) {
+      markUserChoice()
+    }
     (config.value as any)[key] = value
   }
 
@@ -118,9 +140,10 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     Object.assign(config.value, updates)
   }
 
-  // 重置配置
+  // 重置配置（用户显式动作：回到内置默认并退出跟随）
   const resetConfig = () => {
     config.value = { ...defaultConfig }
+    config.value.followSystemTheme = false
     applyTheme(config.value.theme)
     applyPalette(config.value.palette)
     applyLayout(config.value.layout)
@@ -197,6 +220,7 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
 
   /** 用户在颜色选择器中改 custom 主色 */
   const changeCustomPrimary = (primary: string) => {
+    markUserChoice()
     if (config.value.palette === 'custom') {
       applyCustomPalette(primary)
     } else {
@@ -219,6 +243,7 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
 
   // 切换套餐（一次性设置三维度）
   const changePreset = (presetId: string) => {
+    markUserChoice()
     const preset = getPreset(presetId)
     applyPalette(preset.palette)
     applyLayout(preset.layout)
@@ -226,15 +251,58 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
   }
 
   // 三维度独立切换
-  const changePalette = (palette: Palette) => applyPalette(palette)
-  const changeLayout = (layout: LayoutKind) => applyLayout(layout)
-  const changeStyle = (style: StyleKind) => applyStyle(style)
+  const changePalette = (palette: Palette) => {
+    markUserChoice()
+    applyPalette(palette)
+  }
+  const changeLayout = (layout: LayoutKind) => {
+    markUserChoice()
+    applyLayout(layout)
+  }
+  const changeStyle = (style: StyleKind) => {
+    markUserChoice()
+    applyStyle(style)
+  }
 
   // 切换主题
   const toggleTheme = () => {
+    markUserChoice()
     const newTheme = config.value.theme === 'light' ? 'dark' : 'light'
     config.value.theme = newTheme
     applyTheme(newTheme)
+  }
+
+  // 首次访问应用系统默认主题（品牌公开接口返回；非法/缺失字段逐项回退默认）
+  const applySystemDefault = (theme: Partial<DefaultThemeConfig> | null | undefined) => {
+    const t = theme ?? {}
+    const palette = VALID_SYSTEM_PALETTES.includes(t.palette as Palette) ? t.palette as Palette : DEFAULT_THEME.palette
+    const layout = VALID_LAYOUTS.includes(t.layout as LayoutKind) ? t.layout as LayoutKind : DEFAULT_THEME.layout
+    const style = VALID_STYLES.includes(t.style as StyleKind) ? t.style as StyleKind : DEFAULT_THEME.style
+    const mode = VALID_THEME_MODES.includes(t.mode as ThemeMode) ? t.mode as ThemeMode : DEFAULT_THEME.mode
+    const resolved: ThemeType = mode === 'auto'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : mode
+
+    config.value.palette = palette
+    config.value.layout = layout
+    config.value.style = style
+    config.value.theme = resolved
+    applyTheme(resolved)
+    applyPalette(palette)
+    applyLayout(layout)
+    applyStyle(style)
+    saveConfig()
+    firstVisit.value = false
+  }
+
+  // 首次访问兜底：品牌接口不可用时维持既有行为（跟随浏览器 + 默认套餐）并落盘定稿
+  const finalizeFirstVisit = () => {
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      config.value.theme = 'dark'
+      applyTheme('dark')
+    }
+    saveConfig()
+    firstVisit.value = false
   }
 
   // 监听配置变化，自动保存
@@ -255,6 +323,7 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
 
   return {
     config,
+    firstVisit,
     settingsVisible,
     updateConfig,
     updateMultipleConfig,
@@ -272,6 +341,8 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     changeLayout,
     changeStyle,
     changeCustomPrimary,
-    toggleTheme
+    toggleTheme,
+    applySystemDefault,
+    finalizeFirstVisit
   }
 })
