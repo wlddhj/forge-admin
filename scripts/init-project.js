@@ -3,6 +3,7 @@
 /**
  * 项目初始化脚本
  * 用于基于 forge-admin 模板创建新项目
+ * 复制模板到新目录后在新目录中修改，不影响模板本身
  *
  * 使用方法: pnpm run init <项目名称> "<项目描述>" <包名>
  * 示例: pnpm run init my-admin "我的管理系统" com.mycompany
@@ -204,7 +205,12 @@ function main() {
   log(`  标识符 (snake): ${config.nameSnake}\n`)
 
   const rootDir = path.resolve(__dirname, '..')
-  process.chdir(rootDir)
+  const targetDir = path.resolve(rootDir, '..', config.nameKebab)
+
+  if (fs.existsSync(targetDir)) {
+    log(`错误: 目标目录已存在: ${targetDir}`, 'red')
+    process.exit(1)
+  }
 
   const namePascal = config.nameKebab
     .split('-')
@@ -266,8 +272,30 @@ function main() {
   // 无扩展名但需要处理的文件名
   const targetFilenames = ['Dockerfile', 'server.sh', 'remove-module.sh']
 
-  log('1. 替换文件内容...', 'yellow')
-  const files = getAllFiles('.')
+  // 复制时排除的目录与文件（构建产物、AI/流程产物、脚手架自身、开发过程产物、失效的 lock 文件）
+  const EXCLUDE_DIRS = ['node_modules', 'target', 'dist', '.git', '.idea', 'logs', 'uploads', '.claude', '.flow-neo', '.playwright-mcp', '.worktrees', '.template']
+  const EXCLUDE_FILES = ['CLAUDE.md', 'pnpm-lock.yaml', 'init-project.js', '.DS_Store', 'workflow-extension-implementation-status.md']
+
+  log(`1. 复制模板到新目录: ${targetDir}`, 'yellow')
+  fs.cpSync(rootDir, targetDir, {
+    recursive: true,
+    filter: (src) => {
+      const name = path.basename(src)
+      return src === rootDir || (!EXCLUDE_DIRS.includes(name) && !EXCLUDE_FILES.includes(name))
+    }
+  })
+  log('  ✓ 复制完成（已排除构建产物、AI/流程产物、脚手架自身、pnpm-lock.yaml）', 'green')
+
+  // 清理新项目 package.json 中的 init 命令（脚手架一次性脚本，不带入新项目）
+  const pkgFile = path.join(targetDir, 'package.json')
+  if (fs.existsSync(pkgFile)) {
+    let pkg = fs.readFileSync(pkgFile, 'utf8')
+    pkg = pkg.replace(/^\s*"init": "node scripts\/init-project\.js",\r?\n/m, '')
+    fs.writeFileSync(pkgFile, pkg)
+  }
+
+  log('\n2. 替换文件内容...', 'yellow')
+  const files = getAllFiles(targetDir)
   let replacedCount = 0
 
   files.forEach(file => {
@@ -276,7 +304,7 @@ function main() {
     if (targetExtensions.includes(ext) || targetFilenames.includes(basename) || file.includes('.env')) {
       if (replaceInFile(file, replacements)) {
         replacedCount++
-        log(`  ✓ ${file}`, 'green')
+        log(`  ✓ ${path.relative(targetDir, file)}`, 'green')
       }
     }
   })
@@ -284,8 +312,8 @@ function main() {
   log(`\n  共替换 ${replacedCount} 个文件\n`)
 
   // 重命名 Java 包目录（自动扫描所有模块）
-  log('2. 重命名 Java 包目录...', 'yellow')
-  const serverDir = path.join(rootDir, 'apps/forge-server')
+  log('3. 重命名 Java 包目录...', 'yellow')
+  const serverDir = path.join(targetDir, 'apps/forge-server')
   const javaSourceRoots = findJavaSourceRoots(serverDir)
 
   log(`  发现 ${javaSourceRoots.length} 个 Java 源码根目录`, 'cyan')
@@ -310,7 +338,7 @@ function main() {
   })
 
   // 重命名启动类文件
-  log('\n3. 重命名启动类...', 'yellow')
+  log('\n4. 重命名启动类...', 'yellow')
   const newPackagePath = config.basePackage.replace(/\./g, '/')
   javaSourceRoots.forEach(javaDir => {
     const oldAppFile = path.join(javaDir, newPackagePath, 'ForgeAdminApplication.java')
@@ -322,7 +350,7 @@ function main() {
   })
 
   // 重命名应用目录
-  log('\n4. 重命名应用目录...', 'yellow')
+  log('\n5. 重命名应用目录...', 'yellow')
   const dirRenames = [
     { from: 'forge-server', to: `${config.nameKebab}-server` },
     { from: 'forge-web', to: `${config.nameKebab}-web` },
@@ -330,8 +358,8 @@ function main() {
     { from: 'forge-screen', to: `${config.nameKebab}-screen` },
   ]
   dirRenames.forEach(({ from, to }) => {
-    const oldDir = path.join(rootDir, 'apps', from)
-    const newDir = path.join(rootDir, 'apps', to)
+    const oldDir = path.join(targetDir, 'apps', from)
+    const newDir = path.join(targetDir, 'apps', to)
     if (fs.existsSync(oldDir) && from !== to) {
       fs.renameSync(oldDir, newDir)
       log(`  ✓ apps/${from} -> apps/${to}`, 'green')
@@ -339,8 +367,8 @@ function main() {
   })
 
   // 重命名后端子模块目录（由深到浅）
-  log('\n4.5. 重命名后端子模块目录...', 'yellow')
-  const renamedServerDir = path.join(rootDir, 'apps', `${config.nameKebab}-server`)
+  log('\n5.5. 重命名后端子模块目录...', 'yellow')
+  const renamedServerDir = path.join(targetDir, 'apps', `${config.nameKebab}-server`)
   if (fs.existsSync(renamedServerDir)) {
     const submoduleRenames = [
       // forge-framework 子目录（深层优先）
@@ -383,8 +411,8 @@ function main() {
   }
 
   // 更新数据库初始化脚本
-  log('\n5. 更新数据库脚本...', 'yellow')
-  const sqlFile = path.join(rootDir, 'sql/init.sql')
+  log('\n6. 更新数据库脚本...', 'yellow')
+  const sqlFile = path.join(targetDir, 'sql/init.sql')
   if (fs.existsSync(sqlFile)) {
     replaceInFile(sqlFile, [
       { from: 'forge_admin', to: config.nameSnake }
@@ -396,12 +424,17 @@ function main() {
   log('  初始化完成！', 'green')
   log('========================================\n', 'cyan')
 
+  log(`新项目路径: ${targetDir}`, 'green')
+  log('（模板目录未做任何修改）\n')
+
   log('后续步骤:', 'yellow')
-  log('  1. 创建数据库: mysql -u root -p < sql/init.sql')
-  log('  2. 更新 .env 文件中的配置')
-  log(`  3. 启动后端: cd apps/${config.nameKebab}-server && mvn spring-boot:run`)
-  log(`  4. 启动前端: cd apps/${config.nameKebab}-web && pnpm dev`)
-  log(`  5. 启动大屏编辑器: cd apps/${config.nameKebab}-screen && pnpm dev`)
+  log(`  1. 进入新项目: cd ${targetDir}`)
+  log('  2. 初始化仓库: git init')
+  log('  3. 创建数据库: mysql -u root -p < sql/init.sql')
+  log('  4. 更新 .env 文件中的配置')
+  log(`  5. 启动后端: cd apps/${config.nameKebab}-server && mvn spring-boot:run`)
+  log(`  6. 启动前端: cd apps/${config.nameKebab}-web && pnpm install && pnpm dev`)
+  log(`  7. 启动大屏编辑器: cd apps/${config.nameKebab}-screen && pnpm install && pnpm dev`)
   log('')
 }
 
