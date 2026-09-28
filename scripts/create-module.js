@@ -254,9 +254,14 @@ log(`  ✓ 添加 ${bizArtifactId} 依赖`, 'green')
 // ========================================
 // 5. 更新 init-project.js 替换规则
 // ========================================
+const initScriptPath = path.join(rootDir, 'scripts/init-project.js')
+
+// init 生成的新项目不包含脚手架自身（init-project.js 已被排除），无需更新替换规则
+if (!fs.existsSync(initScriptPath)) {
+  log('\n5. 跳过更新 init-project.js 替换规则（本项目非模板项目）', 'cyan')
+} else {
 log('\n5. 更新 init-project.js 替换规则...', 'yellow')
 
-const initScriptPath = path.join(rootDir, 'scripts/init-project.js')
 let initScript = fs.readFileSync(initScriptPath, 'utf8')
 
 // 在 Maven 子模块替换规则中添加新模块
@@ -286,6 +291,7 @@ if (initScript.includes(submoduleRenamesMarker)) {
   initScript = initScript.replace(midLevelMarker, `${newModuleDirRename}\n${midLevelMarker}`)
   fs.writeFileSync(initScriptPath, initScript)
   log(`  ✓ 添加目录重命名规则: ${moduleArtifactId}`, 'green')
+}
 }
 
 log('\n========================================', 'cyan')
