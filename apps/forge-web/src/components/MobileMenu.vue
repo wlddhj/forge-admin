@@ -36,26 +36,7 @@
           </el-menu-item>
 
           <template v-for="menu in menuList" :key="menu.id || menu.path">
-            <!-- 有子菜单 -->
-            <el-sub-menu v-if="menu.children && menu.children.length > 0" :index="menu.routePath || menu.path">
-              <template #title>
-                <el-icon><component :is="menu.icon" /></el-icon>
-                <span>{{ menu.menuName || menu.meta?.title }}</span>
-              </template>
-              <el-menu-item
-                v-for="child in menu.children.filter((c: any) => c.menuType !== 2)"
-                :key="child.id"
-                :index="getChildPath(menu.routePath || menu.path, child.routePath)"
-              >
-                <el-icon><component :is="child.icon" /></el-icon>
-                <span>{{ child.menuName }}</span>
-              </el-menu-item>
-            </el-sub-menu>
-            <!-- 无子菜单 -->
-            <el-menu-item v-else :index="menu.routePath || menu.path">
-              <el-icon><component :is="menu.icon" /></el-icon>
-              <span>{{ menu.menuName || menu.meta?.title }}</span>
-            </el-menu-item>
+            <SidebarMenuItem :menu="menu" />
           </template>
         </el-menu>
       </el-scrollbar>
@@ -89,6 +70,7 @@ import { useTabsStore } from '@/stores/tabs'
 import { useBrandStore } from '@/stores/brand'
 import { resetRouter } from '@/router'
 import { HomeFilled, Close, SwitchButton } from '@element-plus/icons-vue'
+import SidebarMenuItem from '@/components/SidebarMenuItem.vue'
 
 interface Props {
   modelValue: boolean
@@ -127,14 +109,6 @@ const menuList = computed(() => {
     .find((r: any) => r.path === '/')?.children
     ?.filter((item: any) => !item.meta?.hidden) || []
 })
-
-// 获取子菜单完整路径
-const getChildPath = (parentPath: string, childPath: string) => {
-  if (childPath.startsWith('/')) {
-    return childPath
-  }
-  return `${parentPath}/${childPath}`
-}
 
 // 菜单选择事件
 const handleMenuSelect = () => {

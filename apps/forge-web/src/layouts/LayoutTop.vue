@@ -20,24 +20,7 @@
             <span>首页</span>
           </el-menu-item>
           <template v-for="menu in topMenuList" :key="menu.id || menu.path">
-            <el-sub-menu v-if="menu.children && menu.children.length > 0" :index="menu.routePath || menu.path">
-              <template #title>
-                <IconPreview v-if="menu.icon" :icon="menu.icon" :size="18" />
-                <span>{{ menu.menuName || menu.meta?.title }}</span>
-              </template>
-              <el-menu-item
-                v-for="child in menu.children.filter((c: any) => c.menuType !== 2)"
-                :key="child.id"
-                :index="getChildPath(menu.routePath || menu.path, child.routePath)"
-              >
-                <IconPreview v-if="child.icon" :icon="child.icon" :size="18" />
-                <span>{{ child.menuName }}</span>
-              </el-menu-item>
-            </el-sub-menu>
-            <el-menu-item v-else :index="menu.routePath || menu.path">
-              <IconPreview v-if="menu.icon" :icon="menu.icon" :size="18" />
-              <span>{{ menu.menuName || menu.meta?.title }}</span>
-            </el-menu-item>
+            <SidebarMenuItem :menu="menu" />
           </template>
         </el-menu>
       </div>
@@ -71,7 +54,7 @@ import { useResponsive } from '@/composables/useResponsive'
 import { HomeFilled } from '@element-plus/icons-vue'
 import TabsView from '@/components/TabsView.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
-import IconPreview from '@/components/IconPreview.vue'
+import SidebarMenuItem from '@/components/SidebarMenuItem.vue'
 import AppHeaderRight from '@/themes/layouts/shared/AppHeaderRight.vue'
 
 const route = useRoute()
@@ -90,7 +73,7 @@ const shouldShowTabs = computed(() => {
   return pageConfigStore.config.showTabs
 })
 
-// 顶栏布局：只显示一级菜单（有子菜单的作为折叠入口）
+// 顶栏布局：菜单递归渲染（SidebarMenuItem 支持任意层级，按钮/隐藏项在组件内过滤）
 const topMenuList = computed(() => {
   const menus = userStore.menus
   if (menus && menus.length > 0) {
@@ -108,11 +91,6 @@ const topMenuList = computed(() => {
     .find((r: any) => r.path === '/')?.children
     ?.filter((item: any) => !item.meta?.hidden) || []
 })
-
-const getChildPath = (parentPath: string, childPath: string) => {
-  if (childPath.startsWith('/')) return childPath
-  return `${parentPath}/${childPath}`
-}
 
 watch(
   () => route.path,
