@@ -157,7 +157,7 @@ function cleanEmptyDirs(dirPath) {
   }
 }
 
-// 查找所有 src/main/java 目录
+// 查找所有 src/main/java 与 src/test/java 目录
 function findJavaSourceRoots(baseDir) {
   const results = []
   const skipDirs = ['node_modules', 'target', 'dist', '.git', '.idea', 'logs', 'uploads', '.claude']
@@ -166,7 +166,7 @@ function findJavaSourceRoots(baseDir) {
     const name = path.basename(dir)
     if (skipDirs.includes(name)) return
 
-    if (dir.endsWith(path.join('src', 'main', 'java'))) {
+    if (dir.endsWith(path.join('src', 'main', 'java')) || dir.endsWith(path.join('src', 'test', 'java'))) {
       results.push(dir)
       return
     }
@@ -229,9 +229,16 @@ function main() {
     { from: 'forge-module-system-biz', to: `${config.nameKebab}-module-system-biz` },
     { from: 'forge-module-system-api', to: `${config.nameKebab}-module-system-api` },
     { from: 'forge-module-system', to: `${config.nameKebab}-module-system` },
+    { from: 'forge-module-screen-biz', to: `${config.nameKebab}-module-screen-biz` },
+    { from: 'forge-module-screen-api', to: `${config.nameKebab}-module-screen-api` },
+    { from: 'forge-module-screen', to: `${config.nameKebab}-module-screen` },
+    { from: 'forge-module-ai-biz', to: `${config.nameKebab}-module-ai-biz` },
+    { from: 'forge-module-ai-api', to: `${config.nameKebab}-module-ai-api` },
+    { from: 'forge-module-ai', to: `${config.nameKebab}-module-ai` },
     { from: 'forge-spring-boot-starter-mybatis', to: `${config.nameKebab}-spring-boot-starter-mybatis` },
     { from: 'forge-spring-boot-starter-redis', to: `${config.nameKebab}-spring-boot-starter-redis` },
     { from: 'forge-spring-boot-starter-security', to: `${config.nameKebab}-spring-boot-starter-security` },
+    { from: 'forge-spring-boot-starter-tenant', to: `${config.nameKebab}-spring-boot-starter-tenant` },
     { from: 'forge-spring-boot-starter-web', to: `${config.nameKebab}-spring-boot-starter-web` },
     { from: 'forge-dependencies', to: `${config.nameKebab}-dependencies` },
     { from: 'forge-framework', to: `${config.nameKebab}-framework` },
@@ -343,6 +350,7 @@ function main() {
       { from: 'forge-framework/forge-spring-boot-starter-mybatis', to: `forge-framework/${config.nameKebab}-spring-boot-starter-mybatis` },
       { from: 'forge-framework/forge-spring-boot-starter-redis', to: `forge-framework/${config.nameKebab}-spring-boot-starter-redis` },
       { from: 'forge-framework/forge-spring-boot-starter-security', to: `forge-framework/${config.nameKebab}-spring-boot-starter-security` },
+      { from: 'forge-framework/forge-spring-boot-starter-tenant', to: `forge-framework/${config.nameKebab}-spring-boot-starter-tenant` },
       { from: 'forge-framework/forge-spring-boot-starter-web', to: `forge-framework/${config.nameKebab}-spring-boot-starter-web` },
       // forge-module-system 子目录
       { from: 'forge-module-system/forge-module-system-api', to: `forge-module-system/${config.nameKebab}-module-system-api` },
@@ -350,10 +358,18 @@ function main() {
       // forge-module-workflow 子目录
       { from: 'forge-module-workflow/forge-module-workflow-api', to: `forge-module-workflow/${config.nameKebab}-module-workflow-api` },
       { from: 'forge-module-workflow/forge-module-workflow-biz', to: `forge-module-workflow/${config.nameKebab}-module-workflow-biz` },
+      // forge-module-ai 子目录
+      { from: 'forge-module-ai/forge-module-ai-api', to: `forge-module-ai/${config.nameKebab}-module-ai-api` },
+      { from: 'forge-module-ai/forge-module-ai-biz', to: `forge-module-ai/${config.nameKebab}-module-ai-biz` },
+      // forge-module-screen 子目录
+      { from: 'forge-module-screen/forge-module-screen-api', to: `forge-module-screen/${config.nameKebab}-module-screen-api` },
+      { from: 'forge-module-screen/forge-module-screen-biz', to: `forge-module-screen/${config.nameKebab}-module-screen-biz` },
       // 中层目录
       { from: 'forge-framework', to: `${config.nameKebab}-framework` },
       { from: 'forge-module-system', to: `${config.nameKebab}-module-system` },
       { from: 'forge-module-workflow', to: `${config.nameKebab}-module-workflow` },
+      { from: 'forge-module-ai', to: `${config.nameKebab}-module-ai` },
+      { from: 'forge-module-screen', to: `${config.nameKebab}-module-screen` },
       { from: 'forge-dependencies', to: `${config.nameKebab}-dependencies` },
       // 内部 forge-server 模块（启动入口）
       { from: 'forge-server', to: `${config.nameKebab}-server` },
