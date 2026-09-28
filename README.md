@@ -295,7 +295,7 @@ pnpm dev:mp-weixin
 - 大屏编辑器：http://localhost:8001
 - API 文档：http://localhost:8181/swagger-ui/index.html
 - 默认账号：`admin` / `password`（启用多租户时登录页需输入租户标识，默认 `default`）
-- OAuth2 使用文档：[docs/oauth2-guide.md](docs/oauth2-guide.md)
+- OAuth2 使用文档：[docs/guide/oauth2-guide.md](docs/guide/oauth2-guide.md)
 
 ## 开发命令
 
@@ -675,30 +675,31 @@ mysql -u root -p < sql/init-screen.sql
 
 全新初始化使用 `sql/init.sql`（已集成 sys_print_template 表 + 菜单种子）。
 
-详见 [docs/print-template-guide.md](docs/print-template-guide.md)。
+详见 [docs/guide/print-template-guide.md](docs/guide/print-template-guide.md)。
 
 ## 相关文档
 
-### 流程模块(`docs/workflow/`)
+### 流程模块(`docs/modules/workflow/`)
 
 按阅读顺序排列,新接手流程模块从 `01` 开始:
 
 | 文档 | 目标读者 | 用途 |
 |------|----------|------|
-| [01.workflow-usage.md](docs/workflow/01.workflow-usage.md) | 流程管理员 / 配置人员 / 最终用户 | 流程管理菜单、完整配置流程、候选人策略、触发器任务、待办/已办、状态码 |
-| [02.condition-node-guide.md](docs/workflow/02.condition-node-guide.md) | 流程设计者 / 后端开发 | 条件节点(type=3 / type=4)实际行为、触发条件使用时机、SpEL 求值、兜底机制 |
-| [03.trigger-bean-guide.md](docs/workflow/03.trigger-bean-guide.md) | 后端开发 | 自定义 `@FlowLongTrigger` Bean、`AbstractFlowLongTrigger` 抽象基类、4 种业务模式、反射调用 |
+| [01.workflow-usage.md](docs/modules/workflow/01.workflow-usage.md) | 流程管理员 / 配置人员 / 最终用户 | 流程管理菜单、完整配置流程、候选人策略、触发器任务、待办/已办、状态码 |
+| [02.condition-node-guide.md](docs/modules/workflow/02.condition-node-guide.md) | 流程设计者 / 后端开发 | 条件节点(type=3 / type=4)实际行为、触发条件使用时机、SpEL 求值、兜底机制 |
+| [03.trigger-bean-guide.md](docs/modules/workflow/03.trigger-bean-guide.md) | 后端开发 | 自定义 `@FlowLongTrigger` Bean、`AbstractFlowLongTrigger` 抽象基类、4 种业务模式、反射调用 |
 
 ### 其他文档
 
 | 文档 | 用途 |
 |------|------|
-| [docs/oauth2-guide.md](docs/oauth2-guide.md) | OAuth2 授权服务器使用(第三方应用接入本系统做用户认证) |
+| [docs/guide/oauth2-guide.md](docs/guide/oauth2-guide.md) | OAuth2 授权服务器使用(第三方应用接入本系统做用户认证) |
 | [docs/template-guide.md](docs/template-guide.md) | 基于本项目创建新管理系统(项目模板化) |
-| [docs/data-permission-guide.md](docs/data-permission-guide.md) | 数据权限(部门级 / 本人级)使用说明 |
-| [docs/database-design-specification.md](docs/database-design-specification.md) | 数据库设计规范(字段命名、索引、关联关系) |
-| [docs/module-development.md](docs/module-development.md) | 新建业务模块的开发规范 |
-| [docs/print-template-guide.md](docs/print-template-guide.md) | 打印模板使用指南（hiprint 设计器/调用打印/多租户行为/常见问题） |
+| [docs/guide/deployment-guide.md](docs/guide/deployment-guide.md) | 服务部署(环境变量配置、Docker Compose、镜像构建与容器运行) |
+| [docs/guide/data-permission-guide.md](docs/guide/data-permission-guide.md) | 数据权限(部门级 / 本人级)使用说明 |
+| [docs/development/database-design-specification.md](docs/development/database-design-specification.md) | 数据库设计规范(字段命名、索引、关联关系) |
+| [docs/development/module-development.md](docs/development/module-development.md) | 新建业务模块的开发规范 |
+| [docs/guide/print-template-guide.md](docs/guide/print-template-guide.md) | 打印模板使用指南（hiprint 设计器/调用打印/多租户行为/常见问题） |
 
 ## 许可证
 
