@@ -3,7 +3,7 @@ package com.forge.modules.ai.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.security.utils.SecurityHelper;
-import com.forge.modules.ai.client.PythonAiClient;
+import com.forge.modules.ai.client.LlmClient;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.request.CreateConversationRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
@@ -16,6 +16,7 @@ import com.forge.modules.ai.mapper.AiModelConfigMapper;
 import com.forge.modules.ai.mapper.AiConversationMapper;
 import com.forge.modules.ai.mapper.AiMessageMapper;
 import com.forge.modules.ai.service.AiChatService;
+import com.forge.modules.ai.service.AiModelResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,7 +36,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AiChatServiceImpl implements AiChatService {
 
-    private final PythonAiClient pythonAiClient;
+    private final LlmClient llmClient;
+    private final AiModelResolver modelResolver;
     private final AiConversationMapper conversationMapper;
     private final AiMessageMapper messageMapper;
     private final AiModelConfigMapper modelConfigMapper;
@@ -162,8 +164,11 @@ public class AiChatServiceImpl implements AiChatService {
         userMessage.setStatus(1);
         messageMapper.insert(userMessage);
 
-        // 调用 Python 服务
-        ChatResponse chatResponse = pythonAiClient.chat(request);
+        // 调用 LLM
+        AiModelConfig modelConfig = modelResolver.resolve(request);
+        ChatResponse chatResponse = modelConfig != null
+                ? llmClient.chat(request, modelConfig)
+                : noModelResponse();
 
         // 保存 AI 响应
         MessageResponse aiMessageResponse = new MessageResponse();
@@ -207,8 +212,11 @@ public class AiChatServiceImpl implements AiChatService {
         // 保存用户消息
         saveUserMessage(request);
 
-        // 调用Python服务
-        ChatResponse response = pythonAiClient.chat(request);
+        // 调用 LLM
+        AiModelConfig modelConfig = modelResolver.resolve(request);
+        ChatResponse response = modelConfig != null
+                ? llmClient.chat(request, modelConfig)
+                : noModelResponse();
 
         // 保存AI响应消息
         if (response != null && response.getSuccess()) {
@@ -255,8 +263,19 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Override
     public Flux<String> getStreamResponse(ChatRequest request) {
-        // 调用Python服务流式接口（不需要 Security Context）
-        return pythonAiClient.chatStreamFlux(request);
+        // 直连上游 LLM 流式接口（不需要 Security Context）
+        AiModelConfig modelConfig = modelResolver.resolve(request);
+        if (modelConfig == null) {
+            return Flux.just("{\"error\":true,\"message\":\"没有可用的模型配置，请先在模型管理中启用模型\"}");
+        }
+        return llmClient.stream(request, modelConfig);
+    }
+
+    private ChatResponse noModelResponse() {
+        ChatResponse response = new ChatResponse();
+        response.setSuccess(false);
+        response.setErrorMessage("没有可用的模型配置，请先在模型管理中启用模型");
+        return response;
     }
 
     @Override

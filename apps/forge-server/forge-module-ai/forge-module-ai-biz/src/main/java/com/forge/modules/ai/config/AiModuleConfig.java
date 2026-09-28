@@ -13,9 +13,9 @@ import org.springframework.stereotype.Component;
 public class AiModuleConfig {
 
     /**
-     * Python服务配置
+     * LLM 客户端配置
      */
-    private PythonService pythonService = new PythonService();
+    private Client client = new Client();
 
     /**
      * 模型配置
@@ -28,15 +28,10 @@ public class AiModuleConfig {
     private Boolean enabled = true;
 
     /**
-     * Python服务配置类
+     * LLM 客户端配置类（调用上游 OpenAI 兼容端点）
      */
     @Data
-    public static class PythonService {
-        /**
-         * Python服务地址
-         */
-        private String baseUrl = "http://localhost:8000";
-
+    public static class Client {
         /**
          * 连接超时时间（毫秒）
          */
@@ -46,11 +41,6 @@ public class AiModuleConfig {
          * 读超时时间（毫秒）
          */
         private Integer readTimeout = 60000;
-
-        /**
-         * 是否启用Python服务
-         */
-        private Boolean enabled = true;
     }
 
     /**

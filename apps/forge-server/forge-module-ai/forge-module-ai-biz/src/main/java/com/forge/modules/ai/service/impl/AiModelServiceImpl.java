@@ -1,7 +1,8 @@
 package com.forge.modules.ai.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.forge.modules.ai.client.PythonAiClient;
+import com.forge.modules.ai.client.ModelHealthProbe;
+import com.forge.modules.ai.client.OpenAiChatModelFactory;
 import com.forge.modules.ai.dto.response.ModelListResponse;
 import com.forge.modules.ai.entity.AiModelConfig;
 import com.forge.modules.ai.mapper.AiModelConfigMapper;
@@ -23,23 +24,30 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiModelServiceImpl implements AiModelService {
 
-    private final PythonAiClient pythonAiClient;
+    private final ModelHealthProbe modelHealthProbe;
+    private final OpenAiChatModelFactory modelFactory;
     private final AiModelConfigMapper modelConfigMapper;
 
     @Override
     public ModelListResponse getAvailableModels() {
-        // 从Python服务获取可用模型
-        ModelListResponse response = pythonAiClient.getAvailableModels();
-        if (response != null && response.getModels() != null) {
-            // 更新本地缓存状态
-            response.getModels().forEach(model -> {
-                AiModelConfig config = modelConfigMapper.selectByModelName(model.getModelName());
-                if (config != null) {
-                    model.setId(config.getId());
-                    model.setStatus(config.getStatus());
-                }
-            });
+        List<AiModelConfig> configs = getAllModelConfigs();
+        ModelListResponse response = new ModelListResponse();
+        response.setAvailable(!configs.isEmpty());
+        List<ModelListResponse.ModelConfigResponse> models = new ArrayList<>();
+        for (AiModelConfig config : configs) {
+            ModelListResponse.ModelConfigResponse model = new ModelListResponse.ModelConfigResponse();
+            model.setId(config.getId());
+            model.setModelName(config.getModelName());
+            model.setDisplayName(config.getModelName());
+            model.setProvider(config.getProvider());
+            model.setDescription(config.getRemark());
+            model.setContextLength(config.getContextWindow());
+            model.setPricingInput(config.getInputPrice() != null ? config.getInputPrice().doubleValue() : null);
+            model.setPricingOutput(config.getOutputPrice() != null ? config.getOutputPrice().doubleValue() : null);
+            model.setStatus(config.getStatus());
+            models.add(model);
         }
+        response.setModels(models);
         return response;
     }
 
@@ -99,30 +107,8 @@ public class AiModelServiceImpl implements AiModelService {
 
     @Override
     public void refreshModelCache() {
-        ModelListResponse response = pythonAiClient.getAvailableModels();
-        if (response != null && response.getModels() != null) {
-            response.getModels().forEach(model -> {
-                AiModelConfig existing = modelConfigMapper.selectByModelName(model.getModelName());
-                if (existing == null) {
-                    // 新模型，插入记录
-                    AiModelConfig config = new AiModelConfig();
-                    config.setModelName(model.getModelName());
-                    config.setModelCode(model.getModelName());
-                    config.setProvider(model.getProvider());
-                    config.setStatus(1);
-                    config.setIsDefault(0);
-                    config.setMaxTokens(4096);
-                    config.setTemperature(new BigDecimal("0.7"));
-                    if (model.getPricingInput() != null) {
-                        config.setInputPrice(new BigDecimal(model.getPricingInput().toString()));
-                    }
-                    if (model.getPricingOutput() != null) {
-                        config.setOutputPrice(new BigDecimal(model.getPricingOutput().toString()));
-                    }
-                    modelConfigMapper.insert(config);
-                }
-            });
-        }
+        // 模型目录已由 ai_model_config 表维护，刷新动作即重建实例缓存并探测全部模型状态
+        refreshAllModelStatus();
     }
 
     @Override
@@ -154,8 +140,8 @@ public class AiModelServiceImpl implements AiModelService {
         if (config == null) {
             throw new RuntimeException("模型配置不存在");
         }
-        // 调用 Python 服务检查模型状态
-        boolean available = pythonAiClient.checkModelAvailable(config.getModelName());
+        modelFactory.evict(config.getId());
+        boolean available = modelHealthProbe.probe(config);
         config.setStatus(available ? 1 : 2);
         modelConfigMapper.updateById(config);
         return config;
@@ -166,17 +152,16 @@ public class AiModelServiceImpl implements AiModelService {
         List<AiModelConfig> configs = getAllModelConfigs();
         List<AiModelConfig> updatedConfigs = new ArrayList<>();
         for (AiModelConfig config : configs) {
+            modelFactory.evict(config.getId());
             try {
-                boolean available = pythonAiClient.checkModelAvailable(config.getModelName());
+                boolean available = modelHealthProbe.probe(config);
                 config.setStatus(available ? 1 : 2);
-                modelConfigMapper.updateById(config);
-                updatedConfigs.add(config);
             } catch (Exception e) {
                 log.warn("检查模型 {} 状态失败: {}", config.getModelName(), e.getMessage());
                 config.setStatus(2);
-                modelConfigMapper.updateById(config);
-                updatedConfigs.add(config);
             }
+            modelConfigMapper.updateById(config);
+            updatedConfigs.add(config);
         }
         return updatedConfigs;
     }

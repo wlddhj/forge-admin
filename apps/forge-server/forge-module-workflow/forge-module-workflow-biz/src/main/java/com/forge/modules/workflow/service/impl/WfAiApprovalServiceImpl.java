@@ -2,9 +2,11 @@ package com.forge.modules.workflow.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.forge.modules.ai.client.PythonAiClient;
+import com.forge.modules.ai.client.LlmClient;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
+import com.forge.modules.ai.entity.AiModelConfig;
+import com.forge.modules.ai.service.AiModelResolver;
 import com.forge.modules.workflow.dto.ai.AiApprovalConfig;
 import com.forge.modules.workflow.dto.ai.AiApprovalResult;
 import com.forge.modules.workflow.dto.ai.AiApprovalResult.Decision;
@@ -26,7 +28,8 @@ import java.util.*;
 @RequiredArgsConstructor
 public class WfAiApprovalServiceImpl implements WfAiApprovalService {
 
-    private final PythonAiClient pythonAiClient;
+    private final LlmClient llmClient;
+    private final AiModelResolver modelResolver;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -54,7 +57,8 @@ public class WfAiApprovalServiceImpl implements WfAiApprovalService {
             chatRequest.setMessages(List.of(systemMsg));
 
             // 3. 执行AI调用
-            ChatResponse chatResponse = pythonAiClient.chat(chatRequest);
+            AiModelConfig modelConfig = modelResolver.resolve(chatRequest);
+            ChatResponse chatResponse = modelConfig != null ? llmClient.chat(chatRequest, modelConfig) : null;
 
             // 4. 解析AI响应
             if (chatResponse != null && Boolean.TRUE.equals(chatResponse.getSuccess())) {

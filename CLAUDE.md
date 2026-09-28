@@ -8,11 +8,11 @@ forge-admin 是一个基于 RBAC 的企业级后台管理系统，采用 monorep
 
 **技术栈：**
 - 前端：Vue 3.4 + TypeScript + Element Plus + vxe-table + Pinia + Vite 5
-- 后端：Spring Boot 3.2.0 + MyBatis Plus 3.5.17 + MySQL + Redis + FlowLong 1.2.5
+- 后端：Spring Boot 3.4.11 + Spring AI 1.1.2 + MyBatis Plus 3.5.17 + MySQL + Redis + FlowLong 1.2.5
 - 认证：JWT Token（访问令牌 2 小时，刷新令牌 7 天）
 - 多租户：MyBatis Plus `TenantLineInnerInterceptor`（SQL 自动注入 `WHERE tenant_id = ?`）
 - 加密：AES-256-GCM（敏感字段）+ BCrypt（密码哈希）+ jasypt（配置文件）
-- API 文档：Knife4j，地址 `/api/doc.html`
+- API 文档：springdoc-openapi（原生 Swagger UI），地址 `/api/swagger-ui/index.html`，JSON `/api/v3/api-docs`
 
 ## 关键配置
 
@@ -61,7 +61,7 @@ mvn test -Dtest=ClassName -pl <module>         # 运行单个测试类
 
 ```
 apps/forge-server/
-├── pom.xml                          # 根聚合 POM（parent: spring-boot-starter-parent:3.2.0）
+├── pom.xml                          # 根聚合 POM（parent: spring-boot-starter-parent:3.4.11）
 ├── forge-dependencies/              # BOM 版本管理（纯 POM，无 Java 代码）
 ├── forge-framework/                 # 框架层
 │   ├── forge-common/                # 纯公共：注解、枚举、异常、响应、JSON 序列化、工具类
@@ -78,7 +78,7 @@ apps/forge-server/
 │   └── forge-module-workflow-biz/   # Controller/Service/Mapper + FlowLong 集成
 ├── forge-module-ai/                 # AI 模块
 │   ├── forge-module-ai-api/         # 实体 + DTO
-│   └── forge-module-ai-biz/         # Controller/Service（调用 Python AI 服务）
+│   └── forge-module-ai-biz/         # Controller/Service（Spring AI 原生 LLM 调用）
 ├── forge-module-screen/             # 大屏模块
 │   ├── forge-module-screen-api/     # 实体 + DTO + 枚举
 │   └── forge-module-screen-biz/     # Controller/Service/Mapper + 安全层 + 缓存 + 熔断
@@ -89,7 +89,7 @@ apps/forge-server/
 ```
 forge-server ← system-biz, workflow-biz, ai-biz
 workflow-biz ← workflow-api, system-api, starters, flowlong
-ai-biz ← ai-api, system-api, starters（调用 Python AI 服务）
+ai-biz ← ai-api, system-api, starters（Spring AI 直连 LLM 上游）
 system-biz ← system-api, starters, quartz, justauth
 starter-security ← forge-common, system-api
 starter-mybatis ← forge-common
@@ -109,7 +109,7 @@ starter-redis ← forge-common
 - `com.forge.framework.web` — Web 配置、全局异常、WebSocket
 - `com.forge.modules.system` — system + auth + quartz
 - `com.forge.modules.workflow` — 工作流（FlowLong 集成）
-- `com.forge.modules.ai` — AI 模块（调用 Python 服务）
+- `com.forge.modules.ai` — AI 模块（Spring AI 直连 LLM 上游：对话/文档解析/摘要）
 - `com.forge.modules.screen` — 大屏（CRUD + 数据源执行器 + SQL 安全层）
 
 ### 双端点架构
@@ -227,8 +227,8 @@ forge:
 ### 数据库迁移
 
 位置：每个模块**各自的** `db/migration/` 目录下（如 `forge-module-screen-biz/src/main/resources/db/migration/`、`forge-server/src/main/resources/db/migration/`）
-命名：`V{YYYYMMDD}{seq}___<description>.sql`
-由 Flyway 在启动时按版本号顺序执行。
+命名：`V{YYYYMMDD}{seq}__<description>.sql`
+**注意：项目未引入 Flyway 依赖，迁移 SQL 需手工按版本号顺序执行**（首次部署用 `sql/init.sql` + 各 `init-*.sql`，增量用 `db/migration/` 脚本）。
 
 ## 前端架构（`apps/forge-web/src/`）
 
@@ -270,34 +270,29 @@ composables/   # 组合式函数
 - `WX_MINI_APP_ID` - 微信小程序 AppID（必填，否则使用 Mock 模式）
 - `WX_MINI_APP_SECRET` - 微信小程序 AppSecret
 
-## AI 服务架构（`apps/forge-ai-python/`）
+## AI 能力架构（`forge-module-ai`，Spring AI 原生实现）
 
-系统采用 Java + Python 双语言架构实现 AI 功能：
+AI 能力全部在 Java 端实现（基于 Spring AI，无独立 AI 服务进程）：
 
 ```
-apps/forge-ai-python/
-├── src/
-│   ├── api/           # FastAPI 接口（chat, document, health）
-│   ├── adapters/      # LLM 适配器（deepseek, qwen, glm, ernie）
-│   ├── config/        # 配置管理
-│   ├── models/        # Pydantic 模型
-│   ├── services/      # 业务服务
-│   └── main.py        # 应用入口
-└── pyproject.toml
+forge-module-ai-biz/
+├── client/
+│   ├── LlmClient / SpringAiLlmClient      # LLM 门面：非流式 chat + SSE 流式（契约：{"content":"…"} 帧 + [DONE]）
+│   ├── OpenAiChatModelFactory             # 按 ai_model_config 表编程式构建/缓存 OpenAiChatModel
+│   └── ModelHealthProbe                    # 模型可用性探测（max_tokens=1）
+├── service/
+│   ├── AiModelResolver                    # modelId → modelName/modelCode → 默认模型 回退解析
+│   ├── TikaDocumentParser                 # 文档解析（pdf/docx/txt，Apache Tika）
+│   └── DocumentSummarizer                 # 摘要生成（brief/detailed/bullet prompt 模板）
+└── config/
+    └── AiClientConfig                     # 上游 WebClient（ai.client.connect/read-timeout）
 ```
 
-**启动命令：**
-```bash
-cd apps/forge-ai-python
-pip install -e .
-python -m uvicorn src.main:app --reload --port 8000
-```
-
-**架构说明：**
-- Java 端（AI 模块）：管理文档元数据、调用 Python 服务、回写摘要结果
-- Python 端（AI 服务）：多模型 LLM 对话、文档解析、智能摘要
-
-Java 通过 `WebClient` 调用 Python FastAPI 服务，支持流式响应（SSE）。
+**关键约定：**
+- 四个 provider（deepseek/qwen/glm/ernie）统一走 OpenAI 兼容协议，端点存 `ai_model_config.api_endpoint`（base-url，如 `https://api.deepseek.com/v1`、qwen 用 `https://dashscope.aliyuncs.com/compatible-mode/v1`、ernie 用 `https://qianfan.baidubce.com/v2`）
+- `ai_model_config` 表是唯一模型配置源（endpoint/apiKey/温度/maxTokens），配置变更自动重建模型实例
+- 流式对话分工：`POST /ai/chat/message/stream` 只发 SSE 不落库，前端收完后调 `/ai/chat/message/save-ai` 保存
+- 依赖：spring-ai-bom（forge-dependencies 管理），不使用 spring-ai-starter-* 自动配置
 
 ## 大屏编辑器架构（`apps/forge-screen/`）
 
@@ -420,7 +415,6 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 | 等保合规文档 | `apps/forge-server/docs/SECURITY-COMPLIANCE.md` |
 | 部署检查清单 | `apps/forge-server/docs/DEPLOYMENT-CHECKLIST.md` |
 | 数据库迁移目录 | `apps/forge-server/forge-server/src/main/resources/db/migration/` |
-| Python AI 服务 | `apps/forge-ai-python/src/main.py` |
 | FlowLong 设计器 | `apps/forge-web/src/views/workflow/model/FlowLongModelDesigner.vue` |
 | goView 大屏编辑器 | `apps/forge-screen/src/` |
 | 大屏模块后端 | `apps/forge-server/forge-module-screen/` |

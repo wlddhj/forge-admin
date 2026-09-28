@@ -249,7 +249,6 @@ function main() {
     { from: 'forge-server', to: `${config.nameKebab}-server` },
     { from: 'forge-web', to: `${config.nameKebab}-web` },
     { from: 'forge-miniapp', to: `${config.nameKebab}-miniapp` },
-    { from: 'forge-ai-python', to: `${config.nameKebab}-ai-python` },
     { from: 'forge-screen', to: `${config.nameKebab}-screen` },
     // AI 服务描述（在通用 forge 规则之前，避免 "Forge Admin" 被拆解替换）
     { from: 'AI service for Forge Admin', to: `AI service for ${config.projectName}` },
@@ -328,7 +327,6 @@ function main() {
     { from: 'forge-server', to: `${config.nameKebab}-server` },
     { from: 'forge-web', to: `${config.nameKebab}-web` },
     { from: 'forge-miniapp', to: `${config.nameKebab}-miniapp` },
-    { from: 'forge-ai-python', to: `${config.nameKebab}-ai-python` },
     { from: 'forge-screen', to: `${config.nameKebab}-screen` },
   ]
   dirRenames.forEach(({ from, to }) => {
@@ -403,8 +401,7 @@ function main() {
   log('  2. 更新 .env 文件中的配置')
   log(`  3. 启动后端: cd apps/${config.nameKebab}-server && mvn spring-boot:run`)
   log(`  4. 启动前端: cd apps/${config.nameKebab}-web && pnpm dev`)
-  log(`  5. 启动 AI 服务: cd apps/${config.nameKebab}-ai-python && pip install -e . && python -m uvicorn src.main:app --reload --port 8000`)
-  log(`  6. 启动大屏编辑器: cd apps/${config.nameKebab}-screen && pnpm dev`)
+  log(`  5. 启动大屏编辑器: cd apps/${config.nameKebab}-screen && pnpm dev`)
   log('')
 }
 

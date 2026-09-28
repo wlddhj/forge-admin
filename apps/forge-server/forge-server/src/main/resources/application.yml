@@ -188,7 +188,6 @@ forge:
         - localhost
         - 127.0.0.1
         - forge-server
-        - forge-ai-python
         - jsonplaceholder.typicode.com
         - api.github.com
       http-timeout-ms: 5000
@@ -217,7 +216,7 @@ flowable:
   async-executor-activate: true
   process-definition-location-prefix: classpath*:/processes/
 
-# Knife4j配置
+# OpenAPI 文档（springdoc，UI: /api/swagger-ui.html）
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -229,11 +228,6 @@ springdoc:
     - group: 'default'
       paths-to-match: '/**'
       packages-to-scan: com.forge.modules
-
-knife4j:
-  enable: true
-  setting:
-    language: zh_cn
 
 # JWT配置
 jwt:
@@ -265,11 +259,9 @@ file:
 # AI模块配置
 ai:
   enabled: ${AI_ENABLED:true}
-  python-service:
-    base-url: ${AI_PYTHON_SERVICE_URL:http://localhost:8000}
-    connect-timeout: ${AI_PYTHON_CONNECT_TIMEOUT:5000}
-    read-timeout: ${AI_PYTHON_READ_TIMEOUT:60000}
-    enabled: ${AI_PYTHON_ENABLED:true}
+  client:
+    connect-timeout: ${AI_CLIENT_CONNECT_TIMEOUT:5000}
+    read-timeout: ${AI_CLIENT_READ_TIMEOUT:60000}
   models:
     default-model: ${AI_DEFAULT_MODEL:deepseek-chat}
     default-temperature: ${AI_DEFAULT_TEMPERATURE:0.7}

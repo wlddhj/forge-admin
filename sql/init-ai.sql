@@ -206,11 +206,12 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 -- 初始化模型配置数据
 -- ========================================
 INSERT INTO `ai_model_config` (`id`, `model_name`, `model_code`, `provider`, `api_endpoint`, `max_tokens`, `temperature`, `context_window`, `input_price`, `output_price`, `is_default`, `status`, `remark`) VALUES
-(1, 'DeepSeek Chat',  'deepseek-chat',  'deepseek', 'https://api.deepseek.com/v1/chat/completions',                                          4096, 0.7,  64000, 0.001,   0.002, 1, 1, 'DeepSeek通用对话模型(默认)'),
-(2, 'DeepSeek Coder', 'deepseek-coder', 'deepseek', 'https://api.deepseek.com/v1/chat/completions',                                          4096, 0.5,  16000, 0.001,   0.002, 0, 1, 'DeepSeek代码专用模型'),
-(3, '通义千问 Turbo', 'qwen-turbo',     'qwen',     'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',     4096, 0.7,   8192, 0.002,   0.006, 0, 1, '阿里通义千问快速版'),
-(4, '通义千问 Plus',  'qwen-plus',      'qwen',     'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',     4096, 0.7,  32768, 0.004,   0.012, 0, 1, '阿里通义千问增强版'),
-(5, '智谱 GLM-4-Flash','glm-4-flash',  'glm',      'https://open.bigmodel.cn/api/paas/v4/chat/completions',                               4096, 0.7, 128000, 0.0001,  0.0001,0, 1, '智谱AI GLM-4极速版');
+(1, 'DeepSeek Chat',  'deepseek-chat',  'deepseek', 'https://api.deepseek.com/v1',                          4096, 0.7,  64000, 0.001,   0.002, 1, 1, 'DeepSeek通用对话模型(默认)'),
+(2, 'DeepSeek Coder', 'deepseek-coder', 'deepseek', 'https://api.deepseek.com/v1',                          4096, 0.5,  16000, 0.001,   0.002, 0, 1, 'DeepSeek代码专用模型'),
+(3, '通义千问 Turbo', 'qwen-turbo',     'qwen',     'https://dashscope.aliyuncs.com/compatible-mode/v1',    4096, 0.7,   8192, 0.002,   0.006, 0, 1, '阿里通义千问快速版'),
+(4, '通义千问 Plus',  'qwen-plus',      'qwen',     'https://dashscope.aliyuncs.com/compatible-mode/v1',    4096, 0.7,  32768, 0.004,   0.012, 0, 1, '阿里通义千问增强版'),
+(5, '智谱 GLM-4-Flash','glm-4-flash',  'glm',      'https://open.bigmodel.cn/api/paas/v4',                  4096, 0.7, 128000, 0.0001,  0.0001,0, 1, '智谱AI GLM-4极速版'),
+(6, '文心一言 ERNIE-4.0','ernie-4.0-8k','ernie',   'https://qianfan.baidubce.com/v2',                       4096, 0.7,   8000, 0.012,   0.012, 0, 2, '百度千帆v2(OpenAI兼容)，需配置API Key后启用');
 
 SET FOREIGN_KEY_CHECKS = 1;
 

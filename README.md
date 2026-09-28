@@ -288,17 +288,7 @@ pnpm dev:mp-weixin
 
 小程序开发工具导入 `dist/dev/mp-weixin` 目录
 
-7. **启动 AI 服务**（可选）
-
-```bash
-cd apps/forge-ai-python
-pip install -e .
-python -m uvicorn src.main:app --reload --port 8000
-```
-
-AI 服务运行在 http://localhost:8000，需配置 API Key（见 [apps/forge-ai-python/README.md](apps/forge-ai-python/README.md)）
-
-8. **访问系统**
+7. **访问系统**
 
 - 前端地址：http://localhost:3003
 - 大屏编辑器：http://localhost:8001
@@ -375,7 +365,6 @@ forge-admin/
 │   │   │   └── forge-module-screen-biz/ # Controller/Service/Mapper + safety/executor/cache/fault
 │   │   └── forge-server/                # Spring Boot 启动入口
 │   │
-│   ├── forge-ai-python/                 # Python AI 服务
 │   │   ├── src/
 │   │   │   ├── api/                     # FastAPI 接口（chat、document、health）
 │   │   │   ├── adapters/                # LLM 适配器（deepseek、qwen、glm、ernie）
@@ -637,7 +626,7 @@ docker-compose up -d
 
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
-| `forge.security.screen.allowed-hosts` | localhost / 127.0.0.1 / forge-server / forge-ai-python | HTTP 数据源 host 白名单（SSRF 防护） |
+| `forge.security.screen.allowed-hosts` | localhost / 127.0.0.1 / forge-server | HTTP 数据源 host 白名单（SSRF 防护） |
 | `forge.security.screen.http-timeout-ms` | 5000 | HTTP 连接 + 读取超时（毫秒） |
 | `forge.security.screen.http-max-body-bytes` | 1048576 | HTTP 响应体最大字节（1MB） |
 | `forge.security.screen.require-https` | false | 是否强制 HTTPS（生产环境建议 true） |

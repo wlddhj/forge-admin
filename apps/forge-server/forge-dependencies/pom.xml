@@ -14,7 +14,7 @@
     <properties>
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <mybatis.version>3.5.16</mybatis.version>
-        <knife4j.version>4.5.0</knife4j.version>
+        <springdoc.version>2.8.14</springdoc.version>
         <jjwt.version>0.12.3</jjwt.version>
         <hutool.version>5.8.25</hutool.version>
         <justauth.version>1.16.6</justauth.version>
@@ -22,8 +22,9 @@
         <flowlong.version>1.2.5</flowlong.version>
         <easyexcel.version>3.3.4</easyexcel.version>
         <jsqlparser.version>4.9</jsqlparser.version>
-        <resilience4j.version>2.2.0</resilience4j.version>
-        <swagger-annotations.version>2.2.20</swagger-annotations.version>
+        <resilience4j.version>2.3.0</resilience4j.version>
+        <spring-ai.version>1.1.2</spring-ai.version>
+        <swagger-annotations.version>2.2.38</swagger-annotations.version>
         <aliyun-oss.version>3.17.4</aliyun-oss.version>
         <cos-api.version>5.6.227</cos-api.version>
         <minio.version>8.5.9</minio.version>
@@ -168,11 +169,20 @@
                 <version>${jjwt.version}</version>
             </dependency>
 
-            <!-- Knife4j -->
+            <!-- springdoc：Knife4j 已停更且与 Boot 3.4 需要的 springdoc 2.8 不兼容，文档 UI 换为原生 swagger-ui -->
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
-                <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-                <version>${knife4j.version}</version>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+
+            <!-- Spring AI BOM -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
 
             <!-- Hutool -->

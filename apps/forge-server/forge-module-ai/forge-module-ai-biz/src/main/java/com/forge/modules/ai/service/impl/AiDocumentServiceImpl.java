@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.security.utils.SecurityHelper;
-import com.forge.modules.ai.client.PythonAiClient;
+import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.request.DocumentQueryRequest;
 import com.forge.modules.ai.dto.request.DocumentSummaryRequest;
 import com.forge.modules.system.dto.attachment.AttachmentResponse;
@@ -13,7 +13,10 @@ import com.forge.modules.ai.entity.AiDocument;
 import com.forge.modules.ai.entity.AiModelConfig;
 import com.forge.modules.ai.mapper.AiDocumentMapper;
 import com.forge.modules.ai.service.AiDocumentService;
+import com.forge.modules.ai.service.AiModelResolver;
 import com.forge.modules.ai.service.AiModelService;
+import com.forge.modules.ai.service.DocumentParser;
+import com.forge.modules.ai.service.DocumentSummarizer;
 import com.forge.modules.system.entity.SysAttachment;
 import com.forge.modules.system.service.SysAttachmentService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,7 +38,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AiDocumentServiceImpl implements AiDocumentService {
 
-    private final PythonAiClient pythonAiClient;
+    private final DocumentParser documentParser;
+    private final DocumentSummarizer documentSummarizer;
+    private final AiModelResolver modelResolver;
     private final AiDocumentMapper documentMapper;
     private final SysAttachmentService attachmentService;
     private final AiModelService modelService;
@@ -72,28 +79,28 @@ public class AiDocumentServiceImpl implements AiDocumentService {
     @Override
     @Transactional
     public DocumentResponse parseDocument(Long documentId, String filePath) {
-        AiDocument document = null;
-        if (documentId != null) {
-            document = documentMapper.selectById(documentId);
-            if (document != null) {
-                document.setStatus(0);
-                documentMapper.updateById(document);
-            }
+        AiDocument document = documentId != null ? documentMapper.selectById(documentId) : null;
+        if (document == null) {
+            DocumentResponse response = new DocumentResponse();
+            response.setStatus(2);
+            response.setErrorMessage("文档不存在");
+            return response;
         }
 
-        DocumentResponse response = pythonAiClient.parseDocument(documentId, filePath);
+        document.setStatus(0);
+        documentMapper.updateById(document);
 
-        if (document != null && response != null) {
-            document.setStatus(response.getStatus() == 1 ? 1 : 2);
-            document.setContent(response.getContent());
-            document.setSummary(response.getSummary());
-            document.setModelName(response.getModelName());
-            documentMapper.updateById(document);
+        // 优先取附件本地文件；入参 filePath 作为兜底（兼容历史调用）
+        byte[] bytes = readAttachmentBytes(document.getAttachmentId(), filePath);
+        if (bytes == null) {
+            markParseFailure(document, "无法读取文档文件，仅支持本地存储附件的解析");
+        } else {
+            applyParseResult(document, bytes);
         }
 
-        SysAttachment attachment = document != null && document.getAttachmentId() != null
+        SysAttachment attachment = document.getAttachmentId() != null
             ? attachmentService.getById(document.getAttachmentId()) : null;
-        return document != null ? toDocumentResponse(document, attachment) : response;
+        return toDocumentResponse(document, attachment);
     }
 
     @Override
@@ -112,14 +119,11 @@ public class AiDocumentServiceImpl implements AiDocumentService {
             documentMapper.insert(document);
             documentId = document.getId();
 
-            DocumentResponse response = pythonAiClient.parseDocument(documentId, attachment.getFilePath());
-
-            document.setStatus(response.getStatus() != null && response.getStatus() == 1 ? 1 : 2);
-            document.setContent(response.getContent());
-            if (response.getErrorMessage() != null) {
-                document.setErrorMessage(response.getErrorMessage());
+            try {
+                applyParseResult(document, file.getBytes());
+            } catch (Exception e) {
+                markParseFailure(document, e.getMessage());
             }
-            documentMapper.updateById(document);
         } else {
             document = documentMapper.selectById(documentId);
             if (document != null) {
@@ -149,17 +153,9 @@ public class AiDocumentServiceImpl implements AiDocumentService {
             throw new RuntimeException("请先配置默认AI模型");
         }
 
-        DocumentSummaryRequest request = new DocumentSummaryRequest();
-        request.setDocumentId(documentId);
-        request.setText(document.getContent());  // 传递文档内容
-        request.setProvider(defaultModel.getProvider());  // 直接使用 provider 字段
-        request.setModelName(defaultModel.getModelCode());
-        request.setStyle("brief");
-        request.setMaxLength(500);
+        DocumentResponse response = documentSummarizer.summarize(document.getContent(), "brief", 500, defaultModel);
 
-        DocumentResponse response = pythonAiClient.summarize(request);
-
-        if (response != null && response.getStatus() != null && response.getStatus() == 1) {
+        if (response.getStatus() != null && response.getStatus() == 1) {
             document.setSummary(response.getSummary());
             document.setModelName(defaultModel.getModelCode());
             documentMapper.updateById(document);
@@ -173,13 +169,24 @@ public class AiDocumentServiceImpl implements AiDocumentService {
     @Override
     @Transactional
     public DocumentResponse summarize(DocumentSummaryRequest request) {
-        DocumentResponse response = pythonAiClient.summarize(request);
+        ChatRequest resolveRequest = new ChatRequest();
+        resolveRequest.setModelName(request.getModelName());
+        AiModelConfig modelConfig = modelResolver.resolve(resolveRequest);
+        if (modelConfig == null) {
+            DocumentResponse response = new DocumentResponse();
+            response.setStatus(2);
+            response.setErrorMessage("没有可用的模型配置，请先在模型管理中启用模型");
+            return response;
+        }
 
-        if (response != null && response.getStatus() != null && response.getStatus() == 1) {
+        DocumentResponse response = documentSummarizer.summarize(
+                request.getText(), request.getStyle(), request.getMaxLength(), modelConfig);
+
+        if (response.getStatus() != null && response.getStatus() == 1) {
             AiDocument document = documentMapper.selectById(request.getDocumentId());
             if (document != null) {
                 document.setSummary(response.getSummary());
-                document.setModelName(request.getModelName());
+                document.setModelName(modelConfig.getModelName());
                 documentMapper.updateById(document);
             }
         }
@@ -223,6 +230,49 @@ public class AiDocumentServiceImpl implements AiDocumentService {
             }
             documentMapper.deleteById(documentId);
         }
+    }
+
+    private void applyParseResult(AiDocument document, byte[] bytes) {
+        try {
+            String content = documentParser.parse(bytes, document.getFileName());
+            document.setStatus(1);
+            document.setContent(content);
+            document.setErrorMessage(null);
+        } catch (IllegalArgumentException e) {
+            markParseFailure(document, e.getMessage());
+        }
+        documentMapper.updateById(document);
+    }
+
+    private void markParseFailure(AiDocument document, String errorMessage) {
+        document.setStatus(2);
+        document.setErrorMessage(errorMessage);
+        documentMapper.updateById(document);
+    }
+
+    private byte[] readAttachmentBytes(Long attachmentId, String fallbackPath) {
+        try {
+            if (attachmentId != null) {
+                SysAttachment attachment = attachmentService.getById(attachmentId);
+                if (attachment != null && attachment.getFilePath() != null) {
+                    return readLocalFile(attachment.getFilePath());
+                }
+            }
+            if (fallbackPath != null) {
+                return readLocalFile(fallbackPath);
+            }
+        } catch (Exception e) {
+            log.warn("读取附件文件失败: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private byte[] readLocalFile(String filePath) throws Exception {
+        Path path = Path.of(filePath);
+        if (!path.isAbsolute()) {
+            path = Path.of(System.getProperty("user.dir"), filePath);
+        }
+        return Files.readAllBytes(path);
     }
 
     private DocumentResponse toDocumentResponse(AiDocument document, SysAttachment attachment) {
