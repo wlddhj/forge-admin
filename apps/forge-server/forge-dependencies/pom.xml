@@ -23,7 +23,7 @@
         <easyexcel.version>3.3.4</easyexcel.version>
         <jsqlparser.version>4.9</jsqlparser.version>
         <resilience4j.version>2.3.0</resilience4j.version>
-        <spring-ai.version>1.1.2</spring-ai.version>
+        <spring-ai.version>1.1.8</spring-ai.version>
         <swagger-annotations.version>2.2.38</swagger-annotations.version>
         <aliyun-oss.version>3.17.4</aliyun-oss.version>
         <cos-api.version>5.6.227</cos-api.version>
