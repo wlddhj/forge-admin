@@ -8,7 +8,7 @@ forge-admin 是一个基于 RBAC 的企业级后台管理系统，采用 monorep
 
 **技术栈：**
 - 前端：Vue 3.4 + TypeScript + Element Plus + vxe-table + Pinia + Vite 5
-- 后端：Spring Boot 3.4.11 + Spring AI 1.1.2 + MyBatis Plus 3.5.17 + MySQL + Redis + FlowLong 1.2.5
+- 后端：Spring Boot 3.4.11 + Spring AI 1.1.8 + MyBatis Plus 3.5.17 + MySQL + Redis + FlowLong 1.2.5
 - 认证：JWT Token（访问令牌 2 小时，刷新令牌 7 天）
 - 多租户：MyBatis Plus `TenantLineInnerInterceptor`（SQL 自动注入 `WHERE tenant_id = ?`）
 - 加密：AES-256-GCM（敏感字段）+ BCrypt（密码哈希）+ jasypt（配置文件）

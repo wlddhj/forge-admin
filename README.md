@@ -4,9 +4,9 @@
 
 ## 项目简介
 
-forge-admin 是一款现代化的企业级后台管理解决方案，采用前后端分离架构设计。后端基于 Spring Boot 3.2 构建，采用多模块 Maven 项目结构，使用 MyBatis Plus 简化数据操作，JWT 实现无状态认证；前端采用 Vue 3 + TypeScript + Element Plus + vxe-table 技术栈，提供流畅的用户体验、完善的类型支持和强大的表格功能。前端内置多套 UI 主题切换系统，支持 4 套预设套餐、调色板/布局/风格三维度独立切换、自定义主色以及明暗双模式，用户可按需选择并持久化到 localStorage。系统内置完整的 B2B SaaS 多租户能力，支持按租户隔离业务数据、套餐化菜单分配、平台超管代管等场景，可通过配置开关回归单租户模式。
+forge-admin 是一款现代化的企业级后台管理解决方案，采用前后端分离架构设计。后端基于 Spring Boot 3.4 构建，采用多模块 Maven 项目结构，使用 MyBatis Plus 简化数据操作，JWT 实现无状态认证；前端采用 Vue 3 + TypeScript + Element Plus + vxe-table 技术栈，提供流畅的用户体验、完善的类型支持和强大的表格功能。前端内置多套 UI 主题切换系统，支持 10 套预设套餐、调色板/布局/风格三维度独立切换、自定义主色以及明暗双模式，用户可按需选择并持久化到 localStorage；管理后台可配置系统默认主题（新用户/跟随用户首次进入自动应用）。系统内置完整的 B2B SaaS 多租户能力，支持按租户隔离业务数据、套餐化菜单分配、平台超管代管等场景，可通过配置开关回归单租户模式。
 
-系统内置完整的权限管理模块，支持用户、角色、菜单、部门的层级管理，并实现细粒度的数据权限控制（全部/本部门/本部门及以下/仅本人）。集成 OAuth2 授权服务器（基于 Spring Authorization Server），支持微信、钉钉等第三方登录（基于 JustAuth），允许第三方应用通过本系统进行用户认证。此外还集成了 Quartz 定时任务调度、在线 API 文档（Knife4j）、操作日志审计、登录日志等企业级功能。
+系统内置完整的权限管理模块，支持用户、角色、菜单、部门的层级管理，并实现细粒度的数据权限控制（全部/本部门/本部门及以下/仅本人）。集成 OAuth2 授权服务器（基于 Spring Authorization Server），支持微信、钉钉等第三方登录（基于 JustAuth），允许第三方应用通过本系统进行用户认证。此外还集成了 Quartz 定时任务调度、在线 API 文档（springdoc Swagger UI）、操作日志审计、登录日志等企业级功能。
 
 系统同时内置**数据可视化大屏**模块，提供基于 goView 的拖拽式大屏编辑器、多数据源（SQL / HTTP）配置能力，以及面向纵深防御的 SQL 安全层（AST 校验 + 表/列白名单 + 运行时 LIMIT 限制），可安全地支持业务指标监控、运营驾驶舱等场景。内置**打印模板**模块，基于 vue-plugin-hiprint 提供拖拽式打印模板设计与浏览器原生打印，模板跨租户共享、按编号调用。支持**品牌信息动态配置**（Logo、项目名称、登录页主/副标题），管理后台修改保存后全局生效、未配置时回退默认值，无需重新构建。支持 Docker 容器化部署，提供项目模板化工具，可快速基于此项目创建新的管理系统。
 
@@ -87,7 +87,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 | 功能 | 说明 |
 |------|------|
 | AI 文档管理 | 文档上传、智能摘要生成、对话问答 |
-| 多模型对话 | 支持 DeepSeek、Qwen、GLM、ERNIE 等模型 |
+| 多模型对话 | 基于 Spring AI 直连 DeepSeek、Qwen、GLM、ERNIE 等 OpenAI 兼容模型，模型配置表驱动 |
 | 文档解析 | PDF、DOCX、TXT 文档解析 |
 | 流式响应 | SSE 实时流式输出 |
 
@@ -126,15 +126,16 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 |------|------|
 | 项目模板化 | 基于模板创建新项目 |
 | 模块管理 | 创建/删除业务模块 |
-| API 文档 | Knife4j 在线文档 |
+| API 文档 | springdoc 在线文档（Swagger UI） |
 
 ### 主题系统
 
 | 功能 | 说明 |
 |------|------|
-| 预设套餐 | 4 套精心搭配的视觉套餐（默认/极客紫/商务器/酷暗黑），每套含配色 + 布局 + 风格组合 |
+| 预设套餐 | 10 套精心搭配的视觉套餐（默认/极客紫/商务器/酷暗黑/日暮橙/琥珀琉璃/海洋青/薄荷青/青碧岛/青碧紧凑），每套含配色 + 布局 + 风格组合 |
 | 明暗双模式 | 每个套餐都支持 light/dark 双版本，独立切换不互相影响 |
-| 高级设置 | 三维度独立切换：调色板（蓝/紫/绿/红/自定义）、布局（侧栏/顶栏）、风格（扁平/玻璃/卡片/紧凑） |
+| 高级设置 | 三维度独立切换：调色板（蓝/紫/绿/红/橙/青/碧/自定义）、布局（侧栏/顶栏）、风格（扁平/玻璃/卡片/紧凑） |
+| 系统默认主题 | 管理后台「品牌设置」可配置默认主题（三维度 + 明暗模式），跟随用户每次进入自动应用，手动调整后固定为个人选择 |
 | 自定义色板 | 输入 HEX 主色，运行时自动派生 EP 颜色阶梯（light-3/5/7/9 + dark-2），实时预览 |
 | 响应式布局 | 移动端始终为侧栏布局（顶栏在小屏自动回落），保证小屏可用性 |
 | 错误降级 | localStorage 损坏、未知套餐 ID、不支持 backdrop-filter 等场景均静默降级 |
@@ -153,12 +154,12 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 - **字典管理**：灵活的数据字典配置，支持缓存刷新
 - **定时任务**：基于 Quartz 的定时任务管理和日志
 - **文件存储**：支持本地存储，可扩展 OSS 等
-- **AI 功能**：集成 Python AI 服务，支持多模型对话、文档解析、智能摘要
-- **API 文档**：集成 Knife4j，提供在线 API 文档
+- **AI 功能**：基于 Spring AI 原生实现（Java 直连上游模型），支持多模型对话、文档解析、智能摘要
+- **API 文档**：springdoc-openapi 原生 Swagger UI
 - **移动端支持**：独立的 `/app-api` 端点，支持微信小程序授权登录
 - **强大表格**：vxe-table 提供列自定义、导出、打印等功能
 - **打印模板**：基于 vue-plugin-hiprint 的拖拽式模板设计器，支持纸张/缩放/旋转、浏览器原生打印预览、按编号调用打印，模板跨租户共享
-- **多套 UI 主题**：4 套预设套餐 + 调色板/布局/风格三维度独立切换 + 自定义主色 + 明暗双模式，CSS 变量两阶桥接（业务变量 → Element Plus/vxe-table）实现无刷新切换
+- **多套 UI 主题**：10 套预设套餐 + 7 色调色板/布局/风格三维度独立切换 + 自定义主色 + 明暗双模式 + 系统默认主题配置，CSS 变量两阶桥接（业务变量 → Element Plus/vxe-table）实现无刷新切换
 - **等保二级合规**：符合 GB/T 22239-2019 二级等保要求的安全改造
   - **密码安全**：复杂度校验（8-32位、大小写+数字+特殊字符）、历史校验（5条不可重复）、90天有效期、首次登录强制改密、BCrypt 强度=12
   - **登录安全**：失败锁定（5次→15分钟）、图形验证码、单点登录（踢掉旧会话+refreshToken 同步失效）
@@ -176,7 +177,8 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 ### 后端
 
 - Java 21
-- Spring Boot 3.2.0
+- Spring Boot 3.4.11
+- Spring AI 1.1.8（LLM 对话/文档解析/摘要）
 - MyBatis Plus 3.5.17
 - MySQL 8.0+
 - Redis 6.0+
@@ -184,7 +186,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 - MyBatis Plus TenantLineInnerInterceptor（多租户）
 - Spring Authorization Server (OAuth2/OIDC)
 - JustAuth（第三方登录）
-- Knife4j (Swagger)
+- springdoc-openapi 2.8（Swagger UI）
 - Quartz 定时任务
 - FlowLong 1.2.5（国产工作流引擎）
 - JSqlParser 4.9（SQL 解析与 AST 校验）
@@ -215,13 +217,12 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 - Pinia 状态管理
 - 独立的 app_user 用户表
 
-### AI 服务（Python）
+### AI 能力（Java 原生）
 
-- Python 3.10+
-- FastAPI
-- 多模型支持：DeepSeek、Qwen（通义）、GLM（智谱）、ERNIE（百度）
-- 文档解析：PDF、DOCX、TXT
-- SSE 流式响应
+- Spring AI 1.1.8（OpenAI 兼容协议直连上游）
+- 多模型支持：DeepSeek、Qwen（通义）、GLM（智谱）、ERNIE（百度千帆 v2）
+- 文档解析：Apache Tika（PDF、DOCX、TXT）
+- SSE 流式响应（模型实例按 ai_model_config 表配置指纹缓存）
 
 ## 快速开始
 
@@ -292,7 +293,7 @@ pnpm dev:mp-weixin
 
 - 前端地址：http://localhost:3003
 - 大屏编辑器：http://localhost:8001
-- API 文档：http://localhost:8181/doc.html
+- API 文档：http://localhost:8181/swagger-ui/index.html
 - 默认账号：`admin` / `password`（启用多租户时登录页需输入租户标识，默认 `default`）
 - OAuth2 使用文档：[docs/oauth2-guide.md](docs/oauth2-guide.md)
 
@@ -364,15 +365,6 @@ forge-admin/
 │   │   │   ├── forge-module-screen-api/ # 实体 + DTO + 枚举
 │   │   │   └── forge-module-screen-biz/ # Controller/Service/Mapper + safety/executor/cache/fault
 │   │   └── forge-server/                # Spring Boot 启动入口
-│   │
-│   │   ├── src/
-│   │   │   ├── api/                     # FastAPI 接口（chat、document、health）
-│   │   │   ├── adapters/                # LLM 适配器（deepseek、qwen、glm、ernie）
-│   │   │   ├── config/                  # 配置管理
-│   │   │   ├── models/                  # Pydantic 模型
-│   │   │   ├── services/                # 业务服务
-│   │   │   └── main.py                  # 应用入口
-│   │   └── pyproject.toml
 │   │
 │   ├── forge-web/                       # 前端应用
 │   │   ├── src/
@@ -452,7 +444,7 @@ forge-server              → Spring Boot 启动入口
 **模块依赖关系：**
 - `forge-server` ← `system-biz`、`workflow-biz`、`ai-biz`、`screen-biz`
 - `workflow-biz` ← `workflow-api`、`system-api`、`starters`、`flowlong`
-- `ai-biz` ← `ai-api`、`system-api`、`starters`（调用 Python AI 服务）
+- `ai-biz` ← `ai-api`、`system-api`、`starters`、`spring-ai`（直连 LLM 上游）
 - `system-biz` ← `system-api`、`starters`、`quartz`
 - `screen-biz` ← `screen-api`、`system-api`、`starters`
 
@@ -501,18 +493,18 @@ goView 编辑器是独立的前端 SPA（`apps/forge-screen`），通过 iframe 
 
 后端返回菜单树 → 转换为 Vue Router 配置 → 通过 `import.meta.glob` 解析组件 → `router.addRoute()` 添加路由。
 
-### AI 服务架构
+### AI 能力架构
 
-系统采用 Java + Python 双语言架构实现 AI 功能：
+AI 能力全部在 Java 端实现（Spring AI 直连上游模型，无独立 AI 服务进程）：
 
-- **Java 端（AI 模块）**：管理文档元数据、调用 Python 服务、回写摘要结果
-- **Python 端（AI 服务）**：多模型 LLM 对话、文档解析、智能摘要
+- **LlmClient / SpringAiLlmClient** — LLM 门面：非流式对话 + SSE 流式（`{"content":"…"}` 增量帧 + `[DONE]` 结束帧）
+- **OpenAiChatModelFactory** — 按 `ai_model_config` 表编程式构建/缓存模型实例（配置变更指纹失效重建）
+- **TikaDocumentParser / DocumentSummarizer** — 文档解析（PDF/DOCX/TXT）与三风格摘要
+- **ModelHealthProbe** — 模型可用性探测（max_tokens=1 探测，密钥无效自动置不可用）
 
-Java 通过 `WebClient` 调用 Python FastAPI 服务，支持流式响应（SSE）。Python 服务支持多提供商（DeepSeek、Qwen、GLM、ERNIE），可根据配置动态切换。
+四家 provider（DeepSeek/Qwen/GLM/ERNIE）统一走 OpenAI 兼容协议，端点与密钥在「系统管理 → AI 模型配置」维护。
 
-**API 端点：**
-- `/admin-api/ai/document/**` — Java 文档管理接口
-- `http://localhost:8000/api/**` — Python AI 服务接口
+**API 端点：** `/admin-api/ai/chat/**`、`/admin-api/ai/document/**`、`/admin-api/ai/model/**`
 
 ### 打印模板架构
 
@@ -570,11 +562,13 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 ## Docker 部署
 
 ```bash
-cp .env.example .env
-docker-compose up -d
+cp docker/env.example .env   # 填写必填密钥（MySQL/Redis/JWT/AES）
+docker compose up -d
 ```
 
-访问：http://localhost（前端）、http://localhost/doc.html（API 文档）
+MySQL（utf8mb4）、Redis、backend、frontend 四服务编排，健康检查依赖链自动拉起。首次部署需按 `docker/env.example` 中的顺序手工导入 `sql/init*.sql`。
+
+访问：http://localhost（前端）、http://localhost/api/swagger-ui/index.html（API 文档）
 
 ## 配置说明
 
