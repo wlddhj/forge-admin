@@ -212,6 +212,10 @@ function main() {
     process.exit(1)
   }
 
+  // 目标目录（及其缺失的父级目录）不存在时自动创建
+  fs.mkdirSync(targetDir, { recursive: true })
+  log(`✓ 已创建目标目录: ${targetDir}`, 'green')
+
   const namePascal = config.nameKebab
     .split('-')
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))

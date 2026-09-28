@@ -614,8 +614,6 @@ MySQL（utf8mb4）、Redis、backend、frontend 四服务编排，健康检查�
 | `JWT_SECRET` | JWT 签名密钥（≥256位） |
 | `JASYPT_PASSWORD` | jasypt 配置解密密钥 |
 
-详见 [apps/forge-server/docs/SECURITY-COMPLIANCE.md](apps/forge-server/docs/SECURITY-COMPLIANCE.md) 和 [apps/forge-server/docs/DEPLOYMENT-CHECKLIST.md](apps/forge-server/docs/DEPLOYMENT-CHECKLIST.md)。
-
 ### 大屏安全配置（application.yml）
 
 | 配置项 | 默认值 | 说明 |
@@ -644,7 +642,6 @@ MySQL（utf8mb4）、Redis、backend、frontend 四服务编排，健康检查�
 
 **多租户部署：**
 - 全新初始化：直接执行 `sql/init.sql`（已集成多租户结构）
-- 已有数据库升级：按顺序执行 `apps/forge-server/docs/manual-migrations/V2026071101~V2026071301*.sql`（共 7 个增量脚本）
 
 ### 大屏模块
 
@@ -702,8 +699,6 @@ mysql -u root -p < sql/init-screen.sql
 | [docs/database-design-specification.md](docs/database-design-specification.md) | 数据库设计规范(字段命名、索引、关联关系) |
 | [docs/module-development.md](docs/module-development.md) | 新建业务模块的开发规范 |
 | [docs/print-template-guide.md](docs/print-template-guide.md) | 打印模板使用指南（hiprint 设计器/调用打印/多租户行为/常见问题） |
-| [apps/forge-server/docs/SECURITY-COMPLIANCE.md](apps/forge-server/docs/SECURITY-COMPLIANCE.md) | GB/T 22239-2019 二级等保合规说明(密码/登录/加密/审计) |
-| [apps/forge-server/docs/DEPLOYMENT-CHECKLIST.md](apps/forge-server/docs/DEPLOYMENT-CHECKLIST.md) | 生产环境部署检查清单(环境变量、HTTPS、密钥) |
 
 ## 许可证
 

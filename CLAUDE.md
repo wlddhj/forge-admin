@@ -215,11 +215,6 @@ forge:
 
 **安全配置前缀**：`forge.security.{captcha|password|login|upload}`，详见 `application.yml` / `application-prod.yml`。
 
-**文档：**
-- 合规说明：`apps/forge-server/docs/SECURITY-COMPLIANCE.md`
-- 部署检查清单：`apps/forge-server/docs/DEPLOYMENT-CHECKLIST.md`
-- 手动迁移 SQL：`apps/forge-server/docs/MANUAL-MIGRATION.sql`
-
 ### Spring Boot Starter 自动配置
 
 每个 starter 通过 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册。修改 starter 类时需同步更新此文件。
@@ -412,8 +407,6 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 | 加解密工具 | `apps/forge-server/forge-framework/forge-common/.../utils/CryptoUtils.java` |
 | 敏感数据脱敏 | `apps/forge-server/forge-framework/forge-common/.../utils/SensitiveDataMasker.java` |
 | 安全策略配置 | `apps/forge-server/forge-module-system/forge-module-system-biz/.../auth/properties/` |
-| 等保合规文档 | `apps/forge-server/docs/SECURITY-COMPLIANCE.md` |
-| 部署检查清单 | `apps/forge-server/docs/DEPLOYMENT-CHECKLIST.md` |
 | 数据库迁移目录 | `apps/forge-server/forge-server/src/main/resources/db/migration/` |
 | FlowLong 设计器 | `apps/forge-web/src/views/workflow/model/FlowLongModelDesigner.vue` |
 | goView 大屏编辑器 | `apps/forge-screen/src/` |
@@ -426,7 +419,6 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 | 租户管理 Controller | `apps/forge-server/forge-module-system/forge-module-system-biz/.../controller/admin/SysTenantController.java` |
 | 租户管理前端 | `apps/forge-web/src/views/system/tenant/index.vue` |
 | 租户切换器（前端） | `apps/forge-web/src/themes/layouts/shared/TenantSwitcher.vue` |
-| 多租户 SQL 迁移 | `apps/forge-server/docs/manual-migrations/` |
 
 ## 命名约定
 
