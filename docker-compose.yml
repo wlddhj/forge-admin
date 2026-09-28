@@ -1,53 +1,121 @@
-version: '3.8'
+name: forge-admin
 
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: forge-admin-mysql
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-forge_admin}
+      # 自动创建业务账号并授权 MYSQL_DATABASE 库
+      MYSQL_USER: ${DB_USERNAME:-forge}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?请在 .env 中设置 DB_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - app-network
+    # 仅绑宿主回环，本地经 SSH 隧道连接导入数据；切勿改成 3306:3306 暴露公网
+    ports: ["127.0.0.1:3306:3306"]
+
+  redis:
+    image: redis:7-alpine
+    container_name: forge-admin-redis
+    restart: unless-stopped
+    environment:
+      # healthcheck 探活读取此变量
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}
+      - --appendonly
+      - "yes"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-network
+    # 调试需要时可对外暴露：ports: ["6379:6379"]
+
   backend:
     build:
       context: ./apps/forge-server
       dockerfile: Dockerfile
-    container_name: ${PROJECT_NAME:-forge-admin}-backend
+    image: forge-admin/backend:latest
+    container_name: forge-admin-backend
     restart: unless-stopped
     environment:
-      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
-      - DB_HOST=${DB_HOST:-db}
-      - DB_PORT=${DB_PORT:-3306}
-      - DB_NAME=${DB_NAME:-forge_admin}
-      - DB_USERNAME=${DB_USERNAME:-root}
-      - DB_PASSWORD=${DB_PASSWORD:-password}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - JWT_SECRET=${JWT_SECRET:-your-secret-key-must-be-at-least-256-bits-long}
-    ports:
-      - "${BACKEND_PORT:-8181}:8181"
-    networks:
-      - app-network
+      TZ: Asia/Shanghai
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-forge_admin}
+      DB_USERNAME: ${DB_USERNAME:-forge}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # 必须更换为随机生成的至少 32 字节密钥串
+      JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
+      # 等保敏感字段加密密钥（32 字节），生产必须更换
+      APP_AES_KEY: ${APP_AES_KEY:?请在 .env 中设置 APP_AES_KEY}
+      # 开箱默认本地存储；如需 OSS/MinIO 详见 application-prod.yml
+      FILE_STORAGE_TYPE: ${FILE_STORAGE_TYPE:-local}
+      FILE_UPLOAD_PATH: /app/uploads
+      FILE_BASE_URL: ${FILE_BASE_URL:-http://localhost/api/uploads}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8181/api/actuator/health"]
+      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost:8181/api/v3/api-docs || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 120s
+    networks:
+      - app-network
+    # 默认不对外暴露，经 frontend 容器反向代理访问；
+    # 需要直连调试时放开：ports: ["8181:8181"]
 
   frontend:
     build:
       context: ./apps/forge-web
       dockerfile: Dockerfile
-    container_name: ${PROJECT_NAME:-forge-admin}-frontend
+    image: forge-admin/frontend:latest
+    container_name: forge-admin-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-80}:80"
-    networks:
-      - app-network
     depends_on:
       backend:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
+    networks:
+      - app-network
+
+volumes:
+  mysql-data:
+  redis-data:
 
 networks:
   app-network:

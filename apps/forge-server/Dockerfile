@@ -13,6 +13,7 @@ COPY forge-framework/forge-common/pom.xml forge-framework/forge-common/
 COPY forge-framework/forge-spring-boot-starter-mybatis/pom.xml forge-framework/forge-spring-boot-starter-mybatis/
 COPY forge-framework/forge-spring-boot-starter-redis/pom.xml forge-framework/forge-spring-boot-starter-redis/
 COPY forge-framework/forge-spring-boot-starter-security/pom.xml forge-framework/forge-spring-boot-starter-security/
+COPY forge-framework/forge-spring-boot-starter-tenant/pom.xml forge-framework/forge-spring-boot-starter-tenant/
 COPY forge-framework/forge-spring-boot-starter-web/pom.xml forge-framework/forge-spring-boot-starter-web/
 
 # 复制 system 模块 POM 文件
@@ -24,6 +25,16 @@ COPY forge-module-system/forge-module-system-biz/pom.xml forge-module-system/for
 COPY forge-module-workflow/pom.xml forge-module-workflow/
 COPY forge-module-workflow/forge-module-workflow-api/pom.xml forge-module-workflow/forge-module-workflow-api/
 COPY forge-module-workflow/forge-module-workflow-biz/pom.xml forge-module-workflow/forge-module-workflow-biz/
+
+# 复制 AI 模块 POM 文件
+COPY forge-module-ai/pom.xml forge-module-ai/
+COPY forge-module-ai/forge-module-ai-api/pom.xml forge-module-ai/forge-module-ai-api/
+COPY forge-module-ai/forge-module-ai-biz/pom.xml forge-module-ai/forge-module-ai-biz/
+
+# 复制大屏模块 POM 文件
+COPY forge-module-screen/pom.xml forge-module-screen/
+COPY forge-module-screen/forge-module-screen-api/pom.xml forge-module-screen/forge-module-screen-api/
+COPY forge-module-screen/forge-module-screen-biz/pom.xml forge-module-screen/forge-module-screen-biz/
 
 # 复制启动模块 POM
 COPY forge-server/pom.xml forge-server/
@@ -69,9 +80,9 @@ ENV JAVA_OPTS="-Xms256m -Xmx512m \
 # 暴露端口
 EXPOSE 8181
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8181/api/actuator/health || exit 1
+# 健康检查（actuator 未对外暴露，用已验证的 OpenAPI 端点）
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD curl -f http://localhost:8181/api/v3/api-docs || exit 1
 
 # 启动命令
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
