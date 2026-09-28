@@ -132,6 +132,43 @@ apps/forge-server/forge-module-wms/
 6. 在 `resources/mapper/{模块名}/` 中创建 MyBatis XML 映射文件
 7. 编译验证：`cd apps/forge-server && mvn clean compile -pl forge-module-{name}`
 
+## 删除业务模块
+
+项目支持通过脚本删除不再需要的业务模块，自动清理 Maven 引用、数据库迁移脚本和前端文件。
+
+### 使用方法
+
+```bash
+# 直接指定模块名
+./scripts/remove-module.sh <模块名>
+
+# 或不带参数，交互式选择
+./scripts/remove-module.sh
+```
+
+不带参数运行时会列出所有可删除的业务模块（含模块描述），输入编号或名称即可选择。`system` 为核心模块（登录/权限/租户等基础能力均在其中），选择删除时会额外二次确认。
+
+### 执行内容
+
+脚本按以下顺序执行，其中危险操作均有确认提示：
+
+| 步骤 | 内容 | 是否需确认 |
+|------|------|-----------|
+| 1 | 从根 `pom.xml` 移除 `<module>` 声明 | 否 |
+| 2 | 从 `forge-dependencies` 移除 api / biz 依赖声明 | 否 |
+| 3 | 从 `forge-server` 启动模块移除 biz 依赖 | 否 |
+| 4 | 清理其他模块 pom 中对该模块的依赖（整个 `<dependency>` 块） | 否 |
+| 5 | 删除相关数据库迁移脚本（按模块目录与文件名匹配） | 是 |
+| 6 | 删除前端 `views/<模块名>/`、`api/<模块名>/` 目录 | 是 |
+| 7 | 删除模块目录 | 是 |
+
+### 注意事项
+
+- 若被删模块的 Java 类被其他模块引用（如 workflow 引用 ai），删除后需手动清理调用代码再编译
+- 数据库中该模块的表和菜单数据（`sys_menu`）需手动清理
+- 删除 `screen` 模块时，大屏编辑器独立应用 `apps/forge-screen` 需手动删除
+- 删除后建议执行 `cd apps/forge-server && mvn clean compile` 验证编译
+
 ## 替换规则说明
 
 初始化脚本会自动替换以下内容：
@@ -228,7 +265,8 @@ my-admin/
 │
 ├── scripts/
 │   ├── init-project.js                            # 项目初始化脚本
-│   └── create-module.js                           # 创建新业务模块脚本
+│   ├── create-module.js                           # 创建新业务模块脚本
+│   └── remove-module.sh                           # 删除业务模块脚本
 │
 ├── sql/
 │   └── init.sql                                   # 数据库脚本（已更新数据库名）
