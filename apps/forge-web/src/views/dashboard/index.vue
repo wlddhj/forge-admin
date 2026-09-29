@@ -252,22 +252,6 @@
           </div>
           <el-empty v-else description="暂无公告" :image-size="50" />
         </el-card>
-
-        <!-- 系统信息 -->
-        <el-card shadow="never" class="content-card auto-height-card">
-          <template #header>
-            <span class="card-title">
-              <el-icon><Monitor /></el-icon>
-              系统信息
-            </span>
-          </template>
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="系统名称">forge-admin</el-descriptions-item>
-            <el-descriptions-item label="系统版本">1.0.0</el-descriptions-item>
-            <el-descriptions-item label="运行时间">{{ systemInfo.uptime }}</el-descriptions-item>
-            <el-descriptions-item label="内存使用">{{ systemInfo.memory }}</el-descriptions-item>
-          </el-descriptions>
-        </el-card>
       </el-col>
     </el-row>
 
@@ -448,12 +432,6 @@ const visitData = ref([
   { label: '周六', value: 90 },
   { label: '周日', value: 60 }
 ])
-
-// 系统信息
-const systemInfo = ref({
-  uptime: '12天 5小时',
-  memory: '256 MB / 512 MB'
-})
 
 // 数据对比周期
 const comparePeriod = ref<'week' | 'month'>('week')
@@ -834,13 +812,6 @@ onMounted(() => {
       :deep(.el-card__body) {
         height: 280px;
         overflow-y: auto;
-      }
-    }
-
-    &.auto-height-card {
-      :deep(.el-card__body) {
-        height: auto;
-        min-height: auto;
       }
     }
 
