@@ -22,7 +22,7 @@ USE `forge_admin`;
 DROP TABLE IF EXISTS `flw_process`;
 CREATE TABLE `flw_process` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `tenant_id` VARCHAR(50) COMMENT '租户ID',
+    `tenant_id` VARCHAR(50) DEFAULT '1' COMMENT '租户ID',
     `create_id` VARCHAR(50) NOT NULL COMMENT '创建人ID',
     `create_by` VARCHAR(50) NOT NULL COMMENT '创建人名称',
     `create_time` TIMESTAMP NOT NULL COMMENT '创建时间',
@@ -45,7 +45,7 @@ CREATE TABLE `flw_process` (
 DROP TABLE IF EXISTS `flw_instance`;
 CREATE TABLE `flw_instance` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `tenant_id` VARCHAR(50) COMMENT '租户ID',
+    `tenant_id` VARCHAR(50) DEFAULT '1' COMMENT '租户ID',
     `create_id` VARCHAR(50) NOT NULL COMMENT '创建人ID',
     `create_by` VARCHAR(50) NOT NULL COMMENT '创建人名称',
     `create_time` TIMESTAMP NOT NULL COMMENT '创建时间',
@@ -69,7 +69,7 @@ CREATE TABLE `flw_instance` (
 DROP TABLE IF EXISTS `flw_his_instance`;
 CREATE TABLE `flw_his_instance` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `tenant_id` VARCHAR(50) COMMENT '租户ID',
+    `tenant_id` VARCHAR(50) DEFAULT '1' COMMENT '租户ID',
     `create_id` VARCHAR(50) NOT NULL COMMENT '创建人ID',
     `create_by` VARCHAR(50) NOT NULL COMMENT '创建人名称',
     `create_time` TIMESTAMP NOT NULL COMMENT '创建时间',
@@ -96,7 +96,7 @@ CREATE TABLE `flw_his_instance` (
 DROP TABLE IF EXISTS `flw_task`;
 CREATE TABLE `flw_task` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `tenant_id` VARCHAR(50) COMMENT '租户ID',
+    `tenant_id` VARCHAR(50) DEFAULT '1' COMMENT '租户ID',
     `create_id` VARCHAR(50) NOT NULL COMMENT '创建人ID',
     `create_by` VARCHAR(50) NOT NULL COMMENT '创建人名称',
     `create_time` TIMESTAMP NOT NULL COMMENT '创建时间',
@@ -125,7 +125,7 @@ CREATE TABLE `flw_task` (
 DROP TABLE IF EXISTS `flw_his_task`;
 CREATE TABLE `flw_his_task` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `tenant_id` VARCHAR(50) COMMENT '租户ID',
+    `tenant_id` VARCHAR(50) DEFAULT '1' COMMENT '租户ID',
     `create_id` VARCHAR(50) NOT NULL COMMENT '创建人ID',
     `create_by` VARCHAR(50) NOT NULL COMMENT '创建人名称',
     `create_time` TIMESTAMP NOT NULL COMMENT '创建时间',
@@ -158,7 +158,7 @@ CREATE TABLE `flw_his_task` (
 DROP TABLE IF EXISTS `flw_task_actor`;
 CREATE TABLE `flw_task_actor` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
-    `tenant_id` VARCHAR(50) COMMENT '租户ID',
+    `tenant_id` VARCHAR(50) DEFAULT '1' COMMENT '租户ID',
     `instance_id` BIGINT NOT NULL COMMENT '流程实例ID',
     `task_id` BIGINT NOT NULL COMMENT '任务ID',
     `actor_id` VARCHAR(100) NOT NULL COMMENT '参与者ID',
@@ -176,7 +176,7 @@ CREATE TABLE `flw_task_actor` (
 DROP TABLE IF EXISTS `flw_his_task_actor`;
 CREATE TABLE `flw_his_task_actor` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
-    `tenant_id` VARCHAR(50) COMMENT '租户ID',
+    `tenant_id` VARCHAR(50) DEFAULT '1' COMMENT '租户ID',
     `instance_id` BIGINT NOT NULL COMMENT '流程实例ID',
     `task_id` BIGINT NOT NULL COMMENT '任务ID',
     `actor_id` VARCHAR(100) NOT NULL COMMENT '参与者ID',
@@ -194,7 +194,7 @@ CREATE TABLE `flw_his_task_actor` (
 DROP TABLE IF EXISTS `flw_ext_instance`;
 CREATE TABLE `flw_ext_instance` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `tenant_id` VARCHAR(50) COMMENT '租户ID',
+    `tenant_id` VARCHAR(50) DEFAULT '1' COMMENT '租户ID',
     `process_id` BIGINT NOT NULL COMMENT '流程定义ID',
     `process_name` VARCHAR(100) COMMENT '流程名称',
     `process_type` VARCHAR(100) COMMENT '流程类型',

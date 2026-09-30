@@ -2,7 +2,6 @@ package com.forge.modules.workflow.scheduler;
 
 import com.aizuda.bpm.engine.FlowLongEngine;
 import com.aizuda.bpm.engine.TaskService;
-import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.aizuda.bpm.engine.model.NodeModel;
@@ -11,6 +10,7 @@ import com.forge.framework.redis.lock.DistributedLock;
 import com.forge.framework.web.websocket.NotificationMessage;
 import com.forge.framework.web.websocket.NotificationService;
 import com.forge.modules.workflow.config.FlowLongSchedulerProperties;
+import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
 import org.springframework.context.ApplicationContext;
@@ -39,7 +39,6 @@ import java.util.stream.Collectors;
 public class WorkflowReminderJob implements Job {
 
     private static final String LOCK_KEY = "workflow_reminder_check";
-    private static final FlowCreator SYSTEM_CREATOR = new FlowCreator("SYSTEM", "系统");
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
@@ -265,7 +264,7 @@ public class WorkflowReminderJob implements Job {
             }
 
             // 更新任务
-            taskService.updateTaskById(updateTask, SYSTEM_CREATOR);
+            taskService.updateTaskById(updateTask, FlowCreatorFactory.system("系统"));
 
             log.debug("更新提醒次数: taskId={}, newRepeat={}", task.getId(), newRepeat);
         } catch (Exception e) {

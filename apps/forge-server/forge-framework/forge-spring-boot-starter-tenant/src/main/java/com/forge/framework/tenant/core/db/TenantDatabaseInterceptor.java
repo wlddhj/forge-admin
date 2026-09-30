@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.handler.TenantLineHandler;
 import com.forge.framework.tenant.config.TenantProperties;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
 import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.LongValue;
+import net.sf.jsqlparser.expression.StringValue;
 import net.sf.jsqlparser.schema.Column;
 
 import java.util.HashSet;
@@ -29,7 +29,8 @@ public class TenantDatabaseInterceptor implements TenantLineHandler {
 
     @Override
     public Expression getTenantId() {
-        return new LongValue(TenantContextHolder.getRequiredTenantId());
+        // 字符串字面量：与 flw_ 引擎表 VARCHAR 列精确匹配；对 sys_ 表 BIGINT 列由 MySQL 常量侧隐式转换，索引不受影响
+        return new StringValue(String.valueOf(TenantContextHolder.getRequiredTenantId()));
     }
 
     @Override

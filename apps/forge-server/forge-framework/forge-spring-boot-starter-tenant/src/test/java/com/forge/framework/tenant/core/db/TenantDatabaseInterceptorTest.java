@@ -32,7 +32,7 @@ class TenantDatabaseInterceptorTest {
         TenantContextHolder.setTenantId(42L);
         Expression expr = interceptor.getTenantId();
         assertNotNull(expr);
-        assertEquals("42", expr.toString());
+        assertEquals("'42'", expr.toString());
     }
 
     @Test

@@ -8,6 +8,7 @@ import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.aizuda.bpm.spring.event.EventTaskListener;
+import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.framework.ai.AiApprovalExecutor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -34,8 +35,6 @@ import java.util.function.Supplier;
 @Slf4j
 @Component("taskListener")
 public class CompositeTaskListener extends EventTaskListener {
-
-    private static final FlowCreator SYSTEM_CREATOR = new FlowCreator("SYSTEM", "系统");
 
     private final BpmTaskCandidateListener candidateListener;
     private final TaskNotificationListener notificationListener;
@@ -155,7 +154,7 @@ public class CompositeTaskListener extends EventTaskListener {
         updateTask.setRemindTime(Date.from(remindTime.atZone(ZoneId.systemDefault()).toInstant()));
 
         try {
-            taskService.updateTaskById(updateTask, SYSTEM_CREATOR);
+            taskService.updateTaskById(updateTask, FlowCreatorFactory.system("系统"));
             log.info("设置任务提醒时间: taskId={}, remindTime={}, advanceMinutes={}",
                     task.getId(), remindTime, remindAdvanceMinutes);
         } catch (Exception e) {

@@ -17,6 +17,7 @@ import com.forge.modules.workflow.dto.model.ModelRequest;
 import com.forge.modules.workflow.dto.model.ModelResponse;
 import com.forge.modules.workflow.entity.WfCategory;
 import com.forge.modules.workflow.entity.WfProcessExt;
+import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import com.forge.modules.workflow.mapper.WfCategoryMapper;
 import com.forge.modules.workflow.mapper.WfProcessExtMapper;
@@ -328,7 +329,7 @@ public class WfModelServiceImpl implements WfModelService {
     }
 
     private FlowCreator createFlowCreator(Long userId) {
-        return new FlowCreator(String.valueOf(userId), identityService.getUserName(userId));
+        return FlowCreatorFactory.user(userId, identityService.getUserName(userId));
     }
 
     /**

@@ -8,6 +8,7 @@ import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.aizuda.bpm.engine.impl.GeneralTaskActorProvider;
 import com.aizuda.bpm.engine.model.NodeAssignee;
 import com.aizuda.bpm.engine.model.NodeModel;
+import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.framework.candidate.BpmTaskCandidateInvoker;
 import com.forge.modules.workflow.framework.candidate.BpmTaskCandidateStrategy;
 import com.forge.modules.workflow.framework.candidate.CandidateStrategyEnum;
@@ -110,7 +111,7 @@ public class ForgeTaskActorProvider extends GeneralTaskActorProvider {
                 List<FlwTaskActor> actors = userIds.stream()
                         .map(userId -> {
                             String userName = identityService.getUserName(userId);
-                            return FlwTaskActor.ofFlowCreator(FlowCreator.of(String.valueOf(userId), userName));
+                            return FlwTaskActor.ofFlowCreator(FlowCreatorFactory.user(userId, userName));
                         })
                         .collect(Collectors.toList());
                 log.info("生成任务参与者: actors.size={}", actors.size());

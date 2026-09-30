@@ -24,6 +24,7 @@ import com.forge.modules.workflow.dto.definition.ProcessDeployRequest;
 import com.forge.modules.workflow.dto.definition.UserTaskNodeResponse;
 import com.forge.modules.workflow.entity.WfCategory;
 import com.forge.modules.workflow.entity.WfProcessExt;
+import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.framework.candidate.CandidateStrategyEnum;
 import com.forge.modules.workflow.framework.diagram.FlowLongDiagramGenerator;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
@@ -443,7 +444,7 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
     }
 
     private FlowCreator createFlowCreator(Long userId) {
-        return new FlowCreator(String.valueOf(userId), identityService.getUserName(userId));
+        return FlowCreatorFactory.user(userId, identityService.getUserName(userId));
     }
 
     private WfProcessExt getProcessExtByProcessId(Long processId) {

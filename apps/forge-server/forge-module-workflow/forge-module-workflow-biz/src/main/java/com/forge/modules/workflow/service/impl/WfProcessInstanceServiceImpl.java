@@ -25,6 +25,7 @@ import com.forge.modules.workflow.dto.instance.ProcessStartRequest;
 import com.forge.modules.workflow.entity.WfApprovalComment;
 import com.forge.modules.workflow.entity.WfProcessExt;
 import com.forge.modules.workflow.framework.ApprovalActionTypeEnum;
+import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import com.forge.modules.workflow.framework.diagram.FlowLongDiagramGenerator;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisInstanceMapper;
@@ -616,7 +617,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
     }
 
     private FlowCreator createFlowCreator(Long userId) {
-        return new FlowCreator(String.valueOf(userId), identityService.getUserName(userId));
+        return FlowCreatorFactory.user(userId, identityService.getUserName(userId));
     }
 
     /**

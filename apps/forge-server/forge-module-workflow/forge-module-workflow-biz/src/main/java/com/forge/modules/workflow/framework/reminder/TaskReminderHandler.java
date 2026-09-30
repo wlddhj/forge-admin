@@ -3,12 +3,12 @@ package com.forge.modules.workflow.framework.reminder;
 import com.aizuda.bpm.engine.TaskReminder;
 import com.aizuda.bpm.engine.FlowLongEngine;
 import com.aizuda.bpm.engine.QueryService;
-import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.core.FlowLongContext;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.forge.framework.web.websocket.NotificationMessage;
 import com.forge.framework.web.websocket.NotificationService;
+import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -39,11 +39,6 @@ public class TaskReminderHandler implements TaskReminder {
      * 默认下次提醒间隔（小时）
      */
     private static final int DEFAULT_REMIND_INTERVAL_HOURS = 24;
-
-    /**
-     * 系统创建者（用于更新任务）
-     */
-    private static final FlowCreator SYSTEM_CREATOR = new FlowCreator("SYSTEM", "系统");
 
     public TaskReminderHandler(NotificationService notificationService, FlowLongEngine flowLongEngine) {
         this.notificationService = notificationService;
@@ -209,7 +204,7 @@ public class TaskReminderHandler implements TaskReminder {
             updateTask.setRemindTime(calendar.getTime());
         }
 
-        getTaskService().updateTaskById(updateTask, SYSTEM_CREATOR);
+        getTaskService().updateTaskById(updateTask, FlowCreatorFactory.system("系统"));
         log.debug("更新提醒次数: taskId={}, remindRepeat={}", task.getId(), newRemindCount);
     }
 }

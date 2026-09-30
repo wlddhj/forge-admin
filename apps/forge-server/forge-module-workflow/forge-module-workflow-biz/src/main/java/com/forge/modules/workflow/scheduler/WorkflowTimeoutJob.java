@@ -2,13 +2,13 @@ package com.forge.modules.workflow.scheduler;
 
 import com.aizuda.bpm.engine.FlowLongEngine;
 import com.aizuda.bpm.engine.TaskService;
-import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.core.enums.TaskType;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.aizuda.bpm.engine.model.ProcessModel;
 import com.forge.framework.redis.lock.DistributedLock;
 import com.forge.modules.workflow.config.FlowLongSchedulerProperties;
+import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.framework.reminder.TaskReminderHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
@@ -36,7 +36,6 @@ import java.util.Map;
 public class WorkflowTimeoutJob implements Job {
 
     private static final String LOCK_KEY = "workflow_timeout_check";
-    private static final FlowCreator SYSTEM_CREATOR = new FlowCreator("SYSTEM", "系统自动处理");
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
@@ -120,7 +119,7 @@ public class WorkflowTimeoutJob implements Job {
         // 检查是否是定时器或触发器任务（直接完成）
         if (TaskType.timer.eq(task.getTaskType()) || TaskType.trigger.eq(task.getTaskType())) {
             log.info("定时器/触发器任务超时，自动完成: taskId={}", task.getId());
-            return flowLongEngine.autoCompleteTask(task.getId(), SYSTEM_CREATOR);
+            return flowLongEngine.autoCompleteTask(task.getId(), FlowCreatorFactory.system("系统自动处理"));
         }
 
         // 获取节点配置
@@ -172,10 +171,10 @@ public class WorkflowTimeoutJob implements Job {
         boolean success;
         if (termMode == 0) {
             log.info("自动通过超时任务: taskId={}", task.getId());
-            success = flowLongEngine.autoCompleteTask(task.getId(), SYSTEM_CREATOR);
+            success = flowLongEngine.autoCompleteTask(task.getId(), FlowCreatorFactory.system("系统自动处理"));
         } else {
             log.info("自动拒绝超时任务: taskId={}", task.getId());
-            success = flowLongEngine.autoRejectTask(task, SYSTEM_CREATOR);
+            success = flowLongEngine.autoRejectTask(task, FlowCreatorFactory.system("系统自动处理"));
         }
 
         return success;

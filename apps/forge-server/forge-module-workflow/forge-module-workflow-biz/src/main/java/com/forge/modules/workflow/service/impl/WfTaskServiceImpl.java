@@ -21,6 +21,7 @@ import com.forge.common.utils.SecurityUtils;
 import com.forge.modules.workflow.dto.task.*;
 import com.forge.modules.workflow.entity.WfApprovalComment;
 import com.forge.modules.workflow.framework.ApprovalActionTypeEnum;
+import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import com.forge.modules.workflow.mapper.WfApprovalCommentMapper;
 import com.forge.modules.workflow.service.WfTaskService;
@@ -455,13 +456,7 @@ public class WfTaskServiceImpl implements WfTaskService {
 
         // 创建抄送任务参与者列表
         List<FlwTaskActor> taskActors = request.getCopyUserIds().stream()
-                .map(userId -> {
-                    FlwTaskActor taskActor = new FlwTaskActor();
-                    taskActor.setActorId(String.valueOf(userId));
-                    taskActor.setActorName(identityService.getUserName(userId));
-                    taskActor.setActorType(0); // 用户类型
-                    return taskActor;
-                })
+                .map(this::createTaskActor)
                 .collect(Collectors.toList());
 
         // 使用 FlowLongEngine 的 createCcTask 方法创建抄送任务（自动获取 ProcessModel 和 NodeModel）
@@ -621,7 +616,7 @@ public class WfTaskServiceImpl implements WfTaskService {
     }
 
     private FlowCreator createFlowCreator(Long userId) {
-        return new FlowCreator(String.valueOf(userId), identityService.getUserName(userId));
+        return FlowCreatorFactory.user(userId, identityService.getUserName(userId));
     }
 
     private FlwTaskActor createTaskActor(Long userId) {
@@ -629,6 +624,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         taskActor.setActorId(String.valueOf(userId));
         taskActor.setActorName(identityService.getUserName(userId));
         taskActor.setActorType(0); // 用户类型
+        taskActor.setTenantId(FlowCreatorFactory.currentTenantId());
         return taskActor;
     }
 
