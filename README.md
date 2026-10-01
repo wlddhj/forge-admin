@@ -1,14 +1,114 @@
+<div align="center">
+
 # forge-admin
 
-企业级后台管理系统模板，基于 RBAC（基于角色的访问控制）权限模型，前后端分离，开箱即用。
+**开箱即用的企业级后台管理系统 · Spring Boot 3.4 + Vue 3 + TypeScript**
+
+RBAC 权限 · B2B SaaS 多租户 · 工作流审批 · 可视化大屏 · AI 对话 · 打印模板 · 等保二级
+
+[![Stars](https://img.shields.io/github/stars/wlddhj/forge-admin.svg?style=flat&logo=github)](https://github.com/wlddhj/forge-admin/stargazers)
+[![Forks](https://img.shields.io/github/forks/wlddhj/forge-admin.svg?style=flat&logo=github)](https://github.com/wlddhj/forge-admin/network)
+[![Issues](https://img.shields.io/github/issues/wlddhj/forge-admin.svg?style=flat&logo=github)](https://github.com/wlddhj/forge-admin/issues)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+![JDK](https://img.shields.io/badge/JDK-21+-orange)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.11-green)
+![Vue](https://img.shields.io/badge/Vue-3.4-brightgreen)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)
+![MySQL](https://img.shields.io/badge/MySQL-8.0%2B-4479A1)
+![Redis](https://img.shields.io/badge/Redis-6.0%2B-d63031)
+
+**Gitee 镜像**：[gitee.com/open-hj/forge-admin](https://gitee.com/open-hj/forge-admin)
+
+**在线演示**：建设中（欢迎 Star 关注更新）
+
+</div>
+
+## 核心亮点
+
+| 能力 | 说明 |
+|------|------|
+| RBAC + 数据权限 | 用户/角色/菜单/部门/岗位五级管理，数据权限支持全部/本部门/本部门及以下/仅本人等多种范围 |
+| B2B SaaS 多租户 | SQL 级自动隔离（TenantLineInnerInterceptor）、套餐化菜单分配、平台超管代管，配置开关一键回归单租户 |
+| 工作流审批 | 基于 FlowLong 的可视化流程设计器，支持驳回/委派/转办/退回/加签/抄送等完整审批操作 |
+| 可视化大屏 | goView 拖拽编辑器 + SQL/HTTP 双数据源 + AST 级 SQL 安全层（SELECT-only/表列白名单/强制 LIMIT/熔断/SSRF 防护） |
+| AI 能力 | Spring AI 直连 DeepSeek/Qwen/GLM/ERNIE，SSE 流式对话、Tika 文档解析、智能摘要，模型配置表驱动 |
+| 打印模板 | 基于 hiprint 的拖拽式模板设计器，浏览器原生打印预览，按编号跨租户调用 |
+| 等保二级合规 | 密码策略/失败锁定/单点登录/AES-256-GCM 字段加密/XSS 过滤/审计脱敏（GB/T 22239-2019） |
+| OAuth2 + 社交登录 | Spring Authorization Server 授权服务器，JustAuth 集成微信、钉钉扫码登录 |
+| 10 套 UI 主题 | 预设套餐 + 调色板/布局/风格三维度独立切换 + 自定义主色 + 明暗双模式，无刷新切换 |
+| 微信小程序 | 独立 `/app-api` 端点与 `app_user` 用户体系，微信授权登录一键注册 |
+| 工程化 | pnpm monorepo、业务模块脚手架（创建/删除）、项目模板化工具、Docker 容器化部署 |
+
+## 系统架构
+
+```mermaid
+graph TB
+    subgraph client["客户端"]
+        direction LR
+        Web["forge-web<br/>管理端 SPA<br/>Vue 3 + TS + Element Plus"]
+        Mini["forge-miniapp<br/>微信小程序<br/>uni-app"]
+        Screen["forge-screen<br/>goView 大屏编辑器<br/>iframe 嵌入管理端"]
+    end
+
+    subgraph gateway["接入层（双端点）"]
+        direction LR
+        AdminAPI["/admin-api · JWT + RBAC<br/>sys_user 用户体系"]
+        AppAPI["/app-api · 微信授权登录<br/>app_user 独立用户体系"]
+    end
+
+    subgraph biz["业务模块（api + biz 分离）"]
+        direction LR
+        System["system<br/>RBAC · 多租户 · 定时任务"]
+        Workflow["workflow<br/>FlowLong 审批流"]
+        AI["ai<br/>Spring AI 多模型"]
+        ScreenBiz["screen<br/>大屏 · SQL 安全层"]
+    end
+
+    subgraph framework["框架层 forge-framework（6 Starter）"]
+        direction LR
+        FSecurity["security<br/>JWT · OAuth2 · JustAuth"]
+        FTenant["tenant<br/>SQL 级租户隔离"]
+        FMybatis["mybatis<br/>数据权限 · 字段加密"]
+        FWeb["web<br/>限流 · XSS · 审计日志"]
+        FRedis["redis<br/>缓存 · 租户前缀"]
+        FCommon["common<br/>注解 · 响应 · 工具"]
+    end
+
+    subgraph storage["存储与中间件"]
+        direction LR
+        MySQL[("MySQL 8<br/>业务数据")]
+        Redis[("Redis 6<br/>缓存 · 限流 · 熔断")]
+    end
+
+    LLM["LLM 上游<br/>DeepSeek · Qwen · GLM · ERNIE"]
+
+    Web --> AdminAPI
+    Mini --> AppAPI
+    Screen -.iframe 嵌入.- Web
+    AdminAPI --> biz
+    AppAPI --> biz
+    biz --> MySQL
+    System & ScreenBiz --> Redis
+    AI --> LLM
+    biz -.构建于.- framework
+
+    classDef clientStyle fill:#E8F1FD,stroke:#4A90D9
+    classDef gatewayStyle fill:#FFF3E0,stroke:#E8A23D
+    classDef bizStyle fill:#E8F5E9,stroke:#66A36B
+    classDef frameworkStyle fill:#F3E5F5,stroke:#9C6BB5
+    classDef storageStyle fill:#FBE9E7,stroke:#D87566
+    classDef externalStyle fill:#ECEFF1,stroke:#90A4AE
+    class Web,Mini,Screen clientStyle
+    class AdminAPI,AppAPI gatewayStyle
+    class System,Workflow,AI,ScreenBiz bizStyle
+    class FSecurity,FTenant,FMybatis,FWeb,FRedis,FCommon frameworkStyle
+    class MySQL,Redis storageStyle
+    class LLM externalStyle
+```
 
 ## 项目简介
 
-forge-admin 是一款现代化的企业级后台管理解决方案，采用前后端分离架构设计。后端基于 Spring Boot 3.4 构建，采用多模块 Maven 项目结构，使用 MyBatis Plus 简化数据操作，JWT 实现无状态认证；前端采用 Vue 3 + TypeScript + Element Plus + vxe-table 技术栈，提供流畅的用户体验、完善的类型支持和强大的表格功能。前端内置多套 UI 主题切换系统，支持 10 套预设套餐、调色板/布局/风格三维度独立切换、自定义主色以及明暗双模式，用户可按需选择并持久化到 localStorage；管理后台可配置系统默认主题（新用户/跟随用户首次进入自动应用）。系统内置完整的 B2B SaaS 多租户能力，支持按租户隔离业务数据、套餐化菜单分配、平台超管代管等场景，可通过配置开关回归单租户模式。
-
-系统内置完整的权限管理模块，支持用户、角色、菜单、部门的层级管理，并实现细粒度的数据权限控制（全部/本部门/本部门及以下/仅本人）。集成 OAuth2 授权服务器（基于 Spring Authorization Server），支持微信、钉钉等第三方登录（基于 JustAuth），允许第三方应用通过本系统进行用户认证。此外还集成了 Quartz 定时任务调度、在线 API 文档（springdoc Swagger UI）、操作日志审计、登录日志等企业级功能。
-
-系统同时内置**数据可视化大屏**模块，提供基于 goView 的拖拽式大屏编辑器、多数据源（SQL / HTTP）配置能力，以及面向纵深防御的 SQL 安全层（AST 校验 + 表/列白名单 + 运行时 LIMIT 限制），可安全地支持业务指标监控、运营驾驶舱等场景。内置**打印模板**模块，基于 vue-plugin-hiprint 提供拖拽式打印模板设计与浏览器原生打印，模板跨租户共享、按编号调用。支持**品牌信息动态配置**（Logo、项目名称、登录页主/副标题），管理后台修改保存后全局生效、未配置时回退默认值，无需重新构建。支持 Docker 容器化部署，提供项目模板化工具，可快速基于此项目创建新的管理系统。
+forge-admin 是一款现代化的企业级后台管理解决方案，采用前后端分离架构：后端基于 Spring Boot 3.4 构建，多模块 Maven 结构 + MyBatis Plus + JWT 无状态认证；前端基于 Vue 3 + TypeScript + Element Plus + vxe-table，内置多套 UI 主题切换系统与品牌信息动态配置（Logo、项目名称、登录页文案），管理后台修改后全局生效，无需重新构建。支持 Docker 容器化部署，并提供项目模板化工具，可快速基于此项目创建新的管理系统。
 
 ## 项目截图
 
