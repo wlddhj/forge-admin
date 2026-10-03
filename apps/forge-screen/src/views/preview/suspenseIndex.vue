@@ -39,12 +39,16 @@ import type { ChartEditStorageType } from './index.d'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { useInitVChartsTheme } from '@/hooks'
 import { getScreenByCode } from '@/api/forge/screen'
+import { initScreenParams } from '@/utils/screenParams'
 
 // forge-admin 集成：当 sessionStorage 无数据时，从 URL query code 加载
 const urlHash = document.location.hash
 const queryStr = urlHash.split('?')[1] || ''
 const urlParams = new URLSearchParams(queryStr)
 const forgeCode = urlParams.get('code')
+
+// URL 公共参数（accountSetId 等）注入 FORGE 数据源，须在组件树挂载前初始化
+initScreenParams(queryStr)
 
 const chartEditStore = useChartEditStore() as unknown as ChartEditStorageType
 

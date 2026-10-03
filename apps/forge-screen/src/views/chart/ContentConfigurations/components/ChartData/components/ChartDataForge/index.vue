@@ -1,12 +1,13 @@
 <template>
   <div class="chart-data-forge">
-    <setting-item-box name="数据源 ID" :alone="true">
-      <n-input-number
-        :value="targetData.request.forgeDataSourceId || null"
-        :min="1"
-        :show-button="false"
-        placeholder="forge-admin sys_screen_data_source.id"
-        @update:value="(v: number) => (targetData.request.forgeDataSourceId = v)"
+    <setting-item-box name="数据源" :alone="true">
+      <n-select
+        :value="(targetData.request as any).forgeDataSourceId || null"
+        :options="dataSourceOptions"
+        :loading="listLoading"
+        filterable
+        placeholder="选择 forge 数据源"
+        @update:value="(v: number) => ((targetData.request as any).forgeDataSourceId = v)"
       />
     </setting-item-box>
 
@@ -15,7 +16,7 @@
         type="textarea"
         :rows="3"
         :value="forgeParamsStr"
-        placeholder='{"id": 1, "pageSize": 20}'
+        placeholder='{"accountSetId": 1}'
         @update:value="updateForgeParams"
       />
     </setting-item-box>
@@ -36,11 +37,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, toRaw } from 'vue'
+import { ref, computed, toRaw, onMounted } from 'vue'
 import { SettingItemBox } from '@/components/Pages/ChartItemSetting'
 import { icon } from '@/plugins'
 import { useTargetData } from '../../../hooks/useTargetData.hook'
-import { executeDataSource } from '@/api/forge/dataSource'
+import { executeDataSource, listDataSources } from '@/api/forge/dataSource'
 import { ChartDataMatchingAndShow } from '../ChartDataMatchingAndShow'
 // ElMessage via window['$message']
 
@@ -49,6 +50,24 @@ const { FlashIcon } = icon.carbon
 const { targetData } = useTargetData()
 
 const testResult = ref<unknown>(null)
+const dataSourceOptions = ref<{ label: string; value: number }[]>([])
+const listLoading = ref(false)
+
+onMounted(async () => {
+  listLoading.value = true
+  try {
+    const res = await listDataSources()
+    dataSourceOptions.value = (res?.list ?? []).map((d) => ({
+      label: `${d.name}（${d.code}）`,
+      value: Number(d.id)
+    }))
+  } catch (e) {
+    // 列表加载失败不阻塞面板（可手填兜底场景后续再议）
+    console.error('[forge data source] list failed', e)
+  } finally {
+    listLoading.value = false
+  }
+})
 
 const forgeParamsStr = computed(() => {
   const p = (targetData.value?.request as any)?.forgeParams
@@ -68,7 +87,7 @@ const updateForgeParams = (v: string) => {
 const testFetch = async () => {
   const id = (targetData.value.request as any).forgeDataSourceId
   if (!id) {
-    window['$message']?.warning('请填写数据源 ID')
+    window['$message']?.warning('请选择数据源')
     return
   }
   try {

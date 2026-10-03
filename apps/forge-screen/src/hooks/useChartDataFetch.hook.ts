@@ -6,6 +6,7 @@ import { CreateComponentType, ChartFrameEnum } from '@/packages/index.d'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { RequestDataTypeEnum } from '@/enums/httpEnum'
 import { isPreview, newFunctionHandle, intervalUnitHandle } from '@/utils'
+import { getScreenParams } from '@/utils/screenParams'
 import { setOption } from '@/packages/public/chart'
 import { isNil } from 'lodash'
 
@@ -75,7 +76,9 @@ export const useChartDataFetch = (
       const fetchFn = async () => {
         try {
           const { executeDataSource } = await import('@/api/forge/dataSource')
-          const res = await executeDataSource(Number(forgeDataSourceId), { params: forgeParams })
+          const res = await executeDataSource(Number(forgeDataSourceId), {
+            params: { ...forgeParams, ...getScreenParams() }
+          })
           if (res && res.data) {
             const filter = targetComponent.filter
             const rawData = newFunctionHandle(res.data, res, filter)
