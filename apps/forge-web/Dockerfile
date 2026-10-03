@@ -16,7 +16,11 @@ COPY package.json pnpm-lock.yaml ./
 # （省略 packages 字段 = 仅根包；清单与根 pnpm-workspace.yaml 的 allowBuilds 保持一致）
 RUN printf 'allowBuilds:\n  "@parcel/watcher": true\n  core-js: true\n  core-js-pure: true\n  esbuild: true\n  msw: true\n  vue-demi: true\n' > pnpm-workspace.yaml
 
-# 安装依赖
+# 安装依赖（默认走 npmmirror 镜像：国内服务器直连 registry.npmjs.org 下载极慢且易超时；
+# 海外环境构建可用 --build-arg NPM_REGISTRY=https://registry.npmjs.org 覆盖）
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+RUN pnpm config set registry ${NPM_REGISTRY}
+
 RUN pnpm install --frozen-lockfile
 
 # 复制源码
