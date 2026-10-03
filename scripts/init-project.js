@@ -302,11 +302,21 @@ function main() {
   const files = getAllFiles(targetDir)
   let replacedCount = 0
 
+  // 大屏编辑器（apps/forge-screen）是解耦的 iframe SPA，其内部 forge 标识
+  // （src/api/forge 目录、forgeDataSourceId/forgeParams 属性名、FORGE 枚举、
+  // chart-data-forge 类名等）是与主项目约定的集成协议及存量配置 JSON 的键名，
+  // 不随项目名替换，否则新项目读写存量大屏配置时键名对不上导致页面错误；
+  // 该目录仅应用精确规则（forge-admin 等注释文案），剔除兜底的短词 forge 替换。
+  const screenDirPrefix = path.join(targetDir, 'apps', 'forge-screen') + path.sep
+
   files.forEach(file => {
     const ext = path.extname(file)
     const basename = path.basename(file)
     if (targetExtensions.includes(ext) || targetFilenames.includes(basename) || file.includes('.env')) {
-      if (replaceInFile(file, replacements)) {
+      const fileReplacements = file.startsWith(screenDirPrefix)
+        ? replacements.filter(r => r.from !== 'forge')
+        : replacements
+      if (replaceInFile(file, fileReplacements)) {
         replacedCount++
         log(`  ✓ ${path.relative(targetDir, file)}`, 'green')
       }
