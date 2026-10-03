@@ -1,12 +1,15 @@
 # Stage 1: Build
 FROM node:22-alpine AS builder
 
-# 安装 pnpm
-RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
+# 安装 pnpm（版本需与 apps/forge-web/pnpm-lock.yaml 的 lockfileVersion 9.0 匹配，即 pnpm >= 9）
+RUN npm install -g pnpm@11.10.0
 
 WORKDIR /build
 
 # 复制 package.json 和 lock 文件
+# 注意：本目录的 pnpm-lock.yaml 是独立于根 workspace 的锁文件（本 Docker 构建专用），
+# 修改 forge-web 依赖后需同步刷新：
+#   cd apps/forge-web && pnpm install --lockfile-only --ignore-workspace
 COPY package.json pnpm-lock.yaml ./
 
 # 安装依赖

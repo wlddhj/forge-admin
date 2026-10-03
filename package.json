@@ -27,7 +27,7 @@
   "license": "MIT",
   "volta": {
     "node": "22.9.0",
-    "pnpm": "8.15.4"
+    "pnpm": "11.10.0"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.3.0",

@@ -23,7 +23,7 @@ forge-admin 是一个基于 RBAC 的企业级后台管理系统，采用 monorep
 | 后端 API | 8181 | `apps/forge-server` |
 | 上下文路径 | - | `/api` |
 
-**数据库：** MySQL `forge_admin`，localhost:3306 | **Redis：** localhost:6379（无密码） | **Java：** 21 | **Node：** 22.9.0 | **pnpm：** 8.15.4
+**数据库：** MySQL `forge_admin`，localhost:3306 | **Redis：** localhost:6379（无密码） | **Java：** 21 | **Node：** 22.9.0 | **pnpm：** 11.10.0（workspace 根与 apps/forge-web 各有一份 lockfile，后者为 Docker 构建专用，改依赖后需 `cd apps/forge-web && pnpm install --lockfile-only --ignore-workspace` 刷新）
 
 ## 开发命令
 
