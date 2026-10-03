@@ -330,7 +330,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 
 - JDK 21+
 - Node.js 18+（推荐 22.9.0）
-- pnpm 8.15.4+
+- pnpm 9+（lockfile 为 9.0 格式，推荐 11.x）
 - MySQL 8.0+
 - Redis 6.0+
 - 微信开发者工具（小程序开发）
@@ -666,6 +666,8 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 
 ## Docker 部署
 
+### 全新安装
+
 ```bash
 cp .env.example .env       # 填写必填密钥（MySQL/Redis/JWT/AES，参考文件内注释）
 docker compose up -d
@@ -674,6 +676,31 @@ docker compose up -d
 MySQL（utf8mb4）、Redis、backend、frontend 四服务编排，健康检查依赖链自动拉起。**MySQL 首次启动时自动按序执行 `sql/` 下的初始化脚本**（建表 + 菜单/种子数据），无需手工导入；增量迁移脚本位于 `apps/forge-server/**/db/migration/`（项目未引入 Flyway，需按版本号手工执行）。
 
 访问：http://localhost（前端）、http://localhost/api/swagger-ui/index.html（API 文档）
+
+### 升级
+
+```bash
+# 1. 备份数据库（数据卷不会被重建，备份仅为升级兜底）
+docker exec forge-admin-mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --databases $MYSQL_DATABASE' > backup-$(date +%Y%m%d%H%M).sql
+
+# 2. 拉取最新代码并重建镜像（backend 的 POM 分层缓存使增量构建较快）
+git pull
+docker compose build
+
+# 3. 重建容器（mysql-data/redis-data 数据卷自动保留，初始化脚本不会重复执行）
+docker compose up -d
+
+# 4. 执行本次新增的增量迁移（项目未引入 Flyway，需按版本号顺序手工执行）
+#    对比升级前后的 db/migration/ 目录，逐个执行新出现的脚本：
+mysql -h 127.0.0.1 -P ${MYSQL_EXPOSE_PORT:-3306} -u root -p forge_admin \
+  < apps/forge-server/forge-server/src/main/resources/db/migration/V2026xxxx__xxx.sql
+```
+
+说明：
+
+- 升级只会重建前后端容器；`docker compose down` 不带 `-v` 不会删除数据卷，**切勿在升级场景使用 `down -v`**（会清空数据库）
+- `.env` 中已配置的密钥与端口在升级后保持生效，新增配置项以 `.env.example` 为准按需补充
+- 升级后可用 `docker compose ps` 确认四服务健康，`docker logs -f forge-admin-backend` 观察启动日志
 
 ## 配置说明
 

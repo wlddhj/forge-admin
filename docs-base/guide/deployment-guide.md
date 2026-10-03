@@ -56,32 +56,49 @@ FILE_BASE_URL=https://your-domain.com/api/uploads
 
 ## Docker 部署
 
-### 使用 Docker Compose
+### 使用 Docker Compose（推荐）
 
 1. 配置环境变量：
 
 ```bash
 cp .env.example .env
-# 编辑 .env，配置外部数据库和 Redis 连接信息
+# 编辑 .env，填写必填密钥（MySQL/Redis/JWT/AES，参考文件内注释）
 ```
+
+MySQL 与 Redis 由 compose 内置编排（数据卷持久化），无需外部数据库；首次启动自动按序执行 `sql/` 下的初始化脚本。
 
 2. 启动服务：
 
 ```bash
-docker-compose up -d
+docker compose up -d      # 旧版环境使用 docker-compose up -d
 ```
 
 3. 查看日志：
 
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
 
 4. 停止服务：
 
 ```bash
-docker-compose down
+docker compose down       # 不带 -v 时数据卷保留；-v 会清空数据库，仅全新重装时使用
 ```
+
+### 升级
+
+```bash
+# 备份数据库兜底
+docker exec forge-admin-mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --databases $MYSQL_DATABASE' > backup-$(date +%Y%m%d%H%M).sql
+
+git pull
+docker compose build      # 重建前后端镜像，数据卷自动保留
+docker compose up -d
+
+# 对比升级前后 db/migration/ 目录，按版本号顺序手工执行新增的增量迁移脚本
+```
+
+完整步骤与注意事项见根目录 README 的「Docker 部署 - 升级」章节。
 
 ### 单独构建镜像
 
@@ -95,17 +112,19 @@ cd apps/my-admin-web
 docker build -t my-admin-frontend .
 ```
 
-### 运行容器
+### 运行容器（不走 Compose 时）
 
 ```bash
-# 运行后端
+# 运行后端（连接宿主机自建的 MySQL/Redis）
 docker run -d \
   --name my-admin-backend \
   -p 8181:8181 \
   -e DB_HOST=host.docker.internal \
   -e DB_PASSWORD=your-password \
   -e REDIS_HOST=host.docker.internal \
-  -e JWT_SECRET=your-secret \
+  -e REDIS_PASSWORD=your-redis-password \
+  -e JWT_SECRET=your-jwt-secret \
+  -e APP_AES_KEY=your-aes-key \
   my-admin-backend
 
 # 运行前端
