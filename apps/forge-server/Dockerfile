@@ -82,7 +82,7 @@ EXPOSE 8181
 
 # 健康检查（actuator 未对外暴露，用已验证的 OpenAPI 端点）
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
-    CMD curl -f http://localhost:8181/api/v3/api-docs || exit 1
+    CMD curl -f http://localhost:8181/v3/api-docs || exit 1
 
 # 启动命令
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

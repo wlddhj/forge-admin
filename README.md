@@ -675,7 +675,7 @@ docker compose up -d
 
 MySQL（utf8mb4）、Redis、backend、frontend 四服务编排，健康检查依赖链自动拉起。**MySQL 首次启动时自动按序执行 `sql/` 下的初始化脚本**（建表 + 菜单/种子数据），无需手工导入；增量迁移脚本位于 `apps/forge-server/**/db/migration/`（项目未引入 Flyway，需按版本号手工执行）。
 
-访问：http://localhost（前端）、http://localhost/api/swagger-ui/index.html（API 文档）
+访问：http://localhost（前端）、http://localhost/swagger-ui/index.html（API 文档，生产可按等保要求在 nginx.conf 移除该代理）
 
 ### 升级
 
