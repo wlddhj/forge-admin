@@ -12,6 +12,10 @@ WORKDIR /build
 #   cd apps/forge-web && pnpm install --lockfile-only --ignore-workspace
 COPY package.json pnpm-lock.yaml ./
 
+# pnpm 11 已不读 package.json 的 pnpm 字段，构建脚本白名单须写入 pnpm-workspace.yaml
+# （省略 packages 字段 = 仅根包；清单与根 pnpm-workspace.yaml 的 allowBuilds 保持一致）
+RUN printf 'allowBuilds:\n  "@parcel/watcher": true\n  core-js: true\n  core-js-pure: true\n  esbuild: true\n  msw: true\n  vue-demi: true\n' > pnpm-workspace.yaml
+
 # 安装依赖
 RUN pnpm install --frozen-lockfile
 
