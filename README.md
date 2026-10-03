@@ -347,7 +347,12 @@ cd forge-admin
 2. **创建数据库**
 
 ```bash
-mysql -u root -p < sql/init.sql
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS forge_admin DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+mysql -u root -p forge_admin < sql/init.sql
+mysql -u root -p forge_admin < sql/init-ai.sql
+mysql -u root -p forge_admin < sql/init-app.sql
+mysql -u root -p forge_admin < sql/init-screen.sql
+mysql -u root -p forge_admin < sql/init-workflow.sql
 ```
 
 3. **启动后端**
@@ -666,7 +671,7 @@ cp docker/env.example .env   # 填写必填密钥（MySQL/Redis/JWT/AES）
 docker compose up -d
 ```
 
-MySQL（utf8mb4）、Redis、backend、frontend 四服务编排，健康检查依赖链自动拉起。首次部署需按 `docker/env.example` 中的顺序手工导入 `sql/init*.sql`。
+MySQL（utf8mb4）、Redis、backend、frontend 四服务编排，健康检查依赖链自动拉起。**MySQL 首次启动时自动按序执行 `sql/` 下的初始化脚本**（建表 + 菜单/种子数据），无需手工导入；增量迁移脚本位于 `apps/forge-server/**/db/migration/`（项目未引入 Flyway，需按版本号手工执行）。
 
 访问：http://localhost（前端）、http://localhost/api/swagger-ui/index.html（API 文档）
 
@@ -752,8 +757,8 @@ MySQL（utf8mb4）、Redis、backend、frontend 四服务编排，健康检查�
 `sql/init-screen.sql` 整合了模块 6 个增量脚本的全部内容（4 张表 + 7 条 SQL 白名单 + 19 条菜单/权限 + 4 条测试数据源），使用 `DROP TABLE IF EXISTS + CREATE TABLE` 模式可重复执行，仅用于一次性建库。脚本中已将 `V202607080` 的 `ALTER TABLE` 合并到 `sys_screen` 的建表语句，无需后续 `ALTER` 步骤。
 
 ```bash
-mysql -u root -p < sql/init.sql
-mysql -u root -p < sql/init-screen.sql
+mysql -u root -p forge_admin < sql/init.sql
+mysql -u root -p forge_admin < sql/init-screen.sql
 ```
 
 #### 增量脚本（参考）

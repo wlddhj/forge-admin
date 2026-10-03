@@ -38,8 +38,9 @@ pnpm run init shop-admin "电商管理后台" com.shop.admin
 初始化脚本执行完成后，需要进行以下步骤：
 
 ```bash
-# 1. 创建数据库
-mysql -u root -p < sql/init.sql
+# 1. 创建数据库（init.sql 不含建库语句，先建库再按库名导入）
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS forge_admin DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+mysql -u root -p forge_admin < sql/init.sql
 
 # 2. 配置环境变量（可选，用于生产环境）
 cp .env.example .env

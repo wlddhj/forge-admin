@@ -17,7 +17,6 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
-USE `forge_admin`;
 
 -- ========================================
 -- 1. AI模型配置表（与 AiModelConfig entity 一致）

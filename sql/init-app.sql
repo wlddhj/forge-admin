@@ -3,7 +3,7 @@
 -- 用于初始化移动端用户管理相关的菜单数据
 -- ========================================
 
-USE `forge_admin`;
+SET NAMES utf8mb4;
 
 -- App 用户菜单（放在系统管理下）
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES

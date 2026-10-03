@@ -11,7 +11,6 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
-USE `forge_admin`;
 
 -- ========================================
 -- Part 1: FlowLong 核心表（8张）

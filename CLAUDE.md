@@ -223,7 +223,7 @@ forge:
 
 位置：每个模块**各自的** `db/migration/` 目录下（如 `forge-module-screen-biz/src/main/resources/db/migration/`、`forge-server/src/main/resources/db/migration/`）
 命名：`V{YYYYMMDD}{seq}__<description>.sql`
-**注意：项目未引入 Flyway 依赖，迁移 SQL 需手工按版本号顺序执行**（首次部署用 `sql/init.sql` + 各 `init-*.sql`，增量用 `db/migration/` 脚本）。
+**注意：项目未引入 Flyway 依赖，迁移 SQL 需手工按版本号顺序执行**（首次部署用 `sql/init.sql` + 各 `init-*.sql`，Docker Compose 会自动导入；脚本不含 CREATE DATABASE/USE 语句，手工导入需显式指定库名。增量用 `db/migration/` 脚本）。
 
 ## 前端架构（`apps/forge-web/src/`）
 

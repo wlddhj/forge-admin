@@ -1,18 +1,16 @@
 -- ========================================
--- forge-admin 数据库初始化脚本
+-- forge-admin 数据库初始化脚本（系统管理核心表 + 种子数据）
 -- 数据库版本: MySQL 8.0+
 -- 创建时间: 2026-03-10
+-- 说明: 脚本不含 CREATE DATABASE/USE 语句，
+--       目标库由执行方决定：
+--       - Docker Compose 首次启动自动导入到 MYSQL_DATABASE 指定的库
+--       - 手工导入: mysql -u root -p <库名> < sql/init.sql（先自行建库）
+--       执行顺序: init.sql → init-ai.sql → init-app.sql → init-screen.sql → init-workflow.sql
 -- ========================================
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
-
--- ========================================
--- 创建数据库
--- ========================================
-CREATE DATABASE IF NOT EXISTS `forge_admin` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-USE `forge_admin`;
 
 -- ========================================
 -- 1. 附件表

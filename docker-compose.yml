@@ -17,6 +17,14 @@ services:
       - --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql-data:/var/lib/mysql
+      # 首次启动（数据卷为空时）按序号自动执行初始化 SQL，导入到 MYSQL_DATABASE 指定的库
+      # 注意：不能整目录挂载 sql/ —— docker-entrypoint-initdb.d 按字母序执行且 '.' > '-'，
+      # init.sql 会错误地排在 init-ai/init-app/init-screen 之前，故用单文件挂载 + 序号重命名
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./sql/init-ai.sql:/docker-entrypoint-initdb.d/02-init-ai.sql:ro
+      - ./sql/init-app.sql:/docker-entrypoint-initdb.d/03-init-app.sql:ro
+      - ./sql/init-screen.sql:/docker-entrypoint-initdb.d/04-init-screen.sql:ro
+      - ./sql/init-workflow.sql:/docker-entrypoint-initdb.d/05-init-workflow.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 10s
