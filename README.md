@@ -667,7 +667,7 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 ## Docker 部署
 
 ```bash
-cp docker/env.example .env   # 填写必填密钥（MySQL/Redis/JWT/AES）
+cp .env.example .env       # 填写必填密钥（MySQL/Redis/JWT/AES，参考文件内注释）
 docker compose up -d
 ```
 

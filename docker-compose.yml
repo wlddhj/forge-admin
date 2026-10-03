@@ -67,6 +67,9 @@ services:
     image: forge-admin/backend:latest
     container_name: forge-admin-backend
     restart: unless-stopped
+    # 全量注入 .env（OSS_*/第三方登录等可选变量随取随用；上方 environment 的显式值优先级更高）
+    env_file:
+      - .env
     environment:
       TZ: Asia/Shanghai
       SPRING_PROFILES_ACTIVE: prod
