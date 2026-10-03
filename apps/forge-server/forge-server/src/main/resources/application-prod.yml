@@ -8,7 +8,8 @@ server:
     include-message: never
     include-binding-errors: never
     include-stacktrace: never
-    include-exception: never
+    # include-exception 是 boolean 属性（其余三项取 always/never/on_param）
+    include-exception: false
 
 spring:
   datasource:
