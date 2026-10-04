@@ -35,7 +35,7 @@ services:
       - app-network
     # 仅绑宿主回环，本地经 SSH 隧道连接导入数据；切勿改成 0.0.0.0 暴露公网
     # 宿主侧端口可改（本机 3306 被占用时）；容器内端口固定 3306
-    ports: ["127.0.0.1:${MYSQL_EXPOSE_PORT:-3306}:3306"]
+    ports: ["${MYSQL_EXPOSE_PORT:-3306}:3306"]
 
   redis:
     image: redis:7-alpine
