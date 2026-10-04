@@ -205,7 +205,7 @@ CREATE TABLE `sys_login_log` (
   `browser` varchar(100) DEFAULT NULL COMMENT '浏览器',
   `os` varchar(100) DEFAULT NULL COMMENT '操作系统',
   `status` tinyint DEFAULT '1' COMMENT '登录状态(0:失败 1:成功)',
-  `msg` varchar(255) DEFAULT NULL COMMENT '提示消息',
+  `msg` varchar(2000) DEFAULT NULL COMMENT '提示消息',
   `login_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '登录时间',
   PRIMARY KEY (`id`),
   KEY `idx_username` (`username`),

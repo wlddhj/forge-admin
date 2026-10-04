@@ -17,9 +17,11 @@ RBAC 权限 · B2B SaaS 多租户 · 工作流审批 · 可视化大屏 · AI �
 ![MySQL](https://img.shields.io/badge/MySQL-8.0%2B-4479A1)
 ![Redis](https://img.shields.io/badge/Redis-6.0%2B-d63031)
 
+**Github 镜像**：[github.com/wlddhj/forge-admin](https://github.com/wlddhj/forge-admin)
+
 **Gitee 镜像**：[gitee.com/open-hj/forge-admin](https://gitee.com/open-hj/forge-admin)
 
-**在线演示**：建设中（欢迎 Star 关注更新）
+**在线演示**：<http://8.153.14.1:82/>
 
 </div>
 
