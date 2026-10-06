@@ -6,12 +6,10 @@
           <img :src="brandStore.logoUrl" alt="logo" />
           <span>{{ brandStore.brand.name }}</span>
         </div>
-        <el-tooltip content="打开菜单" placement="bottom">
           <button ref="menuBtnRef" type="button" class="menu-trigger" aria-label="打开菜单" @click="menuVisible = true">
             <el-icon :size="16"><Menu /></el-icon>
             <span>菜单</span>
           </button>
-        </el-tooltip>
         <el-breadcrumb v-if="pageConfigStore.config.showBreadcrumb && !isMobile" separator="/">
           <el-breadcrumb-item v-for="(item, i) in breadcrumbs" :key="i">
             {{ item.title }}
