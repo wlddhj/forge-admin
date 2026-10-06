@@ -21,7 +21,8 @@
           >
             <div class="preset-thumb" :data-palette="preset.palette" :data-style="preset.style">
               <span class="preset-thumb-sidebar" v-if="preset.layout === 'sidebar'"></span>
-              <span class="preset-thumb-topbar" v-else></span>
+              <span class="preset-thumb-topbar" v-else-if="preset.layout === 'top'"></span>
+              <span class="preset-thumb-portal" v-else></span>
               <span class="preset-thumb-dot"></span>
             </div>
             <span class="preset-name">{{ preset.name }}</span>
@@ -245,7 +246,8 @@ const paletteOptions: { label: string; value: Palette }[] = [
 ]
 const layoutOptions = [
   { label: '侧栏', value: 'sidebar' },
-  { label: '顶栏', value: 'top' }
+  { label: '顶栏', value: 'top' },
+  { label: '全屏', value: 'fullscreen' }
 ]
 const styleOptions = [
   { label: '扁平', value: 'flat' },
@@ -413,7 +415,8 @@ const handleReset = () => {
       &[data-style='compact']   { border-radius: 2px; }
 
       .preset-thumb-sidebar,
-      .preset-thumb-topbar {
+      .preset-thumb-topbar,
+      .preset-thumb-portal {
         position: absolute;
         background: rgba(255, 255, 255, 0.6);
       }
@@ -432,6 +435,26 @@ const handleReset = () => {
         top: 4px;
         height: 10px;
         border-radius: 2px;
+      }
+
+      .preset-thumb-portal {
+        left: 4px;
+        right: 4px;
+        top: 4px;
+        height: 10px;
+        border-radius: 2px;
+
+        // 顶栏下方网格点阵，示意全屏菜单门户
+        &::after {
+          content: '';
+          position: absolute;
+          left: 8px;
+          right: 8px;
+          top: 18px;
+          height: 22px;
+          background-image: radial-gradient(rgba(255, 255, 255, 0.9) 1.5px, transparent 1.5px);
+          background-size: 8px 8px;
+        }
       }
 
       .preset-thumb-dot {

@@ -50,3 +50,22 @@
   --app-sidebar-bg:     #1d1e1f;
   --app-sidebar-text:   #c9c9c9;
 }
+
+// ─── 全屏菜单布局（fullscreen）覆盖层配色 ───
+// 基于 EP 中性变量 + --app-color-primary 派生，palette 文件无需改动
+[data-layout='fullscreen'] {
+  --app-fsm-bg:                     var(--el-bg-color);
+  --app-fsm-rail-bg:                var(--el-fill-color-light);
+  --app-fsm-rail-item-active-bg:    var(--el-color-primary-light-9);
+  --app-fsm-rail-item-active-text:  var(--app-color-primary);
+  --app-fsm-group-title:            var(--el-text-color-secondary);
+  --app-fsm-link:                   var(--el-text-color-regular);
+  --app-fsm-link-hover:             var(--app-color-primary);
+  --app-fsm-border:                 var(--el-border-color-lighter);
+  --app-fsm-hover-bg:               var(--el-fill-color-light);
+}
+
+[data-theme='dark'][data-layout='fullscreen'] {
+  --app-fsm-rail-bg:                var(--el-fill-color-darker);
+  --app-fsm-hover-bg:               var(--el-fill-color-dark);
+}

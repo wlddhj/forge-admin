@@ -1,5 +1,5 @@
 export type Palette = 'blue' | 'purple' | 'green' | 'crimson' | 'orange' | 'cyan' | 'teal' | 'custom'
-export type LayoutKind = 'sidebar' | 'top'
+export type LayoutKind = 'sidebar' | 'top' | 'fullscreen'
 export type StyleKind = 'flat' | 'glass' | 'card' | 'compact'
 export type ThemeMode = 'light' | 'dark' | 'auto'
 
@@ -21,7 +21,8 @@ export const PRESETS: Preset[] = [
   { id: 'ocean',    name: '海洋青',   palette: 'cyan',    layout: 'sidebar', style: 'flat' },
   { id: 'mint',     name: '薄荷青',   palette: 'cyan',    layout: 'top',     style: 'card' },
   { id: 'island',   name: '青碧岛',   palette: 'teal',    layout: 'sidebar', style: 'glass' },
-  { id: 'forest',   name: '青碧紧凑', palette: 'teal',    layout: 'sidebar', style: 'compact' }
+  { id: 'forest',   name: '青碧紧凑', palette: 'teal',    layout: 'sidebar', style: 'compact' },
+  { id: 'portal',   name: '全屏门户', palette: 'blue',    layout: 'fullscreen', style: 'glass' }
 ]
 
 export const getPreset = (id: string): Preset =>

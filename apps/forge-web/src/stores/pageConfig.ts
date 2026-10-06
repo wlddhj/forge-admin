@@ -40,7 +40,7 @@ const LOCAL_STORAGE_KEY = 'forge_admin-page-config'
 const VALID_PALETTES: Palette[] = ['blue', 'purple', 'green', 'crimson', 'orange', 'cyan', 'teal', 'custom']
 // 系统默认主题可用调色板（不含 custom：后端无自定义主色配置入口）
 const VALID_SYSTEM_PALETTES: Palette[] = ['blue', 'purple', 'green', 'crimson', 'orange', 'cyan', 'teal']
-const VALID_LAYOUTS: LayoutKind[] = ['sidebar', 'top']
+const VALID_LAYOUTS: LayoutKind[] = ['sidebar', 'top', 'fullscreen']
 const VALID_STYLES: StyleKind[] = ['flat', 'glass', 'card', 'compact']
 const VALID_THEME_MODES: ThemeMode[] = ['light', 'dark', 'auto']
 // 用户手动变更的主题维度键（updateConfig 据此退出跟随系统默认）
