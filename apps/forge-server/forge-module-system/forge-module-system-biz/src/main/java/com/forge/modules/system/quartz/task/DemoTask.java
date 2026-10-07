@@ -1,20 +1,39 @@
 package com.forge.modules.system.quartz.task;
 
+import com.forge.modules.system.job.JobHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
 /**
- * 示例任务
- * 可通过 invokeTarget: demoTask.execute("参数") 调用
+ * 示例任务：实现 JobHandler 接口（所有定时任务 Bean 必须实现）
+ * <p>推荐入口：demoTask.execute + sys_job.job_params JSON → {@link #execute(Map)}
+ * <p>兼容入口：demoTask.execute("参数") → {@link #execute(String)}；实现类中其它 public 方法亦可作为调用目标
  */
 @Slf4j
 @Component("demoTask")
-public class DemoTask {
+public class DemoTask implements JobHandler {
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    @Override
+    public String getJobName() {
+        return "示例任务";
+    }
+
+    /**
+     * 接口入口：接收 sys_job.job_params JSON 参数
+     */
+    @Override
+    public void execute(Map<String, Object> params) {
+        log.info("========== 定时任务执行 ==========");
+        log.info("执行时间: {}", LocalDateTime.now().format(FORMATTER));
+        log.info("任务参数: {}", params);
+        log.info("=================================");
+    }
 
     /**
      * 执行任务

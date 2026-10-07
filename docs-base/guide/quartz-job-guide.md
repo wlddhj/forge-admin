@@ -2,7 +2,9 @@
 
 ## 概述
 
-forge-admin 定时任务基于 Quartz 实现，代码集中在 `forge-module-system-biz` 的 `quartz` 包。核心设计：**只有一个 Quartz Job 类**（`QuartzJobExecution`），所有业务任务都是普通 Spring Bean，通过 `sys_job.invoke_target`（格式 `beanName.method(params)`）反射调用。
+forge-admin 定时任务基于 Quartz 实现，代码集中在 `forge-module-system-biz` 的 `quartz` 包。核心设计：**只有一个 Quartz Job 类**（`QuartzJobExecution`），所有业务任务都是实现 **`JobHandler` 接口**的 Spring Bean，通过 `sys_job.invoke_target`（格式 `beanName.method(params)`）反射调用。
+
+> ⚠️ **强制约束**：所有定时任务 Bean **必须实现 `com.forge.modules.system.job.JobHandler` 接口**（定义于 forge-module-system-api）。保存任务时校验（bean 不存在或未实现接口均拒绝保存）；触发时兜底校验（未实现接口抛出明确异常记入日志）。
 
 ```
 sys_job 表（唯一事实来源）
@@ -36,23 +38,38 @@ QuartzJobExecution（唯一 Job 类：超时控制 + 重试 + 写日志 + 统计
 
 ## 快速上手：新增一个定时任务
 
-### 第 1 步：编写任务 Bean
+### 第 1 步：编写任务 Bean（实现 JobHandler 接口）
 
-在 `quartz/task/`（或任意被 Spring 扫描的包）写一个普通 Bean，**不需要实现任何接口或继承任何类**：
+在 `quartz/task/`（或任意被 Spring 扫描的包）写一个实现 `JobHandler` 的 Bean。接口定义（`forge-module-system-api`）：
+
+```java
+public interface JobHandler {
+
+    /** 执行任务，params 来自 sys_job.job_params JSON（无参数时可能为 null，需判空） */
+    void execute(Map<String, Object> params);
+
+    /** 任务展示名（用于日志），默认返回 null 表示使用 sys_job.job_name */
+    default String getJobName() { return null; }
+}
+```
+
+实现示例：
 
 ```java
 @Slf4j
 @Component("reportTask")   // bean 名 = invoke_target 前缀
-public class ReportTask {
+public class ReportTask implements JobHandler {
 
-    // 无参方法
-    public void refreshDaily() {
-        log.info("日报刷新执行");
+    // 推荐：接口入口，参数来自 sys_job.job_params JSON
+    @Override
+    public void execute(Map<String, Object> params) {
+        String type = (String) params.getOrDefault("type", "daily");
+        log.info("日报刷新执行: {}", type);
     }
 
-    // 带参方法：字符串参数需在 invoke_target 中带引号
-    public void execute(String message) {
-        log.info("任务消息: {}", message);
+    // 实现类中的其它 public 方法也可作为调用目标（保留一 Bean 多任务方法的灵活性）
+    public void cleanHistory(Integer keepDays) {
+        log.info("清理 {} 天前历史", keepDays);
     }
 }
 ```
@@ -86,8 +103,8 @@ public class ReportTask {
 
 **参数匹配规则**（`QuartzJobExecution.executeInvokeTarget`）：
 
-1. `job_params`（JSON 字段）非空且目标方法存在**仅 1 个 Map 参数**的重载 → 优先以 Map 方式调用
-2. 否则解析括号内 inline 参数，**按参数个数匹配方法**（不校验类型名），类型自动推断：
+1. `job_params`（JSON 字段）非空且目标方法存在**参数为 Map 类型**的重载 → 优先以 Map 方式调用
+2. 否则解析括号内 inline 参数，**按参数个数匹配方法，同个数多个重载时优先参数类型兼容的**（消除重载歧义），类型自动推断：
 
 | 写法 | 推断类型 |
 |------|---------|
@@ -100,7 +117,7 @@ public class ReportTask {
 
 示例：`demoTask.multiParams("a", 1, true)` 匹配 `multiParams(String, Integer, Boolean)`（按个数 3 匹配）。
 
-> ⚠️ **bean 不存在不会在保存时报错**——`getBean(beanName)` 在触发时才执行，错误只会出现在任务日志中。新增任务后请「执行一次」验证。
+> ⚠️ **保存时即校验**：新增/修改任务会校验调用目标的 bean 存在且实现 `JobHandler` 接口，不满足直接拒绝保存（错误信息含 bean 名）。因此必须**先写好任务 Bean 再配置任务**。绕过校验直改库的数据在触发时会抛「任务 Bean 未实现 JobHandler 接口」并记入 sys_job_log。
 
 ## 调度行为说明
 
@@ -192,7 +209,8 @@ public class ReportTask {
 |------|------|
 | 重启会补跑错过的任务吗 | 不会。misfire 策略为 DoNothing，错过的触发直接放弃 |
 | 任务 Bean 改代码后生效吗 | Bean 由 Spring 管理，重启应用即生效；任务注册每次启动由 `JobInitRunner` 重建 |
-| 为什么保存任务时不校验 bean 是否存在 | 设计如此，`getBean` 在触发时执行；请保存后「执行一次」验证 |
+| 保存任务时校验什么 | cron 合法性 + 调用目标格式 + bean 存在 + bean 实现 JobHandler 接口，任一不满足拒绝保存 |
+| 任务必须实现接口吗 | 是。所有定时任务 Bean 必须实现 `JobHandler`，保存与触发双层校验；接口方法推荐配 `job_params` JSON 使用 |
 | 重试会阻塞其它任务吗 | 重试间隔用 `Thread.sleep` 占用 Quartz 工作线程（线程池 10），长间隔高频任务需注意线程占用 |
 | inline 参数支持哪些类型 | String/Boolean/Long/Double/null（见上文推断表）；复杂参数用 `job_params` JSON + Map 形参方法 |
 | 邮件通知发不出 | `emails` 当前为占位实现，仅 Webhook 可用 |

@@ -1,5 +1,6 @@
 package com.forge.modules.system.quartz.job;
 
+import com.forge.modules.system.job.JobHandler;
 import com.forge.modules.system.quartz.service.JobLogService;
 import com.forge.modules.system.quartz.service.JobNotifyService;
 import com.forge.modules.system.entity.SysJob;
@@ -215,12 +216,15 @@ public class QuartzJobExecution implements Job {
         }
 
         Object bean = applicationContext.getBean(beanName);
+        if (!(bean instanceof JobHandler)) {
+            throw new IllegalStateException("任务 Bean 未实现 JobHandler 接口: " + beanName);
+        }
         Map<String, Object> jobParams = job.getJobParams();
 
-        // 优先尝试：如果 jobParams 非空，查找接受 Map<String, Object> 参数的方法
+        // 优先尝试：如果 jobParams 非空，精确查找接受 Map 参数的方法（避免同名气参方法的重载歧义）
         if (jobParams != null && !jobParams.isEmpty()) {
-            java.lang.reflect.Method mapMethod = findMethodByParamCount(bean.getClass(), methodName, 1);
-            if (mapMethod != null && Map.class.isAssignableFrom(mapMethod.getParameterTypes()[0])) {
+            java.lang.reflect.Method mapMethod = findMethodByMapParam(bean.getClass(), methodName);
+            if (mapMethod != null) {
                 log.info("使用 jobParams 调用任务: {}.{}, params={}", beanName, methodName, jobParams.keySet());
                 mapMethod.setAccessible(true);
                 mapMethod.invoke(bean, jobParams);
@@ -231,12 +235,7 @@ public class QuartzJobExecution implements Job {
         // 回退到 inline 参数方式
         Object[] params = parseParams(paramsStr);
 
-        Class<?>[] paramTypes = new Class<?>[params.length];
-        for (int i = 0; i < params.length; i++) {
-            paramTypes[i] = params[i] != null ? params[i].getClass() : String.class;
-        }
-
-        java.lang.reflect.Method method = findMethod(bean.getClass(), methodName, paramTypes);
+        java.lang.reflect.Method method = findMethod(bean.getClass(), methodName, params);
         if (method == null) {
             throw new NoSuchMethodException("找不到方法: " + methodName);
         }
@@ -279,33 +278,46 @@ public class QuartzJobExecution implements Job {
     }
 
     /**
-     * 查找匹配的方法
+     * 查找匹配的方法：名字 + 参数个数匹配的候选中，优先参数类型兼容的，
+     * 消除 getDeclaredMethods 顺序不确定性导致的重载歧义（如 execute(String) 与 execute(Map)）
      */
-    private java.lang.reflect.Method findMethod(Class<?> clazz, String methodName, Class<?>[] paramTypes) {
-        java.lang.reflect.Method[] methods = clazz.getDeclaredMethods();
-        for (java.lang.reflect.Method method : methods) {
-            if (method.getName().equals(methodName) && method.getParameterCount() == paramTypes.length) {
-                return method;
+    private java.lang.reflect.Method findMethod(Class<?> clazz, String methodName, Object[] args) {
+        java.lang.reflect.Method fallback = null;
+        for (Class<?> current = clazz; current != null; current = current.getSuperclass()) {
+            for (java.lang.reflect.Method method : current.getDeclaredMethods()) {
+                if (!method.getName().equals(methodName) || method.getParameterCount() != args.length) {
+                    continue;
+                }
+                boolean compatible = true;
+                for (int i = 0; i < args.length; i++) {
+                    if (args[i] != null && !method.getParameterTypes()[i].isAssignableFrom(args[i].getClass())) {
+                        compatible = false;
+                        break;
+                    }
+                }
+                if (compatible) {
+                    return method;
+                }
+                if (fallback == null) {
+                    fallback = method;
+                }
             }
         }
-        if (clazz.getSuperclass() != null) {
-            return findMethod(clazz.getSuperclass(), methodName, paramTypes);
-        }
-        return null;
+        return fallback;
     }
 
     /**
-     * 按方法名和参数数量查找方法
+     * 查找名字匹配且唯一参数为 Map 类型的方法（job_params 调用入口）
      */
-    private java.lang.reflect.Method findMethodByParamCount(Class<?> clazz, String methodName, int paramCount) {
-        java.lang.reflect.Method[] methods = clazz.getDeclaredMethods();
-        for (java.lang.reflect.Method method : methods) {
-            if (method.getName().equals(methodName) && method.getParameterCount() == paramCount) {
-                return method;
+    private java.lang.reflect.Method findMethodByMapParam(Class<?> clazz, String methodName) {
+        for (Class<?> current = clazz; current != null; current = current.getSuperclass()) {
+            for (java.lang.reflect.Method method : current.getDeclaredMethods()) {
+                if (method.getName().equals(methodName)
+                        && method.getParameterCount() == 1
+                        && Map.class.isAssignableFrom(method.getParameterTypes()[0])) {
+                    return method;
+                }
             }
-        }
-        if (clazz.getSuperclass() != null) {
-            return findMethodByParamCount(clazz.getSuperclass(), methodName, paramCount);
         }
         return null;
     }
