@@ -207,7 +207,7 @@ watch([() => props.active, () => props.keyword], () => {
 
 .fsm-items {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 2px 16px;
   padding: 4px 0;
 }
