@@ -132,7 +132,8 @@ const paletteOptions = [
 ]
 const layoutOptions = [
   { label: '侧栏', value: 'sidebar' },
-  { label: '顶栏', value: 'top' }
+  { label: '顶栏', value: 'top' },
+  { label: '全屏', value: 'fullscreen' }
 ]
 const styleOptions = [
   { label: '扁平', value: 'flat' },

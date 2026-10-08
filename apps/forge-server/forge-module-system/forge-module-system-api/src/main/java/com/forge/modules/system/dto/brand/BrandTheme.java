@@ -19,7 +19,7 @@ public class BrandTheme {
     @Pattern(regexp = "blue|purple|green|crimson|orange|cyan|teal", message = "调色板取值不合法")
     private String palette;
 
-    @Pattern(regexp = "sidebar|top", message = "布局取值不合法")
+    @Pattern(regexp = "sidebar|top|fullscreen", message = "布局取值不合法")
     private String layout;
 
     @Pattern(regexp = "flat|glass|card|compact", message = "风格取值不合法")
@@ -42,7 +42,7 @@ public class BrandTheme {
             return result;
         }
         result.setPalette(sanitize(theme.getPalette(), "blue|purple|green|crimson|orange|cyan|teal", DEFAULT_PALETTE));
-        result.setLayout(sanitize(theme.getLayout(), "sidebar|top", DEFAULT_LAYOUT));
+        result.setLayout(sanitize(theme.getLayout(), "sidebar|top|fullscreen", DEFAULT_LAYOUT));
         result.setStyle(sanitize(theme.getStyle(), "flat|glass|card|compact", DEFAULT_STYLE));
         result.setMode(sanitize(theme.getMode(), "light|dark|auto", DEFAULT_MODE));
         return result;
