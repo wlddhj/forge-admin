@@ -21,18 +21,18 @@ QuartzJobExecution（唯一 Job 类：超时控制 + 重试 + 写日志 + 统计
 
 ## 核心组件
 
-| 组件 | 路径（`forge-module-system-biz/src/main/java/com/forge/modules/system/` 下） | 职责 |
-|------|------|------|
-| `SysJobController` | `controller/admin/SysJobController.java` | 任务管理接口 `/admin-api/system/job/**` |
-| `SysJobLogController` | `controller/admin/SysJobLogController.java` | 日志接口 `/admin-api/system/job-log/**` |
-| `SysJobServiceImpl` | `service/impl/SysJobServiceImpl.java` | CRUD + cron 校验 + 调度联动 |
-| `QuartzConfig` | `quartz/config/QuartzConfig.java` | SchedulerFactoryBean（线程池 10、RAMJobStore、启动延迟 5s） |
-| `JobInitRunner` | `quartz/config/JobInitRunner.java` | ApplicationRunner：启动时把 `status=1` 的任务注册进调度器 |
-| `QuartzJobExecution` | `quartz/job/QuartzJobExecution.java` | 唯一 Job 类：执行/超时/重试/日志/统计/通知 |
-| `ScheduleService` | `quartz/service/ScheduleService.java` | Scheduler 操作封装（注册/暂停/恢复/删除/立即执行） |
-| `JobLogService` | `quartz/service/impl/JobLogServiceImpl.java` | 执行日志写入与查询 |
-| `JobNotifyService` | `quartz/service/JobNotifyService.java` | 失败/成功通知（Webhook + 邮件占位） |
-| `DemoTask` | `quartz/task/DemoTask.java` | 示例任务 Bean |
+| 组件                    | 路径（`forge-module-system-biz/src/main/java/com/forge/modules/system/` 下） | 职责                                               |
+| --------------------- | ----------------------------------------------------------------------- | ------------------------------------------------ |
+| `SysJobController`    | `controller/admin/SysJobController.java`                                | 任务管理接口 `/admin-api/system/job/**`                |
+| `SysJobLogController` | `controller/admin/SysJobLogController.java`                             | 日志接口 `/admin-api/system/job-log/**`              |
+| `SysJobServiceImpl`   | `service/impl/SysJobServiceImpl.java`                                   | CRUD + cron 校验 + 调度联动                            |
+| `QuartzConfig`        | `quartz/config/QuartzConfig.java`                                       | SchedulerFactoryBean（线程池 10、RAMJobStore、启动延迟 5s） |
+| `JobInitRunner`       | `quartz/config/JobInitRunner.java`                                      | ApplicationRunner：启动时把 `status=1` 的任务注册进调度器      |
+| `QuartzJobExecution`  | `quartz/job/QuartzJobExecution.java`                                    | 唯一 Job 类：执行/超时/重试/日志/统计/通知                       |
+| `ScheduleService`     | `quartz/service/ScheduleService.java`                                   | Scheduler 操作封装（注册/暂停/恢复/删除/立即执行）                 |
+| `JobLogService`       | `quartz/service/impl/JobLogServiceImpl.java`                            | 执行日志写入与查询                                        |
+| `JobNotifyService`    | `quartz/service/JobNotifyService.java`                                  | 失败/成功通知（Webhook + 邮件占位）                          |
+| `DemoTask`            | `quartz/task/DemoTask.java`                                             | 示例任务 Bean                                        |
 
 实体 `SysJob` / `SysJobLog` 分别在 api 模块 `entity/` 与 biz 模块 `quartz/entity/`。
 
@@ -78,16 +78,16 @@ public class ReportTask implements JobHandler {
 
 在「基础设施 → 定时任务」页面新增，或直接插入 `sys_job`：
 
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| `job_name` | 任务名称 | 日报刷新 |
-| `job_group` | 分组（字典 `sys_job_group`） | DEFAULT / SYSTEM |
-| `invoke_target` | 调用目标 | `reportTask.refreshDaily()` |
-| `cron_expression` | Quartz cron（6/7 位，支持 `?`） | `0 0 2 * * ?` |
-| `status` | 0 暂停 / 1 正常 | 1 |
-| `timeout` | 超时秒数（null 不限） | 60 |
-| `retry_count` / `retry_interval` | 失败重试次数 / 间隔秒 | 2 / 60 |
-| `job_params` | JSON 对象，优先于 inline 参数 | `{"type":"daily"}` |
+| 字段                               | 说明                        | 示例                          |
+| -------------------------------- | ------------------------- | --------------------------- |
+| `job_name`                       | 任务名称                      | 日报刷新                        |
+| `job_group`                      | 分组（字典 `sys_job_group`）    | DEFAULT / SYSTEM            |
+| `invoke_target`                  | 调用目标                      | `reportTask.refreshDaily()` |
+| `cron_expression`                | Quartz cron（6/7 位，支持 `?`） | `0 0 2 * * ?`               |
+| `status`                         | 0 暂停 / 1 正常               | 1                           |
+| `timeout`                        | 超时秒数（null 不限）             | 60                          |
+| `retry_count` / `retry_interval` | 失败重试次数 / 间隔秒              | 2 / 60                      |
+| `job_params`                     | JSON 对象，优先于 inline 参数     | `{"type":"daily"}`          |
 
 保存时后端会先校验 `CronExpression.isValidExpression()`，cron 非法直接拒绝。
 
@@ -106,14 +106,14 @@ public class ReportTask implements JobHandler {
 1. `job_params`（JSON 字段）非空且目标方法存在**参数为 Map 类型**的重载 → 优先以 Map 方式调用
 2. 否则解析括号内 inline 参数，**按参数个数匹配方法，同个数多个重载时优先参数类型兼容的**（消除重载歧义），类型自动推断：
 
-| 写法 | 推断类型 |
-|------|---------|
-| `"abc"` / `'abc'` | String |
-| `true` / `false` | Boolean |
-| `123` | Long |
-| `1.5` | Double |
-| `null` | null |
-| 其它解析失败 | String |
+| 写法                | 推断类型    |
+| ----------------- | ------- |
+| `"abc"` / `'abc'` | String  |
+| `true` / `false`  | Boolean |
+| `123`             | Long    |
+| `1.5`             | Double  |
+| `null`            | null    |
+| 其它解析失败            | String  |
 
 示例：`demoTask.multiParams("a", 1, true)` 匹配 `multiParams(String, Integer, Boolean)`（按个数 3 匹配）。
 
@@ -139,11 +139,11 @@ public class ReportTask implements JobHandler {
 
 ### 暂停 / 恢复 / 立即执行
 
-| 操作 | 行为 |
-|------|------|
-| 暂停（status=0） | `pauseJob` + `pauseTrigger`，同时更新表状态 |
+| 操作           | 行为                                                |
+| ------------ | ------------------------------------------------- |
+| 暂停（status=0） | `pauseJob` + `pauseTrigger`，同时更新表状态               |
 | 恢复（status=1） | `resumeJob` + `resumeTrigger`；若任务不存在（如重启后未注册）自动重建 |
-| 执行一次 | `scheduler.triggerJob(jobKey)`，不影响原有 cron 节奏 |
+| 执行一次         | `scheduler.triggerJob(jobKey)`，不影响原有 cron 节奏      |
 
 ## 执行链：超时 / 重试 / 统计 / 通知
 
@@ -181,18 +181,18 @@ public class ReportTask implements JobHandler {
 
 ## 接口清单
 
-| 方法 | 路径 | 权限码 | 说明 |
-|------|------|--------|------|
-| GET | `/admin-api/system/job/list` | `system:job:list` | 分页查询 |
-| GET | `/admin-api/system/job/{id}` | `system:job:query` | 详情 |
-| POST | `/admin-api/system/job` | `system:job:add` | 新增 |
-| PUT | `/admin-api/system/job` | `system:job:edit` | 修改 |
-| DELETE | `/admin-api/system/job/{ids}` | `system:job:delete` | 删除 |
-| PUT | `/admin-api/system/job/{id}/status?status=` | `system:job:edit` | 启停 |
-| POST | `/admin-api/system/job/{id}/run` | `system:job:edit` | 执行一次 |
-| GET | `/admin-api/system/job-log/list` | `system:job:query` | 日志分页 |
-| DELETE | `/admin-api/system/job-log/{ids}` | `system:job:delete` | 删除日志 |
-| DELETE | `/admin-api/system/job-log/clear?jobId=` | `system:job:delete` | 清空日志 |
+| 方法     | 路径                                          | 权限码                 | 说明   |
+| ------ | ------------------------------------------- | ------------------- | ---- |
+| GET    | `/admin-api/system/job/list`                | `system:job:list`   | 分页查询 |
+| GET    | `/admin-api/system/job/{id}`                | `system:job:query`  | 详情   |
+| POST   | `/admin-api/system/job`                     | `system:job:add`    | 新增   |
+| PUT    | `/admin-api/system/job`                     | `system:job:edit`   | 修改   |
+| DELETE | `/admin-api/system/job/{ids}`               | `system:job:delete` | 删除   |
+| PUT    | `/admin-api/system/job/{id}/status?status=` | `system:job:edit`   | 启停   |
+| POST   | `/admin-api/system/job/{id}/run`            | `system:job:edit`   | 执行一次 |
+| GET    | `/admin-api/system/job-log/list`            | `system:job:query`  | 日志分页 |
+| DELETE | `/admin-api/system/job-log/{ids}`           | `system:job:delete` | 删除日志 |
+| DELETE | `/admin-api/system/job-log/clear?jobId=`    | `system:job:delete` | 清空日志 |
 
 写操作均带 `@OperationLog` 审计（新增/修改/删除/启停/执行一次/日志清理）。
 
@@ -205,12 +205,12 @@ public class ReportTask implements JobHandler {
 
 ## 已知限制与 FAQ
 
-| 问题 | 说明 |
-|------|------|
-| 重启会补跑错过的任务吗 | 不会。misfire 策略为 DoNothing，错过的触发直接放弃 |
-| 任务 Bean 改代码后生效吗 | Bean 由 Spring 管理，重启应用即生效；任务注册每次启动由 `JobInitRunner` 重建 |
-| 保存任务时校验什么 | cron 合法性 + 调用目标格式 + bean 存在 + bean 实现 JobHandler 接口，任一不满足拒绝保存 |
-| 任务必须实现接口吗 | 是。所有定时任务 Bean 必须实现 `JobHandler`，保存与触发双层校验；接口方法推荐配 `job_params` JSON 使用 |
-| 重试会阻塞其它任务吗 | 重试间隔用 `Thread.sleep` 占用 Quartz 工作线程（线程池 10），长间隔高频任务需注意线程占用 |
+| 问题              | 说明                                                                         |
+| --------------- | -------------------------------------------------------------------------- |
+| 重启会补跑错过的任务吗     | 不会。misfire 策略为 DoNothing，错过的触发直接放弃                                         |
+| 任务 Bean 改代码后生效吗 | Bean 由 Spring 管理，重启应用即生效；任务注册每次启动由 `JobInitRunner` 重建                      |
+| 保存任务时校验什么       | cron 合法性 + 调用目标格式 + bean 存在 + bean 实现 JobHandler 接口，任一不满足拒绝保存              |
+| 任务必须实现接口吗       | 是。所有定时任务 Bean 必须实现 `JobHandler`，保存与触发双层校验；接口方法推荐配 `job_params` JSON 使用     |
+| 重试会阻塞其它任务吗      | 重试间隔用 `Thread.sleep` 占用 Quartz 工作线程（线程池 10），长间隔高频任务需注意线程占用                 |
 | inline 参数支持哪些类型 | String/Boolean/Long/Double/null（见上文推断表）；复杂参数用 `job_params` JSON + Map 形参方法 |
-| 邮件通知发不出 | `emails` 当前为占位实现，仅 Webhook 可用 |
+| 邮件通知发不出         | `emails` 当前为占位实现，仅 Webhook 可用                                              |
