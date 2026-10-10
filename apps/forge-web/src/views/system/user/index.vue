@@ -119,28 +119,28 @@
         @checkbox-all="handleCheckboxChange"
       >
         <!-- 勾选列（桌面端） -->
-        <vxe-column v-if="!isMobile" type="checkbox" width="44" />
+        <vxe-column v-if="!isMobile" type="checkbox" width="40" />
 
         <!-- 序号列（桌面端） -->
-        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" />
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="50" />
 
         <!-- 用户名 -->
-        <vxe-column field="username" title="用户名" width="120" />
+        <vxe-column field="username" title="用户名" width="80" />
 
         <!-- 昵称 -->
-        <vxe-column field="nickname" title="昵称" width="120" />
+        <vxe-column field="nickname" title="昵称" width="100" />
 
         <!-- 手机号 -->
-        <vxe-column field="phone" title="手机号" width="130" />
+        <vxe-column field="phone" title="手机号" width="110" />
 
         <!-- 部门 -->
         <vxe-column field="deptName" title="部门" width="120" />
 
         <!-- 邮箱（桌面端） -->
-        <vxe-column v-if="!isMobile" field="email" title="邮箱" width="180" />
+        <vxe-column v-if="!isMobile" field="email" title="邮箱" width="170" />
 
         <!-- 岗位 -->
-        <vxe-column title="岗位" width="150">
+        <vxe-column title="岗位" width="120">
           <template #default="{ row }">
             <template v-if="row.positionNames && row.positionNames.length > 0">
               <el-tag v-for="(name, index) in row.positionNames.slice(0, 2)" :key="index" size="small" style="margin-right: 4px;">
@@ -153,7 +153,7 @@
         </vxe-column>
 
         <!-- 角色 -->
-        <vxe-column title="角色" width="150">
+        <vxe-column title="角色" width="190">
           <template #default="{ row }">
             <template v-if="row.roleNames && row.roleNames.length > 0">
               <el-tag v-for="(name, index) in row.roleNames.slice(0, 2)" :key="index" size="small" style="margin-right: 4px;">
@@ -166,21 +166,21 @@
         </vxe-column>
 
         <!-- 状态 -->
-        <vxe-column title="状态" width="100">
+        <vxe-column title="状态" width="80" align="center">
           <template #default="{ row }">
             <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
           </template>
         </vxe-column>
 
         <!-- 创建时间（桌面端） -->
-        <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="180">
+        <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="150">
           <template #default="{ row }">
             {{ formatDateTime(row.createTime) }}
           </template>
         </vxe-column>
 
         <!-- 桌面端操作列 -->
-        <vxe-column v-if="!isMobile" title="操作" width="260" fixed="right">
+        <vxe-column v-if="!isMobile" title="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleAssignRoles(row)">分配角色</el-button>
@@ -269,31 +269,16 @@
       </template>
     </el-dialog>
 
-    <!-- 分配角色抽屉 -->
-    <el-drawer v-model="assignDrawerVisible" :title="assignDrawerTitle" :size="isMobile ? '85%' : '400px'">
-      <el-alert
-        :title="assignMode === 'single' ? '请勾选该用户的角色，保存后覆盖原角色' : `将所选 ${selectedUserIds.length} 个用户的角色统一覆盖为勾选的角色`"
-        type="info"
-        :closable="false"
-        show-icon
-        style="margin-bottom: 12px"
-      />
-      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-        <el-checkbox v-model="assignCheckAll" :indeterminate="assignIndeterminate">全选</el-checkbox>
-        <span style="color: #909399; font-size: 12px;">已选 {{ assignRoleIds.length }}/{{ roleList.length }}</span>
-      </div>
-      <el-checkbox-group v-model="assignRoleIds" v-loading="assignFetching">
-        <div v-for="role in roleList" :key="role.id" style="margin-bottom: 8px;">
-          <el-checkbox :value="role.id" :label="role.roleName" />
-        </div>
-      </el-checkbox-group>
-      <template #footer>
-        <div style="display: flex; gap: 12px">
-          <el-button @click="assignDrawerVisible = false">取消</el-button>
-          <el-button type="primary" :loading="assignLoading" @click="handleConfirmAssignRoles">确定</el-button>
-        </div>
-      </template>
-    </el-drawer>
+    <!-- 分配角色抽屉（v-if 挂载使表格高度自适应生效，@closed 动画结束后卸载） -->
+    <UserAssignRoleDrawer
+      v-if="assignDrawerAlive"
+      v-model="assignDrawerVisible"
+      :mode="assignMode"
+      :user="assignTargetUser"
+      :user-ids="selectedUserIds"
+      @success="handleAssignSuccess"
+      @closed="assignDrawerAlive = false"
+    />
 
     <!-- 导入对话框 -->
     <UserImportDialog ref="importDialogRef" @success="getList" />
@@ -306,8 +291,7 @@ import { ElMessage, ElMessageBox, ElInput, ElButton } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import {
-  getUserList, getUser, addUser, updateUser, deleteUser, resetPassword, exportUsers,
-  getUserRoles, assignUserRoles, batchAssignUserRoles
+  getUserList, getUser, addUser, updateUser, deleteUser, resetPassword, exportUsers
 } from '@/api/system'
 import { getAllRoles } from '@/api/system'
 import { getAllPositions } from '@/api/system'
@@ -320,6 +304,7 @@ import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
 import UserImportDialog from './UserImportDialog.vue'
+import UserAssignRoleDrawer from './components/UserAssignRoleDrawer.vue'
 import type { User, UserQuery, UserRequest, Role, DeptTree, Position } from '@/types/system'
 import { DICT_TYPE } from '@/constants/dict'
 import DictValue from '@/components/DictValue.vue'
@@ -405,74 +390,36 @@ const roleList = ref<Role[]>([])
 const positionList = ref<Position[]>([])
 
 // 分配角色抽屉
+const assignDrawerAlive = ref(false)
 const assignDrawerVisible = ref(false)
-const assignLoading = ref(false)
-const assignFetching = ref(false)
 const assignMode = ref<'single' | 'batch'>('single')
-const assignUser = ref<User | null>(null)
-const assignRoleIds = ref<number[]>([])
+const assignTargetUser = ref<User | null>(null)
 const selectedUserIds = ref<number[]>([])
-
-const assignDrawerTitle = computed(() => {
-  if (assignMode.value === 'single' && assignUser.value) {
-    return `分配角色 - ${assignUser.value.nickname || assignUser.value.username}`
-  }
-  return `批量分配角色（已选 ${selectedUserIds.value.length} 个用户）`
-})
-
-const assignCheckAll = computed({
-  get: () => roleList.value.length > 0 && assignRoleIds.value.length === roleList.value.length,
-  set: (val: boolean) => {
-    assignRoleIds.value = val ? roleList.value.map(role => role.id) : []
-  }
-})
-
-const assignIndeterminate = computed(() =>
-  assignRoleIds.value.length > 0 && assignRoleIds.value.length < roleList.value.length
-)
 
 const handleCheckboxChange = () => {
   const records = tableRef.value?.getCheckboxRecords() || []
   selectedUserIds.value = records.map(record => record.id)
 }
 
-const handleAssignRoles = async (row: User) => {
+const handleAssignRoles = (row: User) => {
   cancelSelection()
   assignMode.value = 'single'
-  assignUser.value = row
-  assignRoleIds.value = []
+  assignTargetUser.value = row
+  assignDrawerAlive.value = true
   assignDrawerVisible.value = true
-  assignFetching.value = true
-  try {
-    assignRoleIds.value = (await getUserRoles(row.id)) || []
-  } finally {
-    assignFetching.value = false
-  }
 }
 
 const handleBatchAssignRoles = () => {
   assignMode.value = 'batch'
-  assignUser.value = null
-  assignRoleIds.value = []
+  assignTargetUser.value = null
+  assignDrawerAlive.value = true
   assignDrawerVisible.value = true
 }
 
-const handleConfirmAssignRoles = async () => {
-  assignLoading.value = true
-  try {
-    if (assignMode.value === 'single' && assignUser.value) {
-      await assignUserRoles(assignUser.value.id, assignRoleIds.value)
-    } else {
-      await batchAssignUserRoles(selectedUserIds.value, assignRoleIds.value)
-      tableRef.value?.clearCheckboxRow()
-      selectedUserIds.value = []
-    }
-    ElMessage.success('分配成功')
-    assignDrawerVisible.value = false
-    getList()
-  } finally {
-    assignLoading.value = false
-  }
+const handleAssignSuccess = () => {
+  tableRef.value?.clearCheckboxRow()
+  selectedUserIds.value = []
+  getList()
 }
 
 // 关联工具栏与表格
