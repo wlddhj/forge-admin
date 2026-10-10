@@ -13,6 +13,8 @@ import com.forge.modules.system.entity.SysMenu;
 import com.forge.modules.system.mapper.SysMenuMapper;
 import com.forge.modules.system.service.SysMenuService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,15 @@ import java.util.stream.Collectors;
 public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> implements SysMenuService {
 
     private final SysMenuMapper sysMenuMapper;
+    private final CacheManager cacheManager;
+
+    @Override
+    public void refreshMenuCache() {
+        Cache cache = cacheManager.getCache("menu");
+        if (cache != null) {
+            cache.clear();
+        }
+    }
 
     @Override
     public List<MenuResponse> listMenus(String menuName, Integer status) {

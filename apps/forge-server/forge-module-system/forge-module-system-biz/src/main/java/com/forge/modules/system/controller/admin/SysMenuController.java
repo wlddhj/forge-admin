@@ -50,6 +50,15 @@ public class SysMenuController {
         return Result.success(sysMenuService.getMenuDetail(id));
     }
 
+    @Operation(summary = "刷新菜单缓存")
+    @DeleteMapping("/cache")
+    @PreAuthorize("hasAuthority('system:menu:edit')")
+    @OperationLog(title = "菜单管理", businessType = OperationLog.BusinessType.CLEAN)
+    public Result<Void> refreshCache() {
+        sysMenuService.refreshMenuCache();
+        return Result.success();
+    }
+
     @Operation(summary = "新增菜单")
     @PostMapping
     @PreAuthorize("hasAuthority('system:menu:add')")

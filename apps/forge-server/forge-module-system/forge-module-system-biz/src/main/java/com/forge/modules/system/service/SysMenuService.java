@@ -49,4 +49,9 @@ public interface SysMenuService extends IService<SysMenu> {
      * 删除菜单
      */
     void deleteMenu(Long id);
+
+    /**
+     * 刷新菜单缓存（清空 menu 缓存全部条目，下次查询自动重建）
+     */
+    void refreshMenuCache();
 }

@@ -77,6 +77,10 @@
             <el-icon><component :is="buttonsExpanded ? 'Hide' : 'View'" /></el-icon>
             {{ buttonsExpanded ? '折叠按钮' : '展开按钮' }}
           </el-button>
+          <el-button v-permission="'system:menu:edit'" @click="handleRefreshCache">
+            <el-icon><Refresh /></el-icon>
+            刷新缓存
+          </el-button>
         </template>
         <template #tools>
           <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
@@ -243,7 +247,8 @@ import { reactive, ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
-import { getMenuList, getMenuTree, addMenu, updateMenu, deleteMenu } from '@/api/system'
+import { getMenuList, getMenuTree, addMenu, updateMenu, deleteMenu, refreshMenuCache } from '@/api/system'
+import { Refresh } from '@element-plus/icons-vue'
 import type { Menu, MenuTree, MenuRequest } from '@/types/system'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
@@ -511,6 +516,16 @@ const handleSubmit = async () => {
 }
 
 const handleDialogClose = () => formRef.value?.resetFields()
+
+const handleRefreshCache = async () => {
+  try {
+    await ElMessageBox.confirm('确定要清空菜单缓存吗？清空后下次查询自动重建。', '提示', { type: 'warning' })
+    await refreshMenuCache()
+    ElMessage.success('菜单缓存已刷新')
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.error('刷新菜单缓存失败')
+  }
+}
 
 const handleDelete = async (row: MenuTree) => {
   if (row.children && row.children.length > 0) {
