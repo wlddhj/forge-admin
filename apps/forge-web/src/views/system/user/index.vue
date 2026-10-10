@@ -13,6 +13,17 @@
         <el-form-item label="手机号">
           <el-input v-model="queryParams.phone" placeholder="请输入手机号后4位" clearable />
         </el-form-item>
+        <el-form-item label="部门">
+          <el-tree-select
+            v-model="queryParams.deptId"
+            :data="deptTree"
+            :props="{ label: 'deptName', value: 'id' }"
+            placeholder="请选择部门"
+            check-strictly
+            clearable
+            style="width: 160px"
+          />
+        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 120px">
             <el-option
@@ -58,6 +69,17 @@
         </el-form-item>
         <el-form-item label="手机号">
           <el-input v-model="queryParams.phone" placeholder="请输入手机号后4位" clearable />
+        </el-form-item>
+        <el-form-item label="部门">
+          <el-tree-select
+            v-model="queryParams.deptId"
+            :data="deptTree"
+            :props="{ label: 'deptName', value: 'id' }"
+            placeholder="请选择部门"
+            check-strictly
+            clearable
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 100%">
@@ -327,7 +349,8 @@ const queryParams = reactive<UserQuery>({
   username: '',
   nickname: '',
   phone: '',
-  status: undefined
+  status: undefined,
+  deptId: undefined
 })
 
 // 序号计算
@@ -351,6 +374,7 @@ const activeConditionsCount = computed(() => {
   if (queryParams.nickname) count++
   if (queryParams.phone) count++
   if (queryParams.status !== undefined) count++
+  if (queryParams.deptId !== undefined) count++
   return count
 })
 
@@ -455,6 +479,7 @@ const handleReset = () => {
   queryParams.nickname = ''
   queryParams.phone = ''
   queryParams.status = undefined
+  queryParams.deptId = undefined
   handleQuery()
 }
 
