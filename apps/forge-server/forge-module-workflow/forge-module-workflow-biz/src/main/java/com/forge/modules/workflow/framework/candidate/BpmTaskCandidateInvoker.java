@@ -21,8 +21,9 @@ public class BpmTaskCandidateInvoker {
         this.strategyMap = new HashMap<>();
         for (BpmTaskCandidateStrategy strategy : strategies) {
             strategyMap.put(strategy.getStrategy(), strategy);
-            log.info("注册候选人策略: {} - {}", strategy.getStrategy(), strategy.getDescription());
+//            log.info("注册候选人策略: {} - {}", strategy.getStrategy(), strategy.getDescription());
         }
+        log.info("已注册候选人策略: {}", strategyMap.values().stream().map(s -> s.getStrategy() + " - " + s.getDescription()).collect(Collectors.joining(", ")));
     }
 
     /**
