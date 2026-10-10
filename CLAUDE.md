@@ -243,6 +243,8 @@ views/         # 页面组件（通过 import.meta.glob 自动发现）
 
 **动态路由：** 后端返回菜单树 → `permissionStore.setRoutes()` → `import.meta.glob('/src/views/**/*.vue')` 解析组件 → `router.addRoute()`，404 最后添加。
 
+**弹窗/抽屉组件规范：** 复杂弹窗（表单新增/编辑、详情、导入、分配类）必须抽为独立组件，放 `views/<module>/<entity>/components/`，禁止内联在 `index.vue`；`v-model` 控显隐、props 传 `row`、`@success` 通知父组件刷新，表单/校验/提交逻辑全部封装在弹窗内。详见 `docs-base/development/frontend-development-specification.md`
+
 ## 小程序架构（`apps/forge-miniapp/src/`）
 
 ```

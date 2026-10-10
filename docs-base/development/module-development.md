@@ -630,7 +630,10 @@ src/
 │   └── {entity}.ts         接口定义 + 类型 + 请求函数
 ├── views/{module}/         页面组件
 │   └── {entity}/           页面目录
-│       └── index.vue       CRUD 页面
+│       ├── index.vue       页面入口：搜索 + 列表 + 弹窗编排
+│       └── components/     页面私有组件（弹窗/抽屉）
+│           ├── XxxFormDialog.vue    新增/编辑表单弹窗
+│           └── XxxDetailDrawer.vue  详情抽屉
 ├── constants/dict.ts       字典类型常量
 ├── components/             公共组件
 │   ├── DictValue.vue       字典标签渲染
@@ -688,7 +691,7 @@ export const xxxApi = {
 
 ### 2.3 页面组件（vxe-table 模板）
 
-页面结构标准模板：
+页面结构标准模板。弹窗/抽屉一律抽为独立组件（模板第 5、6 部分为引用方式），完整规范与子组件模板见 [前端开发规范](./frontend-development-specification.md)：
 
 ```vue
 <template>
@@ -800,41 +803,11 @@ export const xxxApi = {
       </template>
     </MobileBottomActions>
 
-    <!-- 5. 新增/编辑抽屉 -->
-    <el-drawer v-model="dialogVisible" :title="dialogTitle" size="700px" direction="rtl">
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
-        <el-form-item label="名称" prop="name">
-          <el-input v-model="formData.name" placeholder="请输入名称" />
-        </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="formData.status">
-            <el-radio :value="1">启用</el-radio>
-            <el-radio :value="0">禁用</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="formData.remark" type="textarea" :rows="3" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
-      </template>
-    </el-drawer>
+    <!-- 5. 新增/编辑表单弹窗（独立组件） -->
+    <XxxFormDialog v-model="dialogVisible" :row="currentRow" @success="getList" />
 
-    <!-- 6. 详情抽屉 -->
-    <el-drawer v-model="detailVisible" title="详情" size="700px" direction="rtl">
-      <el-descriptions :column="isMobile ? 1 : 2" border>
-        <el-descriptions-item label="名称">{{ detailData.name }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="detailData.status === 1 ? 'success' : 'danger'">
-            {{ detailData.status === 1 ? '启用' : '禁用' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="备注">{{ detailData.remark }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ detailData.createTime }}</el-descriptions-item>
-      </el-descriptions>
-    </el-drawer>
+    <!-- 6. 详情抽屉（独立组件） -->
+    <XxxDetailDrawer v-model="detailVisible" :row="detailRow" />
   </div>
 </template>
 ```
@@ -845,7 +818,6 @@ export const xxxApi = {
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { xxxApi } from '@/api/{module}/{entity}'
 import type { XxxEntity, XxxQuery } from '@/api/{module}/{entity}'
@@ -855,6 +827,8 @@ import { useTableSeq } from '@/composables/useTableSeq'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
+import XxxFormDialog from './components/XxxFormDialog.vue'
+import XxxDetailDrawer from './components/XxxDetailDrawer.vue'
 
 const { isMobile } = useResponsive()
 const { tableHeight } = useTableHeight()
@@ -889,19 +863,12 @@ const activeConditionsCount = computed(() => {
   return count
 })
 
-// 详情
-const detailVisible = ref(false)
-const detailData = ref<XxxEntity>({} as XxxEntity)
-
-// 对话框
+// 弹窗编排：只控制开关与传参，表单/详情逻辑封装在弹窗组件内
+// （规范见 docs-base/development/frontend-development-specification.md）
 const dialogVisible = ref(false)
-const dialogTitle = ref('')
-const formRef = ref<FormInstance>()
-const formData = ref<Partial<XxxEntity>>({})
-const formRules: FormRules = {
-  name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
-  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
-}
+const currentRow = ref<XxxEntity | null>(null)
+const detailVisible = ref(false)
+const detailRow = ref<XxxEntity | null>(null)
 
 // 获取列表
 const getList = async () => {
@@ -941,23 +908,19 @@ const cancelSelection = () => {
 
 // 新增
 const handleAdd = () => {
-  dialogTitle.value = '新增'
-  formData.value = {}
+  currentRow.value = null
   dialogVisible.value = true
 }
 
 // 编辑
-const handleEdit = async (row: XxxEntity) => {
-  dialogTitle.value = '编辑'
-  const res = await xxxApi.get(row.id)
-  formData.value = res.data || {}
+const handleEdit = (row: XxxEntity) => {
+  currentRow.value = row
   dialogVisible.value = true
 }
 
 // 详情
-const handleView = async (row: XxxEntity) => {
-  const res = await xxxApi.get(row.id)
-  detailData.value = res.data || {}
+const handleView = (row: XxxEntity) => {
+  detailRow.value = row
   detailVisible.value = true
 }
 
@@ -970,25 +933,6 @@ const handleDelete = async (row: XxxEntity) => {
     getList()
   } catch (error) {
     console.error('删除失败:', error)
-  }
-}
-
-// 提交表单
-const handleSubmit = async () => {
-  if (!formRef.value) return
-  await formRef.value.validate()
-  try {
-    if (formData.value.id) {
-      await xxxApi.update(formData.value)
-      ElMessage.success('更新成功')
-    } else {
-      await xxxApi.add(formData.value)
-      ElMessage.success('新增成功')
-    }
-    dialogVisible.value = false
-    getList()
-  } catch (error) {
-    console.error('保存失败:', error)
   }
 }
 
@@ -1371,6 +1315,7 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 | 权限注解 | `@PreAuthorize("hasAuthority('xxx')")` — **不是** `@ss.hasPerm` |
 | 权限格式 | `{module}:{entity}:{action}`，action: list/query/add/edit/delete/import |
 | 前端权限 | `v-permission="'module:entity:action'"` 或脚本 `hasPermission()` |
+| 弹窗/抽屉 | 复杂弹窗抽为独立组件放页面 `components/` 目录，`v-model` 控显隐 + `@success` 刷新，禁止内联 index.vue（详见前端开发规范） |
 | 分页响应 | `PageResult.of(page)` 或 `PageResult.of(records, total, pageNum, pageSize)` |
 | 实体转换 | `BeanUtil.copyProperties(source, Target.class)` 或 `page.convert()` |
 | 异常抛出 | `throw new BusinessException("xxx不存在")` |
@@ -1471,5 +1416,5 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 
 ---
 
-*文档版本：v3.0*
-*最后更新：2026-06-17*
+*文档版本：v3.1*
+*最后更新：2026-10-10*
