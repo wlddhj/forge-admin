@@ -51,6 +51,18 @@ export function resetPassword(id: number) {
   return request.put(`/system/user/${id}/reset-password`)
 }
 
+export function getUserRoles(id: number) {
+  return request.get<number[]>(`/system/user/${id}/roles`).then(res => res.data)
+}
+
+export function assignUserRoles(id: number, roleIds: number[]) {
+  return request.put(`/system/user/${id}/roles`, roleIds)
+}
+
+export function batchAssignUserRoles(userIds: number[], roleIds: number[]) {
+  return request.put('/system/user/batch-assign-roles', { userIds, roleIds })
+}
+
 export function exportUsers(params: UserQuery) {
   return request.get('/system/user/export', { params, responseType: 'blob' }).then(res => {
     const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -161,6 +173,10 @@ export function updateMenu(data: MenuRequest) {
 
 export function deleteMenu(id: number) {
   return request.delete(`/system/menu/${id}`)
+}
+
+export function refreshMenuCache() {
+  return request.delete('/system/menu/cache')
 }
 
 // ==================== 部门管理 ====================

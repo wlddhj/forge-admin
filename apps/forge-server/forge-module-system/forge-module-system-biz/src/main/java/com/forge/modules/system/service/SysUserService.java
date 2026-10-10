@@ -127,4 +127,19 @@ public interface SysUserService extends IService<SysUser> {
      * 获取所有用户简单列表（下拉选择用）
      */
     List<UserSimpleResponse> getAllUsersSimple();
+
+    /**
+     * 获取用户角色ID列表（分配角色回显用）
+     */
+    List<Long> getUserRoleIds(Long userId);
+
+    /**
+     * 分配用户角色（覆盖式）
+     */
+    void assignUserRoles(Long userId, List<Long> roleIds);
+
+    /**
+     * 批量分配用户角色（覆盖式，所选用户统一覆盖为同一角色集合）
+     */
+    void batchAssignUserRoles(UserRoleAssignRequest request);
 }

@@ -89,6 +89,9 @@
             <el-icon><Plus /></el-icon>
             新增
           </el-button>
+          <el-button v-permission="'system:user:edit'" type="info" :disabled="selectedUserIds.length === 0" @click="handleBatchAssignRoles">
+            分配角色
+          </el-button>
         </template>
         <template #tools>
           <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
@@ -112,7 +115,12 @@
         show-overflow="tooltip"
         show-header-overflow="tooltip"
         @current-change="handleCurrentChange"
+        @checkbox-change="handleCheckboxChange"
+        @checkbox-all="handleCheckboxChange"
       >
+        <!-- 勾选列（桌面端） -->
+        <vxe-column v-if="!isMobile" type="checkbox" width="44" />
+
         <!-- 序号列（桌面端） -->
         <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" />
 
@@ -172,9 +180,10 @@
         </vxe-column>
 
         <!-- 桌面端操作列 -->
-        <vxe-column v-if="!isMobile" title="操作" width="200" fixed="right">
+        <vxe-column v-if="!isMobile" title="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleAssignRoles(row)">分配角色</el-button>
             <el-button v-permission="'system:user:resetPwd'" type="warning" link size="small" @click.stop="handleResetPwd(row)">重置密码</el-button>
             <el-button v-permission="'system:user:delete'" type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
           </template>
@@ -198,6 +207,7 @@
     >
       <template #actions="{ item }">
         <el-button v-permission="'system:user:edit'" size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
+        <el-button v-permission="'system:user:edit'" size="small" type="primary" @click.stop="handleAssignRoles(item)">分配角色</el-button>
         <el-button v-permission="'system:user:resetPwd'" size="small" @click.stop="handleResetPwd(item)">重置密码</el-button>
         <el-button v-permission="'system:user:delete'" size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
       </template>
@@ -259,6 +269,32 @@
       </template>
     </el-dialog>
 
+    <!-- 分配角色抽屉 -->
+    <el-drawer v-model="assignDrawerVisible" :title="assignDrawerTitle" :size="isMobile ? '85%' : '400px'">
+      <el-alert
+        :title="assignMode === 'single' ? '请勾选该用户的角色，保存后覆盖原角色' : `将所选 ${selectedUserIds.length} 个用户的角色统一覆盖为勾选的角色`"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 12px"
+      />
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+        <el-checkbox v-model="assignCheckAll" :indeterminate="assignIndeterminate">全选</el-checkbox>
+        <span style="color: #909399; font-size: 12px;">已选 {{ assignRoleIds.length }}/{{ roleList.length }}</span>
+      </div>
+      <el-checkbox-group v-model="assignRoleIds" v-loading="assignFetching">
+        <div v-for="role in roleList" :key="role.id" style="margin-bottom: 8px;">
+          <el-checkbox :value="role.id" :label="role.roleName" />
+        </div>
+      </el-checkbox-group>
+      <template #footer>
+        <div style="display: flex; gap: 12px">
+          <el-button @click="assignDrawerVisible = false">取消</el-button>
+          <el-button type="primary" :loading="assignLoading" @click="handleConfirmAssignRoles">确定</el-button>
+        </div>
+      </template>
+    </el-drawer>
+
     <!-- 导入对话框 -->
     <UserImportDialog ref="importDialogRef" @success="getList" />
   </div>
@@ -270,7 +306,8 @@ import { ElMessage, ElMessageBox, ElInput, ElButton } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import {
-  getUserList, getUser, addUser, updateUser, deleteUser, resetPassword, exportUsers
+  getUserList, getUser, addUser, updateUser, deleteUser, resetPassword, exportUsers,
+  getUserRoles, assignUserRoles, batchAssignUserRoles
 } from '@/api/system'
 import { getAllRoles } from '@/api/system'
 import { getAllPositions } from '@/api/system'
@@ -367,6 +404,77 @@ const deptTree = ref<DeptTree[]>([])
 const roleList = ref<Role[]>([])
 const positionList = ref<Position[]>([])
 
+// 分配角色抽屉
+const assignDrawerVisible = ref(false)
+const assignLoading = ref(false)
+const assignFetching = ref(false)
+const assignMode = ref<'single' | 'batch'>('single')
+const assignUser = ref<User | null>(null)
+const assignRoleIds = ref<number[]>([])
+const selectedUserIds = ref<number[]>([])
+
+const assignDrawerTitle = computed(() => {
+  if (assignMode.value === 'single' && assignUser.value) {
+    return `分配角色 - ${assignUser.value.nickname || assignUser.value.username}`
+  }
+  return `批量分配角色（已选 ${selectedUserIds.value.length} 个用户）`
+})
+
+const assignCheckAll = computed({
+  get: () => roleList.value.length > 0 && assignRoleIds.value.length === roleList.value.length,
+  set: (val: boolean) => {
+    assignRoleIds.value = val ? roleList.value.map(role => role.id) : []
+  }
+})
+
+const assignIndeterminate = computed(() =>
+  assignRoleIds.value.length > 0 && assignRoleIds.value.length < roleList.value.length
+)
+
+const handleCheckboxChange = () => {
+  const records = tableRef.value?.getCheckboxRecords() || []
+  selectedUserIds.value = records.map(record => record.id)
+}
+
+const handleAssignRoles = async (row: User) => {
+  cancelSelection()
+  assignMode.value = 'single'
+  assignUser.value = row
+  assignRoleIds.value = []
+  assignDrawerVisible.value = true
+  assignFetching.value = true
+  try {
+    assignRoleIds.value = (await getUserRoles(row.id)) || []
+  } finally {
+    assignFetching.value = false
+  }
+}
+
+const handleBatchAssignRoles = () => {
+  assignMode.value = 'batch'
+  assignUser.value = null
+  assignRoleIds.value = []
+  assignDrawerVisible.value = true
+}
+
+const handleConfirmAssignRoles = async () => {
+  assignLoading.value = true
+  try {
+    if (assignMode.value === 'single' && assignUser.value) {
+      await assignUserRoles(assignUser.value.id, assignRoleIds.value)
+    } else {
+      await batchAssignUserRoles(selectedUserIds.value, assignRoleIds.value)
+      tableRef.value?.clearCheckboxRow()
+      selectedUserIds.value = []
+    }
+    ElMessage.success('分配成功')
+    assignDrawerVisible.value = false
+    getList()
+  } finally {
+    assignLoading.value = false
+  }
+}
+
 // 关联工具栏与表格
 onMounted(() => {
   if (tableRef.value && toolbarRef.value) {
@@ -381,6 +489,8 @@ const getList = async () => {
     const res = await getUserList(queryParams)
     tableData.value = res.list
     total.value = res.total
+    // 数据重载后 vxe 勾选被清空（未配 reserve），同步清空本地勾选记录
+    selectedUserIds.value = []
   } finally {
     loading.value = false
   }

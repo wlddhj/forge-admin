@@ -155,6 +155,31 @@ public class SysUserController {
         return Result.success(sysUserService.getAllUsersSimple());
     }
 
+    @Operation(summary = "获取用户角色ID列表")
+    @GetMapping("/{id}/roles")
+    @PreAuthorize("hasAuthority('system:user:query')")
+    public Result<List<Long>> getUserRoles(@PathVariable Long id) {
+        return Result.success(sysUserService.getUserRoleIds(id));
+    }
+
+    @Operation(summary = "分配用户角色（覆盖式）")
+    @PutMapping("/{id}/roles")
+    @PreAuthorize("hasAuthority('system:user:edit')")
+    @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.GRANT)
+    public Result<Void> assignRoles(@PathVariable Long id, @RequestBody List<Long> roleIds) {
+        sysUserService.assignUserRoles(id, roleIds);
+        return Result.success();
+    }
+
+    @Operation(summary = "批量分配用户角色（覆盖式）")
+    @PutMapping("/batch-assign-roles")
+    @PreAuthorize("hasAuthority('system:user:edit')")
+    @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.GRANT)
+    public Result<Void> batchAssignRoles(@Valid @RequestBody UserRoleAssignRequest request) {
+        sysUserService.batchAssignUserRoles(request);
+        return Result.success();
+    }
+
     // ==================== 个人中心 ====================
 
     @Operation(summary = "更新个人资料")

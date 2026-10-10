@@ -236,6 +236,49 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
+    public List<Long> getUserRoleIds(Long userId) {
+        return sysUserMapper.selectRoleIdsByUserId(userId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void assignUserRoles(Long userId, List<Long> roleIds) {
+        SysUser user = getById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        checkTenantAccess(user);
+        sysUserRoleMapper.deleteByUserId(userId);
+        saveUserRoles(userId, roleIds);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchAssignUserRoles(UserRoleAssignRequest request) {
+        List<SysUser> users = listByIds(request.getUserIds());
+        if (users.size() != request.getUserIds().size()) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        users.forEach(this::checkTenantAccess);
+        for (SysUser user : users) {
+            sysUserRoleMapper.deleteByUserId(user.getId());
+            saveUserRoles(user.getId(), request.getRoleIds());
+        }
+    }
+
+    /**
+     * 跨租户防护：不允许跨租户操作用户（仅平台超管可跨租户），与 updateUser 保持一致
+     */
+    private void checkTenantAccess(SysUser user) {
+        UserContext currentUser = UserContext.get();
+        Long currentTenantId = currentUser != null ? currentUser.getTenantId() : null;
+        boolean isPlatformAdmin = currentUser != null && currentUser.isPlatformAdmin();
+        if (currentTenantId != null && !isPlatformAdmin && !currentTenantId.equals(user.getTenantId())) {
+            throw new BusinessException("无权修改其他租户的用户");
+        }
+    }
+
+    @Override
     public void updateStatus(Long id, Integer status) {
         SysUser user = getById(id);
         if (user == null) {
