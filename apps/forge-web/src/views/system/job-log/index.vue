@@ -149,9 +149,7 @@
         <el-descriptions-item label="任务分组">{{ currentLog?.jobGroup }}</el-descriptions-item>
         <el-descriptions-item label="调用目标">{{ currentLog?.invokeTarget }}</el-descriptions-item>
         <el-descriptions-item label="执行状态">
-          <el-tag :type="currentLog?.status === 1 ? 'success' : 'danger'">
-            {{ currentLog?.status === 1 ? '成功' : '失败' }}
-          </el-tag>
+          <DictValue :dict-type="DICT_TYPE.SYS_SUCCESS_FAIL" :value="currentLog?.status" />
         </el-descriptions-item>
         <el-descriptions-item label="执行时长">{{ currentLog?.duration }} ms</el-descriptions-item>
         <el-descriptions-item label="开始时间">{{ formatDateTime(currentLog?.startTime) }}</el-descriptions-item>

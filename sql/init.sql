@@ -776,8 +776,8 @@ INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dic
 (12, 'sys_oper_type', '授权', 'GRANT', 5, 'primary', 1),
 (13, 'sys_oper_type', '导出', 'EXPORT', 6, 'warning', 1),
 (14, 'sys_oper_type', '导入', 'IMPORT', 7, 'warning', 1),
-(15, 'sys_common_status', '成功', '0', 1, 'primary', 1),
-(16, 'sys_common_status', '失败', '1', 2, 'danger', 1),
+(15, 'sys_common_status', '成功', '1', 1, 'primary', 1),
+(16, 'sys_common_status', '失败', '0', 2, 'danger', 1),
 -- 数据权限范围
 (17, 'sys_data_scope', '全部数据权限', '1', 1, 'primary', 1),
 (18, 'sys_data_scope', '自定义数据权限', '2', 2, 'success', 1),
