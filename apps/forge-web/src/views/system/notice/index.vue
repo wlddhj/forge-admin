@@ -198,6 +198,9 @@
         <el-form-item label="公告内容" prop="noticeContent">
           <el-input v-model="formData.noticeContent" type="textarea" :rows="8" placeholder="请输入公告内容" />
         </el-form-item>
+        <el-form-item label="附件">
+          <FileUpload v-model="formData.attachmentIds" biz-type="notice" :biz-id="formData.id" :limit="5" />
+        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入备注" />
         </el-form-item>
@@ -233,7 +236,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { Plus } from '@element-plus/icons-vue'
-import { getNoticeList, addNotice, updateNotice, deleteNotice } from '@/api/system'
+import { getNoticeList, getNotice, addNotice, updateNotice, deleteNotice } from '@/api/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
@@ -308,7 +311,8 @@ const formData = reactive({
   noticeType: 1,
   noticeContent: '',
   status: 1,
-  remark: ''
+  remark: '',
+  attachmentIds: [] as number[]
 })
 
 const formRules: FormRules = {
@@ -354,16 +358,21 @@ const handleAdd = () => {
   cancelSelection()
   isEdit.value = false
   dialogTitle.value = '新增公告'
-  Object.assign(formData, { id: undefined, noticeTitle: '', noticeType: 1, noticeContent: '', status: 1, remark: '' })
+  Object.assign(formData, { id: undefined, noticeTitle: '', noticeType: 1, noticeContent: '', status: 1, remark: '', attachmentIds: [] })
   dialogVisible.value = true
 }
 
-const handleEdit = (row: Notice) => {
+const handleEdit = async (row: Notice) => {
   cancelSelection()
   isEdit.value = true
   dialogTitle.value = '编辑公告'
-  Object.assign(formData, row)
+  Object.assign(formData, row, { attachmentIds: [] })
   dialogVisible.value = true
+  // 拉取详情回显附件（列表接口不返回附件）
+  const detail = await getNotice(row.id).catch(() => null)
+  if (detail && formData.id === row.id) {
+    formData.attachmentIds = (detail.attachments ?? []).map(item => item.id)
+  }
 }
 
 const handleSubmit = async () => {

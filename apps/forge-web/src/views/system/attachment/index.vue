@@ -25,11 +25,8 @@
         <div class="actions">
           <MobileSearchButton :badge-count="activeConditionsCount" @click="searchDrawerVisible = true" />
           <el-upload
-            :action="uploadUrl"
-            :headers="uploadHeaders"
             :show-file-list="false"
-            :on-success="handleUploadSuccess"
-            :on-error="handleUploadError"
+            :http-request="handleUpload"
             :before-upload="beforeUpload"
           >
             <el-button type="primary">
@@ -61,11 +58,8 @@
       <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
         <template #buttons>
           <el-upload
-            :action="uploadUrl"
-            :headers="uploadHeaders"
             :show-file-list="false"
-            :on-success="handleUploadSuccess"
-            :on-error="handleUploadError"
+            :http-request="handleUpload"
             :before-upload="beforeUpload"
           >
             <el-button type="primary">上传文件</el-button>
@@ -173,12 +167,13 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { UploadRequestOptions } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { Picture, Document, Folder, Upload } from '@element-plus/icons-vue'
-import { getAttachmentList, deleteAttachment } from '@/api/system'
+import { getAttachmentList, deleteAttachment, uploadAttachment } from '@/api/system'
 import type { Attachment } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
-import { useUserStore } from '@/stores/user'
+import { FILE_MAX_SIZE_MB } from '@/constants/upload'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
@@ -186,7 +181,6 @@ import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
 
-const userStore = useUserStore()
 const { isMobile } = useResponsive()
 
 // 表格高度自适应
@@ -229,9 +223,6 @@ const activeConditionsCount = computed(() => {
 const previewVisible = ref(false)
 const previewUrl = ref('')
 
-const uploadUrl = computed(() => import.meta.env.VITE_API_BASE_URL + '/system/attachment/upload')
-const uploadHeaders = computed(() => ({ Authorization: `Bearer ${userStore.token}` }))
-
 // 关联工具栏与表格
 onMounted(() => {
   if (tableRef.value && toolbarRef.value) {
@@ -270,21 +261,21 @@ const handleResetFromDrawer = () => {
 }
 
 const beforeUpload = (file: File) => {
-  const isLt50M = file.size / 1024 / 1024 < 50
-  if (!isLt50M) {
-    ElMessage.error('上传文件大小不能超过 50MB!')
+  if (file.size > FILE_MAX_SIZE_MB * 1024 * 1024) {
+    ElMessage.error(`上传文件大小不能超过 ${FILE_MAX_SIZE_MB}MB`)
     return false
   }
   return true
 }
 
-const handleUploadSuccess = () => {
-  ElMessage.success('上传成功')
-  getList()
-}
-
-const handleUploadError = () => {
-  ElMessage.error('上传失败')
+const handleUpload = async (options: UploadRequestOptions) => {
+  try {
+    await uploadAttachment(options.file)
+    ElMessage.success('上传成功')
+    getList()
+  } catch {
+    // 错误信息已由请求拦截器统一提示
+  }
 }
 
 const handlePreview = (row: Attachment) => {

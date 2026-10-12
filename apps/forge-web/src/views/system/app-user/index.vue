@@ -223,11 +223,10 @@
     <el-drawer v-model="editDrawerVisible" title="编辑App用户" direction="rtl" size="400px">
       <el-form :model="editForm" label-width="80px">
         <el-form-item label="头像">
-          <el-avatar :size="60" :src="editForm.avatar || undefined" shape="square" @click="handleUploadAvatar">
+          <el-avatar :size="60" :src="editForm.avatar || undefined" shape="square">
             <el-icon><User /></el-icon>
           </el-avatar>
           <el-upload
-            ref="uploadRef"
             :show-file-list="false"
             :before-upload="beforeAvatarUpload"
             :http-request="handleAvatarUpload"
@@ -251,9 +250,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { UploadRequestOptions } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { getAppUserList, getAppUserDetail, updateAppUserStatus, deleteAppUser, resetAppUserProfile } from '@/api/system/app-user'
 import type { AppUserEntity, AppUserQuery } from '@/api/system/app-user'
+import { uploadAvatarFile } from '@/api/system'
+import { IMAGE_MAX_SIZE_MB } from '@/constants/upload'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
@@ -384,6 +386,31 @@ const handleEditSubmit = async () => {
     getList()
   } finally {
     editLoading.value = false
+  }
+}
+
+// 头像上传
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+
+const beforeAvatarUpload = (rawFile: File) => {
+  if (!ALLOWED_AVATAR_TYPES.includes(rawFile.type)) {
+    ElMessage.error('仅支持 JPG/PNG/WebP 格式的图片')
+    return false
+  }
+  if (rawFile.size > IMAGE_MAX_SIZE_MB * 1024 * 1024) {
+    ElMessage.error(`图片大小不能超过 ${IMAGE_MAX_SIZE_MB}MB`)
+    return false
+  }
+  return true
+}
+
+const handleAvatarUpload = async (options: UploadRequestOptions) => {
+  try {
+    const data = await uploadAvatarFile(options.file)
+    editForm.avatar = data.fileUrl
+    ElMessage.success('头像上传成功')
+  } catch {
+    // 错误信息已由请求拦截器统一提示
   }
 }
 

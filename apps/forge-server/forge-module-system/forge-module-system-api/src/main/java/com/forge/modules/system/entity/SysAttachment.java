@@ -43,6 +43,12 @@ public class SysAttachment {
     /** 存储类型(local/oss等) */
     private String storageType;
 
+    /** 上传时所用存储配置ID */
+    private Long fileConfigId;
+
+    /** 租户ID */
+    private Long tenantId;
+
     /** 业务类型 */
     private String bizType;
 

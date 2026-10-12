@@ -45,6 +45,12 @@ public class SysAttachmentController {
         return Result.success(sysAttachmentService.getAttachmentDetail(id));
     }
 
+    @Operation(summary = "按业务查询附件列表")
+    @GetMapping("/list-by-biz")
+    public Result<List<AttachmentResponse>> listByBiz(@RequestParam String bizType, @RequestParam Long bizId) {
+        return Result.success(sysAttachmentService.listByBiz(bizType, bizId));
+    }
+
     @Operation(summary = "上传附件")
     @PostMapping("/upload")
     @PreAuthorize("hasAuthority('system:attachment:upload')")
@@ -68,7 +74,7 @@ public class SysAttachmentController {
     @Operation(summary = "上传头像")
     @PostMapping("/avatar")
     @OperationLog(title = "个人中心", businessType = OperationLog.BusinessType.UPDATE)
-    public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file) {
-        return Result.success(sysAttachmentService.uploadAvatar(file));
+    public Result<AttachmentResponse> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        return Result.success(sysAttachmentService.upload(file, "avatar", null));
     }
 }

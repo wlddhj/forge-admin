@@ -269,19 +269,19 @@ service.interceptors.response.use(
 
 // 请求方法
 export const request = {
-  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<Result<T>> {
+  get<T = any>(url: string, config?: AxiosRequestConfig & { silent?: boolean }): Promise<Result<T>> {
     return service.get(url, config)
   },
 
-  post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<Result<T>> {
+  post<T = any>(url: string, data?: any, config?: AxiosRequestConfig & { silent?: boolean }): Promise<Result<T>> {
     return service.post(url, data, config)
   },
 
-  put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<Result<T>> {
+  put<T = any>(url: string, data?: any, config?: AxiosRequestConfig & { silent?: boolean }): Promise<Result<T>> {
     return service.put(url, data, config)
   },
 
-  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<Result<T>> {
+  delete<T = any>(url: string, config?: AxiosRequestConfig & { silent?: boolean }): Promise<Result<T>> {
     return service.delete(url, config)
   }
 }

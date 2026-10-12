@@ -133,6 +133,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { getDocumentList, getDocumentDetail, getDocumentSummary, uploadDocument, deleteDocument } from '@/api/ai/document'
 import type { DocumentResponse, DocumentQuery } from '@/api/ai/document'
+import { AI_DOCUMENT_EXTENSIONS, AI_DOCUMENT_MAX_SIZE_MB } from '@/constants/upload'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
@@ -195,14 +196,13 @@ const handleReset = () => {
 }
 
 const beforeUpload = (file: File) => {
-  const allowedTypes = ['pdf', 'docx', 'doc', 'txt']
   const ext = file.name.split('.').pop()?.toLowerCase()
-  if (!ext || !allowedTypes.includes(ext)) {
+  if (!ext || !AI_DOCUMENT_EXTENSIONS.includes(ext)) {
     ElMessage.error('只支持 PDF、Word、TXT 格式')
     return false
   }
-  if (file.size > 10 * 1024 * 1024) {
-    ElMessage.error('文件大小不能超过 10MB')
+  if (file.size > AI_DOCUMENT_MAX_SIZE_MB * 1024 * 1024) {
+    ElMessage.error(`文件大小不能超过 ${AI_DOCUMENT_MAX_SIZE_MB}MB`)
     return false
   }
   return true

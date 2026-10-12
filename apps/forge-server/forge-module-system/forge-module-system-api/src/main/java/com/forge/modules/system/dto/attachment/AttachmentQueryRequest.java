@@ -8,6 +8,8 @@ public class AttachmentQueryRequest {
     private String fileType;
     private String storageType;
     private String uploaderName;
+    private String bizType;
+    private Long bizId;
     private String startTime;
     private String endTime;
     private Integer pageNum = 1;

@@ -7,6 +7,8 @@ import com.forge.modules.system.dto.attachment.AttachmentResponse;
 import com.forge.modules.system.entity.SysAttachment;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 /**
  * 附件服务接口
  */
@@ -23,6 +25,11 @@ public interface SysAttachmentService extends IService<SysAttachment> {
     AttachmentResponse getAttachmentDetail(Long id);
 
     /**
+     * 按业务类型与业务ID查询附件列表
+     */
+    List<AttachmentResponse> listByBiz(String bizType, Long bizId);
+
+    /**
      * 上传附件
      */
     AttachmentResponse upload(MultipartFile file, String bizType, Long bizId);
@@ -30,11 +37,5 @@ public interface SysAttachmentService extends IService<SysAttachment> {
     /**
      * 删除附件
      */
-    void deleteAttachments(java.util.List<Long> ids);
-
-    /**
-     * 上传头像
-     * @return 头像URL
-     */
-    String uploadAvatar(MultipartFile file);
+    void deleteAttachments(List<Long> ids);
 }

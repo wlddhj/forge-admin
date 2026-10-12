@@ -13,7 +13,7 @@ import com.forge.modules.system.dto.file.FileConfigResponse;
 import com.forge.modules.system.entity.SysFileConfig;
 import com.forge.modules.system.mapper.SysFileConfigMapper;
 import com.forge.modules.system.service.SysFileConfigService;
-import lombok.RequiredArgsConstructor;
+import com.forge.modules.system.service.storage.FileStorageClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -34,10 +34,19 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, SysFileConfig> implements SysFileConfigService {
 
     private static final String CACHE_NAME = "fileConfig";
+
+    private final List<FileStorageClient> storageClients;
+
+    public SysFileConfigServiceImpl(List<FileStorageClient> storageClients) {
+        this.storageClients = storageClients;
+    }
+
+    private void evictStorageClients(Long configId) {
+        storageClients.forEach(client -> client.evict(configId));
+    }
 
     @Override
     public Page<FileConfigResponse> pageFileConfig(FileConfigQueryRequest request) {
@@ -94,12 +103,14 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
             clearDefaultFlag();
         }
         updateById(config);
+        evictStorageClients(config.getId());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = CACHE_NAME, allEntries = true)
     public void deleteFileConfig(List<Long> ids) {
+        ids.forEach(this::evictStorageClients);
         removeByIds(ids);
     }
 
@@ -116,6 +127,7 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
         // 设置当前配置为默认
         config.setIsDefault(1);
         updateById(config);
+        evictStorageClients(id);
     }
 
     @Override
@@ -138,6 +150,7 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
         }
         config.setStatus(status);
         updateById(config);
+        evictStorageClients(id);
     }
 
     /**
@@ -179,7 +192,7 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
     }
 
     private void testLocalConnection(SysFileConfig config) {
-        String basePath = StrUtil.blankToDefault(config.getBasePath(), "/uploads");
+        String basePath = StrUtil.blankToDefault(config.getBasePath(), "./uploads");
         Path path = Paths.get(basePath);
         if (!Files.exists(path)) {
             try {

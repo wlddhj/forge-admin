@@ -11,10 +11,8 @@
               </el-avatar>
               <el-upload
                 class="avatar-upload"
-                :action="uploadUrl"
-                :headers="uploadHeaders"
                 :show-file-list="false"
-                :on-success="handleAvatarSuccess"
+                :http-request="handleAvatarUpload"
                 :before-upload="beforeAvatarUpload"
               >
                 <el-button type="primary" link size="small">更换头像</el-button>
@@ -90,11 +88,13 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules, UploadProps } from 'element-plus'
+import type { FormInstance, FormRules, UploadRequestOptions } from 'element-plus'
 import { User } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/dateFormat'
 import { updateUserInfo, updatePassword, updateAvatar } from '@/api/user'
+import { uploadAvatarFile } from '@/api/system'
+import { IMAGE_MAX_SIZE_MB } from '@/constants/upload'
 import type { User as UserType } from '@/types/system'
 import SocialBindings from './components/SocialBindings.vue'
 
@@ -148,38 +148,29 @@ const pwdRules: FormRules = {
 }
 
 // 头像上传
-const uploadUrl = computed(() => import.meta.env.VITE_API_BASE_URL + '/system/attachment/avatar')
-const uploadHeaders = computed(() => ({ Authorization: `Bearer ${userStore.token}` }))
-
-import { computed } from 'vue'
-
-const beforeAvatarUpload: UploadProps['beforeUpload'] = (rawFile) => {
+const beforeAvatarUpload = (rawFile: File) => {
   const isImage = rawFile.type.startsWith('image/')
-  const isLt2M = rawFile.size / 1024 / 1024 < 2
 
   if (!isImage) {
     ElMessage.error('头像只能是图片格式!')
     return false
   }
-  if (!isLt2M) {
-    ElMessage.error('头像图片大小不能超过 2MB!')
+  if (rawFile.size > IMAGE_MAX_SIZE_MB * 1024 * 1024) {
+    ElMessage.error(`头像图片大小不能超过 ${IMAGE_MAX_SIZE_MB}MB!`)
     return false
   }
   return true
 }
 
-const handleAvatarSuccess: UploadProps['onSuccess'] = async (response: { code: number; data: string; message: string }) => {
-  if (response.code === 200 && response.data) {
-    try {
-      await updateAvatar({ avatar: response.data })
-      userInfo.value.avatar = response.data
-      userStore.updateUserInfo({ avatar: response.data })
-      ElMessage.success('头像更新成功')
-    } catch (e) {
-      ElMessage.error('头像更新失败')
-    }
-  } else {
-    ElMessage.error(response.message || '头像上传失败')
+const handleAvatarUpload = async (options: UploadRequestOptions) => {
+  try {
+    const data = await uploadAvatarFile(options.file)
+    await updateAvatar({ avatar: data.fileUrl })
+    userInfo.value.avatar = data.fileUrl
+    userStore.updateUserInfo({ avatar: data.fileUrl })
+    ElMessage.success('头像更新成功')
+  } catch {
+    // 错误信息已由请求拦截器统一提示
   }
 }
 

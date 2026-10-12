@@ -1,7 +1,9 @@
 package com.forge.modules.system.dto.notice;
 
+import com.forge.modules.system.dto.attachment.AttachmentResponse;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class NoticeResponse {
@@ -14,4 +16,5 @@ public class NoticeResponse {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     private String remark;
+    private List<AttachmentResponse> attachments;
 }

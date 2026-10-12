@@ -13,13 +13,10 @@
             </div>
             <div class="logo-actions">
               <el-upload
-                :action="uploadUrl"
-                :headers="uploadHeaders"
                 :show-file-list="false"
                 accept="image/*"
                 :before-upload="beforeUpload"
-                :on-success="handleUploadSuccess"
-                :on-error="handleUploadError"
+                :http-request="handleUpload"
               >
                 <el-button v-permission="'system:brand:update'" type="primary">上传 Logo</el-button>
               </el-upload>
@@ -95,16 +92,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormInstance, FormRules, UploadRequestOptions } from 'element-plus'
 import { brandApi, type BrandConfig, type BrandThemeConfig } from '@/api/system/brand'
 import { useBrandStore } from '@/stores/brand'
-import { useUserStore } from '@/stores/user'
 import { PRESETS, DEFAULT_THEME, type Preset } from '@/themes'
+import { IMAGE_MAX_SIZE_MB } from '@/constants/upload'
 
 const brandStore = useBrandStore()
-const userStore = useUserStore()
 
 const formRef = ref<FormInstance>()
 const saving = ref(false)
@@ -158,9 +154,6 @@ const rules: FormRules = {
   name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }]
 }
 
-const uploadUrl = computed(() => import.meta.env.VITE_API_BASE_URL + '/system/brand/logo')
-const uploadHeaders = computed(() => ({ Authorization: `Bearer ${userStore.token}` }))
-
 onMounted(async () => {
   try {
     const data = await brandApi.getBrand()
@@ -181,24 +174,20 @@ const beforeUpload = (file: File) => {
     ElMessage.error('仅支持 png/jpg/jpeg/webp 格式的图片')
     return false
   }
-  if (file.size > 2 * 1024 * 1024) {
-    ElMessage.error('Logo 图片大小不能超过 2MB')
+  if (file.size > IMAGE_MAX_SIZE_MB * 1024 * 1024) {
+    ElMessage.error(`Logo 图片大小不能超过 ${IMAGE_MAX_SIZE_MB}MB`)
     return false
   }
   return true
 }
 
-const handleUploadSuccess = (response: { code: number; message: string; data: string }) => {
-  if (response.code === 200) {
-    form.logo = response.data
+const handleUpload = async (options: UploadRequestOptions) => {
+  try {
+    form.logo = await brandApi.uploadLogo(options.file)
     ElMessage.success('Logo 上传成功，保存后生效')
-  } else {
-    ElMessage.error(response.message || 'Logo 上传失败')
+  } catch {
+    // 错误信息已由请求拦截器统一提示
   }
-}
-
-const handleUploadError = () => {
-  ElMessage.error('Logo 上传失败，请重试')
 }
 
 const handleSave = async () => {

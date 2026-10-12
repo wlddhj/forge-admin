@@ -251,11 +251,6 @@ logging:
     max-history: 30
     total-size-cap: 1GB
 
-# 文件上传配置
-file:
-  upload-path: ${FILE_UPLOAD_PATH:./uploads}
-  base-url: ${FILE_BASE_URL:http://localhost:8181/uploads}
-
 # AI模块配置
 ai:
   enabled: ${AI_ENABLED:true}

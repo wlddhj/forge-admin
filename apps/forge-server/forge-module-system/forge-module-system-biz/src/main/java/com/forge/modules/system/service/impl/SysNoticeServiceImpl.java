@@ -8,12 +8,15 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
 import com.forge.framework.web.websocket.NotificationService;
+import com.forge.modules.system.dto.attachment.AttachmentResponse;
 import com.forge.modules.system.dto.notice.NoticeQueryRequest;
 import com.forge.modules.system.dto.notice.NoticeRequest;
 import com.forge.modules.system.dto.notice.NoticeResponse;
+import com.forge.modules.system.entity.SysAttachment;
 import com.forge.modules.system.entity.SysNotice;
 import com.forge.modules.system.entity.SysUser;
 import com.forge.modules.system.mapper.SysNoticeMapper;
+import com.forge.modules.system.service.SysAttachmentService;
 import com.forge.modules.system.service.SysNoticeService;
 import com.forge.modules.system.service.SysUserService;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -35,6 +40,9 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
     private final SysNoticeMapper sysNoticeMapper;
     private final SysUserService sysUserService;
     private final NotificationService notificationService;
+    private final SysAttachmentService sysAttachmentService;
+
+    private static final String ATTACHMENT_BIZ_TYPE = "notice";
 
     @Override
     public Page<NoticeResponse> pageNotices(NoticeQueryRequest request) {
@@ -65,7 +73,9 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
         if (notice == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND);
         }
-        return convertToResponse(notice);
+        NoticeResponse response = convertToResponse(notice);
+        response.setAttachments(sysAttachmentService.listByBiz(ATTACHMENT_BIZ_TYPE, id));
+        return response;
     }
 
     @Override
@@ -74,6 +84,7 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
         SysNotice notice = new SysNotice();
         BeanUtil.copyProperties(request, notice);
         save(notice);
+        bindAttachments(notice.getId(), request.getAttachmentIds());
 
         // 新增公告时通过 WebSocket 广播通知
         if (notice.getStatus() != null && notice.getStatus() == 1) {
@@ -95,12 +106,47 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
 
         BeanUtil.copyProperties(request, notice);
         updateById(notice);
+
+        // 附件差集处理：移除不再关联的附件，绑定新附件
+        List<Long> newIds = request.getAttachmentIds();
+        Set<Long> newIdSet = newIds == null ? Set.of() : new HashSet<>(newIds);
+        List<Long> toRemove = sysAttachmentService.listByBiz(ATTACHMENT_BIZ_TYPE, notice.getId()).stream()
+                .map(AttachmentResponse::getId)
+                .filter(id -> !newIdSet.contains(id))
+                .collect(Collectors.toList());
+        if (!toRemove.isEmpty()) {
+            sysAttachmentService.deleteAttachments(toRemove);
+        }
+        bindAttachments(notice.getId(), newIds);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteNotices(Long[] ids) {
+        for (Long id : ids) {
+            List<Long> attachmentIds = sysAttachmentService.listByBiz(ATTACHMENT_BIZ_TYPE, id).stream()
+                    .map(AttachmentResponse::getId)
+                    .collect(Collectors.toList());
+            if (!attachmentIds.isEmpty()) {
+                sysAttachmentService.deleteAttachments(attachmentIds);
+            }
+        }
         removeByIds(Arrays.asList(ids));
+    }
+
+    /**
+     * 将附件绑定到公告（仅接管未被其他业务占用的附件，防止抢占）
+     */
+    private void bindAttachments(Long noticeId, List<Long> attachmentIds) {
+        if (attachmentIds == null || attachmentIds.isEmpty()) {
+            return;
+        }
+        sysAttachmentService.lambdaUpdate()
+                .set(SysAttachment::getBizType, ATTACHMENT_BIZ_TYPE)
+                .set(SysAttachment::getBizId, noticeId)
+                .in(SysAttachment::getId, attachmentIds)
+                .and(w -> w.isNull(SysAttachment::getBizId).or().eq(SysAttachment::getBizId, noticeId))
+                .update();
     }
 
     @Override

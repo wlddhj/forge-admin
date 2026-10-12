@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class NoticeRequest {
     private Long id;
@@ -20,4 +22,7 @@ public class NoticeRequest {
     private Integer status = 1;
 
     private String remark;
+
+    /** 附件ID列表 */
+    private List<Long> attachmentIds;
 }

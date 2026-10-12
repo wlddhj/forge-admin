@@ -29,5 +29,15 @@ export const brandApi = {
   /** 获取品牌配置（需 system:brand:query 权限） */
   getBrand: () => request.get<BrandConfig>('/system/brand').then(res => res.data),
   /** 保存品牌配置（需 system:brand:update 权限） */
-  updateBrand: (data: BrandConfig) => request.put('/system/brand', data)
+  updateBrand: (data: BrandConfig) => request.put('/system/brand', data),
+  /** 上传品牌 Logo（需 system:brand:update 权限），返回 Logo URL */
+  uploadLogo: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request
+      .post<string>('/system/brand/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      .then(res => res.data)
+  }
 }

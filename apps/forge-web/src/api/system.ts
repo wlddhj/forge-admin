@@ -1,4 +1,5 @@
 import request, { PageResult } from '@/utils/request'
+import type { AxiosRequestConfig } from 'axios'
 import type {
   User, UserQuery, UserRequest,
   Role, RoleQuery, RoleRequest,
@@ -347,12 +348,47 @@ export function getAttachmentList(params: AttachmentQuery) {
   return request.get<PageResult<Attachment>>('/system/attachment/list', { params }).then(res => res.data)
 }
 
-export function getAttachment(id: number) {
-  return request.get<Attachment>(`/system/attachment/${id}`).then(res => res.data)
+export function getAttachment(id: number, config?: AxiosRequestConfig & { silent?: boolean }) {
+  return request.get<Attachment>(`/system/attachment/${id}`, config).then(res => res.data)
+}
+
+export function getAttachmentListByBiz(bizType: string, bizId: number) {
+  return request.get<Attachment[]>('/system/attachment/list-by-biz', { params: { bizType, bizId } }).then(res => res.data)
+}
+
+export function uploadAttachment(
+  file: File | Blob,
+  bizType?: string,
+  bizId?: number,
+  onProgress?: (percent: number) => void
+) {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (bizType) formData.append('bizType', bizType)
+  if (bizId !== undefined && bizId !== null) formData.append('bizId', String(bizId))
+  return request
+    .post<Attachment>('/system/attachment/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+    })
+    .then(res => res.data)
 }
 
 export function deleteAttachment(ids: number[]) {
   return request.delete(`/system/attachment/${ids.join(',')}`)
+}
+
+/** 上传头像（登录即可，走专用端点并落附件表） */
+export function uploadAvatarFile(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request
+    .post<Attachment>('/system/attachment/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    .then(res => res.data)
 }
 
 // ==================== Dashboard ====================
@@ -496,6 +532,7 @@ export interface Notice {
   createTime: string
   updateTime: string
   remark: string
+  attachments?: Attachment[]
 }
 
 export interface NoticeQuery {
@@ -513,6 +550,7 @@ export interface NoticeRequest {
   noticeContent: string
   status?: number
   remark?: string
+  attachmentIds?: number[]
 }
 
 export function getNoticeList(params: NoticeQuery) {
