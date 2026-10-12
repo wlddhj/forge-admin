@@ -25,6 +25,8 @@ public class AiModelConfig {
 
     private String provider;
 
+    private String modelType;
+
     private String apiEndpoint;
 
     private String apiKey;

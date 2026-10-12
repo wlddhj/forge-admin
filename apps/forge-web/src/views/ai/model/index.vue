@@ -1,5 +1,24 @@
 <template>
   <div class="app-container">
+    <el-card shadow="never" class="search-card">
+      <el-form :model="queryParams" inline @submit.prevent>
+        <el-form-item label="模型类型">
+          <el-select v-model="queryParams.modelType" placeholder="全部类型" clearable style="width: 200px">
+            <el-option
+              v-for="item in dictData"
+              :key="item.dictValue"
+              :label="item.dictLabel"
+              :value="item.dictValue"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="getList">搜索</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
     <el-card shadow="never" class="table-card">
       <vxe-toolbar ref="toolbarRef" custom>
         <template #buttons>
@@ -30,10 +49,16 @@
       >
         <vxe-column type="seq" title="序号" width="60" />
         <vxe-column field="modelName" title="模型名称" min-width="150" />
-        <vxe-column field="provider" title="提供商" width="120" />
-        <vxe-column field="maxTokens" title="最大 Tokens" width="120" />
+        <vxe-column field="modelCode" title="模型代码" min-width="140" />
+        <vxe-column field="provider" title="提供商" width="100" />
+        <vxe-column title="模型类型" width="110">
+          <template #default="{ row }">
+            <DictValue :dict-type="DICT_TYPE.AI_MODEL_TYPE" :value="row.modelType" />
+          </template>
+        </vxe-column>
+        <vxe-column field="maxTokens" title="最大 Tokens" width="110" />
         <vxe-column field="temperature" title="Temperature" width="100" />
-        <vxe-column title="状态" width="100">
+        <vxe-column title="状态" width="90">
           <template #default="{ row }">
             <el-tag v-if="row.status === 1" type="success">正常</el-tag>
             <el-tag v-else-if="row.status === 0" type="info">禁用</el-tag>
@@ -46,14 +71,14 @@
             <span v-else>-</span>
           </template>
         </vxe-column>
-        <vxe-column field="createTime" title="创建时间" width="180">
+        <vxe-column field="createTime" title="创建时间" width="170">
           <template #default="{ row }">
             {{ formatDateTime(row.createTime) }}
           </template>
         </vxe-column>
         <vxe-column title="操作" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" v-permission="'ai:model:config'" @click="handleConfig(row)">配置</el-button>
+            <el-button type="primary" link size="small" v-permission="'ai:model:config'" @click="handleEdit(row)">编辑</el-button>
             <el-button type="warning" link size="small" v-permission="'ai:model:switch'" @click="handleSetDefault(row)" :disabled="row.isDefault === 1">设为默认</el-button>
             <el-button type="success" link size="small" @click="handleRefresh(row)">刷新</el-button>
             <el-button type="danger" link size="small" v-permission="'ai:model:delete'" @click="handleDelete(row)" :disabled="row.isDefault === 1">删除</el-button>
@@ -62,121 +87,35 @@
       </vxe-table>
     </el-card>
 
-    <!-- 新增对话框 -->
-    <el-dialog v-model="addDialogVisible" title="新增模型配置" width="600px" @close="handleAddDialogClose">
-      <el-form ref="addFormRef" :model="addForm" :rules="addRules" label-width="120px">
-        <el-form-item label="模型名称" prop="modelName">
-          <el-input v-model="addForm.modelName" placeholder="请输入模型名称" />
-        </el-form-item>
-        <el-form-item label="模型代码" prop="modelCode">
-          <el-input v-model="addForm.modelCode" placeholder="请输入模型代码（可选）" />
-        </el-form-item>
-        <el-form-item label="提供商" prop="provider">
-          <el-input v-model="addForm.provider" placeholder="请输入提供商" />
-        </el-form-item>
-        <el-form-item label="API Endpoint" prop="apiEndpoint">
-          <el-input v-model="addForm.apiEndpoint" placeholder="请输入 API Endpoint（可选）" />
-        </el-form-item>
-        <el-form-item label="API Key" prop="apiKey">
-          <el-input v-model="addForm.apiKey" type="password" placeholder="请输入 API Key（可选）" show-password />
-        </el-form-item>
-        <el-form-item label="最大 Tokens" prop="maxTokens">
-          <el-input-number v-model="addForm.maxTokens" :min="1" :max="100000" :step="100" />
-        </el-form-item>
-        <el-form-item label="Temperature" prop="temperature">
-          <el-slider v-model="addForm.temperature" :min="0" :max="2" :step="0.1" show-input />
-        </el-form-item>
-        <el-form-item label="备注" prop="remark">
-          <el-input v-model="addForm.remark" type="textarea" placeholder="请输入备注（可选）" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="addDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="addSubmitLoading" @click="handleAddSubmit">确定</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 配置对话框 -->
-    <el-dialog v-model="configDialogVisible" title="模型配置" width="600px" @close="handleConfigDialogClose">
-      <el-form ref="configFormRef" :model="configForm" :rules="configRules" label-width="120px">
-        <el-form-item label="模型名称">
-          <el-input :value="currentModel?.modelName" disabled />
-        </el-form-item>
-        <el-form-item label="API Key" prop="apiKey">
-          <el-input v-model="configForm.apiKey" type="password" placeholder="请输入 API Key" show-password />
-        </el-form-item>
-        <el-form-item label="API Endpoint" prop="apiEndpoint">
-          <el-input v-model="configForm.apiEndpoint" placeholder="请输入 API Endpoint（可选）" />
-        </el-form-item>
-        <el-form-item label="最大 Tokens" prop="maxTokens">
-          <el-input-number v-model="configForm.maxTokens" :min="1" :max="100000" :step="100" />
-        </el-form-item>
-        <el-form-item label="Temperature" prop="temperature">
-          <el-slider v-model="configForm.temperature" :min="0" :max="2" :step="0.1" show-input />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="configDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="configSubmitLoading" @click="handleConfigSubmit">确定</el-button>
-      </template>
-    </el-dialog>
+    <ModelConfigForm ref="formRef" @success="getList" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
-import { getModelList, addModel, configModel, switchModel, deleteModel, refreshModelStatus, refreshAllModels } from '@/api/ai/model'
-import type { ModelConfigResponse, AddModelRequest, ModelConfigRequest } from '@/api/ai/model'
+import { getModelList, switchModel, deleteModel, refreshModelStatus, refreshAllModels } from '@/api/ai/model'
+import type { ModelConfigResponse } from '@/api/ai/model'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useTableHeight } from '@/composables/useTableHeight'
+import { DICT_TYPE } from '@/constants/dict'
+import { useDict } from '@/composables/useDict'
+import DictValue from '@/components/DictValue.vue'
+import ModelConfigForm from './components/ModelConfigForm.vue'
+
+defineOptions({ name: 'AiModel' })
 
 const { tableHeight } = useTableHeight()
+const { dictData } = useDict(DICT_TYPE.AI_MODEL_TYPE)
 
 const tableRef = ref<VxeTableInstance | null>(null)
 const toolbarRef = ref<VxeToolbarInstance | null>(null)
+const formRef = ref<InstanceType<typeof ModelConfigForm>>()
 
 const loading = ref(false)
 const tableData = ref<ModelConfigResponse[]>([])
-
-// 新增对话框
-const addDialogVisible = ref(false)
-const addFormRef = ref<FormInstance>()
-const addSubmitLoading = ref(false)
-const addForm = reactive<AddModelRequest>({
-  modelName: '',
-  modelCode: '',
-  provider: '',
-  apiEndpoint: '',
-  apiKey: '',
-  maxTokens: 4096,
-  temperature: 0.7,
-  remark: ''
-})
-
-const addRules: FormRules = {
-  modelName: [{ required: true, message: '请输入模型名称', trigger: 'blur' }],
-  provider: [{ required: true, message: '请输入提供商', trigger: 'blur' }]
-}
-
-// 配置对话框
-const configDialogVisible = ref(false)
-const configFormRef = ref<FormInstance>()
-const configSubmitLoading = ref(false)
-const currentModel = ref<ModelConfigResponse | null>(null)
-const configForm = reactive<ModelConfigRequest>({
-  apiKey: '',
-  apiEndpoint: '',
-  maxTokens: 4096,
-  temperature: 0.7
-})
-
-const configRules: FormRules = {
-  maxTokens: [{ required: true, message: '请输入最大 Tokens', trigger: 'blur' }],
-  temperature: [{ required: true, message: '请设置 Temperature', trigger: 'change' }]
-}
+const queryParams = reactive({ modelType: '' })
 
 onMounted(() => {
   if (tableRef.value && toolbarRef.value) {
@@ -188,68 +127,24 @@ onMounted(() => {
 const getList = async () => {
   loading.value = true
   try {
-    tableData.value = await getModelList()
+    tableData.value = await getModelList(queryParams.modelType || undefined)
   } finally {
     loading.value = false
   }
 }
 
-// 新增
+const handleReset = () => {
+  queryParams.modelType = ''
+  getList()
+}
+
+// 新增 / 编辑
 const handleAdd = () => {
-  addDialogVisible.value = true
+  formRef.value?.open('create')
 }
 
-const handleAddSubmit = async () => {
-  if (!addFormRef.value) return
-  await addFormRef.value.validate(async (valid) => {
-    if (valid) {
-      addSubmitLoading.value = true
-      try {
-        await addModel(addForm)
-        ElMessage.success('新增成功')
-        addDialogVisible.value = false
-        getList()
-      } finally {
-        addSubmitLoading.value = false
-      }
-    }
-  })
-}
-
-const handleAddDialogClose = () => {
-  addFormRef.value?.resetFields()
-}
-
-// 配置
-const handleConfig = (row: ModelConfigResponse) => {
-  currentModel.value = row
-  configForm.apiKey = row.apiKey || ''
-  configForm.apiEndpoint = row.apiEndpoint || ''
-  configForm.maxTokens = row.maxTokens
-  configForm.temperature = row.temperature
-  configDialogVisible.value = true
-}
-
-const handleConfigSubmit = async () => {
-  if (!configFormRef.value || !currentModel.value) return
-  await configFormRef.value.validate(async (valid) => {
-    if (valid) {
-      configSubmitLoading.value = true
-      try {
-        await configModel(currentModel.value!.id, configForm)
-        ElMessage.success('配置成功')
-        configDialogVisible.value = false
-        getList()
-      } finally {
-        configSubmitLoading.value = false
-      }
-    }
-  })
-}
-
-const handleConfigDialogClose = () => {
-  configFormRef.value?.resetFields()
-  currentModel.value = null
+const handleEdit = (row: ModelConfigResponse) => {
+  formRef.value?.open('update', row)
 }
 
 // 设为默认
@@ -299,6 +194,9 @@ const handleRefreshAll = async () => {
 <style scoped lang="scss">
 .app-container {
   padding: 0;
+  .search-card {
+    margin-bottom: 15px;
+  }
   .table-card {
     padding: 15px;
   }

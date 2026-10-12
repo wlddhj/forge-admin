@@ -55,6 +55,18 @@ public class SensitiveDataMasker {
     }
 
     /**
+     * 需要脱敏的字段名（密钥类，完全隐藏）
+     */
+    private static final Set<String> SECRET_FIELDS = new HashSet<>();
+    static {
+        SECRET_FIELDS.add("apiKey");
+        SECRET_FIELDS.add("apiSecret");
+        SECRET_FIELDS.add("secretKey");
+        SECRET_FIELDS.add("accessKey");
+        SECRET_FIELDS.add("secret");
+    }
+
+    /**
      * 脱敏字符串值
      */
     public static String mask(String fieldName, String value) {
@@ -66,6 +78,11 @@ public class SensitiveDataMasker {
 
         // 密码类字段完全隐藏
         if (PASSWORD_FIELDS.stream().anyMatch(f -> lowerField.contains(f.toLowerCase()))) {
+            return "******";
+        }
+
+        // 密钥类字段完全隐藏
+        if (SECRET_FIELDS.stream().anyMatch(f -> lowerField.contains(f.toLowerCase()))) {
             return "******";
         }
 

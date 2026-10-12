@@ -27,6 +27,7 @@ CREATE TABLE `ai_model_config` (
   `model_name` varchar(100) NOT NULL COMMENT '模型名称',
   `model_code` varchar(100) NOT NULL COMMENT '模型编码',
   `provider` varchar(50) NOT NULL COMMENT '服务商(deepseek/qwen/glm/openai)',
+  `model_type` varchar(20) NOT NULL DEFAULT 'text' COMMENT '模型类型(text/multimodal/image/video/ocr/asr/tts/embedding)',
   `api_endpoint` varchar(255) DEFAULT NULL COMMENT 'API端点',
   `api_key` varchar(255) DEFAULT NULL COMMENT 'API密钥(加密存储)',
   `max_tokens` int DEFAULT 4096 COMMENT '最大Token数',
@@ -43,6 +44,7 @@ CREATE TABLE `ai_model_config` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_model_code` (`model_code`),
   KEY `idx_provider` (`provider`),
+  KEY `idx_model_type` (`model_type`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI模型配置表';
 
@@ -186,7 +188,9 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
 (321, '模型查询', 320, '', '', NULL, '', 1, 2, 'ai:model:query',  1, 1, 0, 0),
 (322, '配置管理', 320, '', '', NULL, '', 2, 2, 'ai:model:config', 1, 1, 0, 0),
-(323, '切换模型', 320, '', '', NULL, '', 3, 2, 'ai:model:switch', 1, 1, 0, 0);
+(323, '切换模型', 320, '', '', NULL, '', 3, 2, 'ai:model:switch', 1, 1, 0, 0),
+(324, '模型新增', 320, '', '', NULL, '', 4, 2, 'ai:model:add',    1, 1, 0, 0),
+(325, '模型删除', 320, '', '', NULL, '', 5, 2, 'ai:model:delete', 1, 1, 0, 0);
 
 -- ========================================
 -- 角色菜单关联（超级管理员拥有所有AI菜单）
@@ -199,7 +203,22 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 -- 文档管理
 (1, 310), (1, 311), (1, 312), (1, 313), (1, 314),
 -- 模型配置
-(1, 320), (1, 321), (1, 322), (1, 323);
+(1, 320), (1, 321), (1, 322), (1, 323), (1, 324), (1, 325);
+
+-- ========================================
+-- AI 模型类型字典
+-- ========================================
+INSERT INTO `sys_dict_type` (`dict_name`, `dict_type`, `status`, `is_system`, `remark`) VALUES
+('AI模型类型', 'ai_model_type', 1, 1, 'AI模型能力类型');
+INSERT INTO `sys_dict_data` (`dict_type`, `dict_label`, `dict_value`, `dict_sort`, `list_class`, `status`) VALUES
+('ai_model_type', '文本生成',   'text',       1, 'primary', 1),
+('ai_model_type', '多模态理解', 'multimodal', 2, 'success', 1),
+('ai_model_type', '图像生成',   'image',      3, 'warning', 1),
+('ai_model_type', '视频生成',   'video',      4, 'danger',  1),
+('ai_model_type', 'OCR',        'ocr',        5, 'info',    1),
+('ai_model_type', '语音识别',   'asr',        6, 'primary', 1),
+('ai_model_type', '语音合成',   'tts',        7, 'success', 1),
+('ai_model_type', '向量检索',   'embedding',  8, 'info',    1);
 
 -- ========================================
 -- 初始化模型配置数据

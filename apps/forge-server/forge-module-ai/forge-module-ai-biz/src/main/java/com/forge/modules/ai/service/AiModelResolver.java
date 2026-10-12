@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.forge.modules.ai.config.AiModuleConfig;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.entity.AiModelConfig;
+import com.forge.modules.ai.enums.AiModelTypes;
 import com.forge.modules.ai.mapper.AiModelConfigMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -49,18 +50,20 @@ public class AiModelResolver {
     }
 
     /**
-     * 默认模型（isDefault=1），否则任一启用模型
+     * 默认模型（isDefault=1），否则任一启用模型；仅限文本生成类型（对话/文档场景）
      */
     public AiModelConfig resolveDefault() {
         AiModelConfig defaultConfig = modelConfigMapper.selectOne(new LambdaQueryWrapper<AiModelConfig>()
                 .eq(AiModelConfig::getIsDefault, 1)
                 .eq(AiModelConfig::getStatus, 1)
+                .eq(AiModelConfig::getModelType, AiModelTypes.TEXT)
                 .last("LIMIT 1"));
         if (defaultConfig != null) {
             return defaultConfig;
         }
         List<AiModelConfig> enabled = modelConfigMapper.selectList(new LambdaQueryWrapper<AiModelConfig>()
                 .eq(AiModelConfig::getStatus, 1)
+                .eq(AiModelConfig::getModelType, AiModelTypes.TEXT)
                 .last("LIMIT 1"));
         return enabled.isEmpty() ? null : enabled.get(0);
     }

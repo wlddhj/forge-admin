@@ -1,23 +1,35 @@
 import request from '@/utils/request'
 
+/** 文本生成类型标识（与后端 AiModelTypes.TEXT、字典 ai_model_type 的 value 一致） */
+export const AI_MODEL_TYPE_TEXT = 'text'
+
 // 模型配置响应
 export interface ModelConfigResponse {
   id: number
-  name: string
+  modelName: string
+  modelCode: string
   provider: string
   modelType: string
-  apiKey: string | null
   apiEndpoint: string | null
+  apiKey: string | null
   maxTokens: number
   temperature: number
-  isDefault: boolean
+  contextWindow: number | null
+  inputPrice: number | null
+  outputPrice: number | null
+  isDefault: number // 0: 否, 1: 是
   status: number // 0: 禁用, 1: 启用, 2: 连接异常
+  remark: string | null
   createTime: string
   updateTime: string
 }
 
 // 模型配置请求
 export interface ModelConfigRequest {
+  modelName?: string
+  modelCode?: string
+  provider?: string
+  modelType?: string
   apiKey?: string
   apiEndpoint?: string
   maxTokens?: number
@@ -27,8 +39,9 @@ export interface ModelConfigRequest {
 // 新增模型请求
 export interface AddModelRequest {
   modelName: string
-  modelCode?: string
+  modelCode: string
   provider: string
+  modelType: string
   apiEndpoint?: string
   apiKey?: string
   maxTokens?: number
@@ -42,9 +55,9 @@ export interface ModelSwitchRequest {
 }
 
 export const modelApi = {
-  // 获取模型列表
-  list: () =>
-    request.get<ModelConfigResponse[]>('/ai/model/list'),
+  // 获取模型列表（modelType 可选过滤，如 'text' 仅文本生成模型）
+  list: (modelType?: string) =>
+    request.get<ModelConfigResponse[]>('/ai/model/list', { params: modelType ? { modelType } : {} }),
 
   // 获取模型详情
   get: (id: number) =>
@@ -76,7 +89,7 @@ export const modelApi = {
 }
 
 // 导出独立函数
-export const getModelList = () => modelApi.list().then(res => res.data)
+export const getModelList = (modelType?: string) => modelApi.list(modelType).then(res => res.data)
 export const getModel = (id: number) => modelApi.get(id).then(res => res.data)
 export const addModel = (data: AddModelRequest) => modelApi.add(data)
 export const configModel = (id: number, data: ModelConfigRequest) =>

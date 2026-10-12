@@ -21,6 +21,11 @@ public interface AiModelService {
     List<AiModelConfig> getAllModelConfigs();
 
     /**
+     * 按模型类型获取模型配置（modelType 为 null 时不过滤）
+     */
+    List<AiModelConfig> getAllModelConfigs(String modelType);
+
+    /**
      * 获取模型配置详情
      */
     AiModelConfig getModelConfig(Long id);

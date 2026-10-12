@@ -88,7 +88,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import { getModelList } from '@/api/ai/model'
+import { getModelList, AI_MODEL_TYPE_TEXT } from '@/api/ai/model'
 import { createConversation, getConversationList, getConversationMessages, sendMessage, deleteConversation, updateConversationTitle, saveAiMessage } from '@/api/ai/chat'
 import { createSSE, parseSSEData } from '@/utils/sse'
 import type { ModelConfigResponse } from '@/api/ai/model'
@@ -112,7 +112,7 @@ const messageContainerRef = ref<HTMLElement | null>(null)
 const sseClient = createSSE()
 
 onMounted(async () => {
-  modelList.value = await getModelList()
+  modelList.value = await getModelList(AI_MODEL_TYPE_TEXT)
   const defaultModel = modelList.value.find(m => m.isDefault === 1)
   if (defaultModel) {
     selectedModelId.value = defaultModel.id

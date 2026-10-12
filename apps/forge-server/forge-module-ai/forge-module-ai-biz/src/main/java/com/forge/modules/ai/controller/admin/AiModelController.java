@@ -38,8 +38,8 @@ public class AiModelController {
     @Operation(summary = "获取所有模型配置")
     @GetMapping("/list")
     @PreAuthorize("hasAuthority('ai:model:query')")
-    public Result<List<AiModelConfig>> getAllModelConfigs() {
-        List<AiModelConfig> list = aiModelService.getAllModelConfigs();
+    public Result<List<AiModelConfig>> getAllModelConfigs(@RequestParam(required = false) String modelType) {
+        List<AiModelConfig> list = aiModelService.getAllModelConfigs(modelType);
         return Result.success(list);
     }
 

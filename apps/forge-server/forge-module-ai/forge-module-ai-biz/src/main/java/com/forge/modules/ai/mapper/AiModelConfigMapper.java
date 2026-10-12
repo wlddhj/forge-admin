@@ -10,4 +10,7 @@ public interface AiModelConfigMapper extends BaseMapper<AiModelConfig> {
 
     @Select("SELECT * FROM ai_model_config WHERE model_name = #{modelName} AND deleted = 0")
     AiModelConfig selectByModelName(String modelName);
+
+    @Select("SELECT * FROM ai_model_config WHERE model_code = #{modelCode} AND deleted = 0")
+    AiModelConfig selectByModelCode(String modelCode);
 }

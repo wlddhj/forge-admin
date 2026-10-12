@@ -71,6 +71,7 @@ declare module 'vue' {
     ElTree: typeof import('element-plus/es')['ElTree']
     ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    FileUpload: typeof import('./components/FileUpload.vue')['default']
     FullscreenMenu: typeof import('./components/FullscreenMenu.vue')['default']
     FullscreenMenuContent: typeof import('./components/FullscreenMenuContent.vue')['default']
     FullscreenMenuRail: typeof import('./components/FullscreenMenuRail.vue')['default']

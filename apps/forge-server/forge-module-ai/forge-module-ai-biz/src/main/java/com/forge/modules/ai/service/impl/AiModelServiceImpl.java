@@ -1,10 +1,12 @@
 package com.forge.modules.ai.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.forge.common.exception.BusinessException;
 import com.forge.modules.ai.client.ModelHealthProbe;
 import com.forge.modules.ai.client.OpenAiChatModelFactory;
 import com.forge.modules.ai.dto.response.ModelListResponse;
 import com.forge.modules.ai.entity.AiModelConfig;
+import com.forge.modules.ai.enums.AiModelTypes;
 import com.forge.modules.ai.mapper.AiModelConfigMapper;
 import com.forge.modules.ai.service.AiModelService;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +32,7 @@ public class AiModelServiceImpl implements AiModelService {
 
     @Override
     public ModelListResponse getAvailableModels() {
-        List<AiModelConfig> configs = getAllModelConfigs();
+        List<AiModelConfig> configs = getAllModelConfigs(AiModelTypes.TEXT);
         ModelListResponse response = new ModelListResponse();
         response.setAvailable(!configs.isEmpty());
         List<ModelListResponse.ModelConfigResponse> models = new ArrayList<>();
@@ -53,7 +55,13 @@ public class AiModelServiceImpl implements AiModelService {
 
     @Override
     public List<AiModelConfig> getAllModelConfigs() {
+        return getAllModelConfigs(null);
+    }
+
+    @Override
+    public List<AiModelConfig> getAllModelConfigs(String modelType) {
         LambdaQueryWrapper<AiModelConfig> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(modelType != null, AiModelConfig::getModelType, modelType);
         wrapper.orderByAsc(AiModelConfig::getId);
         return modelConfigMapper.selectList(wrapper);
     }
@@ -68,6 +76,7 @@ public class AiModelServiceImpl implements AiModelService {
         LambdaQueryWrapper<AiModelConfig> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AiModelConfig::getIsDefault, 1);
         wrapper.eq(AiModelConfig::getStatus, 1);
+        wrapper.eq(AiModelConfig::getModelType, AiModelTypes.TEXT);
         wrapper.last("LIMIT 1");
         return modelConfigMapper.selectOne(wrapper);
     }
@@ -87,7 +96,7 @@ public class AiModelServiceImpl implements AiModelService {
     public void setDefaultModel(Long id) {
         AiModelConfig config = modelConfigMapper.selectById(id);
         if (config == null) {
-            throw new RuntimeException("模型配置不存在");
+            throw new BusinessException("模型配置不存在");
         }
 
         // 先取消当前默认模型
@@ -116,9 +125,29 @@ public class AiModelServiceImpl implements AiModelService {
     public void updateModelConfig(Long id, AiModelConfig config) {
         AiModelConfig existing = modelConfigMapper.selectById(id);
         if (existing == null) {
-            throw new RuntimeException("模型配置不存在");
+            throw new BusinessException("模型配置不存在");
         }
         // 只更新允许修改的字段
+        if (config.getModelName() != null) {
+            AiModelConfig byName = modelConfigMapper.selectByModelName(config.getModelName());
+            if (byName != null && !byName.getId().equals(id)) {
+                throw new BusinessException("模型名称已存在");
+            }
+            existing.setModelName(config.getModelName());
+        }
+        if (config.getModelCode() != null) {
+            AiModelConfig byCode = modelConfigMapper.selectByModelCode(config.getModelCode());
+            if (byCode != null && !byCode.getId().equals(id)) {
+                throw new BusinessException("模型代码已存在");
+            }
+            existing.setModelCode(config.getModelCode());
+        }
+        if (config.getModelType() != null) {
+            existing.setModelType(config.getModelType());
+        }
+        if (config.getProvider() != null) {
+            existing.setProvider(config.getProvider());
+        }
         if (config.getApiEndpoint() != null) {
             existing.setApiEndpoint(config.getApiEndpoint());
         }
@@ -138,7 +167,7 @@ public class AiModelServiceImpl implements AiModelService {
     public AiModelConfig refreshModelStatus(Long id) {
         AiModelConfig config = modelConfigMapper.selectById(id);
         if (config == null) {
-            throw new RuntimeException("模型配置不存在");
+            throw new BusinessException("模型配置不存在");
         }
         modelFactory.evict(config.getId());
         boolean available = modelHealthProbe.probe(config);
@@ -169,10 +198,23 @@ public class AiModelServiceImpl implements AiModelService {
     @Override
     @Transactional
     public void addModelConfig(AiModelConfig config) {
+        if (config.getModelName() == null || config.getModelName().isBlank()) {
+            throw new BusinessException("模型名称不能为空");
+        }
         // 检查模型名称是否已存在
         AiModelConfig existing = modelConfigMapper.selectByModelName(config.getModelName());
         if (existing != null) {
-            throw new RuntimeException("模型名称已存在");
+            throw new BusinessException("模型名称已存在");
+        }
+        if (config.getModelCode() == null || config.getModelCode().isBlank()) {
+            throw new BusinessException("模型代码不能为空");
+        }
+        AiModelConfig byCode = modelConfigMapper.selectByModelCode(config.getModelCode());
+        if (byCode != null) {
+            throw new BusinessException("模型代码已存在");
+        }
+        if (config.getModelType() == null || config.getModelType().isBlank()) {
+            config.setModelType(AiModelTypes.TEXT);
         }
         config.setStatus(1);
         config.setIsDefault(0);
@@ -190,10 +232,10 @@ public class AiModelServiceImpl implements AiModelService {
     public void deleteModelConfig(Long id) {
         AiModelConfig config = modelConfigMapper.selectById(id);
         if (config == null) {
-            throw new RuntimeException("模型配置不存在");
+            throw new BusinessException("模型配置不存在");
         }
         if (config.getIsDefault() == 1) {
-            throw new RuntimeException("不能删除默认模型");
+            throw new BusinessException("不能删除默认模型");
         }
         modelConfigMapper.deleteById(id);
     }

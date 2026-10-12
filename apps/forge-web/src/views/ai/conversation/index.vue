@@ -122,7 +122,7 @@ import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
 import { formatDateTime } from '@/utils/dateFormat'
 import { getConversationList, deleteConversation, getConversationMessages } from '@/api/ai/chat'
-import { getModelList } from '@/api/ai/model'
+import { getModelList, AI_MODEL_TYPE_TEXT } from '@/api/ai/model'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import type { ConversationResponse, MessageResponse } from '@/api/ai/chat'
 import type { ModelConfigResponse } from '@/api/ai/model'
@@ -152,7 +152,7 @@ const messageList = ref<MessageResponse[]>([])
 
 onMounted(async () => {
   tableRef.value?.connect(toolbarRef.value!)
-  modelList.value = await getModelList()
+  modelList.value = await getModelList(AI_MODEL_TYPE_TEXT)
   getList()
 })
 
