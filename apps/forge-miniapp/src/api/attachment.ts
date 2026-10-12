@@ -1,11 +1,11 @@
-const BASE_URL = 'http://localhost:8181/app-api'
+import { API_BASE_URL } from '@/config'
 
 export const attachmentApi = {
   uploadAvatar: (filePath: string): Promise<{ url: string }> => {
     const accessToken = uni.getStorageSync('accessToken')
     return new Promise((resolve, reject) => {
       uni.uploadFile({
-        url: BASE_URL + '/attachment/upload',
+        url: API_BASE_URL + '/attachment/upload',
         filePath,
         name: 'file',
         formData: { bizType: 'APP_AVATAR' },

@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:8181/app-api'
+import { API_BASE_URL } from '@/config'
 
 interface ApiResult<T> {
   code: number
@@ -24,7 +24,7 @@ export async function request<T>(options: {
 
   return new Promise<T>((resolve, reject) => {
     uni.request({
-      url: BASE_URL + options.url,
+      url: API_BASE_URL + options.url,
       method: options.method || 'GET',
       data: options.data,
       header,

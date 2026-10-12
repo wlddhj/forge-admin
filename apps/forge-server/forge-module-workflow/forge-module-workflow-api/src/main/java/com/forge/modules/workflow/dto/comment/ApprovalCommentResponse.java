@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.List;
 
 /**
  * 审批意见响应
@@ -62,6 +63,11 @@ public class ApprovalCommentResponse {
      * 附件ID列表
      */
     private String attachmentIds;
+
+    /**
+     * 附件明细
+     */
+    private List<AttachmentBrief> attachments;
 
     /**
      * 创建时间

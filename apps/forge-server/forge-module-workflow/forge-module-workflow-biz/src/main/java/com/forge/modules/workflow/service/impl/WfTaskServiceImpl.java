@@ -18,6 +18,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
+import com.forge.modules.system.entity.SysAttachment;
+import com.forge.modules.system.service.SysAttachmentService;
 import com.forge.modules.workflow.dto.task.*;
 import com.forge.modules.workflow.entity.WfApprovalComment;
 import com.forge.modules.workflow.framework.ApprovalActionTypeEnum;
@@ -58,6 +60,9 @@ public class WfTaskServiceImpl implements WfTaskService {
     private final FlwInstanceMapper instanceMapper;
     private final FlwHisInstanceMapper hisInstanceMapper;
     private final FlowLongEngine flowLongEngine;
+    private final SysAttachmentService sysAttachmentService;
+
+    private static final String COMMENT_ATTACHMENT_BIZ_TYPE = "wf_comment";
 
     @Override
     public Page<TaskResponse> getTodoTasks(TaskQueryRequest request) {
@@ -249,7 +254,7 @@ public class WfTaskServiceImpl implements WfTaskService {
 //        taskService.complete(id, flowCreator, variables);
 
         flowLongEngine.executeTask(id,flowCreator,variables);
-        saveApprovalComment(task, currentUserId, userName, ApprovalActionTypeEnum.APPROVE.getCode(), request.getComment());
+        saveApprovalComment(task, currentUserId, userName, ApprovalActionTypeEnum.APPROVE.getCode(), request.getComment(), request.getAttachmentIds());
         log.info("任务审批通过：taskId={}, userId={}", taskId, currentUserId);
     }
 
@@ -262,7 +267,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         Long id = parseTaskId(taskId);
         FlwTask task = validateTask(id);
 
-        saveApprovalComment(task, currentUserId, userName, ApprovalActionTypeEnum.REJECT.getCode(), request.getComment());
+        saveApprovalComment(task, currentUserId, userName, ApprovalActionTypeEnum.REJECT.getCode(), request.getComment(), request.getAttachmentIds());
 
         // 驳回任务
         FlowCreator flowCreator = createFlowCreator(currentUserId);
@@ -630,6 +635,14 @@ public class WfTaskServiceImpl implements WfTaskService {
 
     private void saveApprovalComment(FlwTask task, Long userId, String userName,
                                       String actionType, String commentText) {
+        saveApprovalComment(task, userId, userName, actionType, commentText, null);
+    }
+
+    /**
+     * 保存审批评论；带附件时落 attachment_ids 逗号串并将附件 biz 绑定到该评论
+     */
+    private void saveApprovalComment(FlwTask task, Long userId, String userName,
+                                      String actionType, String commentText, List<Long> attachmentIds) {
         WfApprovalComment comment = new WfApprovalComment();
         comment.setProcessInstanceId(task.getInstanceId());
         comment.setTaskId(task.getId());
@@ -640,7 +653,19 @@ public class WfTaskServiceImpl implements WfTaskService {
         comment.setActionType(actionType);
         comment.setCommentText(commentText);
         comment.setCreateTime(LocalDateTime.now());
+        if (attachmentIds != null && !attachmentIds.isEmpty()) {
+            comment.setAttachmentIds(attachmentIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
+        }
         approvalCommentMapper.insert(comment);
+
+        if (attachmentIds != null && !attachmentIds.isEmpty()) {
+            sysAttachmentService.lambdaUpdate()
+                    .set(SysAttachment::getBizType, COMMENT_ATTACHMENT_BIZ_TYPE)
+                    .set(SysAttachment::getBizId, comment.getId())
+                    .in(SysAttachment::getId, attachmentIds)
+                    .and(w -> w.isNull(SysAttachment::getBizId).or().eq(SysAttachment::getBizId, comment.getId()))
+                    .update();
+        }
     }
 
     private TaskResponse convertTaskToResponse(FlwTask task) {

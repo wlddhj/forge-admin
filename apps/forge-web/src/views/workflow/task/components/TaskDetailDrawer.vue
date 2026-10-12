@@ -120,6 +120,9 @@
               show-word-limit
             />
           </el-form-item>
+          <el-form-item label="附件">
+            <FileUpload v-model="commentAttachmentIds" biz-type="wf_comment" :limit="5" />
+          </el-form-item>
         </el-form>
         <div class="action-buttons">
           <el-button type="success" :loading="actionLoading" @click="handleApprove">
@@ -164,7 +167,24 @@
             </template>
           </el-table-column>
           <el-table-column prop="taskName" label="任务" min-width="100" />
-          <el-table-column prop="commentText" label="意见" min-width="150" show-overflow-tooltip />
+          <el-table-column prop="commentText" label="意见" min-width="150">
+            <template #default="{ row }">
+              <div>{{ row.commentText || '-' }}</div>
+              <div v-if="row.attachments?.length" class="comment-attachments">
+                <el-link
+                  v-for="att in row.attachments"
+                  :key="att.id"
+                  :href="att.fileUrl"
+                  target="_blank"
+                  type="primary"
+                  :underline="false"
+                  class="attachment-link"
+                >
+                  <el-icon><Paperclip /></el-icon>{{ att.originalName }}
+                </el-link>
+              </div>
+            </template>
+          </el-table-column>
         </el-table>
         <el-empty v-else description="暂无审批记录" :image-size="60" />
       </el-card>
@@ -333,6 +353,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Paperclip } from '@element-plus/icons-vue'
 import { taskApi } from '@/api/workflow/task'
 import { processInstanceApi } from '@/api/workflow/process-instance'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
@@ -365,6 +386,7 @@ const instanceInfo = ref<ProcessInstance | null>(null)
 const comments = ref<ApprovalComment[]>([])
 const bpmnXml = ref('')
 const comment = ref('')
+const commentAttachmentIds = ref<number[]>([])
 const approvalNodes = ref<ApprovalNode[]>([])
 
 // 审批人自选（策略34）
@@ -436,6 +458,7 @@ const resetState = () => {
   comments.value = []
   bpmnXml.value = ''
   comment.value = ''
+  commentAttachmentIds.value = []
   formRule.value = []
   formData.value = {}
   formReady.value = false
@@ -581,6 +604,7 @@ const handleApprove = async () => {
     }
     await taskApi.approve(taskId.value, {
       comment: comment.value,
+      attachmentIds: commentAttachmentIds.value.length > 0 ? commentAttachmentIds.value : undefined,
       variables: Object.keys(variables).length > 0 ? variables : undefined,
     })
     ElMessage.success('审批通过')
@@ -604,7 +628,11 @@ const handleReject = async () => {
     actionLoading.value = true
     try {
       const variables = formData.value && Object.keys(formData.value).length > 0 ? formData.value : undefined
-      await taskApi.reject(taskId.value, { comment: comment.value, variables })
+      await taskApi.reject(taskId.value, {
+        comment: comment.value,
+        attachmentIds: commentAttachmentIds.value.length > 0 ? commentAttachmentIds.value : undefined,
+        variables
+      })
       ElMessage.success('驳回成功')
       emit('success')
       handleClose()
@@ -774,6 +802,21 @@ defineExpose({ open })
 </script>
 
 <style scoped lang="scss">
+.comment-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+
+  .attachment-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    width: fit-content;
+    font-size: 12px;
+  }
+}
+
 .drawer-content {
   display: flex;
   flex-direction: column;

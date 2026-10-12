@@ -22,19 +22,40 @@ public class FileUploadValidator {
     private final UploadPolicyProperties properties;
 
     /**
-     * Magic Number 映射（文件真实类型识别）
+     * Magic Number 映射（文件真实类型识别），同一扩展名需匹配全部签名
      */
-    private static final Map<String, byte[]> MAGIC_NUMBERS = new HashMap<>();
+    private static final Map<String, List<MagicSignature>> MAGIC_NUMBERS = new HashMap<>();
+
+    /**
+     * 文件头签名：magic 在文件起始偏移 offset 处出现
+     */
+    private record MagicSignature(byte[] magic, int offset) {
+    }
+
     static {
         // 图片
-        MAGIC_NUMBERS.put("jpg", new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF});
-        MAGIC_NUMBERS.put("jpeg", new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF});
-        MAGIC_NUMBERS.put("png", new byte[]{(byte) 0x89, (byte) 0x50, (byte) 0x4E, (byte) 0x47});
-        MAGIC_NUMBERS.put("gif", new byte[]{(byte) 0x47, (byte) 0x49, (byte) 0x46, (byte) 0x38});
-        MAGIC_NUMBERS.put("webp", new byte[]{(byte) 0x52, (byte) 0x49, (byte) 0x46, (byte) 0x46});
-        MAGIC_NUMBERS.put("bmp", new byte[]{(byte) 0x42, (byte) 0x4D});
+        MAGIC_NUMBERS.put("jpg", List.of(new MagicSignature(new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}, 0)));
+        MAGIC_NUMBERS.put("jpeg", List.of(new MagicSignature(new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}, 0)));
+        MAGIC_NUMBERS.put("png", List.of(new MagicSignature(new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47}, 0)));
+        MAGIC_NUMBERS.put("gif", List.of(new MagicSignature(new byte[]{0x47, 0x49, 0x46, 0x38}, 0)));
+        // RIFF 容器头与 wav/avi 共用，需叠加 offset 8 处的 WEBP 标识
+        MAGIC_NUMBERS.put("webp", List.of(
+                new MagicSignature(new byte[]{0x52, 0x49, 0x46, 0x46}, 0),
+                new MagicSignature(new byte[]{0x57, 0x45, 0x42, 0x50}, 8)));
+        MAGIC_NUMBERS.put("bmp", List.of(new MagicSignature(new byte[]{0x42, 0x4D}, 0)));
         // 文档
-        MAGIC_NUMBERS.put("pdf", new byte[]{(byte) 0x25, (byte) 0x50, (byte) 0x44, (byte) 0x46}); // %PDF
+        MAGIC_NUMBERS.put("pdf", List.of(new MagicSignature(new byte[]{0x25, 0x50, 0x44, 0x46}, 0))); // %PDF
+        // OLE2 复合文档（doc/xls/ppt 共用，无法仅凭文件头互斥）
+        byte[] ole2 = new byte[]{(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
+        MAGIC_NUMBERS.put("doc", List.of(new MagicSignature(ole2, 0)));
+        MAGIC_NUMBERS.put("xls", List.of(new MagicSignature(ole2, 0)));
+        MAGIC_NUMBERS.put("ppt", List.of(new MagicSignature(ole2, 0)));
+        // OOXML 为 zip 容器（docx/xlsx/pptx 共用 PK 头）
+        byte[] zip = new byte[]{0x50, 0x4B, 0x03, 0x04};
+        MAGIC_NUMBERS.put("docx", List.of(new MagicSignature(zip, 0)));
+        MAGIC_NUMBERS.put("xlsx", List.of(new MagicSignature(zip, 0)));
+        MAGIC_NUMBERS.put("pptx", List.of(new MagicSignature(zip, 0)));
+        // txt/csv/md/json 无可靠文件头，不定义即跳过校验
     }
 
     /**
@@ -85,15 +106,21 @@ public class FileUploadValidator {
                 return "文件内容太小，无法校验类型";
             }
 
-            byte[] expectedMagic = MAGIC_NUMBERS.get(declaredExtension.toLowerCase());
-            if (expectedMagic == null) {
+            List<MagicSignature> signatures = MAGIC_NUMBERS.get(declaredExtension.toLowerCase());
+            if (signatures == null) {
                 // 该扩展名没有 Magic Number 定义，跳过校验
                 return null;
             }
 
-            for (int i = 0; i < expectedMagic.length; i++) {
-                if (content[i] != expectedMagic[i]) {
+            for (MagicSignature signature : signatures) {
+                int end = signature.offset() + signature.magic().length;
+                if (content.length < end) {
                     return "文件真实类型与声明类型不符，可能存在伪装风险";
+                }
+                for (int i = 0; i < signature.magic().length; i++) {
+                    if (content[signature.offset() + i] != signature.magic()[i]) {
+                        return "文件真实类型与声明类型不符，可能存在伪装风险";
+                    }
                 }
             }
 

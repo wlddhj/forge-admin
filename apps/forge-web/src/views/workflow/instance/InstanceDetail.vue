@@ -84,7 +84,24 @@
               </template>
             </el-table-column>
             <el-table-column prop="taskName" label="任务名称" min-width="120" />
-            <el-table-column prop="commentText" label="审批意见" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="commentText" label="审批意见" min-width="200">
+              <template #default="{ row }">
+                <div>{{ row.commentText || '-' }}</div>
+                <div v-if="row.attachments?.length" class="comment-attachments">
+                  <el-link
+                    v-for="att in row.attachments"
+                    :key="att.id"
+                    :href="att.fileUrl"
+                    target="_blank"
+                    type="primary"
+                    :underline="false"
+                    class="attachment-link"
+                  >
+                    <el-icon><Paperclip /></el-icon>{{ att.originalName }}
+                  </el-link>
+                </div>
+              </template>
+            </el-table-column>
           </el-table>
           <el-empty v-else description="暂无审批记录" :image-size="60" />
         </el-card>
@@ -103,6 +120,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Paperclip } from '@element-plus/icons-vue'
 import { processInstanceApi } from '@/api/workflow/process-instance'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
 import { formApi } from '@/api/workflow/form'
@@ -209,6 +227,21 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+.comment-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+
+  .attachment-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    width: fit-content;
+    font-size: 12px;
+  }
+}
+
 .detail-header {
   padding: 16px 20px;
   background: #fff;

@@ -17,7 +17,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
+import com.forge.modules.system.entity.SysAttachment;
+import com.forge.modules.system.service.SysAttachmentService;
 import com.forge.modules.workflow.dto.comment.ApprovalCommentResponse;
+import com.forge.modules.workflow.dto.comment.AttachmentBrief;
 import com.forge.modules.workflow.dto.instance.ApprovalDetailResponse;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceQueryRequest;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceResponse;
@@ -73,6 +76,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
     private final FlowLongDiagramGenerator diagramGenerator;
     private final FlowLongIdentityService identityService;
     private final WfApprovalCommentMapper approvalCommentMapper;
+    private final SysAttachmentService sysAttachmentService;
     private final WfProcessExtMapper processExtMapper;
     private final ProcessNoGenerator processNoGenerator;
     private final WfProcessInstanceCopyService copyService;
@@ -483,9 +487,51 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
                 .orderByAsc(WfApprovalComment::getCreateTime);
 
         List<WfApprovalComment> comments = approvalCommentMapper.selectList(wrapper);
-        return comments.stream()
+        List<ApprovalCommentResponse> responses = comments.stream()
                 .map(this::convertToCommentResponse)
                 .collect(Collectors.toList());
+        fillCommentAttachments(comments, responses);
+        return responses;
+    }
+
+    /**
+     * 按评论的 attachment_ids 批量填充附件明细（一次查询，避免逐条 N+1）
+     */
+    private void fillCommentAttachments(List<WfApprovalComment> comments, List<ApprovalCommentResponse> responses) {
+        List<Long> allAttachmentIds = comments.stream()
+                .map(WfApprovalComment::getAttachmentIds)
+                .filter(StrUtil::isNotBlank)
+                .flatMap(s -> Arrays.stream(s.split(",")))
+                .filter(s -> s.matches("\\d+"))
+                .map(Long::parseLong)
+                .distinct()
+                .collect(Collectors.toList());
+        if (allAttachmentIds.isEmpty()) {
+            return;
+        }
+
+        Map<Long, SysAttachment> attachmentMap = sysAttachmentService.listByIds(allAttachmentIds).stream()
+                .collect(Collectors.toMap(SysAttachment::getId, a -> a));
+        for (int i = 0; i < comments.size(); i++) {
+            String idsStr = comments.get(i).getAttachmentIds();
+            if (StrUtil.isBlank(idsStr)) {
+                continue;
+            }
+            List<AttachmentBrief> briefs = Arrays.stream(idsStr.split(","))
+                    .filter(s -> s.matches("\\d+"))
+                    .map(Long::parseLong)
+                    .map(attachmentMap::get)
+                    .filter(Objects::nonNull)
+                    .map(attachment -> {
+                        AttachmentBrief brief = new AttachmentBrief();
+                        brief.setId(attachment.getId());
+                        brief.setOriginalName(attachment.getOriginalName());
+                        brief.setFileUrl(attachment.getFileUrl());
+                        return brief;
+                    })
+                    .collect(Collectors.toList());
+            responses.get(i).setAttachments(briefs);
+        }
     }
 
     @Override

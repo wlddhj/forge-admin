@@ -157,6 +157,7 @@ export interface TaskQuery {
 
 export interface TaskApproveRequest {
   comment: string
+  attachmentIds?: number[]
   variables?: Record<string, any>
 }
 
@@ -187,7 +188,15 @@ export interface ApprovalComment {
   actionType: string
   commentText: string
   attachmentIds: string
+  attachments?: WorkflowCommentAttachment[]
   createTime: string
+}
+
+// 审批评论附件明细
+export interface WorkflowCommentAttachment {
+  id: number
+  originalName: string
+  fileUrl: string
 }
 
 // 可退回节点
