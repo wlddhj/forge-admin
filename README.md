@@ -832,7 +832,9 @@ mysql -u root -p forge_admin < sql/init-screen.sql
 | [docs-base/guide/deployment-guide.md](docs-base/guide/deployment-guide.md) | 服务部署(环境变量配置、Docker Compose、镜像构建与容器运行) |
 | [docs-base/guide/data-permission-guide.md](docs-base/guide/data-permission-guide.md) | 数据权限(部门级 / 本人级)使用说明 |
 | [docs-base/development/database-design-specification.md](docs-base/development/database-design-specification.md) | 数据库设计规范(字段命名、索引、关联关系) |
-| [docs-base/development/module-development.md](docs-base/development/module-development.md) | 新建业务模块的开发规范 |
+| [docs-base/development/module-development.md](docs-base/development/module-development.md) | 新建业务模块的开发向导(端到端流程) |
+| [docs-base/development/backend-development-specification.md](docs-base/development/backend-development-specification.md) | 后端开发规范(模块结构、分层模板、横切关注点) |
+| [docs-base/development/frontend-development-specification.md](docs-base/development/frontend-development-specification.md) | 前端开发规范(API、页面模板、vxe-table、弹窗/抽屉) |
 | [docs-base/guide/print-template-guide.md](docs-base/guide/print-template-guide.md) | 打印模板使用指南（hiprint 设计器/调用打印/多租户行为/常见问题） |
 
 ## 许可证
