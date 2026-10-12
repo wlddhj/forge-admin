@@ -130,7 +130,7 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 
 ## 9. 常见问题
 
-页面与表格类问题（工具栏自定义列、序号不连续、树形展开、列宽调整、移动端选中）见 [前端开发规范](./frontend-development-specification.md) 第 11 章。
+页面与表格类问题（工具栏自定义列、序号不连续、树形展开、列宽调整、移动端选中）见 [前端开发规范](./frontend-development-specification.md) 第 12 章。
 
 ---
 

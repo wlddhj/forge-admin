@@ -5,6 +5,8 @@
 > 配套文档：后端接口规范见 [后端开发规范](./backend-development-specification.md)；新模块端到端流程见 [新模块开发向导](./module-development.md)。
 >
 > v2.0 变化：在 v1.0「页面组件组织与弹窗/抽屉拆分」专题基础上，扩充为覆盖页面开发全流程的完整规范（文件结构 / API / 页面模板 / vxe-table / 样式 / 字典 / 检查清单）。
+>
+> v2.1 变化：新增第 9 章「日期/时间格式化」（统一工具函数、表格列渲染、详情展示、时间范围查询）。
 
 ---
 
@@ -854,7 +856,94 @@ INSERT INTO `sys_dict_data` (`dict_type`, `dict_label`, `dict_value`, `dict_sort
 
 ---
 
-## 9. 关键约定速查
+## 9. 日期/时间格式化
+
+### 9.1 统一工具函数
+
+日期/时间显示**一律使用** `utils/dateFormat.ts` 的工具函数，禁止引入 dayjs/moment 等日期库，禁止手写 `toLocaleString` 或字符串拼接：
+
+```typescript
+import { formatDate, formatDateTime } from '@/utils/dateFormat'
+
+formatDate(1718150400)        // "2024-06-12"（日期显示）
+formatDateTime(1718150400)    // "2024-06-12 10:00:00"（日期时间显示）
+formatDateTime(null)          // "-"（空值统一兜底）
+```
+
+**函数说明：**
+
+| 函数 | 输出格式 | 适用场景 |
+|------|---------|---------|
+| `formatDate` | `YYYY-MM-DD` | 纯日期字段（生日、有效期等） |
+| `formatDateTime` | `YYYY-MM-DD HH:mm:ss` | 时间字段（创建时间、操作时间、审批时间等） |
+
+**要点：**
+- 入参兼容秒级/毫秒级时间戳、字符串、`Date` 对象，内部自动判断
+- 空值（`null`/`undefined`/空串/非法值）统一返回 `'-'`，模板中无需再判空
+
+### 9.2 表格列渲染
+
+时间列通过 `#default` 插槽调用 `formatDateTime`，列宽建议 160-180：
+
+```vue
+<vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="180">
+  <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+</vxe-column>
+```
+
+### 9.3 详情展示
+
+详情抽屉/弹窗的 `el-descriptions-item` 中直接插值：
+
+```vue
+<el-descriptions-item label="发起时间">
+  {{ formatDateTime(instanceInfo?.startTime) }}
+</el-descriptions-item>
+```
+
+### 9.4 搜索日期范围
+
+时间范围查询使用独立的 `dateRange` ref（**不放入 queryParams**），通过 `el-date-picker type="daterange"` 选择，watch 同步到查询参数：
+
+```vue
+<el-form-item label="操作时间">
+  <el-date-picker
+    v-model="dateRange"
+    type="daterange"
+    range-separator="至"
+    start-placeholder="开始日期"
+    end-placeholder="结束日期"
+    value-format="YYYY-MM-DD HH:mm:ss"
+    :default-time="[new Date(0, 0, 0, 0, 0, 0), new Date(0, 0, 0, 23, 59, 59)]"
+    style="width: 240px"
+  />
+</el-form-item>
+```
+
+```typescript
+const dateRange = ref<[string, string] | null>(null)
+
+// 监听日期范围变化，同步到查询参数
+watch(dateRange, (val) => {
+  if (val && val.length === 2) {
+    queryParams.startTime = val[0]
+    queryParams.endTime = val[1]
+  } else {
+    queryParams.startTime = ''
+    queryParams.endTime = ''
+  }
+})
+```
+
+**要点：**
+- `value-format="YYYY-MM-DD HH:mm:ss"`（token 为大写 `YYYY`/`HH`，dayjs 风格），提交给后端即为格式化字符串
+- `:default-time` 自动补齐边界时刻：起始 00:00:00、结束 23:59:59，保证范围查询闭合
+- 重置按钮中显式清空：`dateRange.value = null`
+- 移动端搜索抽屉中同样配置，`style="width: 100%"`
+
+---
+
+## 10. 关键约定速查
 
 | 项目 | 规范 |
 |------|------|
@@ -871,14 +960,16 @@ INSERT INTO `sys_dict_data` (`dict_type`, `dict_label`, `dict_value`, `dict_sort
 | 工具栏 | `<vxe-toolbar custom>` + `tableRef.value.connect(toolbarRef.value)` |
 | 刷新按钮 | `<vxe-button circle icon="vxe-icon-refresh" style="margin-right: 10px" />` |
 | 行选中 | `@current-change="handleCurrentChange"` + `tableRef.value.clearCurrentRow()` |
+| 日期/时间显示 | `formatDate` / `formatDateTime`（`@/utils/dateFormat`），空值返回 `'-'`；禁止 dayjs/moment 与手写拼接（见第 9 章） |
+| 时间范围查询 | 独立 `dateRange` + `el-date-picker type="daterange"` + `value-format="YYYY-MM-DD HH:mm:ss"` + `default-time` 边界补齐 |
 
 ---
 
-## 10. 检查清单
+## 11. 检查清单
 
 新页面提交前自查：
 
-### 10.1 基础项
+### 11.1 基础项
 
 - [ ] API 文件位于 `src/api/{module}/`，查询/实体类型与请求函数齐全（第 3 章）
 - [ ] 页面位于 `src/views/{module}/{entity}/`，结构符合 2.2 节
@@ -886,8 +977,9 @@ INSERT INTO `sys_dict_data` (`dict_type`, `dict_label`, `dict_value`, `dict_sort
 - [ ] 纯确认操作使用 `ElMessageBox.confirm`，未抽成组件
 - [ ] 组件命名 PascalCase，`XxxDialog` / `XxxDrawer` 后缀正确
 - [ ] 页面只定义特有业务样式，未重复定义 `.app-container` / `.search-card` / `.table-card`
+- [ ] 日期/时间显示统一用 `formatDate` / `formatDateTime`，无 dayjs/moment 引入与手写格式化（第 9 章）
 
-### 10.2 vxe-table 必查项
+### 11.2 vxe-table 必查项
 
 - [ ] 添加 `id="xxxTable"` 唯一标识
 - [ ] 添加 `:custom-config="{mode: 'modal'}"`
@@ -900,14 +992,14 @@ INSERT INTO `sys_dict_data` (`dict_type`, `dict_label`, `dict_value`, `dict_sort
 - [ ] 导入并使用 `useTableHeight` / `useTableSeq`
 - [ ] 添加 `@current-change` 处理移动端选中
 
-### 10.3 树形表格附加项
+### 11.3 树形表格附加项
 
 - [ ] 添加 `:tree-config="{ transform: true, ... }"`
 - [ ] 添加 `:row-config="{ keyField: 'id', ... }"`
 - [ ] 配置 `useTableHeight({ hasPagination: false })`
 - [ ] 添加展开/折叠按钮和逻辑
 
-### 10.4 多选表格附加项
+### 11.4 多选表格附加项
 
 - [ ] 添加 `<vxe-column type="checkbox" />`
 - [ ] 添加 `:checkbox-config="{ reserve: true }"`
@@ -916,7 +1008,7 @@ INSERT INTO `sys_dict_data` (`dict_type`, `dict_label`, `dict_value`, `dict_sort
 - [ ] 处理 `@checkbox-range-end` 事件（拖选范围选择）
 - [ ] 添加 `clearCheckboxRow()` 取消选择逻辑
 
-### 10.5 弹窗/抽屉项
+### 11.5 弹窗/抽屉项
 
 - [ ] 所有表单弹窗、详情弹窗/抽屉、业务弹窗（导入、分配等）均为独立 `.vue` 文件，位于页面目录 `components/` 下
 - [ ] `index.vue` 中无 `formRef` / `formRules` / `formData` / `handleSubmit` 等弹窗内部逻辑
@@ -926,7 +1018,7 @@ INSERT INTO `sys_dict_data` (`dict_type`, `dict_label`, `dict_value`, `dict_sort
 
 ---
 
-## 11. 常见问题
+## 12. 常见问题
 
 ### Q1: 工具栏自定义列按钮不显示？
 
@@ -950,5 +1042,5 @@ INSERT INTO `sys_dict_data` (`dict_type`, `dict_label`, `dict_value`, `dict_sort
 
 ---
 
-*文档版本：v2.0*
+*文档版本：v2.1*
 *最后更新：2026-10-12*
