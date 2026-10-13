@@ -31,7 +31,7 @@ export interface AgentRun {
   agentId: number
   conversationId: number | null
   userId: number
-  triggerType: string
+  triggerType: 'CONVERSATION' | 'MANUAL' | 'SCHEDULED'
   status: 'RUNNING' | 'WAITING_APPROVAL' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
   lastNode: string | null
   errorMsg: string | null
@@ -71,6 +71,36 @@ export interface AgentTodo {
   handleComment: string | null
   handleTime: string | null
   createTime: string
+}
+
+/** Agent 定时任务 */
+export interface AgentJob {
+  id: number
+  jobName: string
+  agentCode: string
+  sysJobId: number | null
+  inputTemplate: string | null
+  cronExpression: string
+  status: number
+  lastRunId: number | null
+  createTime: string
+  updateTime: string
+}
+
+export const agentJobApi = {
+  page: (params: { jobName?: string; agentCode?: string; status?: number; pageNum: number; pageSize: number }) =>
+    request.get<{ records: AgentJob[]; total: number }>('/ai/agent/job/list', { params }),
+
+  add: (data: Partial<AgentJob>) => request.post('/ai/agent/job', data),
+
+  update: (id: number, data: Partial<AgentJob>) => request.put(`/ai/agent/job/${id}`, data),
+
+  changeStatus: (id: number, status: number) =>
+    request.put(`/ai/agent/job/${id}/status`, null, { params: { status } }),
+
+  remove: (id: number) => request.delete(`/ai/agent/job/${id}`),
+
+  runOnce: (id: number) => request.post<AgentRun>(`/ai/agent/job/${id}/run`)
 }
 
 export const agentApi = {

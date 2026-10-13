@@ -25,7 +25,7 @@ public interface SysJobService extends IService<SysJob> {
     /**
      * 新增任务
      */
-    void addJob(JobRequest request);
+    Long addJob(JobRequest request);
 
     /**
      * 更新任务

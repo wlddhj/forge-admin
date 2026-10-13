@@ -134,7 +134,7 @@ public class AiAgentController {
 
         return Flux.<ServerSentEvent<String>>create(sink -> {
             try {
-                graphRunner.runStream(config, request.getConversationId(), userId,
+                graphRunner.runStream(config, request.getConversationId(), userId, "CONVERSATION",
                         request.getContent(), request.getImages(),
                         event -> sink.next(toFrame(event)));
                 sink.complete();

@@ -56,13 +56,13 @@ public class AgentGraphRunner {
      * 流式执行：返回最终状态（SUCCEEDED/WAITING_APPROVAL/FAILED）
      */
     public AiAgentRun runStream(AiAgentConfig agentConfig, Long conversationId, Long userId,
-                                String input, List<String> images,
+                                String triggerType, String input, List<String> images,
                                 Consumer<AgentEvents.AgentEvent> sseEmitter) {
         AiAgentRun run = new AiAgentRun();
         run.setAgentId(agentConfig.getId());
         run.setConversationId(conversationId);
         run.setUserId(userId);
-        run.setTriggerType("CONVERSATION");
+        run.setTriggerType(triggerType == null ? "CONVERSATION" : triggerType);
         run.setStatus(AiAgentRun.STATUS_RUNNING);
         run.setInputSummary(input != null && input.length() > 400 ? input.substring(0, 400) : input);
         run.setStartTime(LocalDateTime.now());

@@ -24,6 +24,11 @@
         <vxe-column field="id" title="运行ID" width="90" />
         <vxe-column field="agentId" title="AgentID" width="90" />
         <vxe-column field="inputSummary" title="输入摘要" min-width="240" />
+        <vxe-column title="触发方式" width="90">
+          <template #default="{ row }">
+            <el-tag :type="triggerType(row.triggerType)" size="small">{{ triggerLabel(row.triggerType) }}</el-tag>
+          </template>
+        </vxe-column>
         <vxe-column title="状态" width="110">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)">{{ statusLabel(row.status) }}</el-tag>
@@ -129,6 +134,9 @@ const handleDetail = async (row: AgentRun) => {
 }
 
 const statusLabel = (s: string) => ({ RUNNING: '运行中', WAITING_APPROVAL: '待确认', SUCCEEDED: '成功', FAILED: '失败', CANCELLED: '已取消' } as Record<string, string>)[s] || s
+const triggerLabel = (t: string) => ({ CONVERSATION: '会话', MANUAL: '手动', SCHEDULED: '调度' } as Record<string, string>)[t] || t
+const triggerType = (t: string): 'primary' | 'success' | 'warning' | 'info' | 'danger' =>
+  (({ CONVERSATION: 'primary', MANUAL: 'warning', SCHEDULED: 'success' } as Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'>)[t] || 'info')
 const statusType = (s: string): 'primary' | 'success' | 'warning' | 'info' | 'danger' =>
   (({ RUNNING: 'primary', WAITING_APPROVAL: 'warning', SUCCEEDED: 'success', FAILED: 'danger', CANCELLED: 'info' } as Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'>)[s] || 'info')
 

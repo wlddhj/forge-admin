@@ -72,7 +72,7 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJob> impleme
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void addJob(JobRequest request) {
+    public Long addJob(JobRequest request) {
         // 验证cron表达式
         if (!CronExpression.isValidExpression(request.getCronExpression())) {
             throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "cron表达式格式不正确");
@@ -87,6 +87,7 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJob> impleme
         if (job.getStatus() == 1) {
             scheduleService.scheduleJob(job);
         }
+        return job.getId();
     }
 
     @Override
