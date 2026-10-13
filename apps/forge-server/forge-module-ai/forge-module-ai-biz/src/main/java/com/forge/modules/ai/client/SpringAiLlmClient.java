@@ -105,11 +105,11 @@ public class SpringAiLlmClient implements LlmClient {
                 } else if ("system".equals(item.getRole())) {
                     messages.add(new SystemMessage(item.getContent()));
                 } else {
-                    messages.add(new UserMessage(item.getContent()));
+                    messages.add(userMessage(item.getContent(), item.getImages()));
                 }
             }
         }
-        messages.add(new UserMessage(request.getContent()));
+        messages.add(userMessage(request.getContent(), request.getImages()));
 
         OpenAiChatOptions.Builder options = OpenAiChatOptions.builder().model(modelConfig.getModelCode());
         if (request.getTemperature() != null) {
@@ -119,6 +119,46 @@ public class SpringAiLlmClient implements LlmClient {
             options.maxTokens(request.getMaxTokens());
         }
         return new Prompt(messages, options.build());
+    }
+
+    private UserMessage userMessage(String text, List<String> images) {
+        if (images == null || images.isEmpty()) {
+            return new UserMessage(text);
+        }
+        List<org.springframework.ai.content.Media> mediaList = new ArrayList<>();
+        for (String image : images) {
+            if (image == null || image.isBlank()) {
+                continue;
+            }
+            org.springframework.ai.content.Media.Builder builder = org.springframework.ai.content.Media.builder()
+                    .mimeType(guessMimeType(image));
+            if (image.startsWith("http://") || image.startsWith("https://")) {
+                try {
+                    builder.data(new java.net.URL(image));
+                } catch (java.net.MalformedURLException e) {
+                    throw new IllegalArgumentException("图片 URL 非法: " + image, e);
+                }
+            } else {
+                builder.data(image);
+            }
+            mediaList.add(builder.build());
+        }
+        return UserMessage.builder().text(text).media(mediaList).build();
+    }
+
+    private org.springframework.util.MimeType guessMimeType(String image) {
+        String lower = image.toLowerCase();
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.contains("/jpg")
+                || lower.contains("image/jpeg")) {
+            return org.springframework.util.MimeTypeUtils.IMAGE_JPEG;
+        }
+        if (lower.endsWith(".gif") || lower.contains("image/gif")) {
+            return org.springframework.util.MimeTypeUtils.IMAGE_GIF;
+        }
+        if (lower.endsWith(".webp") || lower.contains("image/webp")) {
+            return org.springframework.util.MimeTypeUtils.parseMimeType("image/webp");
+        }
+        return org.springframework.util.MimeTypeUtils.IMAGE_PNG;
     }
 
     // ========== SSE 帧（Jackson 序列化保证换行等字符正确转义，等价 Python json.dumps） ==========

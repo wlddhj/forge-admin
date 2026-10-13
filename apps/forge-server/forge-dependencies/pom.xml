@@ -24,6 +24,7 @@
         <jsqlparser.version>4.9</jsqlparser.version>
         <resilience4j.version>2.3.0</resilience4j.version>
         <spring-ai.version>1.1.8</spring-ai.version>
+        <langgraph4j.version>1.9.2</langgraph4j.version>
         <swagger-annotations.version>2.2.38</swagger-annotations.version>
         <aliyun-oss.version>3.17.4</aliyun-oss.version>
         <cos-api.version>5.6.227</cos-api.version>
@@ -181,6 +182,15 @@
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
                 <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- LangGraph4j：多步 Agent 编排（仅 core，节点内直调自有 LlmClient，不引 langchain4j 系模块） -->
+            <dependency>
+                <groupId>org.bsc.langgraph4j</groupId>
+                <artifactId>langgraph4j-bom</artifactId>
+                <version>${langgraph4j.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

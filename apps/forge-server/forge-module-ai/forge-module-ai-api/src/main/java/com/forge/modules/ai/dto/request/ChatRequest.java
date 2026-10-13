@@ -56,9 +56,19 @@ public class ChatRequest {
      */
     private List<MessageItem> messages;
 
+    /**
+     * 本次输入附带图片（URL 或 base64，多模态模型使用）
+     */
+    private List<String> images;
+
     @Data
     public static class MessageItem {
         private String role;
         private String content;
+
+        /**
+         * 该条消息附带图片（URL 或 base64，多模态模型使用）
+         */
+        private List<String> images;
     }
 }

@@ -3,8 +3,15 @@
     <!-- 左侧：对话列表 -->
     <div class="conversation-panel">
       <div class="panel-header">
-        <el-select v-model="selectedModelId" placeholder="选择模型" style="width: 100%">
+        <div class="mode-row">
+          <span class="mode-label">Agent 模式</span>
+          <el-switch v-model="agentMode" v-permission="'ai:agent:run'" />
+        </div>
+        <el-select v-if="!agentMode" v-model="selectedModelId" placeholder="选择模型" style="width: 100%">
           <el-option v-for="model in modelList" :key="model.id" :label="model.modelName" :value="model.id" />
+        </el-select>
+        <el-select v-else v-model="selectedAgentCode" placeholder="选择 Agent" style="width: 100%">
+          <el-option v-for="agent in agentList" :key="agent.agentCode" :label="agent.agentName" :value="agent.agentCode" />
         </el-select>
       </div>
       <div class="panel-actions">
@@ -33,6 +40,57 @@
 
     <!-- 右侧：对话内容 -->
     <div class="chat-panel">
+      <!-- Agent 模式 -->
+      <template v-if="agentMode">
+        <div class="chat-header">
+          <span class="chat-title">{{ selectedAgent?.agentName || 'Agent 对话' }}</span>
+          <el-tag size="small" type="warning">多步编排</el-tag>
+        </div>
+        <div ref="messageContainerRef" class="message-container">
+          <div v-for="(item, index) in agentSessions" :key="index" :class="['message-item', item.role]">
+            <div class="message-avatar">
+              <el-avatar v-if="item.role === 'user'" :size="32">{{ userStore.userInfo?.nickname?.charAt(0) ?? "U" }}</el-avatar>
+              <el-avatar v-else :size="32" class="ai-avatar">AI</el-avatar>
+            </div>
+            <div class="message-content">
+              <template v-if="item.role === 'user'">
+                <div class="message-bubble">
+                  <div v-for="(img, i) in item.images" :key="i" class="agent-image">
+                    <el-image :src="img" :preview-src-list="item.images" fit="cover" style="width: 120px; height: 120px; border-radius: 6px" />
+                  </div>
+                  <MarkdownRenderer :content="item.content" />
+                </div>
+              </template>
+              <template v-else>
+                <div class="message-bubble">
+                  <AgentStepTimeline :frames="item.frames" />
+                  <template v-if="item.answer">
+                    <el-divider style="margin: 8px 0" />
+                    <MarkdownRenderer :content="item.answer" />
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+        <div class="input-area">
+          <div v-if="agentImages.length" class="agent-upload-preview">
+            <el-image v-for="(img, i) in agentImages" :key="i" :src="img" fit="cover"
+              style="width: 48px; height: 48px; border-radius: 4px; margin-right: 4px" />
+            <el-button link type="danger" size="small" @click="agentImages = []">清空</el-button>
+          </div>
+          <el-input
+            v-model="inputMessage" type="textarea" :rows="3"
+            :placeholder="agentMode ? '输入消息（Agent 将多步执行，可附图片）...' : '输入消息...'"
+            :disabled="isStreaming" @keydown.enter.ctrl="handleSend" />
+          <el-button v-if="agentMode" :disabled="isStreaming" @click="pickImages">图片</el-button>
+          <el-button type="primary" :loading="isStreaming" :disabled="!inputMessage.trim() || (agentMode && !selectedAgentCode)" @click="handleSend">
+            发送
+          </el-button>
+          <input ref="imageInputRef" type="file" accept="image/*" multiple hidden @change="onImagesPicked" />
+        </div>
+      </template>
+      <template v-else>
       <div v-if="!currentConversation" class="empty-state">
         <el-empty description="请选择或创建对话" />
       </div>
@@ -44,7 +102,7 @@
         <div ref="messageContainerRef" class="message-container">
           <div v-for="msg in messageList" :key="msg.id" :class="['message-item', msg.role]">
             <div class="message-avatar">
-              <el-avatar v-if="msg.role === 'user'" :size="32">{{ userStore.nickname?.charAt(0) }}</el-avatar>
+              <el-avatar v-if="msg.role === 'user'" :size="32">{{ userStore.userInfo?.nickname?.charAt(0) ?? "U" }}</el-avatar>
               <el-avatar v-else :size="32" class="ai-avatar">AI</el-avatar>
             </div>
             <div class="message-content">
@@ -80,6 +138,7 @@
           </el-button>
         </div>
       </template>
+      </template>
     </div>
   </div>
 </template>
@@ -89,12 +148,15 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getModelList, AI_MODEL_TYPE_TEXT } from '@/api/ai/model'
-import { createConversation, getConversationList, getConversationMessages, sendMessage, deleteConversation, updateConversationTitle, saveAiMessage } from '@/api/ai/chat'
+import { createConversation, getConversationList, getConversationMessages, deleteConversation, saveAiMessage } from '@/api/ai/chat'
 import { createSSE, parseSSEData } from '@/utils/sse'
 import type { ModelConfigResponse } from '@/api/ai/model'
 import type { ConversationResponse, MessageResponse } from '@/api/ai/chat'
 import { formatDateTime } from '@/utils/dateFormat'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
+import AgentStepTimeline from './components/AgentStepTimeline.vue'
+import { getAgentConfigs, streamAgentChat } from '@/api/ai/agent'
+import type { AgentConfig, AgentEventFrame } from '@/api/ai/agent'
 
 const userStore = useUserStore()
 
@@ -111,6 +173,25 @@ const messageContainerRef = ref<HTMLElement | null>(null)
 
 const sseClient = createSSE()
 
+// ===== Agent 模式 =====
+const agentMode = ref(false)
+const agentList = ref<AgentConfig[]>([])
+const selectedAgentCode = ref('')
+const agentImages = ref<string[]>([])
+const imageInputRef = ref<HTMLInputElement | null>(null)
+
+interface AgentSessionItem {
+  role: 'user' | 'assistant'
+  content: string
+  images?: string[]
+  frames: AgentEventFrame[]
+  answer: string
+  status: 'RUNNING' | 'DONE' | 'WAITING' | 'FAILED'
+}
+const agentSessions = ref<AgentSessionItem[]>([])
+
+const selectedAgent = computed(() => agentList.value.find(a => a.agentCode === selectedAgentCode.value))
+
 onMounted(async () => {
   modelList.value = await getModelList(AI_MODEL_TYPE_TEXT)
   const defaultModel = modelList.value.find(m => m.isDefault === 1)
@@ -118,7 +199,74 @@ onMounted(async () => {
     selectedModelId.value = defaultModel.id
   }
   loadConversations()
+  getAgentConfigs(1).then(list => {
+    agentList.value = list
+    if (list.length) {
+      selectedAgentCode.value = list[0].agentCode
+    }
+  }).catch(() => { /* 无 Agent 权限时静默 */ })
 })
+
+const pickImages = () => imageInputRef.value?.click()
+
+const onImagesPicked = (e: Event) => {
+  const files = (e.target as HTMLInputElement).files
+  if (!files) return
+  const readers: Promise<string>[] = []
+  for (const file of Array.from(files)) {
+    if (file.size > 2 * 1024 * 1024) {
+      ElMessage.warning(`图片 ${file.name} 超过 2MB，已跳过`)
+      continue
+    }
+    readers.push(new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.readAsDataURL(file)
+    }))
+  }
+  Promise.all(readers).then(bases => {
+    agentImages.value = [...agentImages.value, ...bases].slice(0, 3)
+  })
+  ;(e.target as HTMLInputElement).value = ''
+}
+
+const handleAgentSend = async () => {
+  const content = inputMessage.value.trim()
+  if (!content || !selectedAgentCode.value || isStreaming.value) return
+  inputMessage.value = ''
+  isStreaming.value = true
+  const images = [...agentImages.value]
+  agentImages.value = []
+
+  agentSessions.value.push({ role: 'user', content, images, frames: [], answer: '', status: 'RUNNING' })
+  const reply: AgentSessionItem = { role: 'assistant', content: '', frames: [], answer: '', status: 'RUNNING' }
+  agentSessions.value.push(reply)
+  scrollToBottom()
+
+  await streamAgentChat(
+    { agentCode: selectedAgentCode.value, content, images },
+    (frame) => {
+      reply.frames.push(frame)
+      if (frame.event === 'FINAL') {
+        reply.answer = String(frame.data?.answer ?? '')
+        reply.status = 'DONE'
+      } else if (frame.event === 'APPROVAL_REQUIRED') {
+        reply.status = 'WAITING'
+      } else if (frame.event === 'ERROR') {
+        reply.status = 'FAILED'
+        if (frame.data?.message) ElMessage.error(String(frame.data.message))
+      }
+      scrollToBottom()
+    },
+    (message) => {
+      reply.status = 'FAILED'
+      ElMessage.error(message || 'Agent 执行失败')
+      isStreaming.value = false
+    }
+  )
+  isStreaming.value = false
+  scrollToBottom()
+}
 
 const loadConversations = async () => {
   const result = await getConversationList({ pageNum: 1, pageSize: 50, modelId: selectedModelId.value })
@@ -155,6 +303,10 @@ const handleDeleteConversation = (conv: ConversationResponse) => {
 }
 
 const handleSend = async () => {
+  if (agentMode.value) {
+    await handleAgentSend()
+    return
+  }
   if (!inputMessage.value.trim() || !currentConversation.value || isStreaming.value) return
 
   const content = inputMessage.value.trim()
@@ -247,6 +399,28 @@ watch(selectedModelId, () => {
 
 <style scoped lang="scss">
 .chat-container {
+  .mode-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+
+    .mode-label {
+      font-size: 13px;
+      color: var(--el-text-color-regular);
+    }
+  }
+
+  .agent-image {
+    margin-bottom: 6px;
+  }
+
+  .agent-upload-preview {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
   display: flex;
   height: calc(100vh - 100px);
   background: #f5f7fa;
