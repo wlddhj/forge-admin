@@ -94,11 +94,10 @@ public class OpenAiChatModelFactory {
      * 改为 2 次 × 3s 退避，仅对 5xx/IO 错误重试（ReadTimeout 重试一次即放弃并透出失败）
      */
     private org.springframework.retry.support.RetryTemplate buildRetryTemplate() {
-        org.springframework.retry.backoff.FixedBackOff backOff = new org.springframework.retry.backoff.FixedBackOff();
-        backOff.setInterval(3000L);
-        backOff.setMaxAttempts(1L);
+        org.springframework.retry.backoff.FixedBackOffPolicy fixedBackOffPolicy = new org.springframework.retry.backoff.FixedBackOffPolicy();
+        fixedBackOffPolicy.setBackOffPeriod(3000L);
         org.springframework.retry.support.RetryTemplate template = new org.springframework.retry.support.RetryTemplate();
-        template.setBackOffPolicy(backOff);
+        template.setBackOffPolicy(fixedBackOffPolicy);
         template.setRetryPolicy(new org.springframework.retry.policy.SimpleRetryPolicy(2));
         return template;
     }

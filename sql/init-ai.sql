@@ -293,7 +293,8 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
 (302, '对话查询', 301, '', '', NULL, '', 1, 2, 'ai:chat:query',   1, 1, 0, 0),
 (303, '发送消息', 301, '', '', NULL, '', 2, 2, 'ai:chat:create',  1, 1, 0, 0),
-(304, '删除对话', 301, '', '', NULL, '', 3, 2, 'ai:chat:delete',  1, 1, 0, 0);
+(304, '删除对话', 301, '', '', NULL, '', 3, 2, 'ai:chat:delete',  1, 1, 0, 0),
+(305, '对话编辑', 301, '', '', NULL, '', 5, 2, 'ai:chat:edit',    1, 1, 0, 0);
 
 -- 文档管理菜单
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
@@ -325,7 +326,7 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 -- AI 主菜单
 (1, 300),
 -- 智能对话
-(1, 301), (1, 302), (1, 303), (1, 304),
+(1, 301), (1, 302), (1, 303), (1, 304), (1, 305),
 -- 文档管理
 (1, 310), (1, 311), (1, 312), (1, 313), (1, 314),
 -- 模型配置
