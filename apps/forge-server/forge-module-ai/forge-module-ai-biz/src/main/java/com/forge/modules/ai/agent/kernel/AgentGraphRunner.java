@@ -171,7 +171,7 @@ public class AgentGraphRunner {
         AiAgentTodo todo = new AiAgentTodo();
         todo.setRunId(run.getId());
         todo.setTitle("Agent 高危操作确认（运行 #" + run.getId() + "）");
-        todo.setContent(buildTodoContent(config, saver));
+        todo.setContent(buildTodoContent(run.getId(), config, saver));
         todo.setStatus(AiAgentTodo.STATUS_PENDING);
         todoMapper.insert(todo);
         runMapper.updateById(run);
@@ -225,30 +225,86 @@ public class AgentGraphRunner {
     }
 
     /**
-     * 兜底待办内容：从最新 checkpoint 状态提取待执行的高危工具调用明细
+     * 兜底待办内容：依次尝试 checkpoint 状态 → 中断前最近一次决策步骤的落库输出，提取待执行的高危工具调用明细
      */
-    private String buildTodoContent(RunnableConfig config, MysqlCheckpointSaver saver) {
+    private String buildTodoContent(Long runId, RunnableConfig config, MysqlCheckpointSaver saver) {
         try {
             var checkpoint = saver.get(config);
             if (checkpoint.isPresent()) {
-                Object decisionObj = checkpoint.get().getState().get(AgentGraphState.DECISION);
-                if (decisionObj instanceof Map<?, ?> decision && decision.get("calls") instanceof List<?> calls
-                        && !calls.isEmpty()) {
-                    StringBuilder sb = new StringBuilder("Agent 判定需要执行高危工具，请人工确认：\n");
-                    for (Object call : calls) {
-                        if (call instanceof Map<?, ?> c) {
-                            sb.append("工具: ").append(c.get("tool"))
-                                    .append("\n参数: ").append(c.get("args"))
-                                    .append("\n\n");
-                        }
-                    }
-                    return sb.toString().trim();
+                String fromState = formatCalls(checkpoint.get().getState().get(AgentGraphState.DECISION));
+                if (fromState != null) {
+                    return fromState;
                 }
             }
         } catch (Exception e) {
-            log.warn("提取待办调用明细失败 runConfig={}: {}", config, e.getMessage());
+            log.warn("从 checkpoint 提取待办明细失败 runId={}: {}", runId, e.getMessage());
+        }
+        // 最可靠来源：中断前最近一次决策步骤的落库输出（含模型原始 JSON，SQL 可见）
+        try {
+            List<AiAgentRunStep> steps = runStepMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiAgentRunStep>()
+                            .eq(AiAgentRunStep::getRunId, runId)
+                            .eq(AiAgentRunStep::getNodeName, "decision")
+                            .orderByDesc(AiAgentRunStep::getId)
+                            .last("LIMIT 1"));
+            if (!steps.isEmpty()) {
+                String modelOutput = objectMapper.readTree(steps.get(0).getStepOutput())
+                        .path("output").asText("");
+                String fromStep = formatCalls(parseDecisionJson(modelOutput));
+                if (fromStep != null) {
+                    return fromStep;
+                }
+                if (!modelOutput.isBlank()) {
+                    return "Agent 判定需要执行高危工具，请人工确认。模型决策原文：\n" + modelOutput;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("从决策步骤提取待办明细失败 runId={}: {}", runId, e.getMessage());
         }
         return "Agent 判定需要执行高危工具（sql_query 等），请确认是否允许继续执行。";
+    }
+
+    /**
+     * 从决策对象（{"action":"tool","calls":[...]}）格式化调用明细；非工具决策返回 null
+     */
+    private String formatCalls(Object decisionObj) {
+        if (!(decisionObj instanceof Map<?, ?> decision)) {
+            return null;
+        }
+        if (!(decision.get("calls") instanceof List<?> calls) || calls.isEmpty()) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder("Agent 判定需要执行高危工具，请人工确认：\n");
+        for (Object call : calls) {
+            if (call instanceof Map<?, ?> c) {
+                sb.append("工具: ").append(c.get("tool"));
+                if (c.get("args") != null) {
+                    sb.append("\n参数: ").append(c.get("args"));
+                }
+                sb.append("\n\n");
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    /**
+     * 解析模型输出的决策 JSON（截取首尾大括号），失败返回 null
+     */
+    private Object parseDecisionJson(String modelOutput) {
+        if (modelOutput == null) {
+            return null;
+        }
+        int start = modelOutput.indexOf('{');
+        int end = modelOutput.lastIndexOf('}');
+        if (start < 0 || end <= start) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(modelOutput.substring(start, end + 1),
+                    objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
