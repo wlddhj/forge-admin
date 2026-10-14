@@ -103,7 +103,7 @@ const handle = (row: AgentTodo, approved: boolean) => {
     const run = approved
       ? await agentApi.approveTodo(row.id, value).then(r => r.data)
       : await agentApi.rejectTodo(row.id, value).then(r => r.data)
-    ElMessage.success(`处理完成，运行 #${run.id} 状态: ${run.status}`)
+    ElMessage.success(`已提交：运行 #${run.id} 正在后台恢复执行，结果请稍后在运行历史查看`)
     getList()
   }).catch(() => { /* 取消 */ })
 }

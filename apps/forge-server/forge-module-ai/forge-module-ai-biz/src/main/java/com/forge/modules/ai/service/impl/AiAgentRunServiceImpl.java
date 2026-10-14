@@ -86,7 +86,16 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
         todo.setHandleTime(LocalDateTime.now());
         todoMapper.updateById(todo);
 
-        // 恢复图执行（无 SSE 监听：事件仅落库，结果通过运行历史查看）
-        return graphRunner.resume(todo, approved, event -> { });
+        // 异步恢复图执行：图剩余流程含多次 LLM 调用（可达数十秒），同步等待会阻塞请求直至超时
+        run.setStatus(AiAgentRun.STATUS_RUNNING);
+        runMapper.updateById(run);
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                graphRunner.resume(todo, approved, event -> { });
+            } catch (Exception e) {
+                log.error("待办恢复执行失败 runId={}: {}", run.getId(), e.getMessage(), e);
+            }
+        });
+        return run;
     }
 }
