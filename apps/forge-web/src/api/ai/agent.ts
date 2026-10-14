@@ -145,6 +145,8 @@ export interface CleanupResult {
   stepDeleted: number
   todoDeleted: number
   checkpointDeleted: number
+  conversationDeleted: number
+  messageDeleted: number
   durationMs: number
 }
 

@@ -16,5 +16,9 @@ public class CleanupResultResponse {
 
     private long checkpointDeleted;
 
+    private long conversationDeleted;
+
+    private long messageDeleted;
+
     private long durationMs;
 }

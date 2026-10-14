@@ -13,13 +13,14 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Agent 运行数据生命周期清理服务。
+ * Agent 运行与对话数据生命周期清理服务。
  *
- * 按 sys_config 保留期对 run/step/todo/checkpoint 四表分批物理删除：
+ * 按 sys_config 保留期对 run/step/todo/checkpoint/conversation/message 六表分批物理删除：
  * - step/checkpoint 按自身 create_time 超期删（step 大字段支持更短保留期）
  * - run 仅删已完结（SUCCEEDED/FAILED/CANCELLED），进行中/待审批保护
  * - todo 仅删非 PENDING，待处理保护
- * - 各表附带孤儿清理（run 已不存在的关联记录）
+ * - 对话两表（ai_chat_conversation/ai_chat_message）按各自 create_time 超期删，消息附带孤儿清理
+ * - 各表附带孤儿清理（关联主表已不存在的记录）
  * - 每表独立容错：配置非法或单表失败不影响其他表
  */
 @Slf4j
@@ -47,10 +48,16 @@ public class AgentDataCleanupService {
         result.setCheckpointDeleted(cleanupTable("checkpoint", "ai.agent.retention.checkpoint-days", 7, cutoff ->
                 batchLoop(() -> cleanupMapper.selectExpiredCheckpointIds(cutoff), cleanupMapper::deleteCheckpointByIds)
                         + batchLoop(cleanupMapper::selectOrphanCheckpointIds, cleanupMapper::deleteCheckpointByIds)));
+        result.setConversationDeleted(cleanupTable("conversation", "ai.chat.retention.conversation-days", 90, cutoff ->
+                batchLoop(() -> cleanupMapper.selectExpiredConversationIds(cutoff), cleanupMapper::deleteConversationByIds)));
+        result.setMessageDeleted(cleanupTable("message", "ai.chat.retention.message-days", 90, cutoff ->
+                batchLoop(() -> cleanupMapper.selectExpiredMessageIds(cutoff), cleanupMapper::deleteMessageByIds)
+                        + batchLoop(cleanupMapper::selectOrphanMessageIds, cleanupMapper::deleteMessageByIds)));
         result.setDurationMs(System.currentTimeMillis() - start);
-        log.info("Agent 运行数据清理完成: run={}, step={}, todo={}, checkpoint={}, 耗时={}ms",
+        log.info("Agent 运行与对话数据清理完成: run={}, step={}, todo={}, checkpoint={}, conversation={}, message={}, 耗时={}ms",
                 result.getRunDeleted(), result.getStepDeleted(), result.getTodoDeleted(),
-                result.getCheckpointDeleted(), result.getDurationMs());
+                result.getCheckpointDeleted(), result.getConversationDeleted(), result.getMessageDeleted(),
+                result.getDurationMs());
         return result;
     }
 

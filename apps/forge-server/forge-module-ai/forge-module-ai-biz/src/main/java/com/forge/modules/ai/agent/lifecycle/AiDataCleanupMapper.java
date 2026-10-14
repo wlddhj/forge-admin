@@ -47,6 +47,18 @@ public interface AiDataCleanupMapper {
             "WHERE r.id IS NULL LIMIT " + BATCH_LIMIT)
     List<Long> selectOrphanCheckpointIds();
 
+    // ---------- 对话数据（ai_chat_conversation / ai_chat_message，物理删，会话 deleted 列一并无视） ----------
+
+    @Select("SELECT id FROM ai_chat_conversation WHERE create_time < #{cutoff} LIMIT " + BATCH_LIMIT)
+    List<Long> selectExpiredConversationIds(@Param("cutoff") LocalDateTime cutoff);
+
+    @Select("SELECT id FROM ai_chat_message WHERE create_time < #{cutoff} LIMIT " + BATCH_LIMIT)
+    List<Long> selectExpiredMessageIds(@Param("cutoff") LocalDateTime cutoff);
+
+    @Select("SELECT m.id FROM ai_chat_message m LEFT JOIN ai_chat_conversation c ON m.conversation_id = c.conversation_id " +
+            "WHERE c.id IS NULL LIMIT " + BATCH_LIMIT)
+    List<Long> selectOrphanMessageIds();
+
     // ---------- 物理删除 ----------
 
     @Delete("<script>DELETE FROM ai_agent_run WHERE id IN " +
@@ -64,4 +76,12 @@ public interface AiDataCleanupMapper {
     @Delete("<script>DELETE FROM ai_agent_checkpoint WHERE id IN " +
             "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
     int deleteCheckpointByIds(@Param("ids") List<Long> ids);
+
+    @Delete("<script>DELETE FROM ai_chat_conversation WHERE id IN " +
+            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
+    int deleteConversationByIds(@Param("ids") List<Long> ids);
+
+    @Delete("<script>DELETE FROM ai_chat_message WHERE id IN " +
+            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
+    int deleteMessageByIds(@Param("ids") List<Long> ids);
 }
