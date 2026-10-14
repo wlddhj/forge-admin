@@ -128,6 +128,15 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
+                <exclusions>
+                    <!-- starter 默认传递 5.x 适配包，与本项目强制的 jsqlparser 4.9 不匹配
+                         （DataPermissionInterceptor 解析 WITH 时 NoSuchMethodError），
+                         统一排除，由引用方按需引入 mybatis-plus-jsqlparser-4.9 -->
+                    <exclusion>
+                        <groupId>com.baomidou</groupId>
+                        <artifactId>mybatis-plus-jsqlparser</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>com.baomidou</groupId>
@@ -136,7 +145,10 @@
             </dependency>
             <dependency>
                 <groupId>com.baomidou</groupId>
-                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <!-- 4.9 适配包：与 BOM 强制的 jsqlparser 4.9 保持一致。
+                     原误用 5.x 适配包（mybatis-plus-jsqlparser），与 jsqlparser 4.9 组合导致
+                     DataPermissionInterceptor 解析 WITH 查询时 NoSuchMethodError -->
+                <artifactId>mybatis-plus-jsqlparser-4.9</artifactId>
                 <version>${mybatis-plus.version}</version>
             </dependency>
             <!-- Swagger Annotations (Jakarta) -->
