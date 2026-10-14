@@ -147,7 +147,7 @@ public class AgentGraphRunner {
                 AiAgentTodo todo = new AiAgentTodo();
                 todo.setRunId(run.getId());
                 todo.setTitle("Agent 高危操作确认（运行 #" + run.getId() + "）");
-                todo.setContent(buildTodoContent(ctx));
+                todo.setContent(extractInterruptReason(streamError));
                 todo.setStatus(AiAgentTodo.STATUS_PENDING);
                 todoMapper.insert(todo);
                 runMapper.updateById(run);
@@ -181,15 +181,30 @@ public class AgentGraphRunner {
     }
 
     private boolean containsInterrupt(Throwable error) {
+        return findInterrupt(error) != null;
+    }
+
+    /**
+     * 提取中断原因（含待执行的高危工具调用明细）作为待办内容
+     */
+    private String extractInterruptReason(Throwable error) {
+        org.bsc.langgraph4j.GraphInterruptException interrupt = findInterrupt(error);
+        String reason = interrupt != null ? interrupt.getMessage() : null;
+        return reason == null || reason.isBlank()
+                ? "Agent 判定需要执行高危工具，请人工确认。"
+                : reason;
+    }
+
+    private org.bsc.langgraph4j.GraphInterruptException findInterrupt(Throwable error) {
         Throwable cur = error;
         int depth = 0;
         while (cur != null && depth++ < 10) {
-            if (cur instanceof org.bsc.langgraph4j.GraphInterruptException) {
-                return true;
+            if (cur instanceof org.bsc.langgraph4j.GraphInterruptException interrupt) {
+                return interrupt;
             }
             cur = cur.getCause();
         }
-        return false;
+        return null;
     }
 
     private Map<String, Object> initialState(String input, List<String> images) {

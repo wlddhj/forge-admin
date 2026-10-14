@@ -76,13 +76,46 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
     private org.bsc.langgraph4j.action.NodeActionWithConfig<AgentGraphState> approvalNode(AgentGraphContext ctx) {
         return (state, config) -> {
             if (state.value(AgentGraphState.APPROVAL).isEmpty()) {
+                String detail = describePendingCalls(state);
                 ctx.emit(AgentEvents.Type.STEP_END, NODE_APPROVAL, "人工确认", Map.of(
                         "seq", ctx.nextSeq(), "status", "INTERRUPTED",
-                        "output", "高危工具调用，等待人工确认"));
-                throw new org.bsc.langgraph4j.GraphInterruptException(config, "高危工具调用待人工确认");
+                        "output", "高危工具调用，等待人工确认：" + detail));
+                throw new org.bsc.langgraph4j.GraphInterruptException(config,
+                        "Agent 判定需要执行高危工具，请人工确认：\n" + detail);
             }
             return Map.of();
         };
+    }
+
+    /**
+     * 待执行的高危工具调用明细（写入待办内容展示，如具体 SQL）
+     */
+    @SuppressWarnings("unchecked")
+    private String describePendingCalls(AgentGraphState state) {
+        Object decisionObj = state.value(AgentGraphState.DECISION).orElse(null);
+        if (!(decisionObj instanceof Map<?, ?> decision)) {
+            return "（决策信息缺失）";
+        }
+        Object callsObj = decision.get("calls");
+        if (!(callsObj instanceof List<?> calls) || calls.isEmpty()) {
+            return "（无调用明细）";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Object call : calls) {
+            if (call instanceof Map<?, ?> c) {
+                sb.append("工具: ").append(c.get("tool"));
+                Object args = c.get("args");
+                if (args != null) {
+                    try {
+                        sb.append("\n参数: ").append(objectMapper.writeValueAsString(args));
+                    } catch (Exception ignored) {
+                        sb.append("\n参数: ").append(args);
+                    }
+                }
+                sb.append("\n\n");
+            }
+        }
+        return sb.toString().trim();
     }
 
     // ========== 图片理解节点 ==========

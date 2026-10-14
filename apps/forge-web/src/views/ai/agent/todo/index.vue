@@ -24,7 +24,9 @@
         <vxe-column field="runId" title="运行ID" width="90" />
         <vxe-column field="title" title="标题" min-width="200" />
         <vxe-column title="内容" min-width="260">
-          <template #default="{ row }">{{ row.content }}</template>
+          <template #default="{ row }">
+            <span class="todo-content">{{ row.content }}</span>
+          </template>
         </vxe-column>
         <vxe-column title="状态" width="100">
           <template #default="{ row }">
@@ -119,5 +121,11 @@ const todoType = (s: string): 'primary' | 'success' | 'warning' | 'info' | 'dang
 
   .search-card { margin-bottom: 15px; }
   .table-card { padding: 15px; .el-pagination { margin-top: 15px; justify-content: flex-end; } }
+
+  .todo-content {
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 12px;
+  }
 }
 </style>
