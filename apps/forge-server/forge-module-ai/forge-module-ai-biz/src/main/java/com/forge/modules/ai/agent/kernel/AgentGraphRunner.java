@@ -171,7 +171,7 @@ public class AgentGraphRunner {
         AiAgentTodo todo = new AiAgentTodo();
         todo.setRunId(run.getId());
         todo.setTitle("Agent 高危操作确认（运行 #" + run.getId() + "）");
-        todo.setContent(buildTodoContent(ctx));
+        todo.setContent(buildTodoContent(config, saver));
         todo.setStatus(AiAgentTodo.STATUS_PENDING);
         todoMapper.insert(todo);
         runMapper.updateById(run);
@@ -224,7 +224,30 @@ public class AgentGraphRunner {
         return run;
     }
 
-    private String buildTodoContent(AgentGraphContext ctx) {
+    /**
+     * 兜底待办内容：从最新 checkpoint 状态提取待执行的高危工具调用明细
+     */
+    private String buildTodoContent(RunnableConfig config, MysqlCheckpointSaver saver) {
+        try {
+            var checkpoint = saver.get(config);
+            if (checkpoint.isPresent()) {
+                Object decisionObj = checkpoint.get().getState().get(AgentGraphState.DECISION);
+                if (decisionObj instanceof Map<?, ?> decision && decision.get("calls") instanceof List<?> calls
+                        && !calls.isEmpty()) {
+                    StringBuilder sb = new StringBuilder("Agent 判定需要执行高危工具，请人工确认：\n");
+                    for (Object call : calls) {
+                        if (call instanceof Map<?, ?> c) {
+                            sb.append("工具: ").append(c.get("tool"))
+                                    .append("\n参数: ").append(c.get("args"))
+                                    .append("\n\n");
+                        }
+                    }
+                    return sb.toString().trim();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("提取待办调用明细失败 runConfig={}: {}", config, e.getMessage());
+        }
         return "Agent 判定需要执行高危工具（sql_query 等），请确认是否允许继续执行。";
     }
 

@@ -25,6 +25,7 @@ public class OpenAiChatModelFactory {
     private static final String DEFAULT_COMPLETIONS_PATH = "/chat/completions";
 
     private final WebClient.Builder webClientBuilder;
+    private final org.springframework.web.client.RestClient.Builder restClientBuilder;
     private final AiModuleConfig aiModuleConfig;
     private final Map<Long, CachedModel> cache = new ConcurrentHashMap<>();
 
@@ -35,8 +36,10 @@ public class OpenAiChatModelFactory {
     }
 
     public OpenAiChatModelFactory(@Qualifier("llmWebClientBuilder") WebClient.Builder webClientBuilder,
+                                  @Qualifier("llmRestClientBuilder") org.springframework.web.client.RestClient.Builder restClientBuilder,
                                   AiModuleConfig aiModuleConfig) {
         this.webClientBuilder = webClientBuilder;
+        this.restClientBuilder = restClientBuilder;
         this.aiModuleConfig = aiModuleConfig;
     }
 
@@ -65,6 +68,7 @@ public class OpenAiChatModelFactory {
                 .apiKey(config.getApiKey())
                 .completionsPath(DEFAULT_COMPLETIONS_PATH)
                 .webClientBuilder(webClientBuilder.clone())
+                .restClientBuilder(restClientBuilder.clone())
                 .build();
 
         OpenAiChatOptions.Builder options = OpenAiChatOptions.builder().model(config.getModelCode());
