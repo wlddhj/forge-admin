@@ -12,6 +12,7 @@ import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.entity.AiModelConfig;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.StateGraph;
 import org.bsc.langgraph4j.action.AsyncEdgeAction;
 import org.bsc.langgraph4j.action.AsyncNodeAction;
@@ -27,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
  * 内置对话 Agent 编排图：图片理解 → 工具决策(循环) → [高危确认] → 工具并行执行 → 总结回答
  */
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class ConversationalAssistantGraph implements AgentGraphDefinition {
 
@@ -161,14 +163,17 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         if (!Boolean.TRUE.equals(response.getSuccess())) {
             throw new BusinessException("决策模型调用失败: " + response.getErrorMessage());
         }
+        log.info("[agent-decision] 模型原始输出: {}", response.getContent());
         Map<String, Object> decision = parseDecision(response.getContent());
         if (decision == null) {
             if (retry < 1) {
                 return decide(ctx, state, model, retry + 1);
             }
+            // 二次仍无法按协议解析：模型大概率直接输出了自然语言回答，原文兜底展示
             decision = new LinkedHashMap<>();
             decision.put("action", "final");
-            decision.put("answer", "工具调用格式异常，基于现有信息直接回答。");
+            decision.put("answer", response.getContent() == null || response.getContent().isBlank()
+                    ? "模型输出无法解析，请重试。" : response.getContent());
         }
         decision.put("__response", response);
         decision.put("__raw", response.getContent());
@@ -216,14 +221,26 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
             JsonNode node = objectMapper.readTree(json.substring(start, end + 1));
             String action = node.path("action").asText("");
             Map<String, Object> decision = new LinkedHashMap<>();
-            if ("tool".equals(action) && node.path("calls").isArray() && node.path("calls").size() > 0) {
-                List<Map<String, Object>> calls = new ArrayList<>();
+            List<Map<String, Object>> calls = new ArrayList<>();
+            if (node.path("calls").isArray()) {
                 for (JsonNode call : node.path("calls")) {
+                    if (call.path("tool").asText("").isBlank()) {
+                        continue;
+                    }
                     Map<String, Object> c = new LinkedHashMap<>();
                     c.put("tool", call.path("tool").asText());
                     c.put("args", objectMapper.convertValue(call.path("args"), Map.class));
                     calls.add(c);
                 }
+            }
+            // 兼容单工具格式：{"action":"tool","tool":"sql_query","args":{...}}
+            if (calls.isEmpty() && "tool".equals(action) && !node.path("tool").asText("").isBlank()) {
+                Map<String, Object> c = new LinkedHashMap<>();
+                c.put("tool", node.path("tool").asText());
+                c.put("args", objectMapper.convertValue(node.path("args"), Map.class));
+                calls.add(c);
+            }
+            if ("tool".equals(action) && !calls.isEmpty()) {
                 decision.put("action", "tool");
                 decision.put("calls", calls);
                 decision.put("thought", node.path("thought").asText(""));
