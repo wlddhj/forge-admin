@@ -220,11 +220,13 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                 }
                 // 重试仍失败走兜底
             }
-            // 二次仍无法按协议解析：模型大概率直接输出了自然语言回答，原文兜底展示
+            // 二次仍无法按协议解析：模型输出非空时按自然语言回答原文兜底；空内容判失败（避免假成功）
+            if (response.getContent() == null || response.getContent().isBlank()) {
+                throw new BusinessException("决策模型返回空内容（上游超时或限流），请重试");
+            }
             decision = new LinkedHashMap<>();
             decision.put("action", "final");
-            decision.put("answer", response.getContent() == null || response.getContent().isBlank()
-                    ? "模型输出无法解析，请重试。" : response.getContent());
+            decision.put("answer", response.getContent());
         }
         decision.put("__response", response);
         decision.put("__raw", response.getContent());
