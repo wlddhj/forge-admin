@@ -40,6 +40,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
 
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
+    private final com.forge.modules.ai.agent.tools.TableSchemaInspector tableSchemaInspector;
 
     @Override
     public String graphKey() {
@@ -184,6 +185,10 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         StringBuilder sb = new StringBuilder();
         sb.append(ctx.getAgentConfig().getSystemPrompt()).append('\n');
         sb.append("可用工具：\n").append(ctx.getToolRegistry().describeTools()).append('\n');
+        String tables = tableSchemaInspector.describeTables();
+        if (!tables.isBlank()) {
+            sb.append("数据库可用表（编写 SQL 必须使用以下真实表名，禁止臆造）：\n").append(tables).append('\n');
+        }
         String input = state.value(AgentGraphState.INPUT).map(String::valueOf).orElse("");
         String userTemplate = ctx.getAgentConfig().getUserPromptTemplate();
         sb.append(userTemplate == null || userTemplate.isBlank() ? input
@@ -211,17 +216,16 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         if (content == null) {
             return null;
         }
-        String json = content.trim();
-        int start = json.indexOf('{');
-        int end = json.lastIndexOf('}');
-        if (start < 0 || end <= start) {
+        // 提取全部平衡的 JSON 对象块（模型可能输出多个独立对象，如每工具一个），逐个解析后合并
+        List<JsonNode> nodes = extractJsonObjects(content.trim());
+        if (nodes.isEmpty()) {
             return null;
         }
-        try {
-            JsonNode node = objectMapper.readTree(json.substring(start, end + 1));
+        List<Map<String, Object>> calls = new ArrayList<>();
+        String finalAnswer = null;
+        String thought = "";
+        for (JsonNode node : nodes) {
             String action = node.path("action").asText("");
-            Map<String, Object> decision = new LinkedHashMap<>();
-            List<Map<String, Object>> calls = new ArrayList<>();
             if (node.path("calls").isArray()) {
                 for (JsonNode call : node.path("calls")) {
                     if (call.path("tool").asText("").isBlank()) {
@@ -234,26 +238,74 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                 }
             }
             // 兼容单工具格式：{"action":"tool","tool":"sql_query","args":{...}}
-            if (calls.isEmpty() && "tool".equals(action) && !node.path("tool").asText("").isBlank()) {
+            if ("tool".equals(action) && !node.path("tool").asText("").isBlank()) {
                 Map<String, Object> c = new LinkedHashMap<>();
                 c.put("tool", node.path("tool").asText());
                 c.put("args", objectMapper.convertValue(node.path("args"), Map.class));
                 calls.add(c);
             }
-            if ("tool".equals(action) && !calls.isEmpty()) {
-                decision.put("action", "tool");
-                decision.put("calls", calls);
-                decision.put("thought", node.path("thought").asText(""));
-            } else if ("final".equals(action)) {
-                decision.put("action", "final");
-                decision.put("answer", node.path("answer").asText(""));
-            } else {
-                return null;
+            if ("final".equals(action)) {
+                finalAnswer = node.path("answer").asText("");
             }
-            return decision;
-        } catch (Exception e) {
-            return null;
+            if (thought.isEmpty()) {
+                thought = node.path("thought").asText("");
+            }
         }
+        Map<String, Object> decision = new LinkedHashMap<>();
+        if (!calls.isEmpty()) {
+            decision.put("action", "tool");
+            decision.put("calls", calls);
+            decision.put("thought", thought);
+            return decision;
+        }
+        if (finalAnswer != null) {
+            decision.put("action", "final");
+            decision.put("answer", finalAnswer);
+            return decision;
+        }
+        return null;
+    }
+
+    /**
+     * 扫描文本中所有平衡的大括号块并尝试解析为 JSON（忽略非法块）
+     */
+    private List<JsonNode> extractJsonObjects(String text) {
+        List<JsonNode> nodes = new ArrayList<>();
+        int depth = 0;
+        int start = -1;
+        boolean inString = false;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (inString) {
+                if (ch == '\\') {
+                    i++;
+                } else if (ch == '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            if (ch == '"') {
+                inString = true;
+            } else if (ch == '{') {
+                if (depth == 0) {
+                    start = i;
+                }
+                depth++;
+            } else if (ch == '}') {
+                if (depth > 0) {
+                    depth--;
+                    if (depth == 0 && start >= 0) {
+                        try {
+                            nodes.add(objectMapper.readTree(text.substring(start, i + 1)));
+                        } catch (Exception ignored) {
+                            // 非法块跳过
+                        }
+                        start = -1;
+                    }
+                }
+            }
+        }
+        return nodes;
     }
 
     // ========== 条件路由 ==========
