@@ -20,7 +20,7 @@ export interface SqlWhitelistQuery {
 
 export const sqlWhitelistApi = {
   page: (params: SqlWhitelistQuery) =>
-    request.get<{ list: SqlWhitelistItem[]; total: number }>('/ai/sql-whitelist/list', { params }),
+    request.get<{ list: SqlWhitelistItem[]; total: number }>('/ai/sql-whitelist/list', { params }).then(r => r.data),
   add: (data: Partial<SqlWhitelistItem>) => request.post('/ai/sql-whitelist', data),
   update: (data: Partial<SqlWhitelistItem>) => request.put('/ai/sql-whitelist', data),
   remove: (ids: number[]) => request.delete('/ai/sql-whitelist', { data: ids })

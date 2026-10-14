@@ -49,7 +49,7 @@ import AgentConfigForm from './components/AgentConfigForm.vue'
 
 defineOptions({ name: 'AiAgentConfig' })
 
-const { tableHeight } = useTableHeight()
+const { tableHeight } = useTableHeight({ hasPagination: false })
 const tableRef = ref<VxeTableInstance | null>(null)
 const toolbarRef = ref<VxeToolbarInstance | null>(null)
 const formRef = ref<InstanceType<typeof AgentConfigForm>>()

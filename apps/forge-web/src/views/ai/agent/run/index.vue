@@ -123,10 +123,5 @@ const statusType = (s: string): 'primary' | 'success' | 'warning' | 'info' | 'da
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
 
-  .search-card { margin-bottom: 15px; }
-  .table-card { padding: 15px; }
-}
 </style>

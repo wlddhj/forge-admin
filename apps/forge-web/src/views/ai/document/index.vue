@@ -261,17 +261,6 @@ const formatFileSize = (size: number) => {
 .app-container {
   padding: 0;
 
-  .search-card {
-    margin-bottom: 15px;
-  }
-
-  .table-card {
-    .el-pagination {
-      margin-top: 15px;
-      justify-content: flex-end;
-    }
-  }
-
   .content-box,
   .summary-box {
     padding: 15px;

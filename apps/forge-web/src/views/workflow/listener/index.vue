@@ -166,7 +166,7 @@ import { useTableSeq } from '@/composables/useTableSeq'
 import { formatDateTime } from '@/utils/dateFormat'
 import { listenerApi, type ListenerQuery, type ListenerRequest, type ProcessListener } from '@/api/workflow/process-listener'
 
-const { tableHeight } = useTableHeight()
+const { tableHeight } = useTableHeight({extraOffset: 60})
 const tableRef = ref<VxeTableInstance | null>(null)
 const toolbarRef = ref<VxeToolbarInstance | null>(null)
 
@@ -317,11 +317,5 @@ const handleDelete = async (row: ProcessListener) => {
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
-  .search-card { margin-bottom: 15px; }
-  .table-card {
-    .el-pagination { margin-top: 15px; justify-content: flex-end; }
-  }
-}
+
 </style>

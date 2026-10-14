@@ -106,7 +106,7 @@ import ModelConfigForm from './components/ModelConfigForm.vue'
 
 defineOptions({ name: 'AiModel' })
 
-const { tableHeight } = useTableHeight()
+const { tableHeight } = useTableHeight({ hasPagination: false })
 const { dictData } = useDict(DICT_TYPE.AI_MODEL_TYPE)
 
 const tableRef = ref<VxeTableInstance | null>(null)
@@ -194,11 +194,5 @@ const handleRefreshAll = async () => {
 <style scoped lang="scss">
 .app-container {
   padding: 0;
-  .search-card {
-    margin-bottom: 15px;
-  }
-  .table-card {
-    padding: 15px;
-  }
 }
 </style>
