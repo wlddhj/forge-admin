@@ -48,6 +48,9 @@
           <div class="conv-title">{{ conv.title || '新对话' }}</div>
           <div class="conv-meta">
             <span class="conv-model">{{ conv.modelName }}</span>
+            <el-button type="primary" link size="small" @click.stop="handleRenameConversation(conv)">
+              <el-icon><Edit /></el-icon>
+            </el-button>
             <el-button type="danger" link size="small" @click.stop="handleDeleteConversation(conv)">
               <el-icon><Delete /></el-icon>
             </el-button>
@@ -420,6 +423,17 @@ const handleSelectConversation = async (conv: ConversationResponse) => {
   currentConversation.value = conv
   messageList.value = await getConversationMessages(conv.id)
   scrollToBottom()
+}
+
+const handleRenameConversation = (conv: ConversationResponse) => {
+  ElMessageBox.prompt('请输入新的会话名称', '重命名', {
+    inputValue: conv.title || '',
+    inputValidator: (v: string) => (v && v.trim().length <= 50) || '名称不能为空且不超过 50 字',
+  }).then(async ({ value }) => {
+    await updateConversationTitle(conv.id, value.trim())
+    ElMessage.success('重命名成功')
+    conv.title = value.trim()
+  }).catch(() => { /* 取消 */ })
 }
 
 const handleDeleteConversation = (conv: ConversationResponse) => {
