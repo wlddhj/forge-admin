@@ -161,6 +161,7 @@ public class AgentGraphRunner {
         if (reachedEnd) {
             runMapper.updateById(run);
             run.setStatus(AiAgentRun.STATUS_SUCCEEDED);
+            run.setFinalAnswer(finalAnswer);
             emitter.accept(new AgentEvents.AgentEvent(AgentEvents.Type.FINAL, null, "final",
                     Map.of("runId", run.getId(), "answer", finalAnswer == null ? "" : finalAnswer)));
             return finishRun(run, AiAgentRun.STATUS_SUCCEEDED, null);

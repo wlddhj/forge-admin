@@ -43,6 +43,8 @@ public class AiAgentRun extends TenantBaseDO {
 
     private String inputSummary;
 
+    private String finalAnswer;
+
     private LocalDateTime startTime;
 
     private LocalDateTime endTime;

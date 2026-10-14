@@ -31,6 +31,7 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
     private final AiAgentRunStepMapper runStepMapper;
     private final AiAgentTodoMapper todoMapper;
     private final AgentGraphRunner graphRunner;
+    private final com.forge.framework.web.websocket.NotificationService notificationService;
 
     @Override
     public Map<String, Object> pageRuns(Long agentId, String status, int pageNum, int pageSize) {
@@ -50,6 +51,15 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
         return runStepMapper.selectList(new LambdaQueryWrapper<AiAgentRunStep>()
                 .eq(AiAgentRunStep::getRunId, runId)
                 .orderByAsc(AiAgentRunStep::getId));
+    }
+
+    @Override
+    public AiAgentRun getRun(Long id) {
+        AiAgentRun run = runMapper.selectById(id);
+        if (run == null) {
+            throw new BusinessException("运行记录不存在");
+        }
+        return run;
     }
 
     @Override
@@ -89,13 +99,37 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
         // 异步恢复图执行：图剩余流程含多次 LLM 调用（可达数十秒），同步等待会阻塞请求直至超时
         run.setStatus(AiAgentRun.STATUS_RUNNING);
         runMapper.updateById(run);
+        Long runUserId = run.getUserId();
+        Long runId = run.getId();
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
-                graphRunner.resume(todo, approved, event -> { });
+                AiAgentRun finished = graphRunner.resume(todo, approved, event -> { });
+                notifyRunFinished(runUserId, finished);
             } catch (Exception e) {
-                log.error("待办恢复执行失败 runId={}: {}", run.getId(), e.getMessage(), e);
+                log.error("待办恢复执行失败 runId={}: {}", runId, e.getMessage(), e);
             }
         });
         return run;
+    }
+
+    /**
+     * 恢复完成后向发起用户推送站内通知（对话页 SSE 已断开，靠通知 + 运行历史/轮询获取结果）
+     */
+    private void notifyRunFinished(Long userId, AiAgentRun run) {
+        try {
+            com.forge.framework.web.websocket.NotificationMessage message =
+                    new com.forge.framework.web.websocket.NotificationMessage();
+            message.setType("AGENT_RUN");
+            message.setTitle("Agent 运行 #" + run.getId() + (AiAgentRun.STATUS_SUCCEEDED.equals(run.getStatus())
+                    ? " 已完成" : " 失败"));
+            message.setContent(run.getFinalAnswer() != null && run.getFinalAnswer().length() > 200
+                    ? run.getFinalAnswer().substring(0, 200) + "…"
+                    : String.valueOf(run.getFinalAnswer() == null ? run.getErrorMsg() : run.getFinalAnswer()));
+            message.setRelatedId(run.getId());
+            message.setTimestamp(System.currentTimeMillis());
+            notificationService.sendToUser(userId, message);
+        } catch (Exception e) {
+            log.warn("Agent 运行完成通知推送失败 runId={}: {}", run.getId(), e.getMessage());
+        }
     }
 }

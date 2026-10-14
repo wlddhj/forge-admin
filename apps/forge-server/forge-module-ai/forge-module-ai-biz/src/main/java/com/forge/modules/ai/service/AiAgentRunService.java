@@ -19,6 +19,8 @@ public interface AiAgentRunService {
 
     List<AiAgentRunStep> getSteps(Long runId);
 
+    AiAgentRun getRun(Long id);
+
     /**
      * 分页查询待办（status 可选过滤）
      */

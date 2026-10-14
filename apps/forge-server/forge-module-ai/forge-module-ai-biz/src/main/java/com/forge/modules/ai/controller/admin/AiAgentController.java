@@ -83,6 +83,13 @@ public class AiAgentController {
         return Result.success(agentRunService.getSteps(id));
     }
 
+    @Operation(summary = "运行详情（含最终回答）")
+    @GetMapping("/run/{id}")
+    @PreAuthorize("hasAuthority('ai:agent:query')")
+    public Result<AiAgentRun> getRun(@PathVariable Long id) {
+        return Result.success(agentRunService.getRun(id));
+    }
+
     // ========== 人工待办 ==========
 
     @Operation(summary = "待办分页")

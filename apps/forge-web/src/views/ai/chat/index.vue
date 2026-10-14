@@ -155,7 +155,7 @@ import type { ConversationResponse, MessageResponse } from '@/api/ai/chat'
 import { formatDateTime } from '@/utils/dateFormat'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import AgentStepTimeline from './components/AgentStepTimeline.vue'
-import { getAgentConfigs, streamAgentChat } from '@/api/ai/agent'
+import { getAgentConfigs, streamAgentChat, getAgentRun } from '@/api/ai/agent'
 import type { AgentConfig, AgentEventFrame } from '@/api/ai/agent'
 
 const userStore = useUserStore()
@@ -230,6 +230,34 @@ const onImagesPicked = (e: Event) => {
   ;(e.target as HTMLInputElement).value = ''
 }
 
+/** 中断等待人工确认的 run：轮询状态，完成后回填答案到对话气泡 */
+const pollRunResult = (reply: AgentSessionItem, runId: number) => {
+  if (!runId) return
+  let attempts = 0
+  const timer = setInterval(async () => {
+    attempts++
+    try {
+      const run = await getAgentRun(runId)
+      if (run.status === 'SUCCEEDED') {
+        clearInterval(timer)
+        reply.status = 'DONE'
+        reply.answer = run.finalAnswer || reply.answer || ''
+        scrollToBottom()
+      } else if (run.status === 'FAILED' || run.status === 'CANCELLED') {
+        clearInterval(timer)
+        reply.status = 'FAILED'
+        reply.answer = run.errorMsg ? `运行失败：${run.errorMsg}` : reply.answer
+        scrollToBottom()
+      }
+    } catch {
+      // 轮询失败忽略，下轮重试
+    }
+    if (attempts >= 60) {
+      clearInterval(timer)
+    }
+  }, 3000)
+}
+
 const handleAgentSend = async () => {
   const content = inputMessage.value.trim()
   if (!content || !selectedAgentCode.value || isStreaming.value) return
@@ -254,6 +282,7 @@ const handleAgentSend = async () => {
         reply.answer = (reply.answer || '') + String(frame.data?.delta ?? '')
       } else if (frame.event === 'APPROVAL_REQUIRED') {
         reply.status = 'WAITING'
+        pollRunResult(reply, Number(frame.data?.runId))
       } else if (frame.event === 'ERROR') {
         reply.status = 'FAILED'
         if (frame.data?.message) ElMessage.error(String(frame.data.message))

@@ -36,6 +36,7 @@ export interface AgentRun {
   lastNode: string | null
   errorMsg: string | null
   inputSummary: string | null
+  finalAnswer: string | null
   startTime: string
   endTime: string | null
 }
@@ -116,6 +117,9 @@ export const agentApi = {
   getSteps: (runId: number) =>
     request.get<AgentRunStep[]>(`/ai/agent/run/${runId}/steps`),
 
+  getRun: (id: number) =>
+    request.get<AgentRun>(`/ai/agent/run/${id}`),
+
   pageTodos: (params: { status?: string; pageNum: number; pageSize: number }) =>
     request.get<{ records: AgentTodo[]; total: number }>('/ai/agent/todo/list', { params }),
 
@@ -130,6 +134,7 @@ export const getAgentConfigs = (status?: number) => agentApi.listConfigs(status)
 export const getAgentRuns = (params: { agentId?: number; status?: string; pageNum: number; pageSize: number }) =>
   agentApi.pageRuns(params).then(res => res.data)
 export const getAgentSteps = (runId: number) => agentApi.getSteps(runId).then(res => res.data)
+export const getAgentRun = (id: number) => agentApi.getRun(id).then(res => res.data)
 export const getAgentTodos = (params: { status?: string; pageNum: number; pageSize: number }) =>
   agentApi.pageTodos(params).then(res => res.data)
 
