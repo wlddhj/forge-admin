@@ -759,6 +759,12 @@ const handleView = (row: XxxEntity) => {
 - ❌ 自定义容器类名（如 `xxx-container`）
 - ❌ 在页面中重复定义 `.app-container` / `.search-card` / `.table-card` 样式
 
+**禁止重复定义布局类的原因：**
+这些类的布局（间隔、分页对齐、移动端适配）统一定义在全局 `styles/table-page.scss`，页面重复定义会引发实际问题：
+- 在 `.table-card` 上设置 `padding` 会与 `.el-card__body` 自带的 20px padding **双层叠加**，使表格区实际高度超出 `useTableHeight` 的计算预留值，页面出现**竖向滚动条**
+- 覆盖 `.search-card` 的 `margin-bottom`（全局为 5px）会导致页面间隔与其他列表页不一致
+- 页面 scoped 样式只需保留该页特有的业务样式（如内容格式化、代码块等）
+
 ---
 
 ## 8. 数据字典使用指南

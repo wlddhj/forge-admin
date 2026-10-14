@@ -47,8 +47,8 @@
           </template>
         </vxe-column>
       </vxe-table>
-      <el-pagination v-model:current-page="queryParams.pageNum" v-model:page-size="queryParams.pageSize"
-        :total="total" @size-change="getList" @current-change="getList" />
+      <TablePagination v-model:page-num="queryParams.pageNum" v-model:page-size="queryParams.pageSize"
+        :total="total" @change="getList" />
     </el-card>
 
     <el-dialog v-model="detailVisible" :title="`待办详情 #${currentTodo?.id}`" width="640px">
@@ -147,9 +147,6 @@ const todoType = (s: string): 'primary' | 'success' | 'warning' | 'info' | 'dang
 <style scoped lang="scss">
 .app-container {
   padding: 0;
-
-  .search-card { margin-bottom: 15px; }
-  .table-card { padding: 15px; .el-pagination { margin-top: 15px; justify-content: flex-end; } }
 
   .todo-content {
     white-space: pre-wrap;
