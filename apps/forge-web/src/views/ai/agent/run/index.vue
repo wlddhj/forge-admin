@@ -52,32 +52,7 @@
         :total="total" @change="getList" />
     </el-card>
 
-    <el-drawer v-model="detailVisible" :title="`运行 #${currentRun?.id} 步骤明细`" size="60%">
-      <el-table :data="steps" border size="small">
-        <el-table-column prop="seq" label="#" width="50" />
-        <el-table-column prop="nodeName" label="节点" width="110" />
-        <el-table-column prop="stepType" label="类型" width="100" />
-        <el-table-column prop="toolName" label="工具" width="110" />
-        <el-table-column label="输入/输出" min-width="320">
-          <template #default="{ row }">
-            <el-collapse>
-              <el-collapse-item :title="String(row.stepOutput || row.errorMsg || '').slice(0, 80)" name="1">
-                <pre class="step-json">{{ prettyJson(row.stepOutput) || row.errorMsg }}</pre>
-              </el-collapse-item>
-            </el-collapse>
-          </template>
-        </el-table-column>
-        <el-table-column label="Tokens(in/out)" width="120">
-          <template #default="{ row }">{{ row.tokensIn }}/{{ row.tokensOut }}</template>
-        </el-table-column>
-        <el-table-column prop="durationMs" label="耗时(ms)" width="90" />
-        <el-table-column label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'FAILED' ? 'danger' : 'success'" size="small">{{ row.status }}</el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-drawer>
+    <RunDetailDrawer ref="drawerRef" />
   </div>
 </template>
 
@@ -85,11 +60,12 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
-import { getAgentRuns, getAgentSteps, getAgentRun } from '@/api/ai/agent'
-import type { AgentRun, AgentRunStep } from '@/api/ai/agent'
+import { getAgentRuns } from '@/api/ai/agent'
+import type { AgentRun } from '@/api/ai/agent'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
+import RunDetailDrawer from './components/RunDetailDrawer.vue'
 
 defineOptions({ name: 'AiAgentRun' })
 
@@ -101,13 +77,11 @@ const { seqMethod } = useTableSeq({
 
 const tableRef = ref<VxeTableInstance | null>(null)
 const toolbarRef = ref<VxeToolbarInstance | null>(null)
+const drawerRef = ref<InstanceType<typeof RunDetailDrawer>>()
 const loading = ref(false)
 const tableData = ref<AgentRun[]>([])
 const total = ref(0)
 const queryParams = reactive({ status: '', pageNum: 1, pageSize: 10 })
-const detailVisible = ref(false)
-const currentRun = ref<AgentRun | null>(null)
-const steps = ref<AgentRunStep[]>([])
 const route = useRoute()
 
 onMounted(async () => {
@@ -117,9 +91,7 @@ onMounted(async () => {
   const runId = Number(route.query.runId)
   if (runId) {
     try {
-      currentRun.value = await getAgentRun(runId)
-      steps.value = await getAgentSteps(runId)
-      detailVisible.value = true
+      await drawerRef.value?.open(runId)
     } catch {
       // 运行不存在则忽略
     }
@@ -140,11 +112,7 @@ const getList = async () => {
 const handleQuery = () => { queryParams.pageNum = 1; getList() }
 const handleReset = () => { queryParams.status = ''; handleQuery() }
 
-const handleDetail = async (row: AgentRun) => {
-  currentRun.value = row
-  steps.value = await getAgentSteps(row.id)
-  detailVisible.value = true
-}
+const handleDetail = (row: AgentRun) => drawerRef.value?.open(row)
 
 const statusLabel = (s: string) => ({ RUNNING: '运行中', WAITING_APPROVAL: '待确认', SUCCEEDED: '成功', FAILED: '失败', CANCELLED: '已取消' } as Record<string, string>)[s] || s
 const triggerLabel = (t: string) => ({ CONVERSATION: '会话', MANUAL: '手动', SCHEDULED: '调度' } as Record<string, string>)[t] || t
@@ -152,21 +120,13 @@ const triggerType = (t: string): 'primary' | 'success' | 'warning' | 'info' | 'd
   (({ CONVERSATION: 'primary', MANUAL: 'warning', SCHEDULED: 'success' } as Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'>)[t] || 'info')
 const statusType = (s: string): 'primary' | 'success' | 'warning' | 'info' | 'danger' =>
   (({ RUNNING: 'primary', WAITING_APPROVAL: 'warning', SUCCEEDED: 'success', FAILED: 'danger', CANCELLED: 'info' } as Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'>)[s] || 'info')
-
-const prettyJson = (raw: string | null) => {
-  if (!raw) return ''
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2)
-  } catch {
-    return raw
-  }
-}
 </script>
 
 <style scoped lang="scss">
 .app-container {
   padding: 0;
 
-  .step-json { white-space: pre-wrap; word-break: break-all; font-size: 12px; max-height: 320px; overflow-y: auto; }
+  .search-card { margin-bottom: 15px; }
+  .table-card { padding: 15px; }
 }
 </style>
