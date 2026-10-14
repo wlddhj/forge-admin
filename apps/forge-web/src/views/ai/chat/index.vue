@@ -144,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getModelList, AI_MODEL_TYPE_TEXT } from '@/api/ai/model'
@@ -267,7 +267,8 @@ const handleAgentSend = async () => {
   agentImages.value = []
 
   agentSessions.value.push({ role: 'user', content, images, frames: [], answer: '', status: 'RUNNING' })
-  const reply: AgentSessionItem = { role: 'assistant', content: '', frames: [], answer: '', status: 'RUNNING' }
+  // reactive：SSE/审批轮询等异步回调会跨渲染周期修改该对象，普通对象不触发视图更新
+  const reply: AgentSessionItem = reactive({ role: 'assistant', content: '', frames: [], answer: '', status: 'RUNNING' })
   agentSessions.value.push(reply)
   scrollToBottom()
 
