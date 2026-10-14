@@ -83,8 +83,9 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
-import { getAgentRuns, getAgentSteps } from '@/api/ai/agent'
+import { getAgentRuns, getAgentSteps, getAgentRun } from '@/api/ai/agent'
 import type { AgentRun, AgentRunStep } from '@/api/ai/agent'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useTableHeight } from '@/composables/useTableHeight'
@@ -107,10 +108,22 @@ const queryParams = reactive({ status: '', pageNum: 1, pageSize: 10 })
 const detailVisible = ref(false)
 const currentRun = ref<AgentRun | null>(null)
 const steps = ref<AgentRunStep[]>([])
+const route = useRoute()
 
-onMounted(() => {
+onMounted(async () => {
   tableRef.value?.connect(toolbarRef.value!)
-  getList()
+  await getList()
+  // 支持外部定位：?runId=N 直接打开该运行的步骤明细（Agent 任务页"结果"入口）
+  const runId = Number(route.query.runId)
+  if (runId) {
+    try {
+      currentRun.value = await getAgentRun(runId)
+      steps.value = await getAgentSteps(runId)
+      detailVisible.value = true
+    } catch {
+      // 运行不存在则忽略
+    }
+  }
 })
 
 const getList = async () => {

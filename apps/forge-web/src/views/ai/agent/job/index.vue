@@ -41,9 +41,11 @@
             <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '停止' }}</el-tag>
           </template>
         </vxe-column>
-        <vxe-column field="lastRunId" title="最近运行" width="100">
+        <vxe-column field="lastRunId" title="最近运行" width="110">
           <template #default="{ row }">
-            <span v-if="row.lastRunId">#{{ row.lastRunId }}</span>
+            <el-button v-if="row.lastRunId" type="primary" link size="small" @click="viewRunResult(row.lastRunId)">
+              #{{ row.lastRunId }} 结果
+            </el-button>
             <span v-else>-</span>
           </template>
         </vxe-column>
@@ -71,6 +73,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { agentJobApi } from '@/api/ai/agent'
@@ -116,6 +119,11 @@ const getList = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const router = useRouter()
+const viewRunResult = (runId: number) => {
+  router.push({ path: '/ai/agent/run', query: { runId: String(runId) } })
 }
 
 const handleQuery = () => { queryParams.pageNum = 1; getList() }
