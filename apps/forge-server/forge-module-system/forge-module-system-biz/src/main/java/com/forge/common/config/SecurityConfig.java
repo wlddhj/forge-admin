@@ -114,6 +114,7 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .shouldFilterAllDispatcherTypes(false)
                         .requestMatchers(ADMIN_WHITE_LIST).permitAll()
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
@@ -155,6 +156,7 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .shouldFilterAllDispatcherTypes(false)
                         .requestMatchers(APP_WHITE_LIST).permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(appJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
