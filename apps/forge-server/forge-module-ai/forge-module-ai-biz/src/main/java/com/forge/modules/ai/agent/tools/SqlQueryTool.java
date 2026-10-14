@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * SQL 查询工具：仅允许单条 SELECT、强制 LIMIT、参数绑定；高危（调用前需人工确认）
+ * SQL 查询工具：仅允许单条 SELECT、白名单表、自动注入租户过滤、强制 LIMIT、参数绑定；高危（调用前需人工确认）
  */
 @Component
 @RequiredArgsConstructor
@@ -29,6 +29,7 @@ public class SqlQueryTool implements AgentTool {
 
     private final DataSource dataSource;
     private final AgentProperties properties;
+    private final SqlTenantRewriter sqlTenantRewriter;
 
     @Override
     public String name() {
@@ -37,12 +38,12 @@ public class SqlQueryTool implements AgentTool {
 
     @Override
     public String description() {
-        return "对系统数据库执行只读 SELECT 查询（自动追加 LIMIT 行数上限）";
+        return "对系统数据库执行只读 SELECT 查询（仅限白名单内的表，自动限定当前租户数据，自动追加 LIMIT 行数上限）";
     }
 
     @Override
     public Map<String, String> parameterSpec() {
-        return Map.of("sql", "SELECT 语句（禁止 UNION/写操作/危险函数）", "params", "可选，占位参数数组");
+        return Map.of("sql", "SELECT 语句（仅允许白名单表；禁止 UNION/写操作/危险函数；租户过滤自动注入，无需手写）", "params", "可选，占位参数数组");
     }
 
     @Override
@@ -57,6 +58,7 @@ public class SqlQueryTool implements AgentTool {
         }
         String sql = normalizeSql(String.valueOf(args.get("sql")));
         validate(sql);
+        sql = sqlTenantRewriter.rewrite(sql);
 
         List<Object> params = new ArrayList<>();
         Object rawParams = args.get("params");
