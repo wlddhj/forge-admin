@@ -256,7 +256,7 @@ ai:
   enabled: ${AI_ENABLED:true}
   client:
     connect-timeout: ${AI_CLIENT_CONNECT_TIMEOUT:5000}
-    read-timeout: ${AI_CLIENT_READ_TIMEOUT:60000}
+    read-timeout: ${AI_CLIENT_READ_TIMEOUT:120000}
   models:
     default-model: ${AI_DEFAULT_MODEL:deepseek-chat}
     default-temperature: ${AI_DEFAULT_TEMPERATURE:0.7}

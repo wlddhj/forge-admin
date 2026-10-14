@@ -31,7 +31,7 @@ public class TableSchemaInspector {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement ps = connection.prepareStatement(
                      "SELECT table_name, table_comment FROM information_schema.tables " +
-                             "WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE' ORDER BY table_name");
+                             "WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE' ORDER BY table_name LIMIT 40");
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 String name = rs.getString(1);
