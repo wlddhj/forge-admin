@@ -138,7 +138,13 @@ const handleRun = (row: AgentJob) => {
       runningId.value = row.id
       try {
         const run = await agentJobApi.runOnce(row.id).then(r => r.data)
-        ElMessage.success(`执行完成：运行 #${run.id} 状态 ${run.status}，详情见运行历史`)
+        if (run.status === 'WAITING_APPROVAL') {
+          ElMessage.warning(`运行 #${run.id} 需要人工审批（含高危工具调用），请到「AI 管理 → 人工待办」处理`)
+        } else if (run.status === 'FAILED') {
+          ElMessage.error(`运行 #${run.id} 失败：${run.errorMsg || '未知错误'}`)
+        } else {
+          ElMessage.success(`执行完成：运行 #${run.id}，点击"最近运行"查看结果`)
+        }
         getList()
       } finally {
         runningId.value = undefined
