@@ -23,6 +23,11 @@ public interface AiAgentRunService {
      */
     List<AgentConversationResponse> listConversations();
 
+    /**
+     * 删除 Agent 会话：逻辑删除关联运行记录并删除会话本体
+     */
+    void deleteConversation(Long conversationId);
+
     List<AiAgentRunStep> getSteps(Long runId);
 
     AiAgentRun getRun(Long id);

@@ -32,6 +32,7 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
     private final AiAgentTodoMapper todoMapper;
     private final AgentGraphRunner graphRunner;
     private final com.forge.framework.web.websocket.NotificationService notificationService;
+    private final com.forge.modules.ai.service.AiChatService aiChatService;
 
     @Override
     public Map<String, Object> pageRuns(Long agentId, String status, String triggerType, Long conversationId,
@@ -52,6 +53,22 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
     @Override
     public List<com.forge.modules.ai.dto.response.AgentConversationResponse> listConversations() {
         return runMapper.selectAgentConversations(SecurityHelper.getCurrentUserId());
+    }
+
+    @Override
+    @Transactional
+    public void deleteConversation(Long conversationId) {
+        Long userId = SecurityHelper.getCurrentUserId();
+        LambdaQueryWrapper<AiAgentRun> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AiAgentRun::getConversationId, conversationId)
+                .eq(AiAgentRun::getUserId, userId)
+                .eq(AiAgentRun::getTriggerType, "CONVERSATION");
+        long count = runMapper.selectCount(wrapper);
+        if (count == 0) {
+            throw new BusinessException("Agent 会话不存在或无权删除");
+        }
+        runMapper.delete(wrapper);
+        aiChatService.deleteConversation(conversationId);
     }
 
     @Override

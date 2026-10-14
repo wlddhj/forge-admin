@@ -85,6 +85,15 @@ public class AiAgentController {
         return Result.success(agentRunService.listConversations());
     }
 
+    @Operation(summary = "删除 Agent 会话（含其运行记录）")
+    @DeleteMapping("/conversation/{id}")
+    @PreAuthorize("hasAuthority('ai:chat:delete')")
+    @OperationLog(title = "AI Agent会话", businessType = OperationLog.BusinessType.DELETE)
+    public Result<Void> deleteConversation(@PathVariable Long id) {
+        agentRunService.deleteConversation(id);
+        return Result.success();
+    }
+
     @Operation(summary = "运行步骤明细")
     @GetMapping("/run/{id}/steps")
     @PreAuthorize("hasAuthority('ai:agent:query')")

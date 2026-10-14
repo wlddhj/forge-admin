@@ -117,6 +117,9 @@ export const agentApi = {
   listConversations: () =>
     request.get<AgentConversation[]>('/ai/agent/conversations'),
 
+  removeConversation: (id: number) =>
+    request.delete(`/ai/agent/conversation/${id}`),
+
   getSteps: (runId: number) =>
     request.get<AgentRunStep[]>(`/ai/agent/run/${runId}/steps`),
 

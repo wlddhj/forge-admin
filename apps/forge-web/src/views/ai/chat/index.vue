@@ -31,9 +31,14 @@
           <div class="conv-title">{{ conv.title || 'Agent 对话' }}</div>
           <div class="conv-meta">
             <span class="conv-model">{{ conv.runCount }} 次运行</span>
-            <el-button type="primary" link size="small" @click.stop="handleRenameAgentConversation(conv)">
-              <el-icon><Edit /></el-icon>
-            </el-button>
+            <div class="conv-actions">
+              <el-button type="primary" link size="small" @click.stop="handleRenameAgentConversation(conv)">
+                <el-icon><Edit /></el-icon>
+              </el-button>
+              <el-button type="danger" link size="small" @click.stop="handleDeleteAgentConversation(conv)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </div>
           </div>
         </div>
       </div>
@@ -48,12 +53,14 @@
           <div class="conv-title">{{ conv.title || '新对话' }}</div>
           <div class="conv-meta">
             <span class="conv-model">{{ conv.modelName }}</span>
-            <el-button type="primary" link size="small" @click.stop="handleRenameConversation(conv)">
-              <el-icon><Edit /></el-icon>
-            </el-button>
-            <el-button type="danger" link size="small" @click.stop="handleDeleteConversation(conv)">
-              <el-icon><Delete /></el-icon>
-            </el-button>
+            <div class="conv-actions">
+              <el-button type="primary" link size="small" @click.stop="handleRenameConversation(conv)">
+                <el-icon><Edit /></el-icon>
+              </el-button>
+              <el-button type="danger" link size="small" @click.stop="handleDeleteConversation(conv)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </div>
           </div>
         </div>
       </div>
@@ -176,7 +183,7 @@ import type { ConversationResponse, MessageResponse } from '@/api/ai/chat'
 import { formatDateTime } from '@/utils/dateFormat'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import AgentStepTimeline from './components/AgentStepTimeline.vue'
-import { getAgentConfigs, streamAgentChat, getAgentRun, getAgentRuns, getAgentConversations } from '@/api/ai/agent'
+import { getAgentConfigs, streamAgentChat, getAgentRun, getAgentRuns, getAgentConversations, agentApi } from '@/api/ai/agent'
 import type { AgentConfig, AgentEventFrame, AgentConversation } from '@/api/ai/agent'
 
 const userStore = useUserStore()
@@ -311,6 +318,20 @@ const handleRenameAgentConversation = (conv: AgentConversation) => {
   }).then(async ({ value }) => {
     await updateConversationTitle(conv.conversationId, value.trim())
     ElMessage.success('重命名成功')
+    loadAgentConversations()
+  }).catch(() => { /* 取消 */ })
+}
+
+const handleDeleteAgentConversation = (conv: AgentConversation) => {
+  ElMessageBox.confirm(`确定删除会话"${conv.title || 'Agent 对话'}"吗？其 ${conv.runCount} 次运行记录将一并删除。`, '提示', {
+    type: 'warning'
+  }).then(async () => {
+    await agentApi.removeConversation(conv.conversationId)
+    if (currentAgentConversationId.value === conv.conversationId) {
+      currentAgentConversationId.value = undefined
+      agentSessions.value = []
+    }
+    ElMessage.success('删除成功')
     loadAgentConversations()
   }).catch(() => { /* 取消 */ })
 }
@@ -626,6 +647,15 @@ watch(selectedModelId, () => {
 
           .conv-model {
             font-size: 12px;
+          }
+
+          .conv-actions {
+            display: flex;
+            align-items: center;
+
+            .el-button + .el-button {
+              margin-left: 4px;
+            }
           }
         }
       }
