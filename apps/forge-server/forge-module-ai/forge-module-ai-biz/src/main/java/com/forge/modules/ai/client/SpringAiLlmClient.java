@@ -60,6 +60,16 @@ public class SpringAiLlmClient implements LlmClient {
                     response.setOutputTokens(usage.getCompletionTokens());
                 }
             }
+            // 空 content 且按 max_tokens 截断：思考类模型（GLM-4.x 等）把预算耗在 reasoning 上，
+            // content 恒为空，按成功处理会让上层拿到"空内容"谜团，此处显式判失败给出根因
+            if ((response.getContent() == null || response.getContent().isBlank())
+                    && aiResponse != null && aiResponse.getResult() != null
+                    && aiResponse.getResult().getMetadata() != null
+                    && "LENGTH".equalsIgnoreCase(String.valueOf(aiResponse.getResult().getMetadata().getFinishReason()))) {
+                response.setSuccess(false);
+                response.setErrorMessage("输出被 max_tokens=" + modelConfig.getMaxTokens()
+                        + " 截断（思考类模型推理耗尽预算），请调大 max_tokens 或换用非思考模型");
+            }
         } catch (Exception e) {
             String friendly = friendlyError(e);
             log.error("LLM 非流式调用失败 [{}]: {}", modelConfig.getModelName(), friendly, e);

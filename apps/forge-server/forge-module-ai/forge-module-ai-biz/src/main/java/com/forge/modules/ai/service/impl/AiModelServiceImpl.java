@@ -160,6 +160,9 @@ public class AiModelServiceImpl implements AiModelService {
         if (config.getTemperature() != null) {
             existing.setTemperature(config.getTemperature());
         }
+        if (config.getThinkingDisabled() != null) {
+            existing.setThinkingDisabled(config.getThinkingDisabled());
+        }
         modelConfigMapper.updateById(existing);
     }
 

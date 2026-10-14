@@ -24,6 +24,27 @@ public class OpenAiChatModelFactory {
 
     private static final String DEFAULT_COMPLETIONS_PATH = "/chat/completions";
 
+    private static final com.fasterxml.jackson.databind.ObjectMapper OBJECT_MAPPER =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
+    /**
+     * 非流式请求 body 注入 thinking.type=disabled（智谱 GLM-4.x 等思考类模型关闭思考，
+     * 防止思考耗尽 max_tokens 导致 content 为空）。仅影响 OpenAiApi 的 RestClient 调用路径，流式 WebClient 不经过。
+     */
+    private static final org.springframework.http.client.ClientHttpRequestInterceptor THINKING_DISABLED_INTERCEPTOR =
+            (request, body, execution) -> {
+                if (body != null && body.length > 0) {
+                    try {
+                        Map<String, Object> payload = OBJECT_MAPPER.readValue(body, Map.class);
+                        payload.put("thinking", Map.of("type", "disabled"));
+                        return execution.execute(request, OBJECT_MAPPER.writeValueAsBytes(payload));
+                    } catch (Exception e) {
+                        log.warn("注入 thinking.type=disabled 失败，按原始请求发送: {}", e.getMessage());
+                    }
+                }
+                return execution.execute(request, body);
+            };
+
     private final WebClient.Builder webClientBuilder;
     private final org.springframework.web.client.RestClient.Builder restClientBuilder;
     private final AiModuleConfig aiModuleConfig;
@@ -63,12 +84,16 @@ public class OpenAiChatModelFactory {
     }
 
     private OpenAiChatModel build(AiModelConfig config) {
+        org.springframework.web.client.RestClient.Builder restBuilder = restClientBuilder.clone();
+        if (Integer.valueOf(1).equals(config.getThinkingDisabled())) {
+            restBuilder.requestInterceptor(THINKING_DISABLED_INTERCEPTOR);
+        }
         OpenAiApi api = OpenAiApi.builder()
                 .baseUrl(normalizeBaseUrl(config.getApiEndpoint()))
                 .apiKey(config.getApiKey())
                 .completionsPath(DEFAULT_COMPLETIONS_PATH)
                 .webClientBuilder(webClientBuilder.clone())
-                .restClientBuilder(restClientBuilder.clone())
+                .restClientBuilder(restBuilder)
                 .build();
 
         OpenAiChatOptions.Builder options = OpenAiChatOptions.builder().model(config.getModelCode());
@@ -123,6 +148,7 @@ public class OpenAiChatModelFactory {
                 Objects.toString(config.getModelCode(), ""),
                 Objects.toString(resolveTemperature(config), ""),
                 Objects.toString(resolveMaxTokens(config), ""),
+                Objects.toString(config.getThinkingDisabled(), ""),
                 Objects.toString(config.getUpdateTime(), ""));
     }
 

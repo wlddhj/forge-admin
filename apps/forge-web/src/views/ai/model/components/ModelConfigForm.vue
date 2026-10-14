@@ -32,6 +32,10 @@
       <el-form-item label="Temperature" prop="temperature">
         <el-slider v-model="formData.temperature" :min="0" :max="2" :step="0.1" show-input />
       </el-form-item>
+      <el-form-item label="禁用思考">
+        <el-switch v-model="formData.thinkingDisabled" :active-value="1" :inactive-value="0" />
+        <span class="form-tip">思考类模型（GLM-4.x 等）建议开启：思考会消耗 max_tokens 预算导致输出为空</span>
+      </el-form-item>
       <el-form-item v-if="!isEdit" label="备注" prop="remark">
         <el-input v-model="formData.remark" type="textarea" placeholder="请输入备注（可选）" />
       </el-form-item>
@@ -73,6 +77,7 @@ const formData = reactive<AddModelRequest>({
   apiKey: '',
   maxTokens: 4096,
   temperature: 0.7,
+  thinkingDisabled: 0,
   remark: ''
 })
 
@@ -102,6 +107,7 @@ const open = (type: 'create' | 'update', row?: ModelConfigResponse) => {
       formData.apiKey = row.apiKey || ''
       formData.maxTokens = row.maxTokens
       formData.temperature = row.temperature
+      formData.thinkingDisabled = row.thinkingDisabled ?? 0
     } finally {
       formLoading.value = false
     }
@@ -125,7 +131,8 @@ const handleSubmit = async () => {
         apiEndpoint: formData.apiEndpoint,
         apiKey: formData.apiKey,
         maxTokens: formData.maxTokens,
-        temperature: formData.temperature
+        temperature: formData.temperature,
+        thinkingDisabled: formData.thinkingDisabled
       }
       await configModel(currentId.value!, data)
       ElMessage.success('更新成功')
@@ -151,6 +158,7 @@ const resetForm = () => {
     apiKey: '',
     maxTokens: 4096,
     temperature: 0.7,
+    thinkingDisabled: 0,
     remark: ''
   })
   formRef.value?.resetFields()
@@ -158,3 +166,11 @@ const resetForm = () => {
 
 defineExpose({ open })
 </script>
+
+<style scoped lang="scss">
+.form-tip {
+  margin-left: 10px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+</style>

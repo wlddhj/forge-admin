@@ -14,6 +14,7 @@ export interface ModelConfigResponse {
   apiKey: string | null
   maxTokens: number
   temperature: number
+  thinkingDisabled: number | null // 0: 默认 1: 关闭思考模式（思考类模型防预算耗尽）
   contextWindow: number | null
   inputPrice: number | null
   outputPrice: number | null
@@ -34,6 +35,7 @@ export interface ModelConfigRequest {
   apiEndpoint?: string
   maxTokens?: number
   temperature?: number
+  thinkingDisabled?: number
 }
 
 // 新增模型请求
@@ -46,6 +48,7 @@ export interface AddModelRequest {
   apiKey?: string
   maxTokens?: number
   temperature?: number
+  thinkingDisabled?: number
   remark?: string
 }
 

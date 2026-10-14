@@ -97,7 +97,8 @@ public class AgentDataCleanupService {
     }
 
     /**
-     * 读保留天数并换算截止时间；配置缺失用默认值，非法（≤0 或非数字）返回 null 跳过
+     * 读保留天数并换算截止时间；配置缺失用默认值。
+     * 0 天=不保留（全部超期，用于测试/立即清理）；负数或非数字=非法，返回 null 跳过
      */
     private LocalDateTime daysCutoff(String configKey, int defaultDays) {
         int days = defaultDays;
@@ -109,7 +110,7 @@ public class AgentDataCleanupService {
                 return null;
             }
         }
-        if (days <= 0) {
+        if (days < 0) {
             return null;
         }
         return LocalDateTime.now().minusDays(days);

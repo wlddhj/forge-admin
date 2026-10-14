@@ -29,7 +29,9 @@ INSERT IGNORE INTO `ai_sql_whitelist` (`table_name`, `table_comment`, `enabled`,
 ('ai_conversation', 'AI会话表', 1, '初始种子'),
 ('ai_document', 'AI文档表', 1, '初始种子');
 
--- 3. 菜单与按钮权限（340-344 已确认空闲）
+-- 3. 菜单与按钮权限
+-- 注意：341-344 与 V2026101302 的 Agent任务 菜单 ID 冲突（本脚本核查时遗漏），
+--       执行本脚本会删除并覆盖 Agent任务 菜单，须继续按序执行 V2026101404 恢复
 DELETE FROM `sys_role_menu` WHERE `menu_id` BETWEEN 340 AND 344;
 DELETE FROM `sys_menu` WHERE `id` BETWEEN 340 AND 344;
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES

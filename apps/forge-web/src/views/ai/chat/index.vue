@@ -91,6 +91,9 @@
               </template>
               <template v-else>
                 <div class="message-bubble">
+                  <div v-if="item.approvalNotice" class="approval-notice">
+                    <el-icon style="margin-right: 4px"><Checked /></el-icon>{{ item.approvalNotice }}
+                  </div>
                   <AgentStepTimeline :frames="item.frames" />
                   <template v-if="item.answer">
                     <el-divider style="margin: 8px 0" />
@@ -215,6 +218,8 @@ interface AgentSessionItem {
   frames: AgentEventFrame[]
   answer: string
   status: 'RUNNING' | 'DONE' | 'WAITING' | 'FAILED'
+  /** 审批通过后的气泡提示（轮询发现 WAITING_APPROVAL→RUNNING 迁移时填充） */
+  approvalNotice?: string
 }
 const agentSessions = ref<AgentSessionItem[]>([])
 const agentConversations = ref<AgentConversation[]>([])
@@ -260,7 +265,7 @@ const onImagesPicked = (e: Event) => {
   ;(e.target as HTMLInputElement).value = ''
 }
 
-/** 中断等待人工确认的 run：轮询状态，完成后回填答案到对话气泡 */
+/** 中断等待人工确认的 run：轮询状态，审批通过后提示，完成后回填答案到对话气泡 */
 const pollRunResult = (reply: AgentSessionItem, runId: number) => {
   if (!runId) return
   let attempts = 0
@@ -271,18 +276,25 @@ const pollRunResult = (reply: AgentSessionItem, runId: number) => {
       if (run.status === 'SUCCEEDED') {
         clearInterval(timer)
         reply.status = 'DONE'
+        reply.approvalNotice = undefined
         reply.answer = run.finalAnswer || reply.answer || ''
         scrollToBottom()
       } else if (run.status === 'FAILED' || run.status === 'CANCELLED') {
         clearInterval(timer)
         reply.status = 'FAILED'
+        reply.approvalNotice = undefined
         reply.answer = run.errorMsg ? `运行失败：${run.errorMsg}` : reply.answer
+        scrollToBottom()
+      } else if (run.status === 'RUNNING' && reply.status === 'WAITING' && !reply.approvalNotice) {
+        // 审批人已在待办页通过：切换为执行中提示，替代干等"待确认"
+        reply.approvalNotice = '人工已审核通过，Agent 正在继续执行…'
         scrollToBottom()
       }
     } catch {
       // 轮询失败忽略，下轮重试
     }
-    if (attempts >= 60) {
+    // 15 分钟上限：覆盖"发起对话 → 离开去审批 → 回来"的长间隔场景
+    if (attempts >= 300) {
       clearInterval(timer)
     }
   }, 3000)
@@ -709,6 +721,17 @@ watch(selectedModelId, () => {
           .message-bubble {
             padding: 12px 16px;
             border-radius: 8px;
+          }
+
+          .approval-notice {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            background: #f0f9eb;
+            color: #67c23a;
+            font-size: 13px;
           }
 
           .message-time {

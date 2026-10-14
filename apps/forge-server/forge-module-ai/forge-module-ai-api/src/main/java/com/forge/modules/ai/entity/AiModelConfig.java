@@ -35,6 +35,11 @@ public class AiModelConfig {
 
     private BigDecimal temperature;
 
+    /**
+     * 禁用思考模式(0:默认 1:请求注入 thinking.type=disabled，适用于 GLM-4.x 等思考类模型)
+     */
+    private Integer thinkingDisabled;
+
     private Integer contextWindow;
 
     private BigDecimal inputPrice;
