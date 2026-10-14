@@ -2,12 +2,23 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.forge.modules.system.mapper.SysMenuMapper">
 
+    <!-- 递归补全祖先目录：角色可能只勾选子菜单未勾选父目录，若不补全则 buildMenuTree 无法挂载孤儿节点 -->
     <select id="selectMenusByUserId" resultType="com.forge.modules.system.entity.SysMenu">
+        WITH RECURSIVE user_menus AS (
+            SELECT DISTINCT m.id, m.parent_id
+            FROM sys_menu m
+            INNER JOIN sys_role_menu rm ON m.id = rm.menu_id
+            INNER JOIN sys_user_role ur ON rm.role_id = ur.role_id
+            WHERE ur.user_id = #{userId} AND m.status = 1 AND m.deleted = 0
+            UNION
+            SELECT p.id, p.parent_id
+            FROM sys_menu p
+            INNER JOIN user_menus um ON p.id = um.parent_id
+            WHERE p.status = 1 AND p.deleted = 0
+        )
         SELECT DISTINCT m.*
         FROM sys_menu m
-        INNER JOIN sys_role_menu rm ON m.id = rm.menu_id
-        INNER JOIN sys_user_role ur ON rm.role_id = ur.role_id
-        WHERE ur.user_id = #{userId} AND m.status = 1 AND m.deleted = 0
+        INNER JOIN user_menus um ON m.id = um.id
         ORDER BY m.sort_order
     </select>
 
