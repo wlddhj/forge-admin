@@ -1,5 +1,6 @@
 package com.forge.modules.ai.service;
 
+import com.forge.modules.ai.dto.response.AgentConversationResponse;
 import com.forge.modules.ai.entity.AiAgentRun;
 import com.forge.modules.ai.entity.AiAgentRunStep;
 import com.forge.modules.ai.entity.AiAgentTodo;
@@ -15,7 +16,12 @@ public interface AiAgentRunService {
     /**
      * 分页查询运行记录（agentId/status 可选过滤）
      */
-    Map<String, Object> pageRuns(Long agentId, String status, int pageNum, int pageSize);
+    Map<String, Object> pageRuns(Long agentId, String status, String triggerType, Long conversationId, int pageNum, int pageSize);
+
+    /**
+     * 当前用户的 Agent 会话列表（按 conversation 分组的运行记录）
+     */
+    List<AgentConversationResponse> listConversations();
 
     List<AiAgentRunStep> getSteps(Long runId);
 

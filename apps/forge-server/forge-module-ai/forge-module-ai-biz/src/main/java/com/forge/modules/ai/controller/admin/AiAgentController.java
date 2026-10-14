@@ -71,9 +71,18 @@ public class AiAgentController {
     @PreAuthorize("hasAuthority('ai:agent:query')")
     public Result<Map<String, Object>> pageRuns(@RequestParam(required = false) Long agentId,
                                                 @RequestParam(required = false) String status,
+                                                @RequestParam(required = false) String triggerType,
+                                                @RequestParam(required = false) Long conversationId,
                                                 @RequestParam(defaultValue = "1") int pageNum,
                                                 @RequestParam(defaultValue = "10") int pageSize) {
-        return Result.success(agentRunService.pageRuns(agentId, status, pageNum, pageSize));
+        return Result.success(agentRunService.pageRuns(agentId, status, triggerType, conversationId, pageNum, pageSize));
+    }
+
+    @Operation(summary = "Agent 会话列表（按会话分组的运行记录）")
+    @GetMapping("/conversations")
+    @PreAuthorize("hasAuthority('ai:agent:query')")
+    public Result<List<com.forge.modules.ai.dto.response.AgentConversationResponse>> listConversations() {
+        return Result.success(agentRunService.listConversations());
     }
 
     @Operation(summary = "运行步骤明细")

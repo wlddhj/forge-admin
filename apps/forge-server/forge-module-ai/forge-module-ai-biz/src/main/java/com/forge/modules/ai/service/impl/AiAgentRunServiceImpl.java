@@ -34,16 +34,24 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
     private final com.forge.framework.web.websocket.NotificationService notificationService;
 
     @Override
-    public Map<String, Object> pageRuns(Long agentId, String status, int pageNum, int pageSize) {
+    public Map<String, Object> pageRuns(Long agentId, String status, String triggerType, Long conversationId,
+                                         int pageNum, int pageSize) {
         LambdaQueryWrapper<AiAgentRun> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(agentId != null, AiAgentRun::getAgentId, agentId);
         wrapper.eq(status != null && !status.isBlank(), AiAgentRun::getStatus, status);
+        wrapper.eq(triggerType != null && !triggerType.isBlank(), AiAgentRun::getTriggerType, triggerType);
+        wrapper.eq(conversationId != null, AiAgentRun::getConversationId, conversationId);
         wrapper.orderByDesc(AiAgentRun::getId);
         Page<AiAgentRun> page = runMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("records", page.getRecords());
         result.put("total", page.getTotal());
         return result;
+    }
+
+    @Override
+    public List<com.forge.modules.ai.dto.response.AgentConversationResponse> listConversations() {
+        return runMapper.selectAgentConversations(SecurityHelper.getCurrentUserId());
     }
 
     @Override

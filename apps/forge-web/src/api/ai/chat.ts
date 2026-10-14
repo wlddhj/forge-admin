@@ -23,7 +23,7 @@ export interface MessageResponse {
 // 创建对话请求
 export interface ConversationCreateRequest {
   title?: string
-  modelId: number
+  modelId?: number
 }
 
 // 发送消息请求

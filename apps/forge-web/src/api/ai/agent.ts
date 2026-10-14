@@ -111,8 +111,11 @@ export const agentApi = {
   updateConfig: (id: number, data: Partial<AgentConfig>) =>
     request.put(`/ai/agent/config/${id}`, data),
 
-  pageRuns: (params: { agentId?: number; status?: string; pageNum: number; pageSize: number }) =>
+  pageRuns: (params: { agentId?: number; status?: string; triggerType?: string; conversationId?: number; pageNum: number; pageSize: number }) =>
     request.get<{ records: AgentRun[]; total: number }>('/ai/agent/run/list', { params }),
+
+  listConversations: () =>
+    request.get<AgentConversation[]>('/ai/agent/conversations'),
 
   getSteps: (runId: number) =>
     request.get<AgentRunStep[]>(`/ai/agent/run/${runId}/steps`),
@@ -131,8 +134,18 @@ export const agentApi = {
 }
 
 export const getAgentConfigs = (status?: number) => agentApi.listConfigs(status).then(res => res.data)
-export const getAgentRuns = (params: { agentId?: number; status?: string; pageNum: number; pageSize: number }) =>
+/** Agent 会话列表项 */
+export interface AgentConversation {
+  conversationId: number
+  title: string | null
+  runCount: number
+  lastRunId: number
+  lastTime: string | null
+}
+
+export const getAgentRuns = (params: { agentId?: number; status?: string; triggerType?: string; conversationId?: number; pageNum: number; pageSize: number }) =>
   agentApi.pageRuns(params).then(res => res.data)
+export const getAgentConversations = () => agentApi.listConversations().then(res => res.data)
 export const getAgentSteps = (runId: number) => agentApi.getSteps(runId).then(res => res.data)
 export const getAgentRun = (id: number) => agentApi.getRun(id).then(res => res.data)
 export const getAgentTodos = (params: { status?: string; pageNum: number; pageSize: number }) =>

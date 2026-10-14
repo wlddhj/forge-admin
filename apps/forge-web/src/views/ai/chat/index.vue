@@ -15,12 +15,27 @@
         </el-select>
       </div>
       <div class="panel-actions">
-        <el-button type="primary" size="small" @click="handleNewConversation">
+        <el-button type="primary" size="small" @click="agentMode ? handleNewAgentConversation() : handleNewConversation()">
           <el-icon><Plus /></el-icon>
           新对话
         </el-button>
       </div>
-      <div class="conversation-list">
+      <!-- Agent 会话列表 -->
+      <div v-if="agentMode" class="conversation-list">
+        <div
+          v-for="conv in agentConversations"
+          :key="conv.conversationId"
+          :class="['conversation-item', { active: currentAgentConversationId === conv.conversationId }]"
+          @click="handleSelectAgentConversation(conv)"
+        >
+          <div class="conv-title">{{ conv.title || 'Agent 对话' }}</div>
+          <div class="conv-meta">
+            <span class="conv-model">{{ conv.runCount }} 次运行</span>
+          </div>
+        </div>
+      </div>
+      <!-- 普通会话列表 -->
+      <div v-else class="conversation-list">
         <div
           v-for="conv in conversationList"
           :key="conv.id"
@@ -155,8 +170,8 @@ import type { ConversationResponse, MessageResponse } from '@/api/ai/chat'
 import { formatDateTime } from '@/utils/dateFormat'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import AgentStepTimeline from './components/AgentStepTimeline.vue'
-import { getAgentConfigs, streamAgentChat, getAgentRun } from '@/api/ai/agent'
-import type { AgentConfig, AgentEventFrame } from '@/api/ai/agent'
+import { getAgentConfigs, streamAgentChat, getAgentRun, getAgentRuns, getAgentConversations } from '@/api/ai/agent'
+import type { AgentConfig, AgentEventFrame, AgentConversation } from '@/api/ai/agent'
 
 const userStore = useUserStore()
 
@@ -189,6 +204,8 @@ interface AgentSessionItem {
   status: 'RUNNING' | 'DONE' | 'WAITING' | 'FAILED'
 }
 const agentSessions = ref<AgentSessionItem[]>([])
+const agentConversations = ref<AgentConversation[]>([])
+const currentAgentConversationId = ref<number>()
 
 const selectedAgent = computed(() => agentList.value.find(a => a.agentCode === selectedAgentCode.value))
 
@@ -258,6 +275,74 @@ const pollRunResult = (reply: AgentSessionItem, runId: number) => {
   }, 3000)
 }
 
+/** Agent 会话列表 */
+const loadAgentConversations = async () => {
+  try {
+    agentConversations.value = await getAgentConversations()
+  } catch {
+    // 忽略，不影响新对话
+  }
+}
+
+const handleNewAgentConversation = async () => {
+  const conv = await createConversation({
+    title: `Agent：${selectedAgent.value?.agentName || '对话'}`
+  })
+  currentAgentConversationId.value = conv.id
+  agentSessions.value = []
+  loadAgentConversations()
+}
+
+const handleSelectAgentConversation = async (conv: AgentConversation) => {
+  currentAgentConversationId.value = conv.conversationId
+  await loadAgentHistory(conv.conversationId)
+}
+
+/** 加载指定 Agent 会话的运行记录渲染为问答对 */
+const loadAgentHistory = async (conversationId?: number) => {
+  agentSessions.value = []
+  try {
+    const result = await getAgentRuns({
+      triggerType: 'CONVERSATION',
+      conversationId,
+      pageNum: 1,
+      pageSize: 50
+    })
+    const runs = (result.records || []).slice().reverse()
+    for (const run of runs) {
+      agentSessions.value.push({
+        role: 'user', content: run.inputSummary || '', frames: [], answer: '', status: 'DONE'
+      })
+      const reply: AgentSessionItem = reactive({
+        role: 'assistant', content: '', frames: [], answer: run.finalAnswer || '', status: 'DONE'
+      })
+      if (run.status === 'WAITING_APPROVAL') {
+        reply.frames.push({
+          event: 'APPROVAL_REQUIRED', node: null, name: 'approval',
+          data: { runId: run.id, todoId: null }
+        })
+        reply.status = 'WAITING'
+        pollRunResult(reply, run.id)
+      } else if (run.status === 'FAILED') {
+        reply.answer = run.errorMsg ? `运行失败：${run.errorMsg}` : '运行失败'
+        reply.status = 'FAILED'
+      } else if (run.status === 'RUNNING') {
+        reply.status = 'RUNNING'
+        pollRunResult(reply, run.id)
+      }
+      agentSessions.value.push(reply)
+    }
+  } catch {
+    // 无权限或接口异常时保持空白，不打断新对话
+  }
+}
+
+watch(agentMode, (enabled) => {
+  if (enabled) {
+    loadAgentConversations()
+  }
+})
+
 const handleAgentSend = async () => {
   const content = inputMessage.value.trim()
   if (!content || !selectedAgentCode.value || isStreaming.value) return
@@ -273,7 +358,7 @@ const handleAgentSend = async () => {
   scrollToBottom()
 
   await streamAgentChat(
-    { agentCode: selectedAgentCode.value, content, images },
+    { agentCode: selectedAgentCode.value, conversationId: currentAgentConversationId.value, content, images },
     (frame) => {
       reply.frames.push(frame)
       if (frame.event === 'FINAL') {
@@ -298,6 +383,7 @@ const handleAgentSend = async () => {
   )
   isStreaming.value = false
   scrollToBottom()
+  loadAgentConversations()
 }
 
 const loadConversations = async () => {
