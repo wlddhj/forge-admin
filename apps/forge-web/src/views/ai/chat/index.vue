@@ -31,6 +31,9 @@
           <div class="conv-title">{{ conv.title || 'Agent 对话' }}</div>
           <div class="conv-meta">
             <span class="conv-model">{{ conv.runCount }} 次运行</span>
+            <el-button type="primary" link size="small" @click.stop="handleRenameAgentConversation(conv)">
+              <el-icon><Edit /></el-icon>
+            </el-button>
           </div>
         </div>
       </div>
@@ -163,7 +166,7 @@ import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getModelList, AI_MODEL_TYPE_TEXT } from '@/api/ai/model'
-import { createConversation, getConversationList, getConversationMessages, deleteConversation, saveAiMessage } from '@/api/ai/chat'
+import { createConversation, getConversationList, getConversationMessages, deleteConversation, saveAiMessage, updateConversationTitle } from '@/api/ai/chat'
 import { createSSE, parseSSEData } from '@/utils/sse'
 import type { ModelConfigResponse } from '@/api/ai/model'
 import type { ConversationResponse, MessageResponse } from '@/api/ai/chat'
@@ -296,6 +299,17 @@ const handleNewAgentConversation = async () => {
 const handleSelectAgentConversation = async (conv: AgentConversation) => {
   currentAgentConversationId.value = conv.conversationId
   await loadAgentHistory(conv.conversationId)
+}
+
+const handleRenameAgentConversation = (conv: AgentConversation) => {
+  ElMessageBox.prompt('请输入新的会话名称', '重命名', {
+    inputValue: conv.title || '',
+    inputValidator: (v: string) => (v && v.trim().length <= 50) || '名称不能为空且不超过 50 字',
+  }).then(async ({ value }) => {
+    await updateConversationTitle(conv.conversationId, value.trim())
+    ElMessage.success('重命名成功')
+    loadAgentConversations()
+  }).catch(() => { /* 取消 */ })
 }
 
 /** 加载指定 Agent 会话的运行记录渲染为问答对 */
