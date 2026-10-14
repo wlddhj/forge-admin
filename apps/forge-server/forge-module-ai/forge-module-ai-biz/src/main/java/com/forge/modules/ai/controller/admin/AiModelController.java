@@ -40,6 +40,7 @@ public class AiModelController {
     @PreAuthorize("hasAuthority('ai:model:query')")
     public Result<List<AiModelConfig>> getAllModelConfigs(@RequestParam(required = false) String modelType) {
         List<AiModelConfig> list = aiModelService.getAllModelConfigs(modelType);
+        list.forEach(this::maskApiKey);
         return Result.success(list);
     }
 
@@ -48,7 +49,7 @@ public class AiModelController {
     @PreAuthorize("hasAuthority('ai:model:query')")
     public Result<AiModelConfig> getModelConfig(@PathVariable Long id) {
         AiModelConfig config = aiModelService.getModelConfig(id);
-        return Result.success(config);
+        return Result.success(maskApiKey(config));
     }
 
     @Operation(summary = "更新模型配置状态")
@@ -85,7 +86,7 @@ public class AiModelController {
     public Result<AiModelConfig> configModel(@PathVariable Long id, @RequestBody AiModelConfig config) {
         aiModelService.updateModelConfig(id, config);
         AiModelConfig updated = aiModelService.getModelConfig(id);
-        return Result.success(updated);
+        return Result.success(maskApiKey(updated));
     }
 
     @Operation(summary = "刷新单个模型状态")
@@ -94,7 +95,7 @@ public class AiModelController {
     @OperationLog(title = "AI模型配置", businessType = OperationLog.BusinessType.OTHER)
     public Result<AiModelConfig> refreshModelStatus(@PathVariable Long id) {
         AiModelConfig config = aiModelService.refreshModelStatus(id);
-        return Result.success(config);
+        return Result.success(maskApiKey(config));
     }
 
     @Operation(summary = "刷新所有模型状态")
@@ -103,6 +104,7 @@ public class AiModelController {
     @OperationLog(title = "AI模型配置", businessType = OperationLog.BusinessType.OTHER)
     public Result<List<AiModelConfig>> refreshAllModelStatus() {
         List<AiModelConfig> configs = aiModelService.refreshAllModelStatus();
+        configs.forEach(this::maskApiKey);
         return Result.success(configs);
     }
 
@@ -122,5 +124,19 @@ public class AiModelController {
     public Result<Void> deleteModelConfig(@PathVariable Long id) {
         aiModelService.deleteModelConfig(id);
         return Result.success();
+    }
+
+    /**
+     * 接口出口脱敏：apiKey 只保留尾 4 位（Service 内部消费与模型工厂仍用明文，不经过此方法）
+     */
+    private AiModelConfig maskApiKey(AiModelConfig config) {
+        if (config == null) {
+            return null;
+        }
+        String key = config.getApiKey();
+        if (key != null && !key.isBlank()) {
+            config.setApiKey(key.length() <= 4 ? "****" : "****" + key.substring(key.length() - 4));
+        }
+        return config;
     }
 }

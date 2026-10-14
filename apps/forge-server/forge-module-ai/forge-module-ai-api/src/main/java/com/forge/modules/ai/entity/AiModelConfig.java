@@ -1,9 +1,11 @@
 package com.forge.modules.ai.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.forge.framework.mybatis.handler.EncryptTypeHandler;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -13,7 +15,7 @@ import java.time.LocalDateTime;
  * AI 模型配置实体
  */
 @Data
-@TableName("ai_model_config")
+@TableName(value = "ai_model_config", autoResultMap = true)
 public class AiModelConfig {
 
     @TableId(type = IdType.AUTO)
@@ -29,6 +31,10 @@ public class AiModelConfig {
 
     private String apiEndpoint;
 
+    /**
+     * API Key（AES-256-GCM 加密存储，读取自动解密；接口出口另行脱敏）
+     */
+    @TableField(typeHandler = EncryptTypeHandler.class)
     private String apiKey;
 
     private Integer maxTokens;

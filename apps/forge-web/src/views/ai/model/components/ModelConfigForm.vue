@@ -24,7 +24,9 @@
         <el-input v-model="formData.apiEndpoint" placeholder="请输入 API Endpoint（OpenAI 兼容 base-url）" />
       </el-form-item>
       <el-form-item label="API Key" prop="apiKey">
-        <el-input v-model="formData.apiKey" type="password" placeholder="请输入 API Key" show-password />
+        <el-input v-model="formData.apiKey" type="password"
+          :placeholder="isEdit && formData.apiKey === '' ? `当前 ${apiKeyMask}，留空表示不修改` : '请输入 API Key'"
+          show-password />
       </el-form-item>
       <el-form-item label="最大 Tokens" prop="maxTokens">
         <el-input-number v-model="formData.maxTokens" :min="1" :max="100000" :step="100" />
@@ -67,6 +69,7 @@ const formLoading = ref(false)
 const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
 const currentId = ref<number>()
+const apiKeyMask = ref('')
 
 const formData = reactive<AddModelRequest>({
   modelName: '',
@@ -104,7 +107,9 @@ const open = (type: 'create' | 'update', row?: ModelConfigResponse) => {
       formData.provider = row.provider
       formData.modelType = row.modelType || ''
       formData.apiEndpoint = row.apiEndpoint || ''
-      formData.apiKey = row.apiKey || ''
+      // 编辑态不回显 key（接口已脱敏为尾4位），留空提交表示不修改
+      formData.apiKey = ''
+      apiKeyMask.value = row.apiKey || ''
       formData.maxTokens = row.maxTokens
       formData.temperature = row.temperature
       formData.thinkingDisabled = row.thinkingDisabled ?? 0
@@ -129,7 +134,7 @@ const handleSubmit = async () => {
         provider: formData.provider,
         modelType: formData.modelType,
         apiEndpoint: formData.apiEndpoint,
-        apiKey: formData.apiKey,
+        apiKey: formData.apiKey?.trim() ? formData.apiKey.trim() : undefined,
         maxTokens: formData.maxTokens,
         temperature: formData.temperature,
         thinkingDisabled: formData.thinkingDisabled
@@ -149,6 +154,7 @@ const handleSubmit = async () => {
 
 const resetForm = () => {
   currentId.value = undefined
+  apiKeyMask.value = ''
   Object.assign(formData, {
     modelName: '',
     modelCode: '',

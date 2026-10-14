@@ -152,7 +152,11 @@ public class AiModelServiceImpl implements AiModelService {
             existing.setApiEndpoint(config.getApiEndpoint());
         }
         if (config.getApiKey() != null) {
-            existing.setApiKey(config.getApiKey());
+            // 空/掩码样式（接口脱敏回传）视为"不修改"；仅真实新值覆盖（回写时自动加密）
+            String newKey = config.getApiKey().trim();
+            if (!newKey.isBlank() && !newKey.startsWith("****")) {
+                existing.setApiKey(newKey);
+            }
         }
         if (config.getMaxTokens() != null) {
             existing.setMaxTokens(config.getMaxTokens());
@@ -218,6 +222,9 @@ public class AiModelServiceImpl implements AiModelService {
         }
         if (config.getModelType() == null || config.getModelType().isBlank()) {
             config.setModelType(AiModelTypes.TEXT);
+        }
+        if (config.getApiKey() != null && config.getApiKey().isBlank()) {
+            config.setApiKey(null);
         }
         config.setStatus(1);
         config.setIsDefault(0);
