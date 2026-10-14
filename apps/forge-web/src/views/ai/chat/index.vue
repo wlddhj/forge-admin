@@ -250,6 +250,8 @@ const handleAgentSend = async () => {
       if (frame.event === 'FINAL') {
         reply.answer = String(frame.data?.answer ?? '')
         reply.status = 'DONE'
+      } else if (frame.event === 'CONTENT') {
+        reply.answer = (reply.answer || '') + String(frame.data?.delta ?? '')
       } else if (frame.event === 'APPROVAL_REQUIRED') {
         reply.status = 'WAITING'
       } else if (frame.event === 'ERROR') {

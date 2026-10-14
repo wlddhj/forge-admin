@@ -362,19 +362,52 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
             ChatRequest request = new ChatRequest();
             request.setContent(sb.toString());
             request.setTemperature(0.5);
-            ChatResponse response = llmClient.chat(request, model);
-            if (!Boolean.TRUE.equals(response.getSuccess())) {
-                throw new BusinessException("总结模型调用失败: " + response.getErrorMessage());
+            // 流式总结：token 级 CONTENT 增量事件，前端打字机渲染
+            StringBuilder answerBuf = new StringBuilder();
+            llmClient.stream(request, model)
+                    .doOnNext(frame -> {
+                        String delta = extractContentDelta(frame);
+                        if (delta != null && !delta.isEmpty()) {
+                            answerBuf.append(delta);
+                            ctx.emit(AgentEvents.Type.CONTENT, NODE_SUMMARY, "总结回答", Map.of("delta", delta));
+                        }
+                    })
+                    .blockLast(java.time.Duration.ofMinutes(3));
+            String answer = answerBuf.toString();
+            if (answer.isBlank()) {
+                ChatResponse response = llmClient.chat(request, model);
+                if (!Boolean.TRUE.equals(response.getSuccess())) {
+                    throw new BusinessException("总结模型调用失败: " + response.getErrorMessage());
+                }
+                answer = response.getContent() == null ? "" : response.getContent();
+                ctx.emit(AgentEvents.Type.CONTENT, NODE_SUMMARY, "总结回答", Map.of("delta", answer));
             }
-            String answer = response.getContent() == null ? "" : response.getContent();
             ctx.emit(AgentEvents.Type.STEP_END, NODE_SUMMARY, "总结回答", Map.of(
                     "seq", seq, "status", "SUCCESS", "output", truncate(answer),
-                    "tokensIn", nullToZero(response.getInputTokens()),
-                    "tokensOut", nullToZero(response.getOutputTokens()),
                     "durationMs", System.currentTimeMillis() - start,
                     "modelId", model.getId()));
             return Map.of(AgentGraphState.FINAL_ANSWER, answer);
         });
+    }
+
+    /**
+     * 从 LlmClient 的 SSE 帧字符串（{"content":"…"} / [DONE] / {"error":…}）提取文本增量
+     */
+    private String extractContentDelta(String frame) {
+        if (frame == null || "[DONE]".equals(frame.trim())) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(frame);
+            if (node.has("error") && node.path("error").asBoolean(false)) {
+                throw new BusinessException("流式总结失败: " + node.path("message").asText());
+            }
+            return node.path("content").asText("");
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String truncate(String text) {

@@ -2,7 +2,7 @@ import request from '@/utils/request'
 
 /** Agent 事件帧（SSE） */
 export interface AgentEventFrame {
-  event: 'STEP_START' | 'STEP_END' | 'TOOL_CALL' | 'TOOL_RESULT' | 'APPROVAL_REQUIRED' | 'FINAL' | 'ERROR'
+  event: 'STEP_START' | 'STEP_END' | 'TOOL_CALL' | 'TOOL_RESULT' | 'APPROVAL_REQUIRED' | 'CONTENT' | 'FINAL' | 'ERROR'
   node: string | null
   name: string
   data: Record<string, any>
