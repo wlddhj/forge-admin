@@ -7,6 +7,10 @@
             <el-icon><Refresh /></el-icon>
             刷新
           </el-button>
+          <el-button type="danger" v-permission="'ai:agent:data-clean'" @click="handleCleanData">
+            <el-icon><Delete /></el-icon>
+            清理运行数据
+          </el-button>
         </template>
       </vxe-toolbar>
 
@@ -40,7 +44,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { getAgentConfigs, agentApi } from '@/api/ai/agent'
 import type { AgentConfig } from '@/api/ai/agent'
@@ -76,5 +80,17 @@ const handleToggle = async (row: AgentConfig) => {
   await agentApi.updateConfig(row.id, { status: row.status === 1 ? 0 : 1 })
   ElMessage.success(row.status === 1 ? '已禁用' : '已启用')
   getList()
+}
+
+const handleCleanData = async () => {
+  await ElMessageBox.confirm(
+    '将按参数配置的保留期物理删除超期的运行记录/步骤/待办/检查点（进行中与待审批数据保护，不删除），操作不可恢复，确定执行？',
+    '清理运行数据',
+    { type: 'warning', confirmButtonText: '执行清理', cancelButtonText: '取消' }
+  )
+  const result = await agentApi.cleanData()
+  ElMessage.success(
+    `清理完成：运行 ${result.runDeleted} 条、步骤 ${result.stepDeleted} 条、待办 ${result.todoDeleted} 条、检查点 ${result.checkpointDeleted} 条（${result.durationMs}ms）`
+  )
 }
 </script>

@@ -133,7 +133,19 @@ export const agentApi = {
     request.post<AgentRun>(`/ai/agent/todo/${id}/approve`, { comment }),
 
   rejectTodo: (id: number, comment?: string) =>
-    request.post<AgentRun>(`/ai/agent/todo/${id}/reject`, { comment })
+    request.post<AgentRun>(`/ai/agent/todo/${id}/reject`, { comment }),
+
+  cleanData: () =>
+    request.post<CleanupResult>('/ai/agent/data-lifecycle/clean').then(res => res.data)
+}
+
+/** 运行数据清理结果统计 */
+export interface CleanupResult {
+  runDeleted: number
+  stepDeleted: number
+  todoDeleted: number
+  checkpointDeleted: number
+  durationMs: number
 }
 
 export const getAgentConfigs = (status?: number) => agentApi.listConfigs(status).then(res => res.data)

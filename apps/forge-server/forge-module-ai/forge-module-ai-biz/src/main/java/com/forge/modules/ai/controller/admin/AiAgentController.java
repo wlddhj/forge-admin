@@ -7,6 +7,8 @@ import com.forge.framework.security.utils.SecurityHelper;
 import com.forge.framework.web.annotation.OperationLog;
 import com.forge.modules.ai.agent.AgentEvents;
 import com.forge.modules.ai.agent.kernel.AgentGraphRunner;
+import com.forge.modules.ai.agent.lifecycle.AgentDataCleanupService;
+import com.forge.modules.ai.dto.response.CleanupResultResponse;
 import com.forge.modules.ai.entity.AiAgentConfig;
 import com.forge.modules.ai.entity.AiAgentRun;
 import com.forge.modules.ai.entity.AiAgentRunStep;
@@ -43,6 +45,18 @@ public class AiAgentController {
     private final AiAgentRunService agentRunService;
     private final AgentGraphRunner graphRunner;
     private final ObjectMapper objectMapper;
+    private final AgentDataCleanupService dataCleanupService;
+
+    /**
+     * 手动触发运行数据清理（按 sys_config 保留期，物理删除且不可恢复）
+     */
+    @Operation(summary = "手动清理运行数据")
+    @PostMapping("/data-lifecycle/clean")
+    @PreAuthorize("hasAuthority('ai:agent:data-clean')")
+    @OperationLog(title = "Agent运行数据清理", businessType = OperationLog.BusinessType.CLEAN)
+    public Result<CleanupResultResponse> cleanData() {
+        return Result.success(dataCleanupService.cleanupAll());
+    }
 
     // ========== 配置 ==========
 
