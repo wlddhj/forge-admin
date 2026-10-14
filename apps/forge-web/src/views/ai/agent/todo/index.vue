@@ -37,8 +37,9 @@
         <vxe-column field="handleTime" title="处理时间" width="170">
           <template #default="{ row }">{{ row.handleTime ? formatDateTime(row.handleTime) : '-' }}</template>
         </vxe-column>
-        <vxe-column title="操作" width="150" fixed="right">
+        <vxe-column title="操作" width="180" fixed="right">
           <template #default="{ row }">
+            <el-button type="primary" link size="small" @click="handleDetail(row)">详情</el-button>
             <template v-if="row.status === 'PENDING'">
               <el-button type="success" link size="small" v-permission="'ai:agent:approve'" @click="handle(row, true)">通过</el-button>
               <el-button type="danger" link size="small" v-permission="'ai:agent:reject'" @click="handle(row, false)">驳回</el-button>
@@ -49,11 +50,28 @@
       <el-pagination v-model:current-page="queryParams.pageNum" v-model:page-size="queryParams.pageSize"
         :total="total" @size-change="getList" @current-change="getList" />
     </el-card>
+
+    <el-dialog v-model="detailVisible" :title="`待办详情 #${currentTodo?.id}`" width="640px">
+      <el-descriptions :column="2" border size="small">
+        <el-descriptions-item label="运行ID">#{{ currentTodo?.runId }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="todoType(currentTodo?.status || '')" size="small">{{ todoLabel(currentTodo?.status || '') }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ currentTodo?.createTime ? formatDateTime(currentTodo.createTime) : '-' }}</el-descriptions-item>
+        <el-descriptions-item label="处理时间">{{ currentTodo?.handleTime ? formatDateTime(currentTodo.handleTime) : '-' }}</el-descriptions-item>
+        <el-descriptions-item label="处理人">{{ currentTodo?.handlerName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="标题" :span="2">{{ currentTodo?.title }}</el-descriptions-item>
+        <el-descriptions-item label="待执行内容" :span="2">
+          <div class="todo-review-detail">{{ currentTodo?.content || '（无明细）' }}</div>
+        </el-descriptions-item>
+        <el-descriptions-item label="处理意见" :span="2">{{ currentTodo?.handleComment || '-' }}</el-descriptions-item>
+      </el-descriptions>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, h } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { getAgentTodos, agentApi } from '@/api/ai/agent'
@@ -96,11 +114,22 @@ const getList = async () => {
 const handleQuery = () => { queryParams.pageNum = 1; getList() }
 const handleReset = () => { queryParams.status = ''; handleQuery() }
 
+const detailVisible = ref(false)
+const currentTodo = ref<AgentTodo | null>(null)
+const handleDetail = (row: AgentTodo) => {
+  currentTodo.value = row
+  detailVisible.value = true
+}
+
 const handle = (row: AgentTodo, approved: boolean) => {
   ElMessageBox.prompt(
-    approved ? '确认允许该高危操作继续执行？可填写意见' : '确认驳回该高危操作？可填写意见',
+    h('div', null, [
+      h('div', { class: 'todo-review-detail' }, row.content || '（无调用明细）'),
+      h('div', { style: 'margin-top:10px;color:var(--el-text-color-regular);' },
+        approved ? '确认允许以上高危操作继续执行？可填写意见。' : '确认驳回以上高危操作？可填写意见。')
+    ]),
     approved ? '通过确认' : '驳回确认',
-    { type: 'warning', inputPlaceholder: '处理意见（可选）' }
+    { type: 'warning', inputPlaceholder: '处理意见（可选）', customStyle: { maxWidth: '640px', width: '90%' } }
   ).then(async ({ value }) => {
     const run = approved
       ? await agentApi.approveTodo(row.id, value).then(r => r.data)
@@ -127,5 +156,17 @@ const todoType = (s: string): 'primary' | 'success' | 'warning' | 'info' | 'dang
     word-break: break-all;
     font-size: 12px;
   }
+}
+
+:deep(.todo-review-detail) {
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 13px;
+  line-height: 1.6;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
 }
 </style>
