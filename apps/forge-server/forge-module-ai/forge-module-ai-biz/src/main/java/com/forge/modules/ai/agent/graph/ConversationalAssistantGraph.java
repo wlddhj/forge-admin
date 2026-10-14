@@ -167,8 +167,25 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         log.info("[agent-decision] 模型原始输出: {}", response.getContent());
         Map<String, Object> decision = parseDecision(response.getContent());
         if (decision == null) {
+            log.warn("[agent-decision] 解析失败（提取 JSON 块数={}，输出长度={}），retry={}",
+                    extractJsonObjects(String.valueOf(response.getContent())).size(),
+                    response.getContent() == null ? 0 : response.getContent().length(), retry);
             if (retry < 1) {
-                return decide(ctx, state, model, retry + 1);
+                ChatRequest retryRequest = new ChatRequest();
+                retryRequest.setContent(buildDecisionPrompt(ctx, state)
+                        + "\n\n注意：上一次输出无法解析为合法 JSON（可能被截断或格式错误），请务必只输出一个完整合法的 JSON 对象。");
+                retryRequest.setTemperature(0.1);
+                ChatResponse retryResponse = llmClient.chat(retryRequest, model);
+                if (Boolean.TRUE.equals(retryResponse.getSuccess())) {
+                    log.info("[agent-decision] 重试输出: {}", retryResponse.getContent());
+                    Map<String, Object> retryDecision = parseDecision(retryResponse.getContent());
+                    if (retryDecision != null) {
+                        retryDecision.put("__response", retryResponse);
+                        retryDecision.put("__raw", retryResponse.getContent());
+                        return retryDecision;
+                    }
+                }
+                // 重试仍失败走兜底
             }
             // 二次仍无法按协议解析：模型大概率直接输出了自然语言回答，原文兜底展示
             decision = new LinkedHashMap<>();
