@@ -170,9 +170,6 @@ public class AiAgentController {
         if (!teamMode && (request.getAgentCode() == null || request.getAgentCode().isBlank())) {
             throw new BusinessException("agentCode 与 teamCode 必须二选一");
         }
-        if (teamMode && request.getImages() != null && !request.getImages().isEmpty()) {
-            throw new BusinessException("团队协作模式暂不支持图片输入");
-        }
         AiAgentConfig config = null;
         com.forge.modules.ai.entity.AiAgentTeam team = null;
         if (teamMode) {
@@ -192,7 +189,8 @@ public class AiAgentController {
             try {
                 if (finalTeam != null) {
                     graphRunner.runTeamStream(finalTeam, request.getConversationId(), userId, "CONVERSATION",
-                            request.getContent(), event -> sink.next(toFrame(event)));
+                            request.getContent(), request.getImages(),
+                            event -> sink.next(toFrame(event)));
                 } else {
                     graphRunner.runStream(finalConfig, request.getConversationId(), userId, "CONVERSATION",
                             request.getContent(), request.getImages(),

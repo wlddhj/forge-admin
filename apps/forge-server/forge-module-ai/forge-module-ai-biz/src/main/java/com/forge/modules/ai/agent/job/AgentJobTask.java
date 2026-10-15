@@ -78,7 +78,7 @@ public class AgentJobTask implements JobHandler {
         if (job.getTeamCode() != null && !job.getTeamCode().isBlank()) {
             AiAgentTeam team = teamService.getEnabledByCode(job.getTeamCode());
             teamService.loadEnabledMembers(team.getId());
-            return graphRunner.runTeamStream(team, null, 0L, triggerType, input, event -> { });
+            return graphRunner.runTeamStream(team, null, 0L, triggerType, input, null, event -> { });
         }
         AiAgentConfig config = agentConfigMapper.selectOne(new LambdaQueryWrapper<AiAgentConfig>()
                 .eq(AiAgentConfig::getAgentCode, job.getAgentCode())

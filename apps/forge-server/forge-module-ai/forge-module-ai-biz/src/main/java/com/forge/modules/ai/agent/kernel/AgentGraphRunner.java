@@ -84,10 +84,10 @@ public class AgentGraphRunner {
     }
 
     /**
-     * 团队协作流式执行：Supervisor 调度多个专家子 Agent
+     * 团队协作流式执行：Supervisor 调度多个专家子 Agent（images 经 multimodal 节点识别后参与调度）
      */
     public AiAgentRun runTeamStream(AiAgentTeam team, Long conversationId, Long userId,
-                                    String triggerType, String input,
+                                    String triggerType, String input, List<String> images,
                                     Consumer<AgentEvents.AgentEvent> sseEmitter) {
         List<AiAgentTeamMember> members = teamMemberMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiAgentTeamMember>()
@@ -107,7 +107,7 @@ public class AgentGraphRunner {
         run.setStartTime(LocalDateTime.now());
         runMapper.insert(run);
 
-        Map<String, Object> state = initialState(input, null);
+        Map<String, Object> state = initialState(input, images);
         state.put(AgentGraphState.TEAM_ID, team.getId());
         state.put(AgentGraphState.AGENT_REPORTS, new java.util.ArrayList<>());
         state.put(AgentGraphState.EXPERT_STEPS, 0);

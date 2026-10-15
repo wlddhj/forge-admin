@@ -41,6 +41,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
     private final DecisionJsonParser decisionJsonParser;
+    private final MultimodalSupport multimodalSupport;
     private final com.forge.modules.ai.agent.tools.TableSchemaInspector tableSchemaInspector;
 
     @Override
@@ -51,7 +52,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
     @Override
     public StateGraph<AgentGraphState> build(AgentGraphContext ctx) throws org.bsc.langgraph4j.GraphStateException {
         return new StateGraph<>(AgentGraphState::new)
-                .addNode(NODE_MULTIMODAL, multimodalNode(ctx))
+                .addNode(NODE_MULTIMODAL, multimodalSupport.node(ctx))
                 .addNode(NODE_DECISION, decisionNode(ctx))
                 .addNode(NODE_APPROVAL, org.bsc.langgraph4j.action.AsyncNodeActionWithConfig.node_async(approvalNode(ctx)))
                 .addNode(NODE_TOOLS, toolsNode(ctx))
@@ -117,45 +118,6 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
             }
         }
         return sb.toString().trim();
-    }
-
-    // ========== 图片理解节点 ==========
-
-    private AsyncNodeAction<AgentGraphState> multimodalNode(AgentGraphContext ctx) {
-        return AsyncNodeAction.node_async(state -> {
-            List<String> images = state.value(AgentGraphState.IMAGES)
-                    .map(v -> (List<String>) v).orElse(List.of());
-            if (images.isEmpty()) {
-                return Map.of();
-            }
-            AiModelConfig model = ctx.getNodeModels().get(NODE_MULTIMODAL);
-            int seq = ctx.nextSeq();
-            if (model == null) {
-                ctx.emit(AgentEvents.Type.STEP_END, NODE_MULTIMODAL, "图片理解", Map.of(
-                        "seq", seq, "status", "SKIPPED", "output", "未配置多模态模型(model_type=multimodal)，已跳过图片理解"));
-                return Map.of(AgentGraphState.IMAGE_TEXT, "（未配置视觉模型，无法识别图片）");
-            }
-            long start = System.currentTimeMillis();
-            ctx.emit(AgentEvents.Type.STEP_START, NODE_MULTIMODAL, "图片理解", Map.of(
-                    "seq", seq, "model", model.getModelName(), "images", images.size()));
-            ChatRequest request = new ChatRequest();
-            request.setContent("请识别并详细描述图片内容；若图片包含文字，请完整提取（OCR）。");
-            request.setImages(images);
-            request.setTemperature(0.2);
-            ChatResponse response = llmClient.chat(request, model);
-            if (!Boolean.TRUE.equals(response.getSuccess())) {
-                throw new BusinessException("图片理解失败: " + response.getErrorMessage());
-            }
-            String imageText = response.getContent() == null ? "" : response.getContent();
-            ctx.emit(AgentEvents.Type.STEP_END, NODE_MULTIMODAL, "图片理解", Map.of(
-                    "seq", seq, "status", "SUCCESS",
-                    "output", decisionJsonParser.truncate(imageText),
-                    "tokensIn", nullToZero(response.getInputTokens()),
-                    "tokensOut", nullToZero(response.getOutputTokens()),
-                    "durationMs", System.currentTimeMillis() - start,
-                    "modelId", model.getId()));
-            return Map.of(AgentGraphState.IMAGE_TEXT, imageText);
-        });
     }
 
     // ========== 决策节点（LLM + 工具循环） ==========

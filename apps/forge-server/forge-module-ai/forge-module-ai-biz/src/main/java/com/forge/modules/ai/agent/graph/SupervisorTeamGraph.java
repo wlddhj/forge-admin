@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 public class SupervisorTeamGraph implements AgentGraphDefinition {
 
     public static final String GRAPH_KEY = "team-supervisor";
+    public static final String NODE_MULTIMODAL = MultimodalSupport.NODE_MULTIMODAL;
     public static final String NODE_SUPERVISOR = "supervisor";
     public static final String NODE_EXPERT_DECIDE = "expert_decide";
     public static final String NODE_EXPERT_APPROVAL = "expert_approval";
@@ -54,6 +55,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
     private final DecisionJsonParser decisionJsonParser;
+    private final MultimodalSupport multimodalSupport;
     private final com.forge.modules.ai.agent.tools.TableSchemaInspector tableSchemaInspector;
     private final AiAgentConfigMapper agentConfigMapper;
     private final AiModelConfigMapper modelConfigMapper;
@@ -69,13 +71,15 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
             throw new BusinessException("team-supervisor 图需要团队上下文");
         }
         return new StateGraph<>(AgentGraphState::new)
+                .addNode(NODE_MULTIMODAL, multimodalSupport.node(ctx))
                 .addNode(NODE_SUPERVISOR, supervisorNode(ctx))
                 .addNode(NODE_EXPERT_DECIDE, expertDecideNode(ctx))
                 .addNode(NODE_EXPERT_APPROVAL, org.bsc.langgraph4j.action.AsyncNodeActionWithConfig.node_async(expertApprovalNode(ctx)))
                 .addNode(NODE_EXPERT_TOOLS, expertToolsNode(ctx))
                 .addNode(NODE_EXPERT_REPORT, expertReportNode(ctx))
                 .addNode(NODE_SUMMARY, summaryNode(ctx))
-                .addEdge(StateGraph.START, NODE_SUPERVISOR)
+                .addEdge(StateGraph.START, NODE_MULTIMODAL)
+                .addEdge(NODE_MULTIMODAL, NODE_SUPERVISOR)
                 .addConditionalEdges(NODE_SUPERVISOR, AsyncEdgeAction.edge_async(state -> {
                     Map<?, ?> decision = state.value(AgentGraphState.DECISION)
                             .map(v -> (Map<?, ?>) v).orElse(Map.of());
@@ -246,6 +250,9 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
         }
         sb.append("用户任务：").append(state.value(AgentGraphState.INPUT)
                 .map(String::valueOf).orElse("")).append('\n');
+        state.value(AgentGraphState.IMAGE_TEXT)
+                .map(String::valueOf).filter(t -> !t.isBlank())
+                .ifPresent(t -> sb.append("图片识别结果：").append(t).append('\n'));
         List<?> reports = state.value(AgentGraphState.AGENT_REPORTS)
                 .map(v -> (List<?>) v).orElse(List.of());
         if (!reports.isEmpty()) {
@@ -447,6 +454,9 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
         String userTemplate = agent.getUserPromptTemplate();
         sb.append(userTemplate == null || userTemplate.isBlank() ? task
                 : userTemplate.replace("{input}", task)).append('\n');
+        state.value(AgentGraphState.IMAGE_TEXT)
+                .map(String::valueOf).filter(t -> !t.isBlank())
+                .ifPresent(t -> sb.append("图片识别结果：").append(t).append('\n'));
         String history = expertToolHistory(ctx, state, agentCode);
         if (!history.isBlank()) {
             sb.append("已执行的工具与结果：\n").append(history).append('\n');
