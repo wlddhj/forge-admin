@@ -62,7 +62,7 @@ ALTER TABLE `ai_agent_job` MODIFY `agent_code` varchar(50) DEFAULT NULL COMMENT 
 DELETE FROM `sys_role_menu` WHERE `menu_id` BETWEEN 2551 AND 2555;
 DELETE FROM `sys_menu` WHERE `id` BETWEEN 2551 AND 2555;
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(2551, 'Agent团队', 300, '/ai/agent-team', '/views/ai/agent-team/index', NULL, 'Users', 8, 1, 'ai:team:query',  1, 1, 0, 0),
+(2551, 'Agent团队', 300, '/ai/agent-team', '/views/ai/agent-team/index', NULL, 'User', 8, 1, 'ai:team:query',  1, 1, 0, 0),
 (2552, '团队查询', 2551, '', '', NULL, '', 1, 2, 'ai:team:query',  1, 1, 0, 0),
 (2553, '团队新增', 2551, '', '', NULL, '', 2, 2, 'ai:team:add',    1, 1, 0, 0),
 (2554, '团队编辑', 2551, '', '', NULL, '', 3, 2, 'ai:team:edit',   1, 1, 0, 0),

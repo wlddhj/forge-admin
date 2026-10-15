@@ -33,7 +33,7 @@ RBAC 权限 · B2B SaaS 多租户 · 工作流审批 · 可视化大屏 · AI �
 | B2B SaaS 多租户 | SQL 级自动隔离（TenantLineInnerInterceptor）、套餐化菜单分配、平台超管代管，配置开关一键回归单租户 |
 | 工作流审批 | 基于 FlowLong 的可视化流程设计器，支持驳回/委派/转办/退回/加签/抄送等完整审批操作 |
 | 可视化大屏 | goView 拖拽编辑器 + SQL/HTTP 双数据源 + AST 级 SQL 安全层（SELECT-only/表列白名单/强制 LIMIT/熔断/SSRF 防护） |
-| AI 能力 | Spring AI 直连 DeepSeek/Qwen/GLM/ERNIE，SSE 流式对话、Tika 文档解析、智能摘要，模型配置表驱动 |
+| AI 能力 | Spring AI 直连 DeepSeek/Qwen/GLM/ERNIE，SSE 流式对话、Tika 文档解析、智能摘要，模型配置表驱动；LangGraph4j Agent 编排：工具循环 + 高危审批中断 + 检查点恢复，Supervisor 多 Agent 团队协作与定时自动化 |
 | 打印模板 | 基于 hiprint 的拖拽式模板设计器，浏览器原生打印预览，按编号跨租户调用 |
 | 等保二级合规 | 密码策略/失败锁定/单点登录/AES-256-GCM 字段加密/XSS 过滤/审计脱敏（GB/T 22239-2019） |
 | OAuth2 + 社交登录 | Spring Authorization Server 授权服务器，JustAuth 集成微信、钉钉扫码登录 |
@@ -192,6 +192,9 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 | 多模型对话 | 基于 Spring AI 直连 DeepSeek、Qwen、GLM、ERNIE 等 OpenAI 兼容模型，模型配置表驱动 |
 | 文档解析 | PDF、DOCX、TXT 文档解析 |
 | 流式响应 | SSE 实时流式输出 |
+| Agent 编排 | LangGraph4j 多步编排：工具决策循环（SQL 查询/HTTP 抓取）、高危工具人工审批中断（可恢复）、执行步骤时间线与运行历史 |
+| Agent 团队协作 | Supervisor 调度式多 Agent：主管按成员职责动态分派子任务，专家各自独立提示词/模型/工具白名单执行并汇报，流式汇总结论；对话与定时任务双入口触发 |
+| Agent 定时任务 | cron 驱动的后台自动化（单 Agent 或团队），占位符模板输入，运行数据生命周期清理 |
 
 ### 大屏管理
 
@@ -322,9 +325,11 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 ### AI 能力（Java 原生）
 
 - Spring AI 1.1.8（OpenAI 兼容协议直连上游）
+- LangGraph4j 1.9（Agent 编排：工具循环/审批中断/检查点恢复/多 Agent 团队协作）
 - 多模型支持：DeepSeek、Qwen（通义）、GLM（智谱）、ERNIE（百度千帆 v2）
 - 文档解析：Apache Tika（PDF、DOCX、TXT）
 - SSE 流式响应（模型实例按 ai_model_config 表配置指纹缓存）
+- 非流式调用主模型失败自动切换同类型备用模型（可配置开关）
 
 ## 快速开始
 
@@ -608,10 +613,11 @@ AI 能力全部在 Java 端实现（Spring AI 直连上游模型，无独立 AI 
 - **OpenAiChatModelFactory** — 按 `ai_model_config` 表编程式构建/缓存模型实例（配置变更指纹失效重建）
 - **TikaDocumentParser / DocumentSummarizer** — 文档解析（PDF/DOCX/TXT）与三风格摘要
 - **ModelHealthProbe** — 模型可用性探测（max_tokens=1 探测，密钥无效自动置不可用）
+- **Agent 编排（agent/）** — LangGraph4j 内核（图定义/注册表/执行器/MySQL 检查点）+ 两张内置图：单 Agent 对话图（图片理解→工具决策循环→高危审批中断→流式总结）与 `SupervisorTeamGraph` 团队协作图（主管调度分派 → 专家独立执行 → 汇报回填 → 流式汇总）；内置工具 `sql_query`（高危，SQL 安全层+租户改写）/`http_fetch`，团队成员可配白名单
 
 四家 provider（DeepSeek/Qwen/GLM/ERNIE）统一走 OpenAI 兼容协议，端点与密钥在「系统管理 → AI 模型配置」维护。
 
-**API 端点：** `/admin-api/ai/chat/**`、`/admin-api/ai/document/**`、`/admin-api/ai/model/**`
+**API 端点：** `/admin-api/ai/chat/**`、`/admin-api/ai/document/**`、`/admin-api/ai/model/**`、`/admin-api/ai/agent/**`（编排/运行/待办/定时任务）、`/admin-api/ai/team/**`（Agent 团队）
 
 ### 打印模板架构
 

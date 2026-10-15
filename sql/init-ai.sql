@@ -183,16 +183,17 @@ CREATE TABLE IF NOT EXISTS `ai_agent_config` (
 -- ========================================
 CREATE TABLE IF NOT EXISTS `ai_agent_run` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `agent_id` bigint NOT NULL COMMENT 'Agent配置ID',
+  `agent_id` bigint DEFAULT NULL COMMENT 'Agent配置ID(团队运行为NULL)',
+  `team_id` bigint DEFAULT NULL COMMENT '团队ID(团队协作运行时)',
   `conversation_id` bigint DEFAULT NULL COMMENT '关联会话ID',
   `user_id` bigint NOT NULL COMMENT '发起用户ID',
   `trigger_type` varchar(20) NOT NULL DEFAULT 'CONVERSATION' COMMENT '触发方式(CONVERSATION/API)',
   `status` varchar(20) NOT NULL DEFAULT 'RUNNING' COMMENT '状态(RUNNING/WAITING_APPROVAL/SUCCEEDED/FAILED/CANCELLED)',
   `last_node` varchar(100) DEFAULT NULL COMMENT '最后执行节点',
   `error_msg` varchar(500) DEFAULT NULL COMMENT '错误信息',
-  `input_summary``input_summary` varchar(500) DEFAULT NULL COMMENT '输入摘要',
+  `input_summary` varchar(500) DEFAULT NULL COMMENT '输入摘要',
   `final_answer` text COMMENT '最终回答',
-  `start_time``start_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '开始时间',
+  `start_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '开始时间',
   `end_time` datetime DEFAULT NULL COMMENT '结束时间',
   `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '租户ID',
   `create_by` bigint DEFAULT NULL COMMENT '创建者',
@@ -202,6 +203,7 @@ CREATE TABLE IF NOT EXISTS `ai_agent_run` (
   `deleted` tinyint DEFAULT 0 COMMENT '删除标记',
   PRIMARY KEY (`id`),
   KEY `idx_agent_id` (`agent_id`),
+  KEY `idx_team_id` (`team_id`),
   KEY `idx_status` (`status`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_conversation_id` (`conversation_id`)
@@ -266,9 +268,9 @@ CREATE TABLE IF NOT EXISTS `ai_agent_checkpoint` (
   `thread_id` varchar(64) NOT NULL COMMENT '线程ID',
   `checkpoint_id` varchar(64) NOT NULL COMMENT '检查点ID',
   `parent_id` varchar(64) DEFAULT NULL COMMENT '父检查点ID',
-  `node``node` varchar(100) DEFAULT NULL COMMENT '节点名称',
+  `node` varchar(100) DEFAULT NULL COMMENT '节点名称',
   `next_node_id` varchar(100) DEFAULT NULL COMMENT '下一节点',
-  `state``state` longtext COMMENT '状态快照(JSON)',
+  `state` longtext COMMENT '状态快照(JSON)',
   `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '租户ID',
   `create_by` bigint DEFAULT NULL COMMENT '创建者',
   `update_by` varchar(50) DEFAULT NULL COMMENT '更新者',
@@ -383,19 +385,14 @@ INSERT INTO `ai_model_config` (`id`, `model_name`, `model_code`, `provider`, `ap
 (4, '通义千问 Plus',  'qwen-plus',      'qwen',     'https://dashscope.aliyuncs.com/compatible-mode/v1',    4096, 0.7,  32768, 0.004,   0.012, 0, 1, '阿里通义千问增强版'),
 (5, '智谱 GLM-4-Flash','glm-4-flash',  'glm',      'https://open.bigmodel.cn/api/paas/v4',                  4096, 0.7, 128000, 0.0001,  0.0001,0, 1, '智谱AI GLM-4极速版'),
 (6, '文心一言 ERNIE-4.0','ernie-4.0-8k','ernie',   'https://qianfan.baidubce.com/v2',                       4096, 0.7,   8000, 0.012,   0.012, 0, 2, '百度千帆v2(OpenAI兼容)，需配置API Key后启用');
-
-SET FOREIGN_KEY_CHECKS = 1;
-
--- 完成
-SELECT 'AI模块初始化完成!' AS message;
-
 -- ========================================
 -- 11. AI Agent定时任务表（后台自动化）
 -- ========================================
 CREATE TABLE IF NOT EXISTS `ai_agent_job` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `job_name` varchar(100) NOT NULL COMMENT '任务名称',
-  `agent_code` varchar(50) NOT NULL COMMENT 'Agent编码',
+  `agent_code` varchar(50) DEFAULT NULL COMMENT 'Agent编码(与team_code二选一)',
+  `team_code` varchar(50) DEFAULT NULL COMMENT '团队编码(与agent_code二选一，配了走团队协作图)',
   `sys_job_id` bigint DEFAULT NULL COMMENT '关联sys_job ID',
   `input_template` text COMMENT '输入模板(支持{date}/{yesterday}/{datetime}占位符)',
   `cron_expression` varchar(100) NOT NULL COMMENT 'cron表达式',
@@ -412,6 +409,49 @@ CREATE TABLE IF NOT EXISTS `ai_agent_job` (
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI Agent定时任务表';
 
+-- ========================================
+-- 12. AI Agent团队表（Supervisor 调度式多 Agent 协作）
+-- ========================================
+CREATE TABLE IF NOT EXISTS `ai_agent_team` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `team_code` varchar(50) NOT NULL COMMENT '团队编码',
+  `team_name` varchar(100) NOT NULL COMMENT '团队名称',
+  `description` varchar(500) DEFAULT NULL COMMENT '团队描述',
+  `supervisor_prompt` text NOT NULL COMMENT 'Supervisor 系统提示词(含路由规则)',
+  `model_bindings` json DEFAULT NULL COMMENT '模型绑定({"supervisor":{modelId|modelType},"summary":{...}})',
+  `max_rounds` int NOT NULL DEFAULT 6 COMMENT 'Supervisor 最大调度轮次',
+  `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态(0:停止 1:启用)',
+  `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '租户ID',
+  `create_by` bigint DEFAULT NULL COMMENT '创建者',
+  `update_by` varchar(50) DEFAULT NULL COMMENT '更新者',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` tinyint DEFAULT 0 COMMENT '删除标记',
+  `remark` varchar(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_tenant_team_code` (`tenant_id`, `team_code`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI Agent团队表';
+
+CREATE TABLE IF NOT EXISTS `ai_agent_team_member` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `team_id` bigint NOT NULL COMMENT '团队ID',
+  `agent_id` bigint NOT NULL COMMENT 'Agent配置ID(ai_agent_config.id)',
+  `member_role` varchar(200) NOT NULL COMMENT '成员职责描述(注入Supervisor路由提示词)',
+  `allowed_tools` json DEFAULT NULL COMMENT '工具白名单(JSON数组,空=继承全部)',
+  `max_steps` int DEFAULT NULL COMMENT '专家内最大循环步数(NULL=取Agent配置)',
+  `sort_order` int NOT NULL DEFAULT 0 COMMENT '排序',
+  `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '租户ID',
+  `create_by` bigint DEFAULT NULL COMMENT '创建者',
+  `update_by` varchar(50) DEFAULT NULL COMMENT '更新者',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` tinyint DEFAULT 0 COMMENT '删除标记',
+  PRIMARY KEY (`id`),
+  KEY `idx_team_id` (`team_id`),
+  KEY `idx_agent_id` (`agent_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI Agent团队成员表';
+
 -- Agent 任务菜单（挂 AI 管理 300）
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
 (341, 'Agent任务', 300, '/ai/agent/job', '/views/ai/agent/job/index', NULL, 'AlarmClock', 7, 1, 'ai:agent:job:list', 1, 1, 0, 0),
@@ -421,3 +461,19 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 (1, 341), (1, 342), (1, 343), (1, 344);
+
+-- Agent 团队菜单（挂 AI 管理 300，页面 2551 + 按钮 2552-2555）
+INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(2551, 'Agent团队', 300, '/ai/agent-team', '/views/ai/agent-team/index', NULL, 'User', 8, 1, 'ai:team:query',  1, 1, 0, 0),
+(2552, '团队查询', 2551, '', '', NULL, '', 1, 2, 'ai:team:query',  1, 1, 0, 0),
+(2553, '团队新增', 2551, '', '', NULL, '', 2, 2, 'ai:team:add',    1, 1, 0, 0),
+(2554, '团队编辑', 2551, '', '', NULL, '', 3, 2, 'ai:team:edit',   1, 1, 0, 0),
+(2555, '团队删除', 2551, '', '', NULL, '', 4, 2, 'ai:team:remove', 1, 1, 0, 0);
+
+INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
+(1, 2551), (1, 2552), (1, 2553), (1, 2554), (1, 2555);
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- 完成
+SELECT 'AI模块初始化完成!' AS message;

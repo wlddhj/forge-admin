@@ -2,7 +2,7 @@
 
 > 适用范围：`apps/forge-server/forge-module-ai`（后端）与 `apps/forge-web/src/views/ai`（前端管理页）。
 >
-> AI 能力全部在 Java 端实现（基于 Spring AI 1.1.8，无独立 AI 服务进程），四个 provider（deepseek/qwen/glm/ernie）统一走 OpenAI 兼容协议直连上游。
+> AI 能力全部在 Java 端实现（基于 Spring AI 1.1.8 + LangGraph4j 1.9，无独立 AI 服务进程），四个 provider（deepseek/qwen/glm/ernie）统一走 OpenAI 兼容协议直连上游。
 
 ## 目录
 
@@ -28,6 +28,8 @@
 | 文档摘要 | 调用 LLM 生成 brief / detailed / bullet 三种风格摘要 |
 | 模型配置管理 | `ai_model_config` 表为唯一配置源（端点/密钥/温度/maxTokens），页面可增删改、启停、切换默认模型、探测可用性 |
 | 用量统计 | `ai_api_usage` 表按用户/模型/日维度记录请求量、token 消耗与费用 |
+| Agent 编排 | LangGraph4j 编排图（代码定义 graph_key）：工具决策循环 + 高危工具人工审批中断 + 检查点恢复，对话与定时任务双入口触发 |
+| Agent 团队协作 | Supervisor 调度式多 Agent：主管模型按成员职责动态分派子任务，各专家独立 prompt/模型/工具白名单执行并汇报，全程复用审批中断与检查点机制 |
 
 **支持的模型提供商（`ModelProvider` 枚举）：**
 
@@ -65,7 +67,13 @@ forge-module-ai-biz/                    # 业务实现
 ├── config/
 │   ├── AiModuleConfig                  # @ConfigurationProperties(prefix = "ai")
 │   └── AiClientConfig                  # 上游 WebClient（带超时，16MB 流式缓冲）
-└── controller/admin/                   # AiChatController / AiModelController / AiDocumentController
+├── agent/                              # Agent 编排（LangGraph4j）
+│   ├── kernel/                         # 编排内核：AgentGraphDefinition/Registry/Runner/State/Context + MysqlCheckpointSaver
+│   ├── graph/                          # 编排图：ConversationalAssistantGraph（单 Agent）/ SupervisorTeamGraph（团队协作）/ DecisionJsonParser
+│   ├── tools/                          # 工具：ToolRegistry + SqlQueryTool(高危) / HttpFetchTool / TableSchemaInspector
+│   ├── job/                            # 定时任务：AgentJobTask（Quartz 入口）/ AiAgentJobService / 数据清理
+│   └── lifecycle/                      # 运行数据生命周期清理
+└── controller/admin/                   # AiChatController / AiModelController / AiDocumentController / AiAgentController / AiAgentTeamController
 ```
 
 ### 2.2 LLM 调用链路
@@ -103,18 +111,72 @@ POST /admin-api/ai/chat/message/stream   # 只发 SSE 流，不落库 AI 回复
 POST /admin-api/ai/chat/message/save-ai  # 前端收完后保存 AI 回复
 ```
 
+### 2.6 Agent 编排架构（LangGraph4j）
+
+**内核（agent/kernel/）：**
+
+| 组件 | 职责 |
+|------|------|
+| `AgentGraphDefinition` | 图定义接口：graph_key 对应一个实现，`build(ctx)` 构建图结构 |
+| `AgentGraphRegistry` | 注册表：graph_key → 图定义（Spring Bean 自动收集） |
+| `AgentGraphRunner` | 执行器：`runStream`（单 Agent）/ `runTeamStream`（团队）/ `resume`（审批恢复），SSE 事件推送与 run/step 落库 |
+| `MysqlCheckpointSaver` | 检查点持久化（`ai_agent_checkpoint` 表，恢复运行状态的依据） |
+
+**内置图（agent/graph/）：**
+
+- `ConversationalAssistantGraph`（graph_key=`conversational-assistant`，单 Agent）：
+
+```
+START → multimodal（图片理解，多模态模型，无图自动跳过）
+          ▼
+       decision（决策节点）◀────────────┐
+          │ 严格 JSON 决策：            │
+          ├─ action=tool ──→ approval（高危且未审批）──approved──→ tools ──┘
+          │                    │__rejected→ summary      │
+          └─ action=final ──→ summary（流式总结）→ END
+```
+
+  - **decision（工具决策循环核心）**：以该 Agent 的 `system_prompt` + 可用工具清单 + 数据库真实表结构 + `user_prompt_template({input})` + 图片识别结果 + 已执行工具历史构造提示词，决策模型输出严格 JSON：`{"action":"tool","calls":[{"tool":"sql_query","args":{...}}]}` 或 `{"action":"final","answer":"…"}`；解析失败自动重试一次，仍失败按自然语言兜底 final（空输出判失败）
+  - **approval（高危审批中断）**：待执行工具含高危（`sql_query`）且本轮未经审批时抛 `GraphInterruptException` 中断——run 置 `WAITING_APPROVAL` 并生成人工待办（含待执行 SQL 明细）；「人工待办」页通过后从检查点恢复继续执行，驳回则跳过执行直接进入总结
+  - **tools（工具并行执行）**：多个工具调用并行跑，结果（成功/失败）追加进工具历史供下一轮决策参考，回到 decision 循环
+  - **summary（总结回答）**：决策为 final 时直出答案；达到 `max_steps` 上限时由总结模型基于全部工具记录流式总结（SSE 增量打字机输出）
+  - **护栏**：决策循环 ≤ `max_steps`（Agent 配置，默认 8）+ recursionLimit = max_steps×3，防死循环
+  - **可配置项**：`system_prompt`（人格/工具使用策略）、`user_prompt_template`、`model_bindings`（decision/multimodal/summary 三节点各自绑模型）、`max_steps`；图的节点与边结构代码写死
+
+- `SupervisorTeamGraph`（graph_key=`team-supervisor`，多 Agent 团队协作）：
+
+```
+START → supervisor（主管模型决策：按成员职责分派/给最终答案）
+          │ dispatch → expert_decide（专家决策：其 Agent 的提示词+模型+白名单工具）
+          │               ├─ 高危工具 → expert_approval（中断，人工待办，approve/reject 恢复）
+          │               └─ 工具执行 → 循环决策 → expert_report（汇报回填）
+          │ final / 达 max_rounds → summary（流式总结）→ END
+```
+
+- 专家为"逻辑子图"：复用单 Agent 的审批中断（专用 `expertApproval` 状态键，驳回不污染后续专家）、检查点恢复、SSE 事件（payload 附 `agentCode/agentName`）
+- 护栏三层：团队 `max_rounds`（主管轮次）→ 成员 `max_steps`（专家内循环）→ recursionLimit 按成员步数动态估算
+
+**工具（agent/tools/）：** `sql_query`（高危，走 SQL 安全层+租户改写）、`http_fetch`（白名单抓取）；团队成员可配 `allowed_tools` 白名单（空=全部）
+
+**触发入口：** 对话 `POST /ai/agent/chat/stream`（`agentCode` 与 `teamCode` 二选一）；定时任务 `ai_agent_job`（`agent_code` 与 `team_code` 二选一）
+
 ---
 
 ## 3. 前端页面
 
 | 页面 | 路径 | 功能 |
 |------|------|------|
-| AI 对话 | `views/ai/chat` | 对话窗口：发送消息（流式渲染）、模型切换、消息历史 |
+| AI 对话 | `views/ai/chat` | 对话窗口：发送消息（流式渲染）、模型切换、消息历史；Agent 模式下单 Agent/团队下拉选择、执行时间线 |
 | 会话管理 | `views/ai/conversation` | 对话列表：分页查询、改名、删除 |
 | 文档管理 | `views/ai/document` | 文档上传（pdf/docx/txt）、内容查看、摘要生成 |
 | 模型管理 | `views/ai/model` | 模型配置：新增/编辑、启停、默认模型切换、状态探测刷新 |
+| Agent 管理 | `views/ai/agent/config` | Agent 配置：提示词/模型绑定/步数上限编辑、启停 |
+| Agent 团队 | `views/ai/agent-team` | 团队配置：Supervisor 提示词/模型绑定/轮次上限 + 成员子表（选 Agent/职责/工具白名单/步数上限） |
+| 运行历史 | `views/ai/agent/run` | Agent/团队运行记录分页、步骤明细抽屉（来源列区分单 Agent 与团队） |
+| 人工待办 | `views/ai/agent/todo` | 高危工具审批：通过/驳回（团队与单 Agent 通用） |
+| Agent 任务 | `views/ai/agent/job` | 定时任务定义（agentCode/teamCode 二选一）、手动执行、调度管理 |
 
-对应 API 定义：`src/api/ai/chat.ts`、`src/api/ai/model.ts`、`src/api/ai/document.ts`。
+对应 API 定义：`src/api/ai/chat.ts`、`src/api/ai/model.ts`、`src/api/ai/document.ts`、`src/api/ai/agent.ts`、`src/api/ai/agentTeam.ts`、`src/api/ai/sql-whitelist.ts`。
 
 ---
 
@@ -162,6 +224,34 @@ POST /admin-api/ai/chat/message/save-ai  # 前端收完后保存 AI 回复
 | GET | `/ai/document/{id}/summary` | `ai:document:analyze` | 生成文档摘要 |
 | DELETE | `/ai/document/{id}` | `ai:document:delete` | 删除文档 |
 
+### 4.4 Agent 编排（AiAgentController / AiAgentJobController）
+
+| 方法 | 路径 | 权限码 | 说明 |
+|------|------|--------|------|
+| POST | `/ai/agent/chat/stream` | `ai:agent:run` | Agent/团队对话（SSE，`agentCode` 与 `teamCode` 二选一） |
+| GET | `/ai/agent/config/list` | `ai:agent:query` | Agent 配置列表（可按 status 过滤） |
+| PUT | `/ai/agent/config/{id}` | `ai:agent:config` | 更新 Agent 配置 |
+| GET | `/ai/agent/run/list` | `ai:agent:query` | 运行记录分页（团队运行带 teamName） |
+| GET | `/ai/agent/run/{id}` | `ai:agent:query` | 运行详情（含最终回答） |
+| GET | `/ai/agent/run/{id}/steps` | `ai:agent:query` | 运行步骤明细（团队步骤含专家标识） |
+| GET | `/ai/agent/conversations` | `ai:agent:query` | Agent 会话列表（按会话分组） |
+| DELETE | `/ai/agent/conversation/{id}` | `ai:chat:delete` | 删除 Agent 会话 |
+| GET | `/ai/agent/todo/list` | `ai:agent:query` | 人工待办分页 |
+| POST | `/ai/agent/todo/{id}/approve` | `ai:agent:approve` | 待办通过（恢复执行） |
+| POST | `/ai/agent/todo/{id}/reject` | `ai:agent:reject` | 待办驳回 |
+| POST | `/ai/agent/data-lifecycle/clean` | `ai:agent:data-clean` | 手动清理运行数据 |
+| GET/POST/PUT/DELETE | `/ai/agent/job/**` | `ai:agent:job:*` | Agent/团队定时任务 CRUD 与手动执行 |
+
+### 4.5 Agent 团队（AiAgentTeamController，5 个）
+
+| 方法 | 路径 | 权限码 | 说明 |
+|------|------|--------|------|
+| GET | `/ai/team/list` | `ai:team:query` | 团队列表（含成员聚合，agentCode/agentName 回显） |
+| GET | `/ai/team/{id}` | `ai:team:query` | 团队详情 |
+| POST | `/ai/team` | `ai:team:add` | 新增团队（含成员整体保存） |
+| PUT | `/ai/team/{id}` | `ai:team:edit` | 更新团队（成员全删全插重建） |
+| DELETE | `/ai/team/{ids}` | `ai:team:remove` | 删除团队（级联删成员） |
+
 ---
 
 ## 5. 配置项
@@ -193,6 +283,14 @@ ai:
 | `ai_chat_message` | 对话消息 | `message_id`、`conversation_id`、`role`（user/assistant）、`content`、`input_tokens`/`output_tokens`、`cost`、`model_id`、`parent_message_id`、`metadata`、`status`、`error_msg` |
 | `ai_document` | 文档 | `attachment_id`（关联附件）、`file_name`、`content`（解析文本）、`summary`、`model_name`、`status`、`error_message` |
 | `ai_api_usage` | 用量统计 | `user_id`、`model_id`、`usage_date`、`request_count`、`success_count`/`failure_count`、`total_input_tokens`/`total_output_tokens`、`total_cost`、`avg_response_time` |
+| `ai_agent_config` | Agent 配置 | `agent_code`、`graph_key`（编排图）、`system_prompt`、`user_prompt_template`、`model_bindings`（节点→模型）、`max_steps`、`status` |
+| `ai_agent_team` | Agent 团队（多 Agent 协作） | `team_code`、`supervisor_prompt`（主管调度规则）、`model_bindings`（supervisor/summary）、`max_rounds`、`status` |
+| `ai_agent_team_member` | 团队成员 | `team_id`、`agent_id`（引用 ai_agent_config）、`member_role`（职责，注入主管提示词）、`allowed_tools`（白名单，空=全部）、`max_steps`、`sort_order` |
+| `ai_agent_run` | 运行记录 | `agent_id`（团队运行为 NULL）、`team_id`、`conversation_id`、`trigger_type`、`status`（RUNNING/WAITING_APPROVAL/SUCCEEDED/FAILED）、`final_answer` |
+| `ai_agent_run_step` | 运行步骤明细 | `run_id`、`node_name`、`step_type`（LLM/TOOL/MULTIMODAL/INTERRUPT/SUPERVISOR）、`tool_name`、`step_output`（含专家标识）、`tokens_in/out`、`duration_ms` |
+| `ai_agent_todo` | 人工审批待办 | `run_id`、`content`（待执行高危工具明细）、`status`（PENDING/APPROVED/REJECTED）、`handler_*` |
+| `ai_agent_checkpoint` | 检查点（LangGraph4j） | `run_id`、`thread_id`、`checkpoint_id`、`state`（状态快照 JSON）——审批恢复依据 |
+| `ai_agent_job` | Agent 定时任务 | `agent_code`/`team_code`（二选一）、`input_template`（{date} 等占位符）、`cron_expression`、`sys_job_id` |
 
 ---
 
@@ -237,6 +335,11 @@ ai:
 | 文档上传报"仅支持 pdf/docx/txt" | `TikaDocumentParser` 扩展名白名单限制（`SUPPORTED_EXTENSIONS`） |
 | 摘要生成失败 | 检查文档 `content` 是否解析成功（`ai_document.status`/`error_message`），以及默认模型可用性 |
 | 修改配置后行为未变 | 调 `POST /ai/model/refresh` 主动失效模型实例缓存 |
+| 运行状态 WAITING_APPROVAL | 专家/Agent 要执行高危工具（如 `sql_query`）被中断，去「人工待办」审批；通过后自动恢复执行 |
+| 团队运行 FAILED，错误含"输出被 max_tokens 截断" | 思考类模型（如 GLM-4.7-FlashX）推理耗尽 token 预算，多轮后 prompt 变长更易触发；Supervisor/决策模型建议绑定非思考模型或调大 `max_tokens`，也可配置同类型备用模型走故障转移 |
+| 团队运行 FAILED，提示"决策模型未绑定" | 成员引用的 Agent 未配置 `model_bindings.decision`；在 Agent 管理页为该 Agent 绑定 text 模型 |
+| 团队对话不保存历史 | 发送时未归属会话（历史版本缺陷已修复）；确认前端为懒创建会话后的版本 |
+| 审批后前端无响应 | 审批恢复依赖 WS 推送 + 轮询兜底；查浏览器 WS 连接与后端 `/ws` 端点 |
 
 ---
 
@@ -257,5 +360,5 @@ mvn test -pl forge-module-ai/forge-module-ai-biz    # 运行 AI 模块全部测�
 
 ---
 
-*文档版本：v1.0*
-*最后更新：2026-10-12*
+*文档版本：v1.2*
+*最后更新：2026-10-15*
