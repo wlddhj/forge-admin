@@ -17,6 +17,20 @@ const connected = ref(false)
 const notifications = ref<WsNotification[]>([])
 const unreadCount = ref(0)
 
+/** 页面级事件订阅（按 type/relatedId 过滤消费），组件卸载须调用注销函数 */
+type NotificationHandler = (notification: WsNotification) => void
+const handlers = new Set<NotificationHandler>()
+
+const dispatch = (notification: WsNotification) => {
+  handlers.forEach(handler => {
+    try {
+      handler(notification)
+    } catch (e) {
+      console.error('[WebSocket] notification handler error:', e)
+    }
+  })
+}
+
 export function useWebSocket() {
   const userStore = useUserStore()
 
@@ -71,6 +85,12 @@ export function useWebSocket() {
   }
 
   const handleNotification = (notification: WsNotification) => {
+    // 页面级消费者先分发（如对话页实时刷新审批气泡）
+    dispatch(notification)
+    // 纯页面态类型不进通知中心（AGENT_RUN_STATUS 仅为对话页实时状态）
+    if (notification.type === 'AGENT_RUN_STATUS') {
+      return
+    }
     notifications.value.unshift(notification)
     unreadCount.value++
 
@@ -80,6 +100,16 @@ export function useWebSocket() {
       type: notification.type === 'notice' ? 'info' : 'warning',
       duration: 5000,
     })
+  }
+
+  /**
+   * 注册页面级通知监听，返回注销函数（组件 onUnmounted 调用，防泄漏）
+   */
+  const onNotification = (handler: NotificationHandler) => {
+    handlers.add(handler)
+    return () => {
+      handlers.delete(handler)
+    }
   }
 
   const markAllRead = () => {
@@ -99,5 +129,6 @@ export function useWebSocket() {
     disconnect,
     markAllRead,
     clearNotifications,
+    onNotification,
   }
 }

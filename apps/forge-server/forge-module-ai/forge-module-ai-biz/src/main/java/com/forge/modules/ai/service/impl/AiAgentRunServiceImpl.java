@@ -126,6 +126,8 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
         runMapper.updateById(run);
         Long runUserId = run.getUserId();
         Long runId = run.getId();
+        // 实时推送"审批已通过、恢复执行中"（对话页秒级感知，替代轮询发现；前端不弹通知中心）
+        notifyApprovalResumed(runUserId, run.getId(), approved);
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
                 AiAgentRun finished = graphRunner.resume(todo, approved, event -> { });
@@ -135,6 +137,24 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
             }
         });
         return run;
+    }
+
+    /**
+     * 审批处理后立即推送恢复状态（对话页消费：AGENT_RUN_STATUS 仅页面态，不弹通知中心）
+     */
+    private void notifyApprovalResumed(Long userId, Long runId, boolean approved) {
+        try {
+            com.forge.framework.web.websocket.NotificationMessage message =
+                    new com.forge.framework.web.websocket.NotificationMessage();
+            message.setType("AGENT_RUN_STATUS");
+            message.setTitle("Agent 运行 #" + runId + (approved ? " 审批已通过" : " 审批已驳回"));
+            message.setContent(approved ? "正在继续执行…" : "运行已按驳回结论收尾");
+            message.setRelatedId(runId);
+            message.setTimestamp(System.currentTimeMillis());
+            notificationService.sendToUser(userId, message);
+        } catch (Exception e) {
+            log.warn("审批状态推送失败 runId={}: {}", runId, e.getMessage());
+        }
     }
 
     /**

@@ -175,9 +175,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { useWebSocket } from '@/composables/useWebSocket'
 import { getModelList, AI_MODEL_TYPE_TEXT } from '@/api/ai/model'
 import { createConversation, getConversationList, getConversationMessages, deleteConversation, saveAiMessage, updateConversationTitle } from '@/api/ai/chat'
 import { createSSE, parseSSEData } from '@/utils/sse'
@@ -227,6 +228,30 @@ const currentAgentConversationId = ref<number>()
 
 const selectedAgent = computed(() => agentList.value.find(a => a.agentCode === selectedAgentCode.value))
 
+/** WebSocket 实时消费审批恢复推送（轮询的秒级前置）：审批通过亮提示、完成立即回填 */
+const { onNotification } = useWebSocket()
+const unsubscribeNotification = onNotification(async (notification) => {
+  const runId = Number(notification.relatedId)
+  if (!runId) return
+  const reply = findReplyByRunId(runId)
+  if (!reply) return
+  if (notification.type === 'AGENT_RUN_STATUS') {
+    if (reply.status === 'WAITING' && !reply.approvalNotice) {
+      reply.approvalNotice = notification.content || '人工已审核通过，Agent 正在继续执行…'
+      scrollToBottom()
+    }
+  } else if (notification.type === 'AGENT_RUN') {
+    // 完成推送先于轮询命中：直接拉一次 run 回填终态
+    try {
+      const run = await getAgentRun(runId)
+      applyRunResult(reply, run)
+    } catch { /* 拉取失败由轮询兜底 */ }
+  }
+})
+onUnmounted(() => {
+  unsubscribeNotification()
+})
+
 onMounted(async () => {
   modelList.value = await getModelList(AI_MODEL_TYPE_TEXT)
   const defaultModel = modelList.value.find(m => m.isDefault === 1)
@@ -265,7 +290,34 @@ const onImagesPicked = (e: Event) => {
   ;(e.target as HTMLInputElement).value = ''
 }
 
-/** 中断等待人工确认的 run：轮询状态，审批通过后提示，完成后回填答案到对话气泡 */
+/** 终态回填（轮询与 WebSocket 推送共用）：成功/失败写回气泡 */
+const applyRunResult = (reply: AgentSessionItem, run: { status: string; finalAnswer?: string | null; errorMsg?: string | null }) => {
+  if (reply.status === 'DONE' || reply.status === 'FAILED') return
+  if (run.status === 'SUCCEEDED') {
+    reply.status = 'DONE'
+    reply.approvalNotice = undefined
+    reply.answer = run.finalAnswer || reply.answer || ''
+    scrollToBottom()
+  } else if (run.status === 'FAILED' || run.status === 'CANCELLED') {
+    reply.status = 'FAILED'
+    reply.approvalNotice = undefined
+    reply.answer = run.errorMsg ? `运行失败：${run.errorMsg}` : reply.answer
+    scrollToBottom()
+  } else if (run.status === 'RUNNING' && reply.status === 'WAITING' && !reply.approvalNotice) {
+    reply.approvalNotice = '人工已审核通过，Agent 正在继续执行…'
+    scrollToBottom()
+  }
+}
+
+/** 按 runId 找到对话中的对应气泡（审批中断帧携带 runId） */
+const findReplyByRunId = (runId: number): AgentSessionItem | undefined =>
+  agentSessions.value.find(item =>
+    item.role === 'assistant'
+    && item.status !== 'DONE' && item.status !== 'FAILED'
+    && item.frames.some(f => f.event === 'APPROVAL_REQUIRED' && Number(f.data?.runId) === runId)
+  )
+
+/** 中断等待人工确认的 run：轮询状态，审批通过后提示，完成后回填答案到对话气泡（WebSocket 推送的兜底） */
 const pollRunResult = (reply: AgentSessionItem, runId: number) => {
   if (!runId) return
   let attempts = 0
@@ -273,23 +325,10 @@ const pollRunResult = (reply: AgentSessionItem, runId: number) => {
     attempts++
     try {
       const run = await getAgentRun(runId)
-      if (run.status === 'SUCCEEDED') {
+      if (run.status === 'SUCCEEDED' || run.status === 'FAILED' || run.status === 'CANCELLED') {
         clearInterval(timer)
-        reply.status = 'DONE'
-        reply.approvalNotice = undefined
-        reply.answer = run.finalAnswer || reply.answer || ''
-        scrollToBottom()
-      } else if (run.status === 'FAILED' || run.status === 'CANCELLED') {
-        clearInterval(timer)
-        reply.status = 'FAILED'
-        reply.approvalNotice = undefined
-        reply.answer = run.errorMsg ? `运行失败：${run.errorMsg}` : reply.answer
-        scrollToBottom()
-      } else if (run.status === 'RUNNING' && reply.status === 'WAITING' && !reply.approvalNotice) {
-        // 审批人已在待办页通过：切换为执行中提示，替代干等"待确认"
-        reply.approvalNotice = '人工已审核通过，Agent 正在继续执行…'
-        scrollToBottom()
       }
+      applyRunResult(reply, run)
     } catch {
       // 轮询失败忽略，下轮重试
     }
