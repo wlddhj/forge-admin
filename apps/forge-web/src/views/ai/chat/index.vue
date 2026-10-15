@@ -467,6 +467,13 @@ const handleAgentSend = async () => {
   const images = [...agentImages.value]
   agentImages.value = []
 
+  // 未选定会话时懒创建（否则 run 不归属会话，历史无法保存/恢复）
+  if (!currentAgentConversationId.value) {
+    const targetName = selectedTeam.value ? `团队：${selectedTeam.value.teamName}` : selectedAgent.value?.agentName || '对话'
+    const conv = await createConversation({ title: `Agent：${targetName}` })
+    currentAgentConversationId.value = conv.id
+  }
+
   agentSessions.value.push({ role: 'user', content, images, frames: [], answer: '', status: 'RUNNING' })
   // reactive：SSE/审批轮询等异步回调会跨渲染周期修改该对象，普通对象不触发视图更新
   const reply: AgentSessionItem = reactive({ role: 'assistant', content: '', frames: [], answer: '', status: 'RUNNING' })
