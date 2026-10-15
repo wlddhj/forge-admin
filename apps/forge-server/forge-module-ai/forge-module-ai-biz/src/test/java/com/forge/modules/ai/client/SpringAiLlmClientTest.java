@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.entity.AiModelConfig;
+import com.forge.modules.ai.mapper.AiModelConfigMapper;
+import com.forge.modules.system.service.SysConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,13 +31,17 @@ class SpringAiLlmClientTest {
     private OpenAiChatModelFactory modelFactory;
     @Mock
     private OpenAiChatModel chatModel;
+    @Mock
+    private AiModelConfigMapper modelConfigMapper;
+    @Mock
+    private SysConfigService sysConfigService;
 
     private SpringAiLlmClient llmClient;
     private AiModelConfig modelConfig;
 
     @BeforeEach
     void setUp() {
-        llmClient = new SpringAiLlmClient(modelFactory, new ObjectMapper());
+        llmClient = new SpringAiLlmClient(modelFactory, new ObjectMapper(), modelConfigMapper, sysConfigService);
         modelConfig = new AiModelConfig();
         modelConfig.setId(1L);
         modelConfig.setModelName("DeepSeek Chat");

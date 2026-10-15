@@ -2,9 +2,12 @@ package com.forge.modules.ai.client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.entity.AiModelConfig;
+import com.forge.modules.ai.mapper.AiModelConfigMapper;
+import com.forge.modules.system.service.SysConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -36,11 +39,70 @@ public class SpringAiLlmClient implements LlmClient {
 
     public static final String DONE_FRAME = "[DONE]";
 
+    private static final String FALLBACK_ENABLED_KEY = "ai.model.fallback-enabled";
+    private static final int FALLBACK_MAX_CANDIDATES = 3;
+
     private final OpenAiChatModelFactory modelFactory;
     private final ObjectMapper objectMapper;
+    private final AiModelConfigMapper modelConfigMapper;
+    private final SysConfigService sysConfigService;
 
     @Override
     public ChatResponse chat(ChatRequest request, AiModelConfig modelConfig) {
+        ChatResponse primary = doChat(request, modelConfig);
+        if (Boolean.TRUE.equals(primary.getSuccess())) {
+            return primary;
+        }
+        return failover(request, modelConfig, primary);
+    }
+
+    /**
+     * 故障转移：主模型失败后按序尝试同类型备用模型（启用状态、排除自身、最多 3 个）。
+     * 开关关闭/无备用/全部失败时返回主模型原始失败响应；任何兜底异常不放大故障。
+     */
+    private ChatResponse failover(ChatRequest request, AiModelConfig primary, ChatResponse primaryResponse) {
+        try {
+            if (!fallbackEnabled()) {
+                return primaryResponse;
+            }
+            List<AiModelConfig> candidates = fallbackCandidates(primary);
+            for (AiModelConfig candidate : candidates) {
+                ChatResponse response = doChat(request, candidate);
+                if (Boolean.TRUE.equals(response.getSuccess())) {
+                    log.warn("LLM 故障转移: 主模型 [{}] 失败({})，切换 [{}] 成功",
+                            primary.getModelName(), primaryResponse.getErrorMessage(), candidate.getModelName());
+                    return response;
+                }
+                log.warn("LLM 故障转移: 备用模型 [{}] 失败({})", candidate.getModelName(), response.getErrorMessage());
+            }
+        } catch (Exception e) {
+            log.warn("LLM 故障转移流程异常，返回主模型原始失败响应", e);
+        }
+        return primaryResponse;
+    }
+
+    /**
+     * 开关读取：读取失败视为开启（fail-safe，可用性优先）
+     */
+    private boolean fallbackEnabled() {
+        try {
+            String value = sysConfigService.getConfigValueByKey(FALLBACK_ENABLED_KEY);
+            return value == null || value.isBlank() || !("0".equals(value.trim()) || "false".equalsIgnoreCase(value.trim()));
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private List<AiModelConfig> fallbackCandidates(AiModelConfig primary) {
+        return modelConfigMapper.selectList(new LambdaQueryWrapper<AiModelConfig>()
+                .eq(AiModelConfig::getModelType, primary.getModelType())
+                .eq(AiModelConfig::getStatus, 1)
+                .ne(AiModelConfig::getId, primary.getId())
+                .orderByAsc(AiModelConfig::getId)
+                .last("LIMIT " + FALLBACK_MAX_CANDIDATES));
+    }
+
+    private ChatResponse doChat(ChatRequest request, AiModelConfig modelConfig) {
         ChatResponse response = new ChatResponse();
         long start = System.currentTimeMillis();
         try {
@@ -74,6 +136,7 @@ public class SpringAiLlmClient implements LlmClient {
             String friendly = friendlyError(e);
             log.error("LLM 非流式调用失败 [{}]: {}", modelConfig.getModelName(), friendly, e);
             response.setSuccess(false);
+            response.setModelName(modelConfig.getModelName());
             response.setErrorMessage(friendly);
             response.setResponseTime(System.currentTimeMillis() - start);
         }
