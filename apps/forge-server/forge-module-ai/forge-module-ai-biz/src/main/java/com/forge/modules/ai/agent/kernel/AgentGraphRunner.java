@@ -335,7 +335,7 @@ public class AgentGraphRunner {
             List<AiAgentRunStep> steps = runStepMapper.selectList(
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiAgentRunStep>()
                             .eq(AiAgentRunStep::getRunId, runId)
-                            .eq(AiAgentRunStep::getNodeName, "decision")
+                            .in(AiAgentRunStep::getNodeName, "decision", "expert_decide")
                             .orderByDesc(AiAgentRunStep::getId)
                             .last("LIMIT 1"));
             if (!steps.isEmpty()) {
