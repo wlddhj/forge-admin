@@ -29,6 +29,9 @@ public class AiAgentRun extends TenantBaseDO {
 
     private Long agentId;
 
+    /** 团队协作运行时指向 ai_agent_team.id（此时 agentId 为空） */
+    private Long teamId;
+
     private Long conversationId;
 
     private Long userId;
@@ -51,4 +54,8 @@ public class AiAgentRun extends TenantBaseDO {
 
     @TableLogic
     private Integer deleted;
+
+    /** 团队名称（查询时填充，非表字段） */
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String teamName;
 }

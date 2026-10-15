@@ -10,8 +10,15 @@
         <el-select v-if="!agentMode" v-model="selectedModelId" placeholder="选择模型" style="width: 100%">
           <el-option v-for="model in modelList" :key="model.id" :label="model.modelName" :value="model.id" />
         </el-select>
-        <el-select v-else v-model="selectedAgentCode" placeholder="选择 Agent" style="width: 100%">
-          <el-option v-for="agent in agentList" :key="agent.agentCode" :label="agent.agentName" :value="agent.agentCode" />
+        <el-select v-else v-model="selectedAgentTarget" placeholder="选择 Agent / 团队" style="width: 100%">
+          <el-option-group label="单 Agent">
+            <el-option v-for="agent in agentList" :key="'a-' + agent.agentCode" :label="agent.agentName"
+              :value="'agent:' + agent.agentCode" />
+          </el-option-group>
+          <el-option-group v-if="teamList.length" label="团队协作（Supervisor 调度）">
+            <el-option v-for="team in teamList" :key="'t-' + team.teamCode" :label="`团队：${team.teamName}`"
+              :value="'team:' + team.teamCode" />
+          </el-option-group>
         </el-select>
       </div>
       <div class="panel-actions">
@@ -71,7 +78,7 @@
       <!-- Agent 模式 -->
       <template v-if="agentMode">
         <div class="chat-header">
-          <span class="chat-title">{{ selectedAgent?.agentName || 'Agent 对话' }}</span>
+          <span class="chat-title">{{ (selectedTeam && `团队：${selectedTeam.teamName}`) || selectedAgent?.agentName || 'Agent 对话' }}</span>
           <el-tag size="small" type="warning">多步编排</el-tag>
         </div>
         <div ref="messageContainerRef" class="message-container">
@@ -115,7 +122,7 @@
             :placeholder="agentMode ? '输入消息（Agent 将多步执行，可附图片）...' : '输入消息...'"
             :disabled="isStreaming" @keydown.enter.ctrl="handleSend" />
           <el-button v-if="agentMode" :disabled="isStreaming" @click="pickImages">图片</el-button>
-          <el-button type="primary" :loading="isStreaming" :disabled="!inputMessage.trim() || (agentMode && !selectedAgentCode)" @click="handleSend">
+          <el-button type="primary" :loading="isStreaming" :disabled="!inputMessage.trim() || (agentMode && !selectedAgentTarget)" @click="handleSend">
             发送
           </el-button>
           <input ref="imageInputRef" type="file" accept="image/*" multiple hidden @change="onImagesPicked" />
@@ -189,6 +196,8 @@ import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import AgentStepTimeline from './components/AgentStepTimeline.vue'
 import { getAgentConfigs, streamAgentChat, getAgentRun, getAgentRuns, getAgentConversations, agentApi } from '@/api/ai/agent'
 import type { AgentConfig, AgentEventFrame, AgentConversation } from '@/api/ai/agent'
+import { getAgentTeams } from '@/api/ai/agentTeam'
+import type { AgentTeam } from '@/api/ai/agentTeam'
 
 const userStore = useUserStore()
 
@@ -208,7 +217,13 @@ const sseClient = createSSE()
 // ===== Agent 模式 =====
 const agentMode = ref(false)
 const agentList = ref<AgentConfig[]>([])
-const selectedAgentCode = ref('')
+const teamList = ref<AgentTeam[]>([])
+/** Agent 模式目标：'agent:<code>' 或 'team:<code>' */
+const selectedAgentTarget = ref('')
+const selectedAgentCode = computed(() =>
+  selectedAgentTarget.value.startsWith('agent:') ? selectedAgentTarget.value.slice(6) : '')
+const selectedTeamCode = computed(() =>
+  selectedAgentTarget.value.startsWith('team:') ? selectedAgentTarget.value.slice(5) : '')
 const agentImages = ref<string[]>([])
 const imageInputRef = ref<HTMLInputElement | null>(null)
 
@@ -227,6 +242,7 @@ const agentConversations = ref<AgentConversation[]>([])
 const currentAgentConversationId = ref<number>()
 
 const selectedAgent = computed(() => agentList.value.find(a => a.agentCode === selectedAgentCode.value))
+const selectedTeam = computed(() => teamList.value.find(t => t.teamCode === selectedTeamCode.value))
 
 /** WebSocket 实时消费审批恢复推送（轮询的秒级前置）：审批通过亮提示、完成立即回填 */
 const { onNotification } = useWebSocket()
@@ -261,10 +277,20 @@ onMounted(async () => {
   loadConversations()
   getAgentConfigs(1).then(list => {
     agentList.value = list
-    if (list.length) {
-      selectedAgentCode.value = list[0].agentCode
+    if (list.length && !selectedAgentTarget.value) {
+      selectedAgentTarget.value = 'agent:' + list[0].agentCode
     }
   }).catch(() => { /* 无 Agent 权限时静默 */ })
+  getAgentTeams(1).then(teams => {
+    teamList.value = teams
+    if (!teams.length) return
+    if (!selectedAgentTarget.value) {
+      selectedAgentTarget.value = 'team:' + teams[0].teamCode
+    } else if (selectedAgentTarget.value.startsWith('team:')
+      && !teams.some(t => 'team:' + t.teamCode === selectedAgentTarget.value)) {
+      selectedAgentTarget.value = 'team:' + teams[0].teamCode
+    }
+  }).catch(() => { /* 无团队权限时静默 */ })
 })
 
 const pickImages = () => imageInputRef.value?.click()
@@ -349,8 +375,9 @@ const loadAgentConversations = async () => {
 }
 
 const handleNewAgentConversation = async () => {
+  const targetName = selectedTeam.value ? `团队：${selectedTeam.value.teamName}` : selectedAgent.value?.agentName || '对话'
   const conv = await createConversation({
-    title: `Agent：${selectedAgent.value?.agentName || '对话'}`
+    title: `Agent：${targetName}`
   })
   currentAgentConversationId.value = conv.id
   agentSessions.value = []
@@ -434,7 +461,7 @@ watch(agentMode, (enabled) => {
 
 const handleAgentSend = async () => {
   const content = inputMessage.value.trim()
-  if (!content || !selectedAgentCode.value || isStreaming.value) return
+  if (!content || !selectedAgentTarget.value || isStreaming.value) return
   inputMessage.value = ''
   isStreaming.value = true
   const images = [...agentImages.value]
@@ -447,7 +474,13 @@ const handleAgentSend = async () => {
   scrollToBottom()
 
   await streamAgentChat(
-    { agentCode: selectedAgentCode.value, conversationId: currentAgentConversationId.value, content, images },
+    {
+      agentCode: selectedAgentCode.value || undefined,
+      teamCode: selectedTeamCode.value || undefined,
+      conversationId: currentAgentConversationId.value,
+      content,
+      images
+    },
     (frame) => {
       reply.frames.push(frame)
       if (frame.event === 'FINAL') {

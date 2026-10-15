@@ -40,6 +40,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
 
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
+    private final DecisionJsonParser decisionJsonParser;
     private final com.forge.modules.ai.agent.tools.TableSchemaInspector tableSchemaInspector;
 
     @Override
@@ -148,7 +149,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
             String imageText = response.getContent() == null ? "" : response.getContent();
             ctx.emit(AgentEvents.Type.STEP_END, NODE_MULTIMODAL, "图片理解", Map.of(
                     "seq", seq, "status", "SUCCESS",
-                    "output", truncate(imageText),
+                    "output", decisionJsonParser.truncate(imageText),
                     "tokensIn", nullToZero(response.getInputTokens()),
                     "tokensOut", nullToZero(response.getOutputTokens()),
                     "durationMs", System.currentTimeMillis() - start,
@@ -175,7 +176,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
             ChatResponse last = (ChatResponse) decision.remove("__response");
             ctx.emit(AgentEvents.Type.STEP_END, NODE_DECISION, "工具决策", Map.of(
                     "seq", seq, "status", "SUCCESS",
-                    "output", truncate(String.valueOf(decision.get("__raw"))),
+                    "output", decisionJsonParser.truncate(String.valueOf(decision.get("__raw"))),
                     "tokensIn", last != null ? nullToZero(last.getInputTokens()) : 0,
                     "tokensOut", last != null ? nullToZero(last.getOutputTokens()) : 0,
                     "durationMs", System.currentTimeMillis() - start,
@@ -198,10 +199,10 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
             throw new BusinessException("决策模型调用失败: " + response.getErrorMessage());
         }
         log.info("[agent-decision] 模型原始输出: {}", response.getContent());
-        Map<String, Object> decision = parseDecision(response.getContent());
+        Map<String, Object> decision = decisionJsonParser.parseDecision(response.getContent());
         if (decision == null) {
             log.warn("[agent-decision] 解析失败（提取 JSON 块数={}，输出长度={}），retry={}",
-                    extractJsonObjects(String.valueOf(response.getContent())).size(),
+                    decisionJsonParser.extractJsonObjects(String.valueOf(response.getContent())).size(),
                     response.getContent() == null ? 0 : response.getContent().length(), retry);
             if (retry < 1) {
                 ChatRequest retryRequest = new ChatRequest();
@@ -211,7 +212,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                 ChatResponse retryResponse = llmClient.chat(retryRequest, model);
                 if (Boolean.TRUE.equals(retryResponse.getSuccess())) {
                     log.info("[agent-decision] 重试输出: {}", retryResponse.getContent());
-                    Map<String, Object> retryDecision = parseDecision(retryResponse.getContent());
+                    Map<String, Object> retryDecision = decisionJsonParser.parseDecision(retryResponse.getContent());
                     if (retryDecision != null) {
                         retryDecision.put("__response", retryResponse);
                         retryDecision.put("__raw", retryResponse.getContent());
@@ -264,101 +265,6 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         return sb.toString();
     }
 
-    private Map<String, Object> parseDecision(String content) {
-        if (content == null) {
-            return null;
-        }
-        // 提取全部平衡的 JSON 对象块（模型可能输出多个独立对象，如每工具一个），逐个解析后合并
-        List<JsonNode> nodes = extractJsonObjects(content.trim());
-        if (nodes.isEmpty()) {
-            return null;
-        }
-        List<Map<String, Object>> calls = new ArrayList<>();
-        String finalAnswer = null;
-        String thought = "";
-        for (JsonNode node : nodes) {
-            String action = node.path("action").asText("");
-            if (node.path("calls").isArray()) {
-                for (JsonNode call : node.path("calls")) {
-                    if (call.path("tool").asText("").isBlank()) {
-                        continue;
-                    }
-                    Map<String, Object> c = new LinkedHashMap<>();
-                    c.put("tool", call.path("tool").asText());
-                    c.put("args", objectMapper.convertValue(call.path("args"), Map.class));
-                    calls.add(c);
-                }
-            }
-            // 兼容单工具格式：{"action":"tool","tool":"sql_query","args":{...}}
-            if ("tool".equals(action) && !node.path("tool").asText("").isBlank()) {
-                Map<String, Object> c = new LinkedHashMap<>();
-                c.put("tool", node.path("tool").asText());
-                c.put("args", objectMapper.convertValue(node.path("args"), Map.class));
-                calls.add(c);
-            }
-            if ("final".equals(action)) {
-                finalAnswer = node.path("answer").asText("");
-            }
-            if (thought.isEmpty()) {
-                thought = node.path("thought").asText("");
-            }
-        }
-        Map<String, Object> decision = new LinkedHashMap<>();
-        if (!calls.isEmpty()) {
-            decision.put("action", "tool");
-            decision.put("calls", calls);
-            decision.put("thought", thought);
-            return decision;
-        }
-        if (finalAnswer != null) {
-            decision.put("action", "final");
-            decision.put("answer", finalAnswer);
-            return decision;
-        }
-        return null;
-    }
-
-    /**
-     * 扫描文本中所有平衡的大括号块并尝试解析为 JSON（忽略非法块）
-     */
-    private List<JsonNode> extractJsonObjects(String text) {
-        List<JsonNode> nodes = new ArrayList<>();
-        int depth = 0;
-        int start = -1;
-        boolean inString = false;
-        for (int i = 0; i < text.length(); i++) {
-            char ch = text.charAt(i);
-            if (inString) {
-                if (ch == '\\') {
-                    i++;
-                } else if (ch == '"') {
-                    inString = false;
-                }
-                continue;
-            }
-            if (ch == '"') {
-                inString = true;
-            } else if (ch == '{') {
-                if (depth == 0) {
-                    start = i;
-                }
-                depth++;
-            } else if (ch == '}') {
-                if (depth > 0) {
-                    depth--;
-                    if (depth == 0 && start >= 0) {
-                        try {
-                            nodes.add(objectMapper.readTree(text.substring(start, i + 1)));
-                        } catch (Exception ignored) {
-                            // 非法块跳过
-                        }
-                        start = -1;
-                    }
-                }
-            }
-        }
-        return nodes;
-    }
 
     // ========== 条件路由 ==========
 
@@ -413,10 +319,10 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                     record.put("args", args);
                     try {
                         Object result = ctx.getToolRegistry().get(toolName).execute(args);
-                        record.put("result", truncate(String.valueOf(result)));
+                        record.put("result", decisionJsonParser.truncate(String.valueOf(result)));
                         record.put("status", "SUCCESS");
                         ctx.emit(AgentEvents.Type.TOOL_RESULT, NODE_TOOLS, toolName, Map.of(
-                                "seq", callSeq, "status", "SUCCESS", "output", truncate(String.valueOf(result)),
+                                "seq", callSeq, "status", "SUCCESS", "output", decisionJsonParser.truncate(String.valueOf(result)),
                                 "durationMs", System.currentTimeMillis() - toolStart));
                     } catch (Exception e) {
                         record.put("error", e.getMessage());
@@ -454,7 +360,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
             if ("final".equals(String.valueOf(decision.get("action")))) {
                 String answer = decision.get("answer") == null ? "" : String.valueOf(decision.get("answer"));
                 ctx.emit(AgentEvents.Type.STEP_END, NODE_SUMMARY, "总结回答", Map.of(
-                        "seq", ctx.nextSeq(), "status", "SUCCESS", "output", truncate(answer)));
+                        "seq", ctx.nextSeq(), "status", "SUCCESS", "output", decisionJsonParser.truncate(answer)));
                 return Map.of(AgentGraphState.FINAL_ANSWER, answer);
             }
             AiModelConfig model = ctx.getNodeModels().get(NODE_SUMMARY);
@@ -504,7 +410,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                 ctx.emit(AgentEvents.Type.CONTENT, NODE_SUMMARY, "总结回答", Map.of("delta", answer));
             }
             ctx.emit(AgentEvents.Type.STEP_END, NODE_SUMMARY, "总结回答", Map.of(
-                    "seq", seq, "status", "SUCCESS", "output", truncate(answer),
+                    "seq", seq, "status", "SUCCESS", "output", decisionJsonParser.truncate(answer),
                     "durationMs", System.currentTimeMillis() - start,
                     "modelId", model.getId()));
             return Map.of(AgentGraphState.FINAL_ANSWER, answer);
@@ -529,13 +435,6 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         } catch (Exception e) {
             return null;
         }
-    }
-
-    private String truncate(String text) {
-        if (text == null) {
-            return "";
-        }
-        return text.length() > 3000 ? text.substring(0, 3000) + "…(截断)" : text;
     }
 
     private int nullToZero(Integer value) {

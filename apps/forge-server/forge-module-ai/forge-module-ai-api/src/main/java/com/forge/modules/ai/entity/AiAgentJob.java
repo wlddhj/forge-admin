@@ -23,6 +23,9 @@ public class AiAgentJob extends TenantBaseDO {
 
     private String agentCode;
 
+    /** 团队编码（与 agentCode 二选一，配了则调度走团队协作图） */
+    private String teamCode;
+
     private Long sysJobId;
 
     private String inputTemplate;

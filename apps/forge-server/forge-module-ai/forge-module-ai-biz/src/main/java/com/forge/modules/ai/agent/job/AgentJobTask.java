@@ -6,8 +6,10 @@ import com.forge.modules.ai.agent.kernel.AgentGraphRunner;
 import com.forge.modules.ai.entity.AiAgentConfig;
 import com.forge.modules.ai.entity.AiAgentJob;
 import com.forge.modules.ai.entity.AiAgentRun;
+import com.forge.modules.ai.entity.AiAgentTeam;
 import com.forge.modules.ai.mapper.AiAgentConfigMapper;
 import com.forge.modules.ai.mapper.AiAgentJobMapper;
+import com.forge.modules.ai.service.AiAgentTeamService;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.system.job.JobHandler;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ public class AgentJobTask implements JobHandler {
 
     private final AiAgentJobMapper agentJobMapper;
     private final AiAgentConfigMapper agentConfigMapper;
+    private final AiAgentTeamService teamService;
     private final AgentGraphRunner graphRunner;
 
     @Override
@@ -71,6 +74,12 @@ public class AgentJobTask implements JobHandler {
     }
 
     private AiAgentRun doRun(AiAgentJob job, String triggerType) {
+        String input = renderTemplate(job.getInputTemplate());
+        if (job.getTeamCode() != null && !job.getTeamCode().isBlank()) {
+            AiAgentTeam team = teamService.getEnabledByCode(job.getTeamCode());
+            teamService.loadEnabledMembers(team.getId());
+            return graphRunner.runTeamStream(team, null, 0L, triggerType, input, event -> { });
+        }
         AiAgentConfig config = agentConfigMapper.selectOne(new LambdaQueryWrapper<AiAgentConfig>()
                 .eq(AiAgentConfig::getAgentCode, job.getAgentCode())
                 .eq(AiAgentConfig::getStatus, 1)
@@ -78,7 +87,6 @@ public class AgentJobTask implements JobHandler {
         if (config == null) {
             throw new BusinessException("Agent 不存在或未启用: " + job.getAgentCode());
         }
-        String input = renderTemplate(job.getInputTemplate());
         return graphRunner.runStream(config, null, 0L, triggerType, input, null, event -> { });
     }
 

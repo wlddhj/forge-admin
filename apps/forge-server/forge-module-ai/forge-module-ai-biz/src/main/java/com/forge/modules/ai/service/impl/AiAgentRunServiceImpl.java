@@ -30,6 +30,7 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
     private final AiAgentRunMapper runMapper;
     private final AiAgentRunStepMapper runStepMapper;
     private final AiAgentTodoMapper todoMapper;
+    private final com.forge.modules.ai.mapper.AiAgentTeamMapper teamMapper;
     private final AgentGraphRunner graphRunner;
     private final com.forge.framework.web.websocket.NotificationService notificationService;
     private final com.forge.modules.ai.service.AiChatService aiChatService;
@@ -44,10 +45,32 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
         wrapper.eq(conversationId != null, AiAgentRun::getConversationId, conversationId);
         wrapper.orderByDesc(AiAgentRun::getId);
         Page<AiAgentRun> page = runMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        fillTeamNames(page.getRecords());
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("records", page.getRecords());
         result.put("total", page.getTotal());
         return result;
+    }
+
+    /** 团队运行的 run 填充 teamName（列表展示「团队：xxx」） */
+    private void fillTeamNames(List<AiAgentRun> runs) {
+        List<Long> teamIds = runs.stream()
+                .map(AiAgentRun::getTeamId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        if (teamIds.isEmpty()) {
+            return;
+        }
+        Map<Long, String> teamNames = teamMapper.selectBatchIds(teamIds).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        com.forge.modules.ai.entity.AiAgentTeam::getId,
+                        com.forge.modules.ai.entity.AiAgentTeam::getTeamName));
+        runs.forEach(run -> {
+            if (run.getTeamId() != null) {
+                run.setTeamName(teamNames.getOrDefault(run.getTeamId(), "未知团队"));
+            }
+        });
     }
 
     @Override
@@ -84,6 +107,7 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
         if (run == null) {
             throw new BusinessException("运行记录不存在");
         }
+        fillTeamNames(List.of(run));
         return run;
     }
 

@@ -22,7 +22,12 @@
         :row-config="{ isHover: true }" stripe show-overflow="tooltip">
         <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
         <vxe-column field="id" title="运行ID" width="90" />
-        <vxe-column field="agentId" title="AgentID" width="90" />
+        <vxe-column title="来源" width="150">
+          <template #default="{ row }">
+            <el-tag v-if="row.teamName" type="warning" size="small">团队：{{ row.teamName }}</el-tag>
+            <span v-else>Agent#{{ row.agentId }}</span>
+          </template>
+        </vxe-column>
         <vxe-column field="inputSummary" title="输入摘要" min-width="240" />
         <vxe-column title="触发方式" width="90">
           <template #default="{ row }">

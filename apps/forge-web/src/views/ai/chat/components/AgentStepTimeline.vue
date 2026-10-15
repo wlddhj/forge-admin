@@ -45,7 +45,12 @@ const NODE_TITLES: Record<string, string> = {
   multimodal: '图片理解',
   decision: '工具决策',
   tools: '工具执行',
-  summary: '总结回答'
+  summary: '总结回答',
+  supervisor: '调度决策',
+  expert_decide: '专家决策',
+  expert_tools: '专家工具执行',
+  expert_approval: '专家人工确认',
+  expert_report: '专家汇报'
 }
 
 const steps = computed<TimelineItem[]>(() => {

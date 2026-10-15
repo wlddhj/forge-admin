@@ -67,6 +67,9 @@ public class AiAgentJobServiceImpl implements AiAgentJobService {
         if (job.getAgentCode() != null) {
             existing.setAgentCode(job.getAgentCode());
         }
+        if (job.getTeamCode() != null) {
+            existing.setTeamCode(job.getTeamCode());
+        }
         if (job.getInputTemplate() != null) {
             existing.setInputTemplate(job.getInputTemplate());
         }
@@ -121,8 +124,13 @@ public class AiAgentJobServiceImpl implements AiAgentJobService {
         if (job.getJobName() == null || job.getJobName().isBlank()) {
             throw new BusinessException("任务名称不能为空");
         }
-        if (job.getAgentCode() == null || job.getAgentCode().isBlank()) {
-            throw new BusinessException("agentCode 不能为空");
+        boolean hasAgent = job.getAgentCode() != null && !job.getAgentCode().isBlank();
+        boolean hasTeam = job.getTeamCode() != null && !job.getTeamCode().isBlank();
+        if (!hasAgent && !hasTeam) {
+            throw new BusinessException("agentCode 与 teamCode 必须二选一");
+        }
+        if (hasAgent && hasTeam) {
+            throw new BusinessException("agentCode 与 teamCode 只能二选一");
         }
         if (job.getCronExpression() == null || job.getCronExpression().isBlank()) {
             throw new BusinessException("cron 表达式不能为空");

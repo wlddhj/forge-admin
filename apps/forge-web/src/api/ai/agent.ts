@@ -28,7 +28,9 @@ export interface AgentConfig {
 /** Agent 运行记录 */
 export interface AgentRun {
   id: number
-  agentId: number
+  agentId: number | null
+  teamId: number | null
+  teamName?: string | null
   conversationId: number | null
   userId: number
   triggerType: 'CONVERSATION' | 'MANUAL' | 'SCHEDULED'
@@ -78,7 +80,8 @@ export interface AgentTodo {
 export interface AgentJob {
   id: number
   jobName: string
-  agentCode: string
+  agentCode: string | null
+  teamCode?: string | null
   sysJobId: number | null
   inputTemplate: string | null
   cronExpression: string
@@ -168,9 +171,9 @@ export const getAgentRun = (id: number) => agentApi.getRun(id).then(res => res.d
 export const getAgentTodos = (params: { status?: string; pageNum: number; pageSize: number }) =>
   agentApi.pageTodos(params).then(res => res.data)
 
-/** Agent 对话 SSE：onEvent 收到解析后的事件帧 */
+/** Agent 对话 SSE：onEvent 收到解析后的事件帧（agentCode 与 teamCode 二选一） */
 export const streamAgentChat = (
-  body: { agentCode: string; conversationId?: number; content: string; images?: string[] },
+  body: { agentCode?: string; teamCode?: string; conversationId?: number; content: string; images?: string[] },
   onEvent: (frame: AgentEventFrame) => void,
   onError?: (message: string) => void
 ) => {

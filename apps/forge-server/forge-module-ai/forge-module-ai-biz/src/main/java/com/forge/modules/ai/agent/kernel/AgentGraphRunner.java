@@ -4,16 +4,21 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.ai.agent.AgentEvents;
+import com.forge.modules.ai.agent.graph.SupervisorTeamGraph;
 import com.forge.modules.ai.agent.tools.ToolRegistry;
 import com.forge.modules.ai.entity.AiAgentConfig;
 import com.forge.modules.ai.entity.AiAgentRun;
 import com.forge.modules.ai.entity.AiAgentRunStep;
+import com.forge.modules.ai.entity.AiAgentTeam;
+import com.forge.modules.ai.entity.AiAgentTeamMember;
 import com.forge.modules.ai.entity.AiAgentTodo;
 import com.forge.modules.ai.entity.AiModelConfig;
 import com.forge.modules.ai.mapper.AiAgentConfigMapper;
 import com.forge.modules.ai.mapper.AiAgentCheckpointMapper;
 import com.forge.modules.ai.mapper.AiAgentRunMapper;
 import com.forge.modules.ai.mapper.AiAgentRunStepMapper;
+import com.forge.modules.ai.mapper.AiAgentTeamMapper;
+import com.forge.modules.ai.mapper.AiAgentTeamMemberMapper;
 import com.forge.modules.ai.mapper.AiAgentTodoMapper;
 import com.forge.modules.ai.mapper.AiModelConfigMapper;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +55,8 @@ public class AgentGraphRunner {
     private final AiAgentTodoMapper todoMapper;
     private final AiAgentCheckpointMapper checkpointMapper;
     private final AiModelConfigMapper modelConfigMapper;
+    private final AiAgentTeamMapper teamMapper;
+    private final AiAgentTeamMemberMapper teamMemberMapper;
     private final ObjectMapper objectMapper;
 
     /**
@@ -69,11 +76,61 @@ public class AgentGraphRunner {
         runMapper.insert(run);
 
         try {
-            return execute(run, agentConfig, GraphInput.args(initialState(input, images)), sseEmitter);
+            return execute(run, agentConfig, GraphInput.args(initialState(input, images)), sseEmitter, null, null);
         } catch (Exception e) {
             log.error("Agent 运行失败 runId={}", run.getId(), e);
             return finishRun(run, AiAgentRun.STATUS_FAILED, e.getMessage());
         }
+    }
+
+    /**
+     * 团队协作流式执行：Supervisor 调度多个专家子 Agent
+     */
+    public AiAgentRun runTeamStream(AiAgentTeam team, Long conversationId, Long userId,
+                                    String triggerType, String input,
+                                    Consumer<AgentEvents.AgentEvent> sseEmitter) {
+        List<AiAgentTeamMember> members = teamMemberMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiAgentTeamMember>()
+                        .eq(AiAgentTeamMember::getTeamId, team.getId())
+                        .orderByAsc(AiAgentTeamMember::getSortOrder));
+        if (members.isEmpty()) {
+            throw new BusinessException("团队没有配置成员，无法执行协作");
+        }
+
+        AiAgentRun run = new AiAgentRun();
+        run.setTeamId(team.getId());
+        run.setConversationId(conversationId);
+        run.setUserId(userId);
+        run.setTriggerType(triggerType == null ? "CONVERSATION" : triggerType);
+        run.setStatus(AiAgentRun.STATUS_RUNNING);
+        run.setInputSummary(input != null && input.length() > 400 ? input.substring(0, 400) : input);
+        run.setStartTime(LocalDateTime.now());
+        runMapper.insert(run);
+
+        Map<String, Object> state = initialState(input, null);
+        state.put(AgentGraphState.TEAM_ID, team.getId());
+        state.put(AgentGraphState.AGENT_REPORTS, new java.util.ArrayList<>());
+        state.put(AgentGraphState.EXPERT_STEPS, 0);
+        try {
+            return execute(run, virtualTeamConfig(team), GraphInput.args(state), sseEmitter, team, members);
+        } catch (Exception e) {
+            log.error("Agent 团队运行失败 runId={} team={}", run.getId(), team.getTeamCode(), e);
+            return finishRun(run, AiAgentRun.STATUS_FAILED, e.getMessage());
+        }
+    }
+
+    /**
+     * 团队配置映射为虚拟 Agent 配置（复用单 Agent 执行链：graphKey/模型绑定/轮次上限）
+     */
+    private AiAgentConfig virtualTeamConfig(AiAgentTeam team) {
+        AiAgentConfig config = new AiAgentConfig();
+        config.setAgentCode(team.getTeamCode());
+        config.setAgentName(team.getTeamName());
+        config.setGraphKey(SupervisorTeamGraph.GRAPH_KEY);
+        config.setSystemPrompt(team.getSupervisorPrompt());
+        config.setModelBindings(team.getModelBindings());
+        config.setMaxSteps(team.getMaxRounds());
+        return config;
     }
 
     /**
@@ -84,16 +141,35 @@ public class AgentGraphRunner {
         if (run == null) {
             throw new BusinessException("运行记录不存在");
         }
-        AiAgentConfig agentConfig = agentConfigMapper.selectById(run.getAgentId());
-        if (agentConfig == null) {
-            throw new BusinessException("Agent 配置不存在");
+        AiAgentConfig agentConfig;
+        AiAgentTeam team = null;
+        List<AiAgentTeamMember> members = null;
+        if (run.getTeamId() != null) {
+            team = teamMapper.selectById(run.getTeamId());
+            if (team == null) {
+                throw new BusinessException("Agent 团队不存在");
+            }
+            members = teamMemberMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiAgentTeamMember>()
+                            .eq(AiAgentTeamMember::getTeamId, team.getId())
+                            .orderByAsc(AiAgentTeamMember::getSortOrder));
+            agentConfig = virtualTeamConfig(team);
+        } else {
+            agentConfig = agentConfigMapper.selectById(run.getAgentId());
+            if (agentConfig == null) {
+                throw new BusinessException("Agent 配置不存在");
+            }
         }
         run.setStatus(AiAgentRun.STATUS_RUNNING);
         runMapper.updateById(run);
         try {
             Map<String, Object> resumeUpdate = new HashMap<>();
-            resumeUpdate.put(AgentGraphState.APPROVAL, approved ? "APPROVED" : "REJECTED");
-            return execute(run, agentConfig, GraphInput.resume(resumeUpdate), sseEmitter);
+            if (team != null) {
+                resumeUpdate.put(AgentGraphState.EXPERT_APPROVAL, approved ? "APPROVED" : "REJECTED");
+            } else {
+                resumeUpdate.put(AgentGraphState.APPROVAL, approved ? "APPROVED" : "REJECTED");
+            }
+            return execute(run, agentConfig, GraphInput.resume(resumeUpdate), sseEmitter, team, members);
         } catch (Exception e) {
             log.error("Agent 恢复失败 runId={}", run.getId(), e);
             return finishRun(run, AiAgentRun.STATUS_FAILED, e.getMessage());
@@ -103,7 +179,8 @@ public class AgentGraphRunner {
     // ========== 内部 ==========
 
     private AiAgentRun execute(AiAgentRun run, AiAgentConfig agentConfig, GraphInput graphInput,
-                               Consumer<AgentEvents.AgentEvent> sseEmitter) {
+                               Consumer<AgentEvents.AgentEvent> sseEmitter,
+                               AiAgentTeam team, List<AiAgentTeamMember> teamMembers) {
         Consumer<AgentEvents.AgentEvent> emitter = event -> {
             sseEmitter.accept(event);
             persistStep(run.getId(), event);
@@ -111,15 +188,29 @@ public class AgentGraphRunner {
 
         AgentGraphContext ctx = new AgentGraphContext(
                 agentConfig, resolveNodeModels(agentConfig), toolRegistry, emitter, new AtomicInteger());
+        if (team != null) {
+            ctx.setTeam(team);
+            ctx.setTeamMembers(teamMembers);
+        }
 
         AgentGraphDefinition definition = registry.get(agentConfig.getGraphKey());
         int maxSteps = agentConfig.getMaxSteps() == null ? 8 : agentConfig.getMaxSteps();
+        // 团队图节点遍历量 = 轮次 ×（每轮 supervisor+专家循环+汇报），远大于单 Agent 的 maxSteps*3
+        int recursionLimit;
+        if (team != null) {
+            int maxExpertSteps = teamMembers.stream()
+                    .map(m -> m.getMaxSteps() == null ? 8 : m.getMaxSteps())
+                    .max(Integer::compareTo).orElse(8);
+            recursionLimit = maxSteps * (2 * maxExpertSteps + 10) + 20;
+        } else {
+            recursionLimit = maxSteps * 3;
+        }
         MysqlCheckpointSaver saver = new MysqlCheckpointSaver(checkpointMapper, objectMapper, run.getId());
         CompiledGraph<AgentGraphState> app;
         try {
             app = definition.build(ctx).compile(CompileConfig.builder()
                     .checkpointSaver(saver)
-                    .recursionLimit(maxSteps * 3)
+                    .recursionLimit(recursionLimit)
                     .build());
         } catch (org.bsc.langgraph4j.GraphStateException e) {
             throw new BusinessException("编排图构建失败: " + e.getMessage());
@@ -379,7 +470,8 @@ public class AgentGraphRunner {
     private String nodeStepType(String node) {
         return switch (node == null ? "" : node) {
             case "multimodal" -> "MULTIMODAL";
-            case "approval" -> "INTERRUPT";
+            case "approval", "expert_approval" -> "INTERRUPT";
+            case "supervisor" -> "SUPERVISOR";
             default -> "LLM";
         };
     }

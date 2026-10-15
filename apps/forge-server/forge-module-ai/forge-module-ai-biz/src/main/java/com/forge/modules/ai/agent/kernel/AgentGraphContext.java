@@ -3,9 +3,12 @@ package com.forge.modules.ai.agent.kernel;
 import com.forge.modules.ai.agent.AgentEvents;
 import com.forge.modules.ai.agent.tools.ToolRegistry;
 import com.forge.modules.ai.entity.AiAgentConfig;
+import com.forge.modules.ai.entity.AiAgentTeam;
+import com.forge.modules.ai.entity.AiAgentTeamMember;
 import com.forge.modules.ai.entity.AiModelConfig;
 import lombok.Data;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -25,6 +28,13 @@ public class AgentGraphContext {
     private final Consumer<AgentEvents.AgentEvent> emitter;
 
     private final java.util.concurrent.atomic.AtomicInteger stepSeq;
+
+    /** 团队协作运行时的团队配置（单 Agent 运行为 null） */
+    private AiAgentTeam team;
+
+    /** 团队成员快照（团队协作运行时） */
+    private List<AiAgentTeamMember> teamMembers;
+
 
     public void emit(AgentEvents.Type type, String node, String name, Map<String, Object> payload) {
         emitter.accept(new AgentEvents.AgentEvent(type, node, name, payload));

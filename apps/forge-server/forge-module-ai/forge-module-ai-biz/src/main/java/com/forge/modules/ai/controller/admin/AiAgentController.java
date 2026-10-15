@@ -43,6 +43,7 @@ public class AiAgentController {
 
     private final AiAgentConfigService agentConfigService;
     private final AiAgentRunService agentRunService;
+    private final com.forge.modules.ai.service.AiAgentTeamService teamService;
     private final AgentGraphRunner graphRunner;
     private final ObjectMapper objectMapper;
     private final AgentDataCleanupService dataCleanupService;
@@ -165,17 +166,38 @@ public class AiAgentController {
                 }
             }
         }
-        AiAgentConfig config = agentConfigService.listEnabled().stream()
-                .filter(c -> c.getAgentCode().equals(request.getAgentCode()))
-                .findFirst()
-                .orElseThrow(() -> new BusinessException("Agent 不存在或未启用: " + request.getAgentCode()));
+        boolean teamMode = request.getTeamCode() != null && !request.getTeamCode().isBlank();
+        if (!teamMode && (request.getAgentCode() == null || request.getAgentCode().isBlank())) {
+            throw new BusinessException("agentCode 与 teamCode 必须二选一");
+        }
+        if (teamMode && request.getImages() != null && !request.getImages().isEmpty()) {
+            throw new BusinessException("团队协作模式暂不支持图片输入");
+        }
+        AiAgentConfig config = null;
+        com.forge.modules.ai.entity.AiAgentTeam team = null;
+        if (teamMode) {
+            team = teamService.getEnabledByCode(request.getTeamCode());
+            teamService.loadEnabledMembers(team.getId());
+        } else {
+            config = agentConfigService.listEnabled().stream()
+                    .filter(c -> c.getAgentCode().equals(request.getAgentCode()))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException("Agent 不存在或未启用: " + request.getAgentCode()));
+        }
         Long userId = SecurityHelper.getCurrentUserId();
+        final AiAgentConfig finalConfig = config;
+        final com.forge.modules.ai.entity.AiAgentTeam finalTeam = team;
 
         return Flux.<ServerSentEvent<String>>create(sink -> {
             try {
-                graphRunner.runStream(config, request.getConversationId(), userId, "CONVERSATION",
-                        request.getContent(), request.getImages(),
-                        event -> sink.next(toFrame(event)));
+                if (finalTeam != null) {
+                    graphRunner.runTeamStream(finalTeam, request.getConversationId(), userId, "CONVERSATION",
+                            request.getContent(), event -> sink.next(toFrame(event)));
+                } else {
+                    graphRunner.runStream(finalConfig, request.getConversationId(), userId, "CONVERSATION",
+                            request.getContent(), request.getImages(),
+                            event -> sink.next(toFrame(event)));
+                }
                 sink.complete();
             } catch (Exception e) {
                 log.error("Agent SSE 执行异常", e);
@@ -203,8 +225,11 @@ public class AiAgentController {
 
     @lombok.Data
     public static class AgentChatRequest {
-        @jakarta.validation.constraints.NotBlank(message = "agentCode 不能为空")
+        /** 单 Agent 模式编码（与 teamCode 二选一） */
         private String agentCode;
+
+        /** 团队协作模式编码（与 agentCode 二选一，优先） */
+        private String teamCode;
 
         private Long conversationId;
 
