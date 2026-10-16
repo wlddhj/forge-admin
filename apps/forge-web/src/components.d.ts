@@ -83,6 +83,7 @@ declare module 'vue' {
     IconPicker: typeof import('./components/IconPicker.vue')['default']
     IconPreview: typeof import('./components/IconPreview.vue')['default']
     MarkdownRenderer: typeof import('./components/MarkdownRenderer.vue')['default']
+    MenuAssignTree: typeof import('./components/MenuAssignTree.vue')['default']
     MobileBottomActions: typeof import('./components/MobileBottomActions.vue')['default']
     MobileMenu: typeof import('./components/MobileMenu.vue')['default']
     MobileSearchButton: typeof import('./components/MobileSearchButton.vue')['default']

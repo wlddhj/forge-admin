@@ -228,7 +228,7 @@
     </el-dialog>
 
     <!-- 分配菜单抽屉 -->
-    <el-drawer v-model="menuDialogVisible" title="分配菜单" :size="isMobile ? '85%' : '400px'">
+    <el-drawer v-model="menuDialogVisible" title="分配菜单" :size="isMobile ? '85%' : '700px'">
       <el-alert
         title="请勾选该角色可以访问的菜单"
         type="info"
@@ -236,7 +236,7 @@
         show-icon
         style="margin-bottom: 12px"
       />
-      <MenuAssignTree v-model="assignedMenuIds" max-height="max(320px, calc(100vh - 300px))" />
+      <MenuAssignTree v-model="assignedMenuIds" max-height="max(320px, calc(100vh - 210px))" />
       <template #footer>
         <div style="display: flex; gap: 12px">
           <el-button @click="menuDialogVisible = false">取消</el-button>

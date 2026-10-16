@@ -18,7 +18,8 @@
         <template #default="{ data }">
           <div class="menu-node">
             <span class="menu-node-label">{{ data.menuName }}</span>
-            <div v-if="buttonsMap.get(data.id)?.length" class="menu-node-buttons">
+            <!-- @click.stop 阻断冒泡到树节点 content，避免点击按钮时连带切换菜单的树勾选 -->
+            <div v-if="buttonsMap.get(data.id)?.length" class="menu-node-buttons" @click.stop>
               <el-checkbox
                 v-for="btn in buttonsMap.get(data.id)"
                 :key="btn.id"
@@ -37,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { getMenuTree } from '@/api/system'
 import type { MenuTree } from '@/types/system'
 
@@ -115,20 +116,15 @@ const getLeafIds = (nodes: MenuTree[]): number[] =>
 // 若把（半选）父 ID 传入 setCheckedKeys 会被视为完全勾选进而勾上全部子菜单
 const applyValue = (ids: number[]) => {
   const idSet = new Set(ids)
-  treeRef.value?.setCheckedKeys(getLeafIds(skeletonTree.value).filter((id) => idSet.has(id)), false)
-  expandAncestors(ids)
+  // 存量数据按旧树语义可能只存了按钮 ID 而未存其所属菜单，
+  // 任一按钮勾选须回推所属菜单勾选，父目录半选才能正确推导
+  const leafIdSet = new Set(getLeafIds(skeletonTree.value).filter((id) => idSet.has(id)))
+  buttonsMap.value.forEach((btns, menuId) => {
+    if (btns.some((b) => idSet.has(b.id))) leafIdSet.add(menuId)
+  })
+  treeRef.value?.setCheckedKeys([...leafIdSet], false)
   checkedButtonIds.value = new Set(allButtonIds.value.filter((id) => idSet.has(id)))
   syncCheckAll()
-}
-
-const expandAncestors = (ids: number[]) => {
-  ids.forEach((id) => {
-    let node = treeRef.value?.getNode(id)
-    while (node && node.level > 0) {
-      node = node.parent
-      if (node && node.level > 0) node.expanded = true
-    }
-  })
 }
 
 const emitValue = () => {
@@ -163,10 +159,26 @@ const handleTreeCheck = (data: MenuTree, { checkedKeys }: { checkedKeys: (string
 const handleButtonToggle = (id: number, checked: boolean) => {
   if (checked) {
     checkedButtonIds.value.add(id)
+    // 勾选按钮 ⇒ 所属菜单授权勾选（父子联动会推导父目录半选/全选）
+    const menuId = findMenuIdByButton(id)
+    if (menuId != null) {
+      const node = treeRef.value?.getNode(menuId)
+      if (node && !node.checked && !node.indeterminate) {
+        const checkedKeys: number[] = treeRef.value?.getCheckedKeys(false) || []
+        treeRef.value?.setCheckedKeys([...checkedKeys, menuId])
+      }
+    }
   } else {
     checkedButtonIds.value.delete(id)
   }
   emitValue()
+}
+
+const findMenuIdByButton = (buttonId: number): number | null => {
+  for (const [menuId, btns] of buttonsMap.value) {
+    if (btns.some((b) => b.id === buttonId)) return menuId
+  }
+  return null
 }
 
 const syncCheckAll = () => {
@@ -205,9 +217,11 @@ const handleExpandToggle = (expand: boolean) => {
 
 watch(
   () => props.data,
-  (tree) => {
+  async (tree) => {
     if (tree?.length) {
       transform(tree)
+      // el-tree 在 data 变更后异步重建内部 node store，同 tick 调 setCheckedKeys 会静默失效
+      await nextTick()
       applyValue(props.modelValue)
     }
   }
@@ -225,6 +239,7 @@ watch(
 onMounted(async () => {
   if (props.data?.length) {
     transform(props.data)
+    await nextTick()
     applyValue(props.modelValue)
     return
   }
@@ -235,6 +250,8 @@ onMounted(async () => {
     } catch {
       transform([])
     }
+    // el-tree 在 data 变更后异步重建内部 node store，须待渲染完成再回显勾选
+    await nextTick()
     applyValue(props.modelValue)
   } finally {
     loading.value = false
@@ -257,28 +274,46 @@ onMounted(async () => {
   border-radius: 4px;
   padding: 8px 12px;
 
+  // 节点含按钮行时整体高度为两行，名称/勾选框/箭头统一按 26px 首行高度顶部对齐，
+  // 恢复 el-tree 单行节点的默认视觉对齐
   :deep(.el-tree-node__content) {
     height: auto;
     min-height: 26px;
-    padding: 2px 0;
+    align-items: flex-start;
+
+    > .el-tree-node__expand-icon {
+      height: 26px;
+      display: inline-flex;
+      align-items: center;
+      // icon 字体字形在 em box 内视觉偏上，补偿使其与名称行文字对齐
+      padding-top: 0px;
+    }
+
+    > .el-checkbox {
+      height: 26px;
+      display: inline-flex;
+      align-items: center;
+    }
   }
 }
 
 .menu-node {
   display: flex;
   flex-direction: column;
-  padding: 1px 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .menu-node-label {
-  line-height: 24px;
+  height: 26px;
+  line-height: 26px;
 }
 
 .menu-node-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 12px;
-  margin: 2px 0 2px 4px;
+  gap: 0 8px;
+  margin: 2px 0 2px 0;
 
   .menu-node-button {
     margin-right: 0;

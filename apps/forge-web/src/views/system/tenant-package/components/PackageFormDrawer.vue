@@ -57,7 +57,7 @@
           </el-col>
           <el-col :span="24">
         <el-form-item label="关联菜单">
-          <MenuAssignTree v-model="formData.menuIds" />
+          <MenuAssignTree v-model="formData.menuIds" max-height="max(320px, calc(100vh - 350px))" />
         </el-form-item>
           </el-col>
         </el-row>
