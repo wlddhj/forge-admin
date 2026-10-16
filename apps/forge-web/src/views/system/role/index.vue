@@ -236,21 +236,7 @@
         show-icon
         style="margin-bottom: 12px"
       />
-      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-        <el-checkbox v-model="menuCheckAll" @change="handleMenuCheckAll">全选</el-checkbox>
-        <el-button link type="primary" @click="handleMenuExpandToggle(!menuExpandAll)">
-          {{ menuExpandAll ? '折叠全部' : '展开全部' }}
-        </el-button>
-      </div>
-      <el-tree
-        ref="treeRef"
-        :data="menuTree"
-        :props="{ label: 'menuName', children: 'children' }"
-        node-key="id"
-        show-checkbox
-        default-expand-all
-        @check="handleMenuCheck"
-      />
+      <MenuAssignTree v-model="assignedMenuIds" max-height="max(320px, calc(100vh - 300px))" />
       <template #footer>
         <div style="display: flex; gap: 12px">
           <el-button @click="menuDialogVisible = false">取消</el-button>
@@ -268,9 +254,9 @@ import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import {
   getRoleList, addRole, updateRole, deleteRole,
-  assignRoleMenus, getMenuTree, getRoleMenus, getDeptTree, exportRoles
+  assignRoleMenus, getRoleMenus, getDeptTree, exportRoles
 } from '@/api/system'
-import type { Role, RoleRequest, MenuTree, DeptTree } from '@/types/system'
+import type { Role, RoleRequest, DeptTree } from '@/types/system'
 import { DICT_TYPE } from '@/constants/dict'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
@@ -281,6 +267,7 @@ import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
 import DictValue from '@/components/DictValue.vue'
+import MenuAssignTree from '@/components/MenuAssignTree.vue'
 
 const { isMobile } = useResponsive()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
@@ -347,11 +334,8 @@ const formRules: FormRules = {
 
 const menuDialogVisible = ref(false)
 const assignLoading = ref(false)
-const menuTree = ref<MenuTree[]>([])
-const treeRef = ref()
 const currentRoleId = ref(0)
-const menuCheckAll = ref(false)
-const menuExpandAll = ref(true)
+const assignedMenuIds = ref<number[]>([])
 
 // 部门树相关
 const deptTree = ref<DeptTree[]>([])
@@ -372,14 +356,6 @@ const getList = async () => {
     total.value = res.total
   } finally {
     loading.value = false
-  }
-}
-
-const getMenuTreeData = async () => {
-  try {
-    menuTree.value = await getMenuTree()
-  } catch (error) {
-    console.error('获取菜单树失败:', error)
   }
 }
 
@@ -495,10 +471,7 @@ const handleAssignMenus = async (row: Role) => {
   currentRoleId.value = row.id
   menuDialogVisible.value = true
   try {
-    const menuIds = await getRoleMenus(row.id)
-    setTimeout(() => {
-      treeRef.value?.setCheckedKeys(menuIds || [])
-    }, 100)
+    assignedMenuIds.value = (await getRoleMenus(row.id)) || []
   } catch (error) {
     console.error('获取角色菜单失败:', error)
   }
@@ -507,52 +480,11 @@ const handleAssignMenus = async (row: Role) => {
 const handleConfirmAssignMenus = async () => {
   assignLoading.value = true
   try {
-    const checkedKeys = treeRef.value?.getCheckedKeys() || []
-    await assignRoleMenus(currentRoleId.value, checkedKeys as number[])
+    await assignRoleMenus(currentRoleId.value, assignedMenuIds.value)
     ElMessage.success('分配成功')
     menuDialogVisible.value = false
   } finally {
     assignLoading.value = false
-  }
-}
-
-// 获取所有菜单节点 ID
-const getAllMenuIds = (tree: MenuTree[]): number[] => {
-  const ids: number[] = []
-  const traverse = (nodes: MenuTree[]) => {
-    for (const node of nodes) {
-      ids.push(node.id)
-      if (node.children?.length) traverse(node.children)
-    }
-  }
-  traverse(tree)
-  return ids
-}
-
-// 全选/取消全选
-const handleMenuCheckAll = (val: boolean) => {
-  if (val) {
-    treeRef.value?.setCheckedKeys(getAllMenuIds(menuTree.value))
-  } else {
-    treeRef.value?.setCheckedKeys([])
-  }
-}
-
-// 节点勾选变化时同步全选状态
-const handleMenuCheck = () => {
-  const checkedKeys = treeRef.value?.getCheckedKeys() || []
-  const allIds = getAllMenuIds(menuTree.value)
-  menuCheckAll.value = allIds.length > 0 && checkedKeys.length === allIds.length
-}
-
-// 展开/折叠全部
-const handleMenuExpandToggle = (expand: boolean) => {
-  const tree = treeRef.value
-  if (!tree) return
-  menuExpandAll.value = expand
-  const nodes = tree.store.nodesMap
-  for (const key in nodes) {
-    nodes[key].expanded = expand
   }
 }
 
@@ -597,7 +529,6 @@ const handleExport = async () => {
 
 onMounted(() => {
   getList()
-  getMenuTreeData()
   getDeptTreeData()
 })
 </script>

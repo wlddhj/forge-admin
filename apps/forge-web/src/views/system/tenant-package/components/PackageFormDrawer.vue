@@ -57,24 +57,7 @@
           </el-col>
           <el-col :span="24">
         <el-form-item label="关联菜单">
-          <div class="menu-tree-toolbar">
-            <el-checkbox v-model="menuCheckAll" @change="handleMenuCheckAll">全选</el-checkbox>
-            <el-button link type="primary" @click="handleMenuExpandToggle(!menuExpandAll)">
-              {{ menuExpandAll ? '折叠全部' : '展开全部' }}
-            </el-button>
-          </div>
-          <div class="menu-tree-container">
-            <el-tree
-              ref="treeRef"
-              :data="menuTree"
-              :props="{ label: 'menuName', children: 'children' }"
-              node-key="id"
-              show-checkbox
-              :default-expanded-keys="defaultExpandedKeys"
-              :default-checked-keys="defaultCheckedKeys"
-              @check="handleMenuCheck"
-            />
-          </div>
+          <MenuAssignTree v-model="formData.menuIds" />
         </el-form-item>
           </el-col>
         </el-row>
@@ -88,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import {
   getTenantPackageDetail,
@@ -97,10 +80,9 @@ import {
   type TenantPackageEntity,
   type TenantPackageRequest
 } from '@/api/system/tenant-package'
-import { getMenuTree } from '@/api/system'
-import type { MenuTree } from '@/types/system'
 import { useDict } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
+import MenuAssignTree from '@/components/MenuAssignTree.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -123,15 +105,6 @@ const initialized = ref(false)
 const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
 
-// 菜单树
-const menuTree = ref<MenuTree[]>([])
-const treeRef = ref<any>(null)
-const menuExpandAll = ref(false)
-const menuCheckAll = ref(false)
-// el-tree 仅在初始化时读 default-*-keys，须在树渲染前就绪（initialized 控制）
-const defaultExpandedKeys = ref<number[]>([])
-const defaultCheckedKeys = ref<number[]>([])
-
 const formData = reactive<TenantPackageRequest>({
   id: undefined,
   name: '',
@@ -153,48 +126,11 @@ const formRules: FormRules = {
   ]
 }
 
-const getAllMenuIds = (tree: MenuTree[]): number[] => {
-  const ids: number[] = []
-  const walk = (nodes: MenuTree[]) => {
-    nodes.forEach((n) => {
-      ids.push(n.id)
-      if (n.children?.length) walk(n.children)
-    })
-  }
-  walk(tree)
-  return ids
-}
-
-// 勾选集只认叶子节点：父目录的半选/全选由 el-tree 父子联动推导，
-// 若把（半选）父 ID 传入 setCheckedKeys 会被视为完全勾选进而勾上全部子菜单
-const getLeafIdsFrom = (tree: MenuTree[], ids: number[]): number[] => {
-  const idSet = new Set(ids)
-  const leafIds: number[] = []
-  const walk = (nodes: MenuTree[]) => {
-    nodes.forEach((n) => {
-      if (n.children?.length) {
-        walk(n.children)
-      } else if (idSet.has(n.id)) {
-        leafIds.push(n.id)
-      }
-    })
-  }
-  walk(tree)
-  return leafIds
-}
-
 // 组件由父级 v-if 控制在打开时才挂载，modelValue 初始即 true，
 // el-drawer 的 @open 不会触发（无 false→true 变化），故在 onMounted 初始化
 onMounted(async () => {
   initializing.value = true
   try {
-    try {
-      menuTree.value = await getMenuTree()
-    } catch {
-      menuTree.value = []
-    }
-
-    let ids: number[] = []
     if (props.row) {
       let detail: TenantPackageEntity
       try {
@@ -202,27 +138,17 @@ onMounted(async () => {
       } catch {
         detail = props.row
       }
-      ids = detail.menuIds || []
       Object.assign(formData, {
         id: detail.id,
         name: detail.name,
         code: detail.code,
         status: detail.status,
         remark: detail.remark || '',
-        menuIds: ids
+        menuIds: detail.menuIds || []
       })
     }
-    // 默认展开包含选中节点的父链 + 选中节点本身；展开全部由用户点击切换
-    defaultExpandedKeys.value = ids
-    // 只勾选叶子（兼容存量数据中已存的父节点 ID），父目录半选由联动推导
-    const leafIds = getLeafIdsFrom(menuTree.value, ids)
-    defaultCheckedKeys.value = leafIds
-    menuExpandAll.value = false
 
     initialized.value = true
-    await nextTick()
-    treeRef.value?.setCheckedKeys(leafIds, false)
-    handleMenuCheck()
   } finally {
     initializing.value = false
   }
@@ -232,10 +158,6 @@ const handleSubmit = async () => {
   await formRef.value?.validate()
   submitLoading.value = true
   try {
-    // 只存叶子勾选：半选父目录不入库（后端 getPackageAllowedMenuIds 会自动补祖先目录），
-    // 避免回显时父目录被当作完全勾选导致已取消的子菜单复活
-    formData.menuIds = treeRef.value?.getCheckedKeys(true) || []
-
     if (formData.id) {
       await updateTenantPackage(formData)
       ElMessage.success('更新成功')
@@ -249,51 +171,4 @@ const handleSubmit = async () => {
     submitLoading.value = false
   }
 }
-
-const handleMenuCheck = () => {
-  const allIds = getAllMenuIds(menuTree.value)
-  const checked = treeRef.value?.getCheckedKeys(false) || []
-  menuCheckAll.value = checked.length === allIds.length && allIds.length > 0
-}
-
-const handleMenuCheckAll = (val: any) => {
-  if (val) {
-    treeRef.value?.setCheckedKeys(getAllMenuIds(menuTree.value))
-  } else {
-    treeRef.value?.setCheckedKeys([])
-  }
-}
-
-const handleMenuExpandToggle = (expand: boolean) => {
-  if (!treeRef.value) return
-  menuExpandAll.value = expand
-  // Element Plus Tree 没有公开 expandAll API，通过 Node.expanded 属性直接控制
-  const walk = (nodes: MenuTree[]) => {
-    nodes.forEach((n) => {
-      const node = treeRef.value?.getNode(n.id)
-      if (node) node.expanded = expand
-      if (n.children?.length) walk(n.children)
-    })
-  }
-  walk(menuTree.value)
-}
 </script>
-
-<style scoped lang="scss">
-.menu-tree-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.menu-tree-container {
-  width: 100%;
-  // 抽屉 header/表单字段/footer 约占 480px，剩余空间给菜单树；小屏保底 320px
-  max-height: max(320px, calc(100vh - 350px));
-  overflow-y: auto;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 4px;
-  padding: 8px 12px;
-}
-</style>
