@@ -23,6 +23,8 @@ import com.forge.modules.system.mapper.SysUserRoleMapper;
 import com.forge.modules.system.service.SysTenantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +57,7 @@ public class SysTenantServiceImpl extends ServiceImpl<SysTenantMapper, SysTenant
     private final SysUserRoleMapper sysUserRoleMapper;
     private final SysRoleMapper sysRoleMapper;
     private final PasswordEncoder passwordEncoder;
+    private final CacheManager cacheManager;
 
     @Override
     public Long getIdByCode(String code) {
@@ -235,6 +238,10 @@ public class SysTenantServiceImpl extends ServiceImpl<SysTenantMapper, SysTenant
 
             BeanUtil.copyProperties(request, tenant);
             updateById(tenant);
+            Cache menuCache = cacheManager.getCache("menu");
+            if (menuCache != null) {
+                menuCache.clear();
+            }
             return null;
         });
     }

@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
+import com.forge.common.utils.UserContext;
 import com.forge.modules.system.dto.role.RoleExport;
 import com.forge.modules.system.dto.role.RoleQueryRequest;
 import com.forge.modules.system.dto.role.RoleRequest;
@@ -24,7 +25,9 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +43,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     private final SysRoleMenuMapper sysRoleMenuMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
     private final SysRoleDeptMapper sysRoleDeptMapper;
+    private final com.forge.modules.system.service.SysMenuService sysMenuService;
 
     @Override
     public Page<RoleResponse> pageRoles(RoleQueryRequest request) {
@@ -172,6 +176,20 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "menu", allEntries = true)
     public void assignMenus(Long roleId, List<Long> menuIds) {
+        // 非平台超管只能保存租户套餐边界内的菜单，越界部分静默剔除（allowed 含祖先目录，不影响正常父目录勾选）
+        UserContext userContext = UserContext.get();
+        if (userContext == null || !userContext.isPlatformAdmin()) {
+            Set<Long> allowedMenuIds = sysMenuService.getPackageAllowedMenuIds(
+                    userContext == null ? null : userContext.getTenantId());
+            if (menuIds == null || allowedMenuIds.isEmpty()) {
+                menuIds = new ArrayList<>();
+            } else {
+                menuIds = menuIds.stream()
+                        .filter(allowedMenuIds::contains)
+                        .collect(Collectors.toList());
+            }
+        }
+
         // 删除原有菜单关联
         sysRoleMenuMapper.deleteByRoleId(roleId);
 

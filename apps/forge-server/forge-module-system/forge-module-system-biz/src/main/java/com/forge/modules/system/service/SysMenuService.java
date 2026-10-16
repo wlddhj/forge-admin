@@ -7,6 +7,7 @@ import com.forge.modules.system.dto.menu.MenuTreeResponse;
 import com.forge.modules.system.entity.SysMenu;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 菜单服务接口
@@ -54,4 +55,10 @@ public interface SysMenuService extends IService<SysMenu> {
      * 刷新菜单缓存（清空 menu 缓存全部条目，下次查询自动重建）
      */
     void refreshMenuCache();
+
+    /**
+     * 获取租户套餐允许的菜单 ID 集合（含祖先目录补全）。
+     * tenantId 为空、租户不存在或套餐未配置菜单时返回空集合。
+     */
+    Set<Long> getPackageAllowedMenuIds(Long tenantId);
 }

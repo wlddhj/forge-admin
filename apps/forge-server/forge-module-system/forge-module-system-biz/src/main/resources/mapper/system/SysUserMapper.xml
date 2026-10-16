@@ -15,6 +15,12 @@
         INNER JOIN sys_role_menu rm ON m.id = rm.menu_id
         INNER JOIN sys_user_role ur ON rm.role_id = ur.role_id
         WHERE ur.user_id = #{userId} AND m.permission IS NOT NULL AND m.permission != '' AND m.deleted = 0
+        <if test="menuIds != null and menuIds.size() > 0">
+            AND m.id IN
+            <foreach collection="menuIds" item="menuId" open="(" separator="," close=")">
+                #{menuId}
+            </foreach>
+        </if>
     </select>
 
     <select id="selectRoleIdsByUserId" resultType="java.lang.Long">

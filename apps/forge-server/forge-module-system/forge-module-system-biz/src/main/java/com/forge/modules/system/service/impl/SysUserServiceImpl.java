@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.framework.mybatis.annotation.DataPermission;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
 import com.forge.common.utils.CryptoUtils;
@@ -57,6 +58,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private final PasswordEncoder passwordEncoder;
     private final SysDeptService sysDeptService;
     private final SysRoleService sysRoleService;
+    private final com.forge.modules.system.service.SysMenuService sysMenuService;
     private final SysRoleDeptMapper sysRoleDeptMapper;
     private final com.forge.modules.system.auth.util.PasswordValidator passwordValidator;
     private final com.forge.modules.system.auth.properties.PasswordPolicyProperties passwordPolicyProperties;
@@ -331,7 +333,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public List<SimpleGrantedAuthority> getUserPermissions(Long userId) {
-        List<String> permissions = sysUserMapper.selectPermissionCodesByUserId(userId);
+        List<String> permissions = selectPermissionCodes(userId);
         return permissions.stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
@@ -344,7 +346,38 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public List<String> getUserPermissionCodes(Long userId) {
-        return sysUserMapper.selectPermissionCodesByUserId(userId);
+        return selectPermissionCodes(userId);
+    }
+
+    private List<String> selectPermissionCodes(Long userId) {
+        List<Long> menuIds = getPackageMenuFilter(userId);
+        if (menuIds != null && menuIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return sysUserMapper.selectPermissionCodesByUserId(userId, menuIds);
+    }
+
+    /**
+     * 权限码的租户套餐过滤条件：平台超管返回 null（不过滤）；
+     * 普通用户返回套餐允许菜单 ID，套餐未配置时返回空列表（权限码收敛为空）。
+     */
+    private List<Long> getPackageMenuFilter(Long userId) {
+        // 按 ID 全局查用户：权限码查询常处于 TenantIgnore 上下文，且目标用户租户可能与当前上下文不同
+        SysUser user = tenantIgnoringGetUser(userId);
+        if (user == null || Integer.valueOf(2).equals(user.getAccountType())) {
+            return null;
+        }
+        return new ArrayList<>(sysMenuService.getPackageAllowedMenuIds(user.getTenantId()));
+    }
+
+    private SysUser tenantIgnoringGetUser(Long userId) {
+        boolean prevIgnore = TenantContextHolder.isIgnore();
+        try {
+            TenantContextHolder.setIgnore(true);
+            return getById(userId);
+        } finally {
+            TenantContextHolder.setIgnore(prevIgnore);
+        }
     }
 
     /**

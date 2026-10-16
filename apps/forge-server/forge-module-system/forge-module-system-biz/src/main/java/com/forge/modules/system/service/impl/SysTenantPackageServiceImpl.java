@@ -18,6 +18,8 @@ import com.forge.modules.system.mapper.SysTenantPackageMenuMapper;
 import com.forge.modules.system.service.SysTenantPackageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,7 @@ public class SysTenantPackageServiceImpl extends ServiceImpl<SysTenantPackageMap
 
     private final SysTenantPackageMapper sysTenantPackageMapper;
     private final SysTenantPackageMenuMapper sysTenantPackageMenuMapper;
+    private final CacheManager cacheManager;
 
     @Override
     public Page<TenantPackageResponse> pagePackages(TenantPackageQueryRequest request) {
@@ -119,6 +122,7 @@ public class SysTenantPackageServiceImpl extends ServiceImpl<SysTenantPackageMap
 
             // 保存套餐菜单关联
             savePackageMenus(pkg.getId(), request.getMenuIds());
+            evictMenuCache();
         } finally {
             TenantContextHolder.setIgnore(prevIgnore);
         }
@@ -149,6 +153,7 @@ public class SysTenantPackageServiceImpl extends ServiceImpl<SysTenantPackageMap
             // 重建菜单关联
             sysTenantPackageMenuMapper.deleteByPackageId(pkg.getId());
             savePackageMenus(pkg.getId(), request.getMenuIds());
+            evictMenuCache();
         } finally {
             TenantContextHolder.setIgnore(prevIgnore);
         }
@@ -162,6 +167,7 @@ public class SysTenantPackageServiceImpl extends ServiceImpl<SysTenantPackageMap
             TenantContextHolder.setIgnore(true);
             removeByIds(ids);
             ids.forEach(sysTenantPackageMenuMapper::deleteByPackageId);
+            evictMenuCache();
         } finally {
             TenantContextHolder.setIgnore(prevIgnore);
         }
@@ -178,6 +184,7 @@ public class SysTenantPackageServiceImpl extends ServiceImpl<SysTenantPackageMap
             }
             pkg.setStatus(status);
             updateById(pkg);
+            evictMenuCache();
         } finally {
             TenantContextHolder.setIgnore(prevIgnore);
         }
@@ -208,6 +215,13 @@ public class SysTenantPackageServiceImpl extends ServiceImpl<SysTenantPackageMap
             return rel;
         }).collect(Collectors.toList());
         sysTenantPackageMenuMapper.batchInsert(list);
+    }
+
+    private void evictMenuCache() {
+        Cache cache = cacheManager.getCache("menu");
+        if (cache != null) {
+            cache.clear();
+        }
     }
 
     private TenantPackageResponse convertToResponse(SysTenantPackage pkg) {

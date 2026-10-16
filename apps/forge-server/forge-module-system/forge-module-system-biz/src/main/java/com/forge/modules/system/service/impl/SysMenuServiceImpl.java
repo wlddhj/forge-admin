@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
+import com.forge.common.utils.UserContext;
+import com.forge.modules.system.api.tenant.TenantApi;
 import com.forge.modules.system.dto.menu.MenuRequest;
 import com.forge.modules.system.dto.menu.MenuResponse;
 import com.forge.modules.system.dto.menu.MenuTreeResponse;
@@ -20,8 +22,10 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -35,6 +39,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
 
     private final SysMenuMapper sysMenuMapper;
     private final CacheManager cacheManager;
+    private final TenantApi tenantApi;
 
     @Override
     public void refreshMenuCache() {
@@ -61,20 +66,58 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
                 .eq(SysMenu::getStatus, 1)
                 .orderByAsc(SysMenu::getSortOrder)
                 .list();
+        UserContext userContext = UserContext.get();
+        if (userContext == null || !userContext.isPlatformAdmin()) {
+            Set<Long> allowedMenuIds = getPackageAllowedMenuIds(
+                    userContext == null ? null : userContext.getTenantId());
+            if (allowedMenuIds.isEmpty()) {
+                return new ArrayList<>();
+            }
+            menus = menus.stream().filter(menu -> allowedMenuIds.contains(menu.getId())).collect(Collectors.toList());
+        }
         return buildMenuTree(menus, 0L, false);
     }
 
     @Override
     @Cacheable(value = "menu", key = "'user:' + #userId", unless = "#result == null || #result.isEmpty()")
     public List<MenuTreeResponse> getUserMenuTree(Long userId) {
-        // TODO 多租户套餐未接入：当前 SQL 仅按 sys_user_role + sys_role_menu 过滤，
-        //   未与 sys_tenant_package_menu 取交集。
-        //   结果：租户管理员可给本租户用户分配任意菜单（含其他租户/平台超管菜单），
-        //   sys_tenant_package_menu 表形同虚设。
-        //   设计目标：可见菜单 = 角色菜单 ∩ 租户套餐菜单
-        //   待业务需要时改造：selectMenusByUserId SQL JOIN sys_tenant + sys_tenant_package_menu
         List<SysMenu> menus = sysMenuMapper.selectMenusByUserId(userId);
+        UserContext userContext = UserContext.get();
+        if (userContext == null || !userContext.isPlatformAdmin()) {
+            Set<Long> allowedMenuIds = getPackageAllowedMenuIds(
+                    userContext == null ? null : userContext.getTenantId());
+            if (allowedMenuIds.isEmpty()) {
+                return new ArrayList<>();
+            }
+            menus = menus.stream().filter(menu -> allowedMenuIds.contains(menu.getId())).collect(Collectors.toList());
+        }
         return buildMenuTree(menus, 0L, true);
+    }
+
+    @Override
+    public Set<Long> getPackageAllowedMenuIds(Long tenantId) {
+        List<Long> packageMenuIds = tenantApi.getTenantPackageMenuIds(tenantId);
+        if (packageMenuIds == null || packageMenuIds.isEmpty()) {
+            return new HashSet<>();
+        }
+
+        // 套餐中允许的子菜单需要祖先目录才能构成有效树；祖先是否最终可见由调用方与其他菜单集合的交集决定。
+        Set<Long> allowedMenuIds = new HashSet<>(packageMenuIds);
+        Map<Long, SysMenu> allMenusById = sysMenuMapper.selectList(null).stream()
+                .collect(Collectors.toMap(SysMenu::getId, menu -> menu, (first, ignored) -> first));
+        for (Long menuId : packageMenuIds) {
+            SysMenu menu = allMenusById.get(menuId);
+            Set<Long> visited = new HashSet<>();
+            while (menu != null && menu.getParentId() != null && menu.getParentId() != 0L) {
+                Long parentId = menu.getParentId();
+                if (!visited.add(parentId)) {
+                    break;
+                }
+                allowedMenuIds.add(parentId);
+                menu = allMenusById.get(parentId);
+            }
+        }
+        return allowedMenuIds;
     }
 
     @Override
