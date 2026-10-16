@@ -165,6 +165,24 @@ const getAllMenuIds = (tree: MenuTree[]): number[] => {
   return ids
 }
 
+// 勾选集只认叶子节点：父目录的半选/全选由 el-tree 父子联动推导，
+// 若把（半选）父 ID 传入 setCheckedKeys 会被视为完全勾选进而勾上全部子菜单
+const getLeafIdsFrom = (tree: MenuTree[], ids: number[]): number[] => {
+  const idSet = new Set(ids)
+  const leafIds: number[] = []
+  const walk = (nodes: MenuTree[]) => {
+    nodes.forEach((n) => {
+      if (n.children?.length) {
+        walk(n.children)
+      } else if (idSet.has(n.id)) {
+        leafIds.push(n.id)
+      }
+    })
+  }
+  walk(tree)
+  return leafIds
+}
+
 // 组件由父级 v-if 控制在打开时才挂载，modelValue 初始即 true，
 // el-drawer 的 @open 不会触发（无 false→true 变化），故在 onMounted 初始化
 onMounted(async () => {
@@ -196,13 +214,14 @@ onMounted(async () => {
     }
     // 默认展开包含选中节点的父链 + 选中节点本身；展开全部由用户点击切换
     defaultExpandedKeys.value = ids
-    defaultCheckedKeys.value = ids
+    // 只勾选叶子（兼容存量数据中已存的父节点 ID），父目录半选由联动推导
+    const leafIds = getLeafIdsFrom(menuTree.value, ids)
+    defaultCheckedKeys.value = leafIds
     menuExpandAll.value = false
 
     initialized.value = true
     await nextTick()
-    // setCheckedKeys 用于精确控制半选状态（父子联动）
-    treeRef.value?.setCheckedKeys(ids, false)
+    treeRef.value?.setCheckedKeys(leafIds, false)
     handleMenuCheck()
   } finally {
     initializing.value = false
@@ -213,9 +232,9 @@ const handleSubmit = async () => {
   await formRef.value?.validate()
   submitLoading.value = true
   try {
-    const checkedKeys = treeRef.value?.getCheckedKeys(false) || []
-    const halfCheckedKeys = treeRef.value?.getHalfCheckedKeys() || []
-    formData.menuIds = [...checkedKeys, ...halfCheckedKeys]
+    // 只存叶子勾选：半选父目录不入库（后端 getPackageAllowedMenuIds 会自动补祖先目录），
+    // 避免回显时父目录被当作完全勾选导致已取消的子菜单复活
+    formData.menuIds = treeRef.value?.getCheckedKeys(true) || []
 
     if (formData.id) {
       await updateTenantPackage(formData)
