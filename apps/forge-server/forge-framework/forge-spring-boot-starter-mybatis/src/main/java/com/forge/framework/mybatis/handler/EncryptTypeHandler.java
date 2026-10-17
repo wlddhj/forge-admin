@@ -24,9 +24,11 @@ public class EncryptTypeHandler extends BaseTypeHandler<String> {
 
     @Override
     public void setNonNullParameter(PreparedStatement ps, int i, String parameter, JdbcType jdbcType) throws SQLException {
-        // 写入时加密
+        // 写入时加密；已是密文则透传，防止二次加密产生脏数据
         if (StrUtil.isBlank(parameter)) {
             ps.setString(i, "");
+        } else if (CryptoUtilsHolder.get().isEncrypted(parameter)) {
+            ps.setString(i, parameter);
         } else {
             String encrypted = CryptoUtilsHolder.get().encrypt(parameter);
             ps.setString(i, encrypted);

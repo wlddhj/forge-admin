@@ -15,7 +15,7 @@ import java.util.List;
  * @author standadmin
  */
 @Data
-@TableName("sys_user")
+@TableName(value = "sys_user", autoResultMap = true)
 public class SysUser {
 
     @TableId(type = IdType.AUTO)
