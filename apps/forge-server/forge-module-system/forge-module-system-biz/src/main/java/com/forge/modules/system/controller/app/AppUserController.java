@@ -1,6 +1,7 @@
 package com.forge.modules.system.controller.app;
 
 import com.forge.common.response.Result;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.modules.system.annotation.AssertAppUserActive;
 import com.forge.modules.system.dto.app.AppUserProfileResponse;
 import com.forge.modules.system.dto.app.AppUserProfileUpdateRequest;
@@ -45,6 +46,7 @@ public class AppUserController {
     @Operation(summary = "更新个人信息")
     @PutMapping("/profile")
     @AssertAppUserActive
+    @RepeatSubmit
     public Result<Void> updateProfile(HttpServletRequest request,
                                        @Valid @RequestBody AppUserProfileUpdateRequest updateRequest) {
         Long userId = (Long) request.getAttribute("appUserId");
@@ -67,6 +69,7 @@ public class AppUserController {
     @Operation(summary = "绑定/换绑手机号")
     @PostMapping("/bind-phone")
     @AssertAppUserActive
+    @RepeatSubmit
     public Result<Void> bindPhone(HttpServletRequest httpRequest,
                                    @Valid @RequestBody PhoneBindRequest body) {
         Long userId = (Long) httpRequest.getAttribute("appUserId");
@@ -78,6 +81,7 @@ public class AppUserController {
     @Operation(summary = "注销账号")
     @DeleteMapping("/deactivate")
     @AssertAppUserActive
+    @RepeatSubmit
     public Result<Void> deactivate(HttpServletRequest httpRequest,
                                     @Valid @RequestBody DeactivateRequest body) {
         Long userId = (Long) httpRequest.getAttribute("appUserId");

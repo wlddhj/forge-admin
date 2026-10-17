@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.framework.web.utils.ExcelUtils;
@@ -61,6 +62,7 @@ public class SysRoleController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:role:add')")
     @OperationLog(title = "角色管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody RoleRequest request) {
         sysRoleService.addRole(request);
         return Result.success();
@@ -70,6 +72,7 @@ public class SysRoleController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:role:edit')")
     @OperationLog(title = "角色管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody RoleRequest request) {
         sysRoleService.updateRole(request);
         return Result.success();
@@ -79,6 +82,7 @@ public class SysRoleController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:role:delete')")
     @OperationLog(title = "角色管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable List<Long> ids) {
         sysRoleService.deleteRoles(ids);
         return Result.success();
@@ -88,6 +92,7 @@ public class SysRoleController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:role:edit')")
     @OperationLog(title = "角色管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysRoleService.updateStatus(id, status);
         return Result.success();
@@ -104,6 +109,7 @@ public class SysRoleController {
     @PutMapping("/{id}/menus")
     @PreAuthorize("hasAuthority('system:role:edit')")
     @OperationLog(title = "角色管理", businessType = OperationLog.BusinessType.GRANT)
+    @RepeatSubmit
     public Result<Void> assignMenus(@PathVariable Long id, @RequestBody List<Long> menuIds) {
         sysRoleService.assignMenus(id, menuIds);
         return Result.success();

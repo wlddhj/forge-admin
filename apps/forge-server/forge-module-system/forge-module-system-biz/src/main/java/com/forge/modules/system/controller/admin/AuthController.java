@@ -1,6 +1,7 @@
 package com.forge.modules.system.controller.admin;
 
 import com.forge.framework.web.annotation.RateLimiter;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.framework.security.config.JwtProperties;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.common.exception.BusinessException;
@@ -80,6 +81,7 @@ public class AuthController {
     @Operation(summary = "首次登录强制改密")
     @PostMapping("/change-password-first-login")
     @RateLimiter(keyType = RateLimiter.KeyType.USERNAME, time = 60, count = 10, message = "改密请求过于频繁，请稍后再试")
+    @RepeatSubmit
     public Result<Void> changePasswordFirstLogin(@Valid @RequestBody FirstLoginChangePasswordRequest request) {
         // 解析租户：单租户模式用默认租户；多租户模式从请求体 tenantCode 解析
         Long tenantId;

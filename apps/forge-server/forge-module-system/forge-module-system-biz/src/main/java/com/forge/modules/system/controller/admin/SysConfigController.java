@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.system.dto.config.ConfigQueryRequest;
@@ -53,6 +54,7 @@ public class SysConfigController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:config:add')")
     @OperationLog(title = "系统配置管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody ConfigRequest request) {
         sysConfigService.addConfig(request);
         return Result.success();
@@ -62,6 +64,7 @@ public class SysConfigController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:config:edit')")
     @OperationLog(title = "系统配置管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody ConfigRequest request) {
         sysConfigService.updateConfig(request);
         return Result.success();
@@ -71,6 +74,7 @@ public class SysConfigController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:config:delete')")
     @OperationLog(title = "系统配置管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable List<Long> ids) {
         sysConfigService.deleteConfigs(ids);
         return Result.success();

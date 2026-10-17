@@ -5,6 +5,7 @@ import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.modules.system.dto.tenant.TenantPackageQueryRequest;
 import com.forge.modules.system.dto.tenant.TenantPackageRequest;
 import com.forge.modules.system.dto.tenant.TenantPackageResponse;
@@ -59,6 +60,7 @@ public class SysTenantPackageController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:tenant-package:add')")
     @OperationLog(title = "租户套餐管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody TenantPackageRequest request) {
         TenantContextHolder.setIgnore(true);
         try {
@@ -73,6 +75,7 @@ public class SysTenantPackageController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:tenant-package:update')")
     @OperationLog(title = "租户套餐管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody TenantPackageRequest request) {
         TenantContextHolder.setIgnore(true);
         try {
@@ -87,6 +90,7 @@ public class SysTenantPackageController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:tenant-package:delete')")
     @OperationLog(title = "租户套餐管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable List<Long> ids) {
         TenantContextHolder.setIgnore(true);
         try {

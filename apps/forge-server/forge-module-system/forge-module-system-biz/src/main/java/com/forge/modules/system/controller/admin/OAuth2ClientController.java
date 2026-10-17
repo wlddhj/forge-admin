@@ -1,6 +1,7 @@
 package com.forge.modules.system.controller.admin;
 
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.Result;
 import com.forge.modules.system.auth.dto.oauth2.ClientCreateRequest;
 import com.forge.modules.system.auth.dto.oauth2.ClientQueryRequest;
@@ -48,6 +49,7 @@ public class OAuth2ClientController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:oauth2-client:add')")
     @OperationLog(title = "OAuth2客户端管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Map<String, String>> add(@Valid @RequestBody ClientCreateRequest request) {
         String clientSecret = oAuth2ClientService.createClient(request);
         // clientSecret 仅此一次返回
@@ -61,6 +63,7 @@ public class OAuth2ClientController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:oauth2-client:edit')")
     @OperationLog(title = "OAuth2客户端管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody ClientUpdateRequest request) {
         oAuth2ClientService.updateClient(request);
         return Result.success();
@@ -70,6 +73,7 @@ public class OAuth2ClientController {
     @DeleteMapping
     @PreAuthorize("hasAuthority('system:oauth2-client:delete')")
     @OperationLog(title = "OAuth2客户端管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> remove(@RequestBody List<String> ids) {
         oAuth2ClientService.deleteClients(ids);
         return Result.success();
@@ -79,6 +83,7 @@ public class OAuth2ClientController {
     @PutMapping("/{id}/secret")
     @PreAuthorize("hasAuthority('system:oauth2-client:edit')")
     @OperationLog(title = "OAuth2客户端管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Map<String, String>> regenerateSecret(@PathVariable String id) {
         String newSecret = oAuth2ClientService.regenerateSecret(id);
         return Result.success(Map.of("clientSecret", newSecret));

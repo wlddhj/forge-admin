@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.system.dto.attachment.AttachmentQueryRequest;
@@ -55,6 +56,7 @@ public class SysAttachmentController {
     @PostMapping("/upload")
     @PreAuthorize("hasAuthority('system:attachment:upload')")
     @OperationLog(title = "附件管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<AttachmentResponse> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "bizType", required = false) String bizType,
@@ -66,6 +68,7 @@ public class SysAttachmentController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:attachment:delete')")
     @OperationLog(title = "附件管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable List<Long> ids) {
         sysAttachmentService.deleteAttachments(ids);
         return Result.success();
@@ -74,6 +77,7 @@ public class SysAttachmentController {
     @Operation(summary = "上传头像")
     @PostMapping("/avatar")
     @OperationLog(title = "个人中心", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<AttachmentResponse> uploadAvatar(@RequestParam("file") MultipartFile file) {
         return Result.success(sysAttachmentService.upload(file, "avatar", null));
     }

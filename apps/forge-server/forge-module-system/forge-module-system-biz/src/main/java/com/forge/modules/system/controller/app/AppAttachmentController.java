@@ -1,6 +1,7 @@
 package com.forge.modules.system.controller.app;
 
 import com.forge.common.response.Result;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.modules.system.annotation.AssertAppUserActive;
 import com.forge.modules.system.dto.app.AppUploadResponse;
 import com.forge.modules.system.dto.attachment.AttachmentResponse;
@@ -36,6 +37,7 @@ public class AppAttachmentController {
     @Operation(summary = "上传头像")
     @PostMapping("/upload")
     @AssertAppUserActive
+    @RepeatSubmit
     public Result<AppUploadResponse> uploadAvatar(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "bizType", defaultValue = "APP_AVATAR") String bizType) {

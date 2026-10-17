@@ -1,6 +1,7 @@
 package com.forge.modules.system.controller.admin;
 
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.Result;
 import com.forge.modules.system.dto.menu.MenuRequest;
 import com.forge.modules.system.dto.menu.MenuResponse;
@@ -54,6 +55,7 @@ public class SysMenuController {
     @DeleteMapping("/cache")
     @PreAuthorize("hasAuthority('system:menu:edit')")
     @OperationLog(title = "菜单管理", businessType = OperationLog.BusinessType.CLEAN)
+    @RepeatSubmit
     public Result<Void> refreshCache() {
         sysMenuService.refreshMenuCache();
         return Result.success();
@@ -63,6 +65,7 @@ public class SysMenuController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:menu:add')")
     @OperationLog(title = "菜单管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody MenuRequest request) {
         sysMenuService.addMenu(request);
         return Result.success();
@@ -72,6 +75,7 @@ public class SysMenuController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:menu:edit')")
     @OperationLog(title = "菜单管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody MenuRequest request) {
         sysMenuService.updateMenu(request);
         return Result.success();
@@ -81,6 +85,7 @@ public class SysMenuController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('system:menu:delete')")
     @OperationLog(title = "菜单管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable Long id) {
         sysMenuService.deleteMenu(id);
         return Result.success();

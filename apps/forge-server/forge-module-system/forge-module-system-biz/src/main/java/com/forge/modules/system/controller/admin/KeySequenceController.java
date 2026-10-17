@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.modules.system.dto.keysequence.KeySequenceQueryRequest;
 import com.forge.modules.system.dto.keysequence.KeySequenceRequest;
 import com.forge.modules.system.dto.keysequence.KeySequenceResponse;
@@ -42,6 +43,7 @@ public class KeySequenceController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:key-sequence:add')")
     @OperationLog(title = "序列号生成器", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody KeySequenceRequest request) {
         keySequenceService.addKeySequence(request);
         return Result.success();
@@ -51,6 +53,7 @@ public class KeySequenceController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:key-sequence:edit')")
     @OperationLog(title = "序列号生成器", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody KeySequenceRequest request) {
         keySequenceService.updateKeySequence(request);
         return Result.success();
@@ -60,6 +63,7 @@ public class KeySequenceController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:key-sequence:delete')")
     @OperationLog(title = "序列号生成器", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable Long[] ids) {
         keySequenceService.deleteKeySequences(ids);
         return Result.success();

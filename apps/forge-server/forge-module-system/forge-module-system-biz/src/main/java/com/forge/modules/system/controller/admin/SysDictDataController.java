@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.system.dto.dict.DictDataBatchSaveRequest;
@@ -57,6 +58,7 @@ public class SysDictDataController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:dict:add')")
     @OperationLog(title = "字典数据管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody DictDataRequest request) {
         sysDictDataService.addDictData(request);
         return Result.success();
@@ -66,6 +68,7 @@ public class SysDictDataController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:dict:edit')")
     @OperationLog(title = "字典数据管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody DictDataRequest request) {
         sysDictDataService.updateDictData(request);
         return Result.success();
@@ -75,6 +78,7 @@ public class SysDictDataController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:dict:delete')")
     @OperationLog(title = "字典数据管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable List<Long> ids) {
         sysDictDataService.deleteDictData(ids);
         return Result.success();
@@ -84,6 +88,7 @@ public class SysDictDataController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:dict:edit')")
     @OperationLog(title = "字典数据管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysDictDataService.updateStatus(id, status);
         return Result.success();
@@ -93,6 +98,7 @@ public class SysDictDataController {
     @PostMapping("/batch-save")
     @PreAuthorize("hasAuthority('system:dict:edit')")
     @OperationLog(title = "字典数据管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> batchSave(@Valid @RequestBody DictDataBatchSaveRequest request) {
         sysDictDataService.batchSaveDictData(request);
         return Result.success();

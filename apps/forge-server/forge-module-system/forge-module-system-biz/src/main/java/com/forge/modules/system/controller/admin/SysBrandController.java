@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.forge.common.response.Result;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.modules.system.dto.brand.BrandRequest;
 import com.forge.modules.system.dto.brand.BrandResponse;
 import com.forge.modules.system.service.SysBrandService;
@@ -44,6 +45,7 @@ public class SysBrandController {
     @PostMapping("/logo")
     @PreAuthorize("hasAuthority('system:brand:update')")
     @OperationLog(title = "品牌配置", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<String> uploadLogo(@RequestParam("file") MultipartFile file) {
         return Result.success(sysBrandService.uploadLogo(file));
     }
@@ -52,6 +54,7 @@ public class SysBrandController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:brand:update')")
     @OperationLog(title = "品牌配置", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> update(@Valid @RequestBody BrandRequest request) {
         sysBrandService.updateBrand(request);
         return Result.success();

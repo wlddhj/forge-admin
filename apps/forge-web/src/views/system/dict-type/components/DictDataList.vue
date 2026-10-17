@@ -56,7 +56,7 @@
       <template #buttons>
         <el-button type="primary" @click="handleAddRow">新增数据</el-button>
         <el-button type="danger" :disabled="!hasCheckedRows" @click="handleDeleteRows">删除勾选</el-button>
-        <el-button type="success" :disabled="!hasChanges" @click="handleBatchSave">保存修改</el-button>
+        <el-button type="success" :disabled="!hasChanges" :loading="loading" @click="handleBatchSave">保存修改</el-button>
       </template>
       <template #tools>
         <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
@@ -204,7 +204,7 @@
     >
       <template #actions>
         <el-button size="small" @click="handleCancelChanges">取消修改</el-button>
-        <el-button size="small" type="success" @click="handleBatchSave">保存修改</el-button>
+        <el-button size="small" type="success" :loading="loading" @click="handleBatchSave">保存修改</el-button>
       </template>
     </MobileBottomActions>
 

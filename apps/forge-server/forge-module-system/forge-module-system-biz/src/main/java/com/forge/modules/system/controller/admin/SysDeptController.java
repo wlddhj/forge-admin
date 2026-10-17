@@ -1,6 +1,7 @@
 package com.forge.modules.system.controller.admin;
 
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.Result;
 import com.forge.modules.system.dto.dept.DeptRequest;
 import com.forge.modules.system.dto.dept.DeptResponse;
@@ -54,6 +55,7 @@ public class SysDeptController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:dept:add')")
     @OperationLog(title = "部门管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody DeptRequest request) {
         sysDeptService.addDept(request);
         return Result.success();
@@ -63,6 +65,7 @@ public class SysDeptController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:dept:edit')")
     @OperationLog(title = "部门管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody DeptRequest request) {
         sysDeptService.updateDept(request);
         return Result.success();
@@ -72,6 +75,7 @@ public class SysDeptController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('system:dept:delete')")
     @OperationLog(title = "部门管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable Long id) {
         sysDeptService.deleteDept(id);
         return Result.success();

@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.system.dto.dict.DictTypeQueryRequest;
@@ -58,6 +59,7 @@ public class SysDictTypeController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:dict:add')")
     @OperationLog(title = "字典类型管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody DictTypeRequest request) {
         sysDictTypeService.addDictType(request);
         return Result.success();
@@ -67,6 +69,7 @@ public class SysDictTypeController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:dict:edit')")
     @OperationLog(title = "字典类型管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody DictTypeRequest request) {
         sysDictTypeService.updateDictType(request);
         return Result.success();
@@ -76,6 +79,7 @@ public class SysDictTypeController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:dict:delete')")
     @OperationLog(title = "字典类型管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable List<Long> ids) {
         sysDictTypeService.deleteDictTypes(ids);
         return Result.success();
@@ -85,6 +89,7 @@ public class SysDictTypeController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:dict:edit')")
     @OperationLog(title = "字典类型管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysDictTypeService.updateStatus(id, status);
         return Result.success();
@@ -94,6 +99,7 @@ public class SysDictTypeController {
     @DeleteMapping("/cache")
     @PreAuthorize("hasAuthority('system:dict:edit')")
     @OperationLog(title = "字典类型管理", businessType = OperationLog.BusinessType.CLEAN)
+    @RepeatSubmit
     public Result<Void> refreshCache() {
         sysDictDataService.refreshCache();
         return Result.success();

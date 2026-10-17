@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.system.dto.job.JobQueryRequest;
@@ -48,6 +49,7 @@ public class SysJobController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:job:add')")
     @OperationLog(title = "定时任务管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody JobRequest request) {
         sysJobService.addJob(request);
         return Result.success();
@@ -57,6 +59,7 @@ public class SysJobController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:job:edit')")
     @OperationLog(title = "定时任务管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody JobRequest request) {
         sysJobService.updateJob(request);
         return Result.success();
@@ -66,6 +69,7 @@ public class SysJobController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:job:delete')")
     @OperationLog(title = "定时任务管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable Long[] ids) {
         sysJobService.deleteJobs(ids);
         return Result.success();
@@ -75,6 +79,7 @@ public class SysJobController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:job:edit')")
     @OperationLog(title = "定时任务管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysJobService.changeStatus(id, status);
         return Result.success();
@@ -84,6 +89,7 @@ public class SysJobController {
     @PostMapping("/{id}/run")
     @PreAuthorize("hasAuthority('system:job:edit')")
     @OperationLog(title = "定时任务管理", businessType = OperationLog.BusinessType.OTHER)
+    @RepeatSubmit
     public Result<Void> runOnce(@PathVariable Long id) {
         sysJobService.runOnce(id);
         return Result.success();

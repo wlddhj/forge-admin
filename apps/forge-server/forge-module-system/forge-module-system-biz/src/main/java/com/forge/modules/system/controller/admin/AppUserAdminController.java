@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.modules.system.dto.app.AppUserDetailResponse;
 import com.forge.modules.system.dto.app.AppUserQueryRequest;
 import com.forge.modules.system.service.app.AppUserService;
@@ -42,6 +43,7 @@ public class AppUserAdminController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:app-user:update')")
     @OperationLog(title = "App用户管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
         Integer status = body.get("status");
         appUserService.updateStatus(id, status);
@@ -52,6 +54,7 @@ public class AppUserAdminController {
     @PutMapping("/{id}/profile")
     @PreAuthorize("hasAuthority('system:app-user:update')")
     @OperationLog(title = "App用户管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> resetProfile(@PathVariable Long id, @RequestBody Map<String, String> body) {
         String nickname = body.get("nickname");
         String avatar = body.get("avatar");
@@ -63,6 +66,7 @@ public class AppUserAdminController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('system:app-user:delete')")
     @OperationLog(title = "App用户管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable Long id) {
         appUserService.deactivate(id);
         return Result.success();

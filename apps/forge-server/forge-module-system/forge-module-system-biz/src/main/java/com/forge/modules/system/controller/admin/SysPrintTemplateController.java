@@ -3,6 +3,7 @@ package com.forge.modules.system.controller.admin;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.modules.system.dto.print.PrintTemplateQueryRequest;
 import com.forge.modules.system.dto.print.PrintTemplateRequest;
 import com.forge.modules.system.dto.print.PrintTemplateResponse;
@@ -54,6 +55,7 @@ public class SysPrintTemplateController {
     @Operation(summary = "新增打印模板")
     @PostMapping
     @PreAuthorize("hasAuthority('system:print-template:add')")
+    @RepeatSubmit
     public Result<Long> add(@Valid @RequestBody PrintTemplateRequest request) {
         return Result.success(sysPrintTemplateService.addPrintTemplate(request));
     }
@@ -61,6 +63,7 @@ public class SysPrintTemplateController {
     @Operation(summary = "修改打印模板")
     @PutMapping
     @PreAuthorize("hasAuthority('system:print-template:edit')")
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody PrintTemplateRequest request) {
         sysPrintTemplateService.updatePrintTemplate(request);
         return Result.success();
@@ -70,6 +73,7 @@ public class SysPrintTemplateController {
     @Parameter(name = "ids", description = "模板ID列表（逗号分隔）", required = true)
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:print-template:remove')")
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable List<Long> ids) {
         sysPrintTemplateService.deletePrintTemplates(ids);
         return Result.success();

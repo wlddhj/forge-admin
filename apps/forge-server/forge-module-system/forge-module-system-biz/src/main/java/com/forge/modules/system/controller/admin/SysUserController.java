@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.framework.web.utils.ExcelUtils;
@@ -54,6 +55,7 @@ public class SysUserController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:user:add')")
     @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody UserRequest request) {
         sysUserService.addUser(request);
         return Result.success();
@@ -63,6 +65,7 @@ public class SysUserController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:user:edit')")
     @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody UserRequest request) {
         sysUserService.updateUser(request);
         return Result.success();
@@ -72,6 +75,7 @@ public class SysUserController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:user:delete')")
     @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable List<Long> ids) {
         sysUserService.deleteUsers(ids);
         return Result.success();
@@ -114,6 +118,7 @@ public class SysUserController {
     @PostMapping("/import")
     @PreAuthorize("hasAuthority('system:user:import')")
     @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.IMPORT)
+    @RepeatSubmit(interval = 10)
     public Result<UserImportResultDTO> importExcel(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "updateSupport", required = false, defaultValue = "false") Boolean updateSupport
@@ -126,6 +131,7 @@ public class SysUserController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:user:edit')")
     @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysUserService.updateStatus(id, status);
         return Result.success();
@@ -135,6 +141,7 @@ public class SysUserController {
     @PutMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('system:user:resetPwd')")
     @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<String> resetPassword(@PathVariable Long id) {
         String randomPassword = sysUserService.resetPassword(id);
         return Result.success(randomPassword);
@@ -144,6 +151,7 @@ public class SysUserController {
     @PutMapping("/{id}/unlock")
     @PreAuthorize("hasAuthority('system:user:unlock')")
     @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> unlock(@PathVariable Long id) {
         sysUserService.unlock(id);
         return Result.success();
@@ -166,6 +174,7 @@ public class SysUserController {
     @PutMapping("/{id}/roles")
     @PreAuthorize("hasAuthority('system:user:edit')")
     @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.GRANT)
+    @RepeatSubmit
     public Result<Void> assignRoles(@PathVariable Long id, @RequestBody List<Long> roleIds) {
         sysUserService.assignUserRoles(id, roleIds);
         return Result.success();
@@ -175,6 +184,7 @@ public class SysUserController {
     @PutMapping("/batch-assign-roles")
     @PreAuthorize("hasAuthority('system:user:edit')")
     @OperationLog(title = "用户管理", businessType = OperationLog.BusinessType.GRANT)
+    @RepeatSubmit
     public Result<Void> batchAssignRoles(@Valid @RequestBody UserRoleAssignRequest request) {
         sysUserService.batchAssignUserRoles(request);
         return Result.success();
@@ -184,6 +194,7 @@ public class SysUserController {
 
     @Operation(summary = "更新个人资料")
     @PutMapping("/profile")
+    @RepeatSubmit
     public Result<Void> updateProfile(@Valid @RequestBody com.forge.modules.system.dto.user.UserProfileRequest request) {
         sysUserService.updateProfile(request);
         return Result.success();
@@ -192,6 +203,7 @@ public class SysUserController {
     @Operation(summary = "修改密码")
     @PutMapping("/password")
     @OperationLog(title = "个人中心", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> updatePassword(@Valid @RequestBody com.forge.modules.system.dto.user.UserPasswordRequest request) {
         sysUserService.updatePassword(request);
         return Result.success();
@@ -200,6 +212,7 @@ public class SysUserController {
     @Operation(summary = "更新头像")
     @PutMapping("/avatar")
     @OperationLog(title = "个人中心", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> updateAvatar(@Valid @RequestBody com.forge.modules.system.dto.user.UserAvatarRequest request) {
         sysUserService.updateAvatar(request);
         return Result.success();

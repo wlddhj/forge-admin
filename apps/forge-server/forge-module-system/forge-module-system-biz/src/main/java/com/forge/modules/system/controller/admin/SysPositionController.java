@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.system.dto.position.PositionQueryRequest;
@@ -56,6 +57,7 @@ public class SysPositionController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:position:add')")
     @OperationLog(title = "岗位管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody PositionRequest request) {
         sysPositionService.addPosition(request);
         return Result.success();
@@ -65,6 +67,7 @@ public class SysPositionController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:position:edit')")
     @OperationLog(title = "岗位管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody PositionRequest request) {
         sysPositionService.updatePosition(request);
         return Result.success();
@@ -74,6 +77,7 @@ public class SysPositionController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:position:delete')")
     @OperationLog(title = "岗位管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable List<Long> ids) {
         sysPositionService.deletePositions(ids);
         return Result.success();
@@ -83,6 +87,7 @@ public class SysPositionController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:position:edit')")
     @OperationLog(title = "岗位管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysPositionService.updateStatus(id, status);
         return Result.success();

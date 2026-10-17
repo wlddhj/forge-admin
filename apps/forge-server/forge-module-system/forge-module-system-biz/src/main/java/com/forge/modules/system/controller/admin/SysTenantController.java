@@ -6,6 +6,7 @@ import com.forge.common.response.Result;
 import com.forge.framework.tenant.config.TenantProperties;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.modules.system.dto.tenant.TenantQueryRequest;
 import com.forge.modules.system.dto.tenant.TenantRequest;
 import com.forge.modules.system.dto.tenant.TenantResponse;
@@ -62,6 +63,7 @@ public class SysTenantController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:tenant:add')")
     @OperationLog(title = "租户管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<TenantResponse> add(@Valid @RequestBody TenantRequest request) {
         TenantContextHolder.setIgnore(true);
         try {
@@ -76,6 +78,7 @@ public class SysTenantController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:tenant:update')")
     @OperationLog(title = "租户管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody TenantRequest request) {
         TenantContextHolder.setIgnore(true);
         try {
@@ -90,6 +93,7 @@ public class SysTenantController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:tenant:delete')")
     @OperationLog(title = "租户管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable List<Long> ids) {
         TenantContextHolder.setIgnore(true);
         try {
@@ -104,6 +108,7 @@ public class SysTenantController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:tenant:update')")
     @OperationLog(title = "租户管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
         TenantContextHolder.setIgnore(true);
         try {

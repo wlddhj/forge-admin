@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.system.dto.file.FileConfigQueryRequest;
@@ -54,6 +55,7 @@ public class SysFileConfigController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:file-config:add')")
     @OperationLog(title = "文件存储配置", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody FileConfigRequest request) {
         sysFileConfigService.addFileConfig(request);
         return Result.success();
@@ -63,6 +65,7 @@ public class SysFileConfigController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:file-config:edit')")
     @OperationLog(title = "文件存储配置", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> update(@Valid @RequestBody FileConfigRequest request) {
         sysFileConfigService.updateFileConfig(request);
         return Result.success();
@@ -72,6 +75,7 @@ public class SysFileConfigController {
     @DeleteMapping
     @PreAuthorize("hasAuthority('system:file-config:delete')")
     @OperationLog(title = "文件存储配置", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@RequestBody List<Long> ids) {
         sysFileConfigService.deleteFileConfig(ids);
         return Result.success();
@@ -81,6 +85,7 @@ public class SysFileConfigController {
     @PutMapping("/{id}/default")
     @PreAuthorize("hasAuthority('system:file-config:edit')")
     @OperationLog(title = "文件存储配置", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> setDefault(@PathVariable Long id) {
         sysFileConfigService.setDefaultConfig(id);
         return Result.success();
@@ -90,6 +95,7 @@ public class SysFileConfigController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:file-config:edit')")
     @OperationLog(title = "文件存储配置", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysFileConfigService.updateStatus(id, status);
         return Result.success();
@@ -98,6 +104,7 @@ public class SysFileConfigController {
     @Operation(summary = "测试连接")
     @PutMapping("/{id}/conn")
     @PreAuthorize("hasAuthority('system:file-config:list')")
+    @RepeatSubmit
     public Result<Void> testConnection(@PathVariable Long id) {
         sysFileConfigService.testConnection(id);
         return Result.success();

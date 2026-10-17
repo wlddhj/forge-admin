@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.system.dto.notice.NoticeQueryRequest;
@@ -57,6 +58,7 @@ public class SysNoticeController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:notice:add')")
     @OperationLog(title = "通知公告管理", businessType = OperationLog.BusinessType.INSERT)
+    @RepeatSubmit
     public Result<Void> add(@Valid @RequestBody NoticeRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
         sysNoticeService.addNotice(request, userId);
@@ -67,6 +69,7 @@ public class SysNoticeController {
     @PutMapping
     @PreAuthorize("hasAuthority('system:notice:edit')")
     @OperationLog(title = "通知公告管理", businessType = OperationLog.BusinessType.UPDATE)
+    @RepeatSubmit
     public Result<Void> edit(@Valid @RequestBody NoticeRequest request) {
         sysNoticeService.updateNotice(request);
         return Result.success();
@@ -76,6 +79,7 @@ public class SysNoticeController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:notice:delete')")
     @OperationLog(title = "通知公告管理", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable Long[] ids) {
         sysNoticeService.deleteNotices(ids);
         return Result.success();

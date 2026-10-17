@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.framework.web.utils.ExcelUtils;
@@ -43,6 +44,7 @@ public class SysLoginLogController {
     @Operation(summary = "清空登录日志")
     @DeleteMapping("/clear")
     @PreAuthorize("hasAuthority('system:login-log:clear')")
+    @RepeatSubmit
     public Result<Void> clear() {
         sysLoginLogService.clearLogs();
         return Result.success();

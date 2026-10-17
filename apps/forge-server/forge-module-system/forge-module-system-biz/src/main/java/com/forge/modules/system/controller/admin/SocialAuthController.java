@@ -1,6 +1,7 @@
 package com.forge.modules.system.controller.admin;
 
 import com.forge.framework.web.annotation.RateLimiter;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.Result;
 import com.forge.common.utils.UserContext;
 import com.forge.modules.system.auth.dto.LoginResponse;
@@ -69,6 +70,7 @@ public class SocialAuthController {
 
     @Operation(summary = "绑定社交账号")
     @PostMapping("/bind")
+    @RepeatSubmit
     public Result<Void> bind(@Valid @RequestBody SocialBindRequest request) {
         Long userId = UserContext.getCurrentUserId();
         if (userId == null) {
@@ -80,6 +82,7 @@ public class SocialAuthController {
 
     @Operation(summary = "解绑社交账号")
     @PostMapping("/unbind")
+    @RepeatSubmit
     public Result<Void> unbind(@RequestParam String source) {
         Long userId = UserContext.getCurrentUserId();
         if (userId == null) {

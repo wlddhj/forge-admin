@@ -25,6 +25,7 @@ public enum ResultCode {
     DATA_NOT_FOUND(5000, "数据不存在"),
     PARAM_ERROR(5001, "参数错误"),
     DATA_EXISTS(5002, "数据已存在"),
+    REPEAT_SUBMIT(5003, "请求正在处理中，请勿重复提交"),
     USER_NOT_FOUND(5101, "用户不存在"),
     USER_PASSWORD_ERROR(5102, "密码错误"),
     USER_DISABLED(5103, "用户已被禁用"),

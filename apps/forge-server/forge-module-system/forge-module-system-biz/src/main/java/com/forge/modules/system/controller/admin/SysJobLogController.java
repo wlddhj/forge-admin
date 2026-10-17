@@ -2,6 +2,7 @@ package com.forge.modules.system.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.system.quartz.entity.SysJobLog;
@@ -51,6 +52,7 @@ public class SysJobLogController {
     @DeleteMapping("/{ids}")
     @PreAuthorize("hasAuthority('system:job:delete')")
     @OperationLog(title = "任务执行日志", businessType = OperationLog.BusinessType.DELETE)
+    @RepeatSubmit
     public Result<Void> delete(@PathVariable Long[] ids) {
         jobLogService.removeByIds(java.util.Arrays.asList(ids));
         return Result.success();
@@ -60,6 +62,7 @@ public class SysJobLogController {
     @DeleteMapping("/clear")
     @PreAuthorize("hasAuthority('system:job:delete')")
     @OperationLog(title = "任务执行日志", businessType = OperationLog.BusinessType.CLEAN)
+    @RepeatSubmit
     public Result<Void> clear(@RequestParam(required = false) Long jobId) {
         jobLogService.clearJobLogs(jobId);
         return Result.success();

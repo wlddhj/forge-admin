@@ -1,6 +1,7 @@
 package com.forge.modules.system.controller.admin;
 
 import com.forge.common.response.Result;
+import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.modules.system.dto.online.OnlineUserResponse;
 import com.forge.modules.system.service.SysOnlineUserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,6 +33,7 @@ public class SysOnlineUserController {
     @Operation(summary = "强制下线")
     @DeleteMapping("/{tokenId}")
     @PreAuthorize("hasAuthority('system:online-user:force-logout')")
+    @RepeatSubmit
     public Result<Void> forceLogout(@PathVariable String tokenId) {
         sysOnlineUserService.forceLogout(tokenId);
         return Result.success();
