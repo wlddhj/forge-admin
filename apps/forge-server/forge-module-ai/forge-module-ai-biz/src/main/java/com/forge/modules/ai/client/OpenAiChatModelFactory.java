@@ -1,8 +1,9 @@
 package com.forge.modules.ai.client;
 
+import com.forge.framework.localcache.LocalCaches;
 import com.forge.modules.ai.config.AiModuleConfig;
 import com.forge.modules.ai.entity.AiModelConfig;
-import lombok.RequiredArgsConstructor;
+import com.google.common.cache.Cache;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
@@ -13,7 +14,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 按 ai_model_config 编程式构建并缓存 OpenAiChatModel（配置变更指纹失效重建）
@@ -48,39 +48,39 @@ public class OpenAiChatModelFactory {
     private final WebClient.Builder webClientBuilder;
     private final org.springframework.web.client.RestClient.Builder restClientBuilder;
     private final AiModuleConfig aiModuleConfig;
-    private final Map<Long, CachedModel> cache = new ConcurrentHashMap<>();
+    private final Cache<Long, CachedModel> cache;
 
-    @RequiredArgsConstructor
-    private static class CachedModel {
-        final String fingerprint;
-        final OpenAiChatModel model;
+    private record CachedModel(String fingerprint, OpenAiChatModel model) {
     }
 
     public OpenAiChatModelFactory(@Qualifier("llmWebClientBuilder") WebClient.Builder webClientBuilder,
                                   @Qualifier("llmRestClientBuilder") org.springframework.web.client.RestClient.Builder restClientBuilder,
-                                  AiModuleConfig aiModuleConfig) {
+                                  AiModuleConfig aiModuleConfig,
+                                  LocalCaches localCaches) {
         this.webClientBuilder = webClientBuilder;
         this.restClientBuilder = restClientBuilder;
         this.aiModuleConfig = aiModuleConfig;
+        // maximumSize 兜底：配置删除后遗留实例不致无限驻留
+        this.cache = localCaches.get("ai-chat-models", b -> b.maximumSize(200));
     }
 
     /**
-     * 获取（或构建）模型实例；配置指纹变化时重建
+     * 获取（或构建）模型实例；配置指纹变化时重建（原子 compute 比对）
      */
     public OpenAiChatModel get(AiModelConfig config) {
         String fingerprint = fingerprint(config);
-        CachedModel cached = cache.compute(config.getId(), (id, existing) ->
-                existing != null && existing.fingerprint.equals(fingerprint)
+        CachedModel cached = cache.asMap().compute(config.getId(), (id, existing) ->
+                existing != null && existing.fingerprint().equals(fingerprint)
                         ? existing
                         : new CachedModel(fingerprint, build(config)));
-        return cached.model;
+        return cached.model();
     }
 
     /**
      * 配置更新后主动失效
      */
     public void evict(Long modelConfigId) {
-        cache.remove(modelConfigId);
+        cache.invalidate(modelConfigId);
     }
 
     private OpenAiChatModel build(AiModelConfig config) {

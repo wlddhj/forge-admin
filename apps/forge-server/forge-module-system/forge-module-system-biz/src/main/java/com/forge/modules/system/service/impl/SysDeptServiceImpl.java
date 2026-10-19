@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
+import com.forge.common.utils.DeptDataScopeUtils;
 import com.forge.common.utils.UserContext;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.system.dto.dept.DeptRequest;
@@ -15,6 +16,7 @@ import com.forge.modules.system.entity.SysDept;
 import com.forge.modules.system.mapper.SysDeptMapper;
 import com.forge.modules.system.service.SysDeptService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
  *
  * @author standadmin
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> implements SysDeptService {
@@ -101,6 +104,7 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
         }
 
         save(dept);
+        refreshDeptTreeCache();
     }
 
     @Override
@@ -121,6 +125,7 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
         BeanUtil.copyProperties(request, dept);
         // tenantId 不允许通过 updateDept 变更（防止跨租户迁移），由 TenantLineInnerInterceptor 自动保持
         updateById(dept);
+        refreshDeptTreeCache();
     }
 
     @Override
@@ -135,6 +140,26 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
             throw new BusinessException(ResultCode.DEPT_HAS_USERS);
         }
         removeById(id);
+        refreshDeptTreeCache();
+    }
+
+    /**
+     * 部门树缓存为跨租户全局快照（deptId 全局唯一保证子树查询正确），
+     * 重建须全量查询：临时跳过租户过滤（ThreadLocal 当前线程直接生效，恢复语义同 TenantIgnoreAspect）
+     */
+    private void refreshDeptTreeCache() {
+        Boolean previous = TenantContextHolder.isIgnore() ? Boolean.TRUE : null;
+        TenantContextHolder.setIgnore(true);
+        try {
+            List<DeptDataScopeUtils.DeptInfo> deptInfos = list().stream()
+                    .map(dept -> new DeptDataScopeUtils.DeptInfo(dept.getId(), dept.getParentId(), dept.getAncestors()))
+                    .toList();
+            DeptDataScopeUtils.buildDeptTreeCache(deptInfos);
+        } catch (Exception e) {
+            log.error("部门变更后重建部门树缓存失败", e);
+        } finally {
+            TenantContextHolder.setIgnore(previous);
+        }
     }
 
     private List<DeptTreeResponse> buildDeptTree(List<SysDept> depts, Long parentId) {

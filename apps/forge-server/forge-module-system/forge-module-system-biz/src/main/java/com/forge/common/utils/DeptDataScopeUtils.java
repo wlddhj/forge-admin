@@ -1,15 +1,19 @@
 package com.forge.common.utils;
 
 import com.forge.modules.system.entity.SysDept;
-import com.forge.modules.system.service.SysDeptService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * 部门数据权限工具类
+ * 部门数据权限工具类。
+ * 缓存为跨租户全量快照（deptId 全局唯一，混合树不影响 per-dept 子树查询），
+ * 以 volatile 不可变 Map 原子换引用——重建期间读者要么见旧完整快照要么见新完整快照，
+ * 不存在部分树窗口（数据权限场景下部分树可能导致漏授权）
  *
  * @author standadmin
  */
@@ -20,23 +24,20 @@ public class DeptDataScopeUtils {
      * 部门树缓存
      * 格式: 父部门ID -> 子部门ID列表
      */
-    private static final Map<Long, List<Long>> DEPT_TREE_CACHE = new ConcurrentHashMap<>();
+    private static volatile Map<Long, List<Long>> DEPT_TREE_CACHE = Map.of();
 
     /**
      * 部门 ancestors 缓存
      * 格式: 部门ID -> ancestors 字符串
      */
-    private static final Map<Long, String> DEPT_ANCESTORS_CACHE = new ConcurrentHashMap<>();
-
-    @Autowired(required = false)
-    private SysDeptService sysDeptService;
+    private static volatile Map<Long, String> DEPT_ANCESTORS_CACHE = Map.of();
 
     /**
      * 清空缓存
      */
     public static void clearCache() {
-        DEPT_TREE_CACHE.clear();
-        DEPT_ANCESTORS_CACHE.clear();
+        DEPT_TREE_CACHE = Map.of();
+        DEPT_ANCESTORS_CACHE = Map.of();
     }
 
     /**
@@ -125,27 +126,26 @@ public class DeptDataScopeUtils {
 
     /**
      * 构建部门树缓存
-     * 需要在系统启动或部门变更时调用
+     * 需要在系统启动或部门变更时调用（须以跨租户全量部门列表传入）
      *
      * @param deptList 所有部门列表
      */
     public static void buildDeptTreeCache(List<DeptInfo> deptList) {
-        clearCache();
-
-        Map<Long, List<Long>> tempCache = new HashMap<>();
+        Map<Long, List<Long>> tempTree = new HashMap<>();
+        Map<Long, String> tempAncestors = new HashMap<>();
 
         for (DeptInfo dept : deptList) {
-            // 缓存 ancestors
-            DEPT_ANCESTORS_CACHE.put(dept.getId(), dept.getAncestors());
+            tempAncestors.put(dept.getId(), dept.getAncestors());
 
-            // 构建父子关系
             Long parentId = dept.getParentId();
             if (parentId != null && parentId != 0) {
-                tempCache.computeIfAbsent(parentId, k -> new ArrayList<>()).add(dept.getId());
+                tempTree.computeIfAbsent(parentId, k -> new ArrayList<>()).add(dept.getId());
             }
         }
 
-        DEPT_TREE_CACHE.putAll(tempCache);
+        // 构建完整后一次性换引用，读者无部分树窗口
+        DEPT_ANCESTORS_CACHE = Map.copyOf(tempAncestors);
+        DEPT_TREE_CACHE = Map.copyOf(tempTree);
         log.info("部门树缓存构建完成，共 {} 个部门", deptList.size());
     }
 

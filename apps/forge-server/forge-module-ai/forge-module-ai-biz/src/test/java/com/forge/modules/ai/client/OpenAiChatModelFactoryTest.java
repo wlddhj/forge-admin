@@ -15,7 +15,8 @@ class OpenAiChatModelFactoryTest {
     @BeforeEach
     void setUp() {
         factory = new OpenAiChatModelFactory(WebClient.builder(),
-                org.springframework.web.client.RestClient.builder(), new AiModuleConfig());
+                org.springframework.web.client.RestClient.builder(), new AiModuleConfig(),
+                new com.forge.framework.localcache.LocalCaches());
     }
 
     private com.forge.modules.ai.entity.AiModelConfig config(String apiKey) {

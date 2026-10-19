@@ -1,6 +1,7 @@
 package com.forge.common.config;
 
 import com.forge.common.utils.DeptDataScopeUtils;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.system.entity.SysDept;
 import com.forge.modules.system.service.SysDeptService;
 import lombok.RequiredArgsConstructor;
@@ -33,8 +34,16 @@ public class DataPermissionCacheInitializer {
         try {
             log.info("开始初始化数据权限 - 部门树缓存...");
 
-            // 查询所有部门
-            List<SysDept> allDepts = sysDeptService.list();
+            // 查询所有部门。@PostConstruct 无租户上下文，且部门树缓存为跨租户全局快照，
+            // 临时跳过租户过滤做全量查询（否则 getRequiredTenantId 抛异常导致构建失败）
+            Boolean previous = TenantContextHolder.isIgnore() ? Boolean.TRUE : null;
+            TenantContextHolder.setIgnore(true);
+            List<SysDept> allDepts;
+            try {
+                allDepts = sysDeptService.list();
+            } finally {
+                TenantContextHolder.setIgnore(previous);
+            }
             log.info("查询到 {} 个部门", allDepts.size());
 
             if (allDepts.isEmpty()) {

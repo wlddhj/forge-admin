@@ -22,5 +22,6 @@
         <module>forge-spring-boot-starter-security</module>
         <module>forge-spring-boot-starter-web</module>
         <module>forge-spring-boot-starter-tenant</module>
+        <module>forge-spring-boot-starter-localcache</module>
     </modules>
 </project>

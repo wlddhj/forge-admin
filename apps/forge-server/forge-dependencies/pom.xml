@@ -33,6 +33,7 @@
         <mockito-inline.version>5.2.0</mockito-inline.version>
         <jasypt.version>3.0.5</jasypt.version>
         <alibaba.transmittable-thread-local.version>2.14.3</alibaba.transmittable-thread-local.version>
+        <guava.version>33.4.8-jre</guava.version>
 
         <!-- 内部模块版本 -->
         <forge.version>1.0.0</forge.version>
@@ -69,6 +70,11 @@
             <dependency>
                 <groupId>com.forge</groupId>
                 <artifactId>forge-spring-boot-starter-tenant</artifactId>
+                <version>${forge.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forge</groupId>
+                <artifactId>forge-spring-boot-starter-localcache</artifactId>
                 <version>${forge.version}</version>
             </dependency>
             <dependency>
@@ -289,6 +295,13 @@
                 <groupId>com.alibaba</groupId>
                 <artifactId>transmittable-thread-local</artifactId>
                 <version>${alibaba.transmittable-thread-local.version}</version>
+            </dependency>
+
+            <!-- Guava（本地缓存等基础能力） -->
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

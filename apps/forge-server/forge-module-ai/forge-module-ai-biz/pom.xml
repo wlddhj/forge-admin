@@ -44,6 +44,10 @@
             <artifactId>forge-spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-localcache</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
