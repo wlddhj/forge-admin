@@ -5,6 +5,11 @@
       <el-button link type="primary" @click="handleExpandToggle(!expandAll)">
         {{ expandAll ? '折叠全部' : '展开全部' }}
       </el-button>
+      <span class="menu-assign-count">
+        菜单 {{ checkedMenuCount }}/{{ totalMenuCount }}
+        <template v-if="totalButtonCount"> · 按钮 {{ checkedButtonIds.size }}/{{ totalButtonCount }}</template>
+        · 合计 {{ checkedCount }}/{{ totalCount }}
+      </span>
     </div>
     <div class="menu-assign-container" :style="{ maxHeight }">
       <el-tree
@@ -73,6 +78,13 @@ const buttonsMap = ref(new Map<number, MenuTree[]>())
 const checkedButtonIds = ref(new Set<number>())
 const checkAll = ref(false)
 const expandAll = ref(false)
+// el-tree 勾选态不在 Vue 响应式内，须在勾选/回显后手动刷新
+const checkedMenuCount = ref(0)
+const totalMenuCount = computed(() => getAllTreeIds(skeletonTree.value).length)
+const totalButtonCount = computed(() => allButtonIds.value.length)
+// 勾选数 = 完全勾选的树节点 + 勾选的功能按钮
+const checkedCount = computed(() => checkedMenuCount.value + checkedButtonIds.value.size)
+const totalCount = computed(() => totalMenuCount.value + totalButtonCount.value)
 
 // 记录最近一次上报的集合，父组件 v-model 回写时若未变化则跳过回显，避免冗余 setCheckedKeys
 let lastEmitted = ''
@@ -184,6 +196,7 @@ const findMenuIdByButton = (buttonId: number): number | null => {
 const syncCheckAll = () => {
   const allIds = getAllTreeIds(skeletonTree.value)
   const treeChecked: number[] = treeRef.value?.getCheckedKeys(false) || []
+  checkedMenuCount.value = treeChecked.length
   checkAll.value =
     allIds.length > 0 &&
     treeChecked.length === allIds.length &&
@@ -265,6 +278,12 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   margin-bottom: 8px;
+
+  .menu-assign-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
 }
 
 .menu-assign-container {
