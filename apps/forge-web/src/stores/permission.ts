@@ -41,6 +41,7 @@ export const usePermissionStore = defineStore('permission', () => {
     const extractRoutes = (menus: MenuTree[]) => {
       for (const menu of menus) {
         if (menu.menuType === 2) continue // 跳过按钮
+        if (menu.routePath && /^https?:\/\//.test(menu.routePath)) continue // 外链菜单不注册内部路由，由侧边栏新窗口打开
 
         // 只处理有组件路径的菜单（排除 Layout 类型）
         if (menu.componentPath && menu.componentPath !== 'Layout' && menu.componentPath !== 'Layouts') {

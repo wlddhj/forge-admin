@@ -134,6 +134,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     public void addMenu(MenuRequest request) {
         SysMenu menu = new SysMenu();
         BeanUtil.copyProperties(request, menu);
+        resolveExternalFlag(menu);
         save(menu);
     }
 
@@ -145,7 +146,18 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
             throw new BusinessException("菜单不存在");
         }
         BeanUtil.copyProperties(request, menu);
+        resolveExternalFlag(menu);
         updateById(menu);
+    }
+
+    /**
+     * isExternal 以 routePath 前缀为准重算，不信任入参，保证与路由地址规则一致
+     */
+    private void resolveExternalFlag(SysMenu menu) {
+        String routePath = menu.getRoutePath();
+        boolean external = routePath != null
+                && (routePath.startsWith("http://") || routePath.startsWith("https://"));
+        menu.setIsExternal(external ? 1 : 0);
     }
 
     @Override

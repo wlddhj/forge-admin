@@ -14,7 +14,7 @@
           background-color="var(--app-sidebar-bg)"
           text-color="var(--app-sidebar-text)"
           active-text-color="var(--app-color-primary)"
-          router
+          @select="handleMenuSelect"
         >
           <!-- 首页菜单 -->
           <el-menu-item index="/dashboard">
@@ -75,7 +75,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { useTabsStore } from '@/stores/tabs'
@@ -90,6 +90,7 @@ import SidebarMenuItem from '@/components/SidebarMenuItem.vue'
 import AppHeaderRight from '@/themes/layouts/shared/AppHeaderRight.vue'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const permissionStore = usePermissionStore()
 const tabsStore = useTabsStore()
@@ -103,6 +104,15 @@ const mobileMenuVisible = ref(false)
 
 // 当前激活菜单
 const activeMenu = computed(() => route.path)
+
+// 外链菜单在新窗口打开，普通菜单站内跳转
+const handleMenuSelect = (index: string) => {
+  if (/^https?:\/\//.test(index)) {
+    window.open(index, '_blank', 'noopener')
+    return
+  }
+  if (index !== route.path) router.push(index)
+}
 
 // 面包屑
 const breadcrumbs = computed(() => {

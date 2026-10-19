@@ -26,7 +26,6 @@
           background-color="#304156"
           text-color="#bfcbd9"
           active-text-color="#409EFF"
-          router
           @select="handleMenuSelect"
         >
           <!-- 首页菜单 -->
@@ -110,10 +109,14 @@ const menuList = computed(() => {
     ?.filter((item: any) => !item.meta?.hidden) || []
 })
 
-// 菜单选择事件
-const handleMenuSelect = () => {
-  // 移动端选择菜单后关闭抽屉
+// 菜单选择事件：外链新窗口打开，普通菜单站内跳转，并关闭抽屉
+const handleMenuSelect = (index: string) => {
   visible.value = false
+  if (/^https?:\/\//.test(index)) {
+    window.open(index, '_blank', 'noopener')
+    return
+  }
+  if (index !== route.path) router.push(index)
 }
 
 // 退出登录

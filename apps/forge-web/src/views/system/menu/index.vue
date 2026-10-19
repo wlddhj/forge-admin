@@ -190,8 +190,17 @@
         <el-form-item label="菜单名称" prop="menuName">
           <el-input v-model="formData.menuName" placeholder="请输入菜单名称" />
         </el-form-item>
-        <el-form-item v-if="formData.menuType !== 2" label="路由路径" prop="routePath">
-          <el-input v-model="formData.routePath" placeholder="请输入路由路径，如：/system/user" />
+        <el-form-item v-if="formData.menuType !== 2" prop="routePath">
+          <template #label>
+            <span>路由路径</span>
+            <el-tooltip
+              content="访问的路由地址，如：user；如需外网地址时，则以 http(s):// 开头，外链将在新的浏览器窗口打开"
+              placement="top"
+            >
+              <el-icon class="label-tip-icon"><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </template>
+          <el-input v-model="formData.routePath" placeholder="访问的路由地址，如：user；外网地址以 http(s):// 开头" />
         </el-form-item>
         <el-form-item v-if="formData.menuType === 1" label="组件路径" prop="componentPath">
           <el-input v-model="formData.componentPath" placeholder="请输入组件路径，如：/views/system/user/index" />
@@ -248,7 +257,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { getMenuList, getMenuTree, addMenu, updateMenu, deleteMenu, refreshMenuCache } from '@/api/system'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, QuestionFilled } from '@element-plus/icons-vue'
 import type { Menu, MenuTree, MenuRequest } from '@/types/system'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
@@ -310,12 +319,32 @@ const formData = reactive<MenuRequest>({
   permission: '',
   sortOrder: 0,
   status: 1,
-  visible: 1
+  visible: 1,
+  isExternal: 0
 })
+
+const isExternalPath = (path?: string) => !!path && /^https?:\/\//.test(path)
 
 const formRules: FormRules = {
   menuType: [{ required: true, message: '请选择菜单类型', trigger: 'change' }],
-  menuName: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }]
+  menuName: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
+  routePath: [
+    {
+      validator: (_rule, value: string, callback) => {
+        if (formData.menuType === 2) return callback()
+        if (!value || !value.trim()) return callback(new Error('请输入路由路径'))
+        const path = value.trim()
+        if (isExternalPath(path)) {
+          return /^https?:\/\/\S+$/.test(path)
+            ? callback()
+            : callback(new Error('外链地址以 http(s):// 开头且不能包含空白字符'))
+        }
+        if (/^\/?[\w/-]+$/.test(path)) return callback()
+        callback(new Error('格式：访问的路由地址（如 user）或以 http(s):// 开头的外链地址'))
+      },
+      trigger: 'blur'
+    }
+  ]
 }
 
 const menuTreeOptions = ref<MenuTree[]>([])
@@ -467,7 +496,7 @@ const handleAdd = () => {
   dialogTitle.value = '新增菜单'
   Object.assign(formData, {
     id: undefined, parentId: undefined, menuType: 1, menuName: '',
-    routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1
+    routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1, isExternal: 0
   })
   dialogVisible.value = true
 }
@@ -478,7 +507,7 @@ const handleAddChild = (row: MenuTree) => {
   dialogTitle.value = '新增子菜单'
   Object.assign(formData, {
     id: undefined, parentId: row.id, menuType: 1, menuName: '',
-    routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1
+    routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1, isExternal: 0
   })
   dialogVisible.value = true
 }
@@ -490,7 +519,8 @@ const handleEdit = (row: MenuTree) => {
   Object.assign(formData, {
     id: row.id, parentId: row.parentId, menuType: row.menuType, menuName: row.menuName,
     routePath: row.routePath, componentPath: row.componentPath,
-    icon: row.icon, permission: row.permission, sortOrder: row.sortOrder, status: row.status, visible: row.visible
+    icon: row.icon, permission: row.permission, sortOrder: row.sortOrder, status: row.status, visible: row.visible,
+    isExternal: row.isExternal ?? 0
   })
   dialogVisible.value = true
 }
@@ -498,6 +528,7 @@ const handleEdit = (row: MenuTree) => {
 const handleSubmit = async () => {
   if (!formRef.value) return
   await formRef.value.validate()
+  formData.isExternal = formData.menuType !== 2 && isExternalPath(formData.routePath?.trim()) ? 1 : 0
   submitLoading.value = true
   try {
     if (isEdit.value) {
@@ -574,3 +605,11 @@ onMounted(() => {
   getMenuTreeData()
 })
 </script>
+
+<style scoped lang="scss">
+.label-tip-icon {
+  margin-left: 2px;
+  color: var(--el-text-color-secondary);
+  cursor: help;
+}
+</style>

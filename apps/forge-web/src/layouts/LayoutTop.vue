@@ -13,7 +13,7 @@
           background-color="transparent"
           text-color="var(--el-text-color-primary)"
           active-text-color="var(--app-color-primary)"
-          router
+          @select="handleMenuSelect"
         >
           <el-menu-item index="/dashboard">
             <el-icon><HomeFilled /></el-icon>
@@ -44,7 +44,7 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { useTabsStore } from '@/stores/tabs'
@@ -58,6 +58,7 @@ import SidebarMenuItem from '@/components/SidebarMenuItem.vue'
 import AppHeaderRight from '@/themes/layouts/shared/AppHeaderRight.vue'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const permissionStore = usePermissionStore()
 const tabsStore = useTabsStore()
@@ -67,6 +68,15 @@ const { isMobile } = useResponsive()
 const brandStore = useBrandStore()
 
 const activeMenu = computed(() => route.path)
+
+// 外链菜单在新窗口打开，普通菜单站内跳转
+const handleMenuSelect = (index: string) => {
+  if (/^https?:\/\//.test(index)) {
+    window.open(index, '_blank', 'noopener')
+    return
+  }
+  if (index !== route.path) router.push(index)
+}
 
 const shouldShowTabs = computed(() => {
   if (isMobile.value && pageConfigStore.config.autoHideTabsOnMobile) return false

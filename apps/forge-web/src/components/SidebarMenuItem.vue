@@ -33,7 +33,8 @@ const visibleChildren = computed(() =>
 
 const fullPath = computed(() => {
   const p = props.menu.routePath || props.menu.path || ''
-  if (p.startsWith('/')) return p
+  // 外链地址直接作为 index，不与父路径拼接
+  if (/^https?:\/\//.test(p) || p.startsWith('/')) return p
   return props.parentPath ? `${props.parentPath}/${p}` : p
 })
 </script>
