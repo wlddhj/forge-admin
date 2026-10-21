@@ -34,6 +34,7 @@
         <jasypt.version>3.0.5</jasypt.version>
         <alibaba.transmittable-thread-local.version>2.14.3</alibaba.transmittable-thread-local.version>
         <guava.version>33.4.8-jre</guava.version>
+        <archunit.version>1.3.0</archunit.version>
 
         <!-- 内部模块版本 -->
         <forge.version>1.0.0</forge.version>
@@ -302,6 +303,13 @@
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
                 <version>${guava.version}</version>
+            </dependency>
+
+            <!-- ArchUnit（分层架构守护测试） -->
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
