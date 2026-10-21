@@ -41,6 +41,8 @@ class TenantSecurityWebFilterTest {
     @Test
     void ignoreUrl_withoutTenantId_callsChain() throws Exception {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/admin-api/auth/login");
+        // 过滤器按 servletPath（URI 去 context-path）匹配，Mock 不会从 requestURI 推导，需模拟容器显式设置
+        req.setServletPath("/admin-api/auth/login");
         MockHttpServletResponse res = new MockHttpServletResponse();
 
         // Capture the ignore state INSIDE the filter's execution (before finally clears it)
@@ -58,6 +60,7 @@ class TenantSecurityWebFilterTest {
     @Test
     void normalUrl_withoutTenantId_writes400() throws Exception {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/admin-api/system/user/list");
+        req.setServletPath("/admin-api/system/user/list");
         MockHttpServletResponse res = new MockHttpServletResponse();
         filter.doFilter(req, res, chain);
         verify(chain, never()).doFilter(req, res);
