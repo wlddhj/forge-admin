@@ -35,9 +35,8 @@ class ArchitectureTest {
     @ArchTest
     static final ArchRule controllers_should_not_depend_on_mappers =
             noClasses().that().resideInAPackage("..controller..")
-                    .and().doNotHaveFullyQualifiedName("com.forge.modules.system.controller.admin.DashboardController")
                     .should().dependOnClassesThat().resideInAPackage("..mapper..")
-                    .because("Controller 只能经 Service 访问数据；DashboardController 为存量违规（待下沉 Service），此处冻结防止新增");
+                    .because("Controller 只能经 Service 访问数据");
 
     /** Mapper 是最底层，不得向上依赖 Service/Controller */
     @ArchTest
