@@ -30,6 +30,12 @@ public class AgentGraphState extends AgentState {
     public static final String EXPERT_APPROVAL = "expertApproval";
     /** 团队协作：Supervisor 给出的最终回答（summary 节点直出，不重复调模型） */
     public static final String SUPERVISOR_ANSWER = "supervisorAnswer";
+    /** 团队协作：批量分派队列 [{agentId, agentCode, agentName, task, maxSteps, allowedTools}]（并行专家池消费） */
+    public static final String DISPATCH_QUEUE = "dispatchQueue";
+    /** 团队协作：当前分派轮次（子图检查点 threadId 组成部分，保证中断恢复的子图 thread 稳定） */
+    public static final String EXPERT_ROUND = "expertRound";
+    /** 多轮记忆：同会话近期成功 run 的摘要（决策/调度提示词注入） */
+    public static final String CONVERSATION_MEMORY = "conversationMemory";
 
     public AgentGraphState(Map<String, Object> data) {
         super(data);

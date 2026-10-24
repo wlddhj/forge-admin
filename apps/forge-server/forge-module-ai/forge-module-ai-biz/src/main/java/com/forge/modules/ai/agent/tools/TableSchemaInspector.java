@@ -17,6 +17,16 @@ public class TableSchemaInspector {
 
     private final AiSqlWhitelistService whitelistService;
 
+    /**
+     * 启用中的白名单表（供图侧 PromptBudgeter 按任务相关性选择渲染）
+     */
+    public List<AiSqlWhitelist> enabledTables() {
+        return whitelistService.getEnabledTables();
+    }
+
+    /**
+     * 全量表清单描述（白名单内的启用表，含注释）；按任务相关性裁剪由图侧 PromptBudgeter.renderTables 完成
+     */
     public String describeTables() {
         List<AiSqlWhitelist> tables = whitelistService.getEnabledTables();
         if (tables.isEmpty()) {

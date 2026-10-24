@@ -3,6 +3,7 @@ package com.forge.modules.ai.agent.tools;
 import com.forge.common.exception.BusinessException;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -27,6 +28,11 @@ public class ToolRegistry {
             throw new BusinessException("未注册的 Agent 工具: " + name);
         }
         return tool;
+    }
+
+    /** 全部注册工具（原生 tool-callback 构建用） */
+    public Collection<AgentTool> all() {
+        return tools.values();
     }
 
     /**

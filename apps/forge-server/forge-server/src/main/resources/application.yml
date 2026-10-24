@@ -68,6 +68,16 @@ flowlong:
 forge:
   info:
     base-package: com.forge
+  ai:
+    agent:
+      sql-result-char-budget: ${AI_AGENT_SQL_BUDGET:6000}     # SQL 工具结果字符预算
+      expert-parallelism: ${AI_AGENT_EXPERT_PARALLELISM:2}    # 团队图专家并行度
+      checkpoint-interval-team: ${AI_AGENT_CKPT_INTERVAL:2}   # 团队图检查点节流间隔
+      step-batch-size: ${AI_AGENT_STEP_BATCH:8}               # 步骤事件批量落库阈值
+      executor:
+        core: ${AI_AGENT_EXEC_CORE:8}                         # Agent 专用线程池
+        max: ${AI_AGENT_EXEC_MAX:16}
+        queue: ${AI_AGENT_EXEC_QUEUE:200}
   tenant:
     enable: ${TENANT_ENABLE:false}          # 关闭多租户时改为 false
     header: X-Tenant-Id
@@ -258,9 +268,12 @@ ai:
   client:
     connect-timeout: ${AI_CLIENT_CONNECT_TIMEOUT:5000}
     read-timeout: ${AI_CLIENT_READ_TIMEOUT:120000}
+    decision-timeout: ${AI_CLIENT_DECISION_TIMEOUT:45000}
+    failover-parallelism: ${AI_CLIENT_FAILOVER_PARALLELISM:2}
   models:
     default-model: ${AI_DEFAULT_MODEL:deepseek-chat}
     default-temperature: ${AI_DEFAULT_TEMPERATURE:0.7}
     default-max-tokens: ${AI_DEFAULT_MAX_TOKENS:4096}
     cache-enabled: ${AI_MODEL_CACHE_ENABLED:true}
     cache-expire-seconds: ${AI_MODEL_CACHE_EXPIRE:3600}
+

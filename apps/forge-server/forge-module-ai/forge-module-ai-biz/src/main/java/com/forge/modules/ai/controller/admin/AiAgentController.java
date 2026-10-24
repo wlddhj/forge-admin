@@ -25,7 +25,6 @@ import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,6 +46,7 @@ public class AiAgentController {
     private final AgentGraphRunner graphRunner;
     private final ObjectMapper objectMapper;
     private final AgentDataCleanupService dataCleanupService;
+    private final reactor.core.scheduler.Scheduler agentScheduler;
 
     /**
      * 手动触发运行数据清理（按 sys_config 保留期，物理删除且不可恢复）
@@ -185,6 +185,7 @@ public class AiAgentController {
         final AiAgentConfig finalConfig = config;
         final com.forge.modules.ai.entity.AiAgentTeam finalTeam = team;
 
+        // Agent 专用线程池执行（与 boundedElastic 隔离，防止并发团队任务耗尽公共线程池）
         return Flux.<ServerSentEvent<String>>create(sink -> {
             try {
                 if (finalTeam != null) {
@@ -203,7 +204,7 @@ public class AiAgentController {
                         Map.of("message", String.valueOf(e.getMessage())))));
                 sink.complete();
             }
-        }).subscribeOn(Schedulers.boundedElastic());
+        }).subscribeOn(agentScheduler);
     }
 
     private ServerSentEvent<String> toFrame(AgentEvents.AgentEvent event) {

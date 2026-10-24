@@ -3,12 +3,12 @@ package com.forge.modules.ai.client;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.forge.modules.ai.config.AiModuleConfig;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.entity.AiModelConfig;
 import com.forge.modules.ai.mapper.AiModelConfigMapper;
 import com.forge.modules.system.service.SysConfigService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -16,9 +16,11 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.MessageAggregator;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
@@ -27,6 +29,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * LLM 客户端实现：Spring AI 直连上游 OpenAI 兼容端点。
@@ -34,7 +41,6 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class SpringAiLlmClient implements LlmClient {
 
     public static final String DONE_FRAME = "[DONE]";
@@ -46,6 +52,22 @@ public class SpringAiLlmClient implements LlmClient {
     private final ObjectMapper objectMapper;
     private final AiModelConfigMapper modelConfigMapper;
     private final SysConfigService sysConfigService;
+    private final AiModuleConfig aiModuleConfig;
+    private final Executor agentExecutor;
+
+    public SpringAiLlmClient(OpenAiChatModelFactory modelFactory,
+                             ObjectMapper objectMapper,
+                             AiModelConfigMapper modelConfigMapper,
+                             SysConfigService sysConfigService,
+                             AiModuleConfig aiModuleConfig,
+                             @Qualifier("agentExecutor") Executor agentExecutor) {
+        this.modelFactory = modelFactory;
+        this.objectMapper = objectMapper;
+        this.modelConfigMapper = modelConfigMapper;
+        this.sysConfigService = sysConfigService;
+        this.aiModuleConfig = aiModuleConfig;
+        this.agentExecutor = agentExecutor;
+    }
 
     @Override
     public ChatResponse chat(ChatRequest request, AiModelConfig modelConfig) {
@@ -162,6 +184,119 @@ public class SpringAiLlmClient implements LlmClient {
                     log.error("LLM 流式调用失败 [{}]: {}", modelConfig.getModelName(), friendly, e);
                     return Flux.just(errorFrame(friendly));
                 });
+    }
+
+    /**
+     * 决策类调用：流式聚合 + decision-timeout 独立收紧 + 失败后备用模型并行竞速（首成功即采用）。
+     * 文本增量实时回调 onDelta（决策节点转发 THOUGHT 事件），超时/错误返回 success=false。
+     */
+    @Override
+    public ChatResponse chatForDecision(ChatRequest request, AiModelConfig modelConfig, Consumer<String> onDelta) {
+        ChatResponse primary = doDecisionChat(request, modelConfig, onDelta);
+        if (Boolean.TRUE.equals(primary.getSuccess())) {
+            return primary;
+        }
+        return raceFailover(modelConfig, primary, candidate -> doDecisionChat(request, candidate, onDelta));
+    }
+
+    private ChatResponse doDecisionChat(ChatRequest request, AiModelConfig modelConfig, Consumer<String> onDelta) {
+        ChatResponse response = new ChatResponse();
+        long start = System.currentTimeMillis();
+        response.setModelName(modelConfig.getModelName());
+        try {
+            ChatModel chatModel = modelFactory.get(modelConfig);
+            Prompt prompt = buildPrompt(request, modelConfig);
+            long timeout = aiModuleConfig.getClient().getDecisionTimeout() == null
+                    ? 45000L : aiModuleConfig.getClient().getDecisionTimeout();
+
+            StringBuilder content = new StringBuilder();
+            AtomicReference<org.springframework.ai.chat.model.ChatResponse> aggregated =
+                    new AtomicReference<>();
+            // MessageAggregator 聚合流（含末块 usage），doOnNext 透传文本增量
+            MessageAggregator aggregator = new MessageAggregator();
+            Flux<org.springframework.ai.chat.model.ChatResponse> withDelta =
+                    chatModel.stream(prompt).doOnNext(chunk -> {
+                        String delta = chunk.getResult() == null || chunk.getResult().getOutput() == null
+                                ? null : chunk.getResult().getOutput().getText();
+                        if (delta != null && !delta.isEmpty()) {
+                            content.append(delta);
+                            if (onDelta != null) {
+                                onDelta.accept(delta);
+                            }
+                        }
+                    });
+            org.springframework.ai.chat.model.ChatResponse aiResponse =
+                    aggregator.aggregate(withDelta, aggregated::set)
+                            .blockLast(java.time.Duration.ofMillis(timeout));
+
+            response.setSuccess(true);
+            response.setResponseTime(System.currentTimeMillis() - start);
+            String text = content.length() > 0 ? content.toString()
+                    : (aiResponse != null && aiResponse.getResult() != null && aiResponse.getResult().getOutput() != null
+                            ? aiResponse.getResult().getOutput().getText() : "");
+            response.setContent(text == null ? "" : text);
+            org.springframework.ai.chat.model.ChatResponse usageSource =
+                    aggregated.get() != null ? aggregated.get() : aiResponse;
+            if (usageSource != null && usageSource.getMetadata() != null
+                    && usageSource.getMetadata().getUsage() != null) {
+                response.setInputTokens(usageSource.getMetadata().getUsage().getPromptTokens());
+                response.setOutputTokens(usageSource.getMetadata().getUsage().getCompletionTokens());
+            }
+        } catch (Exception e) {
+            String friendly = friendlyError(e instanceof Exception ex ? ex : new RuntimeException(e));
+            String message = String.valueOf(e.getMessage()).toLowerCase();
+            boolean timeout = e instanceof java.util.concurrent.TimeoutException
+                    || (e.getCause() instanceof java.util.concurrent.TimeoutException)
+                    || message.contains("timeout");
+            log.error("LLM 决策调用失败 [{}] timeout={}: {}", modelConfig.getModelName(), timeout, friendly);
+            response.setSuccess(false);
+            response.setErrorMessage(timeout
+                    ? "决策模型响应超时（" + (aiModuleConfig.getClient().getDecisionTimeout() == null
+                            ? 45000 : aiModuleConfig.getClient().getDecisionTimeout()) + "ms），已尝试备用模型"
+                    : friendly);
+            response.setResponseTime(System.currentTimeMillis() - start);
+        }
+        return response;
+    }
+
+    /**
+     * 备用模型并行竞速：按 failover-parallelism 分批并发调用，批内总时延 = 最慢者（替代串行求和）；
+     * 任一成功即返回，全败进入下一批；开关关闭/无候选/全败返回主模型原始失败。
+     */
+    private ChatResponse raceFailover(AiModelConfig primary, ChatResponse primaryResponse,
+                                      Function<AiModelConfig, ChatResponse> attempt) {
+        try {
+            if (!fallbackEnabled()) {
+                return primaryResponse;
+            }
+            List<AiModelConfig> candidates = fallbackCandidates(primary);
+            int parallelism = Math.max(1, aiModuleConfig.getClient().getFailoverParallelism() == null
+                    ? 1 : aiModuleConfig.getClient().getFailoverParallelism());
+            for (int start = 0; start < candidates.size(); start += parallelism) {
+                List<AiModelConfig> batch = candidates.subList(start,
+                        Math.min(candidates.size(), start + parallelism));
+                List<CompletableFuture<ChatResponse>> futures = batch.stream()
+                        .map(candidate -> CompletableFuture.supplyAsync(() -> attempt.apply(candidate), agentExecutor))
+                        .toList();
+                for (int i = 0; i < futures.size(); i++) {
+                    try {
+                        ChatResponse response = futures.get(i).join();
+                        if (Boolean.TRUE.equals(response.getSuccess())) {
+                            log.warn("LLM 决策故障转移: 主模型 [{}] 失败，切换 [{}] 成功",
+                                    primary.getModelName(), batch.get(i).getModelName());
+                            return response;
+                        }
+                        log.warn("LLM 决策故障转移: 备用模型 [{}] 失败", batch.get(i).getModelName());
+                    } catch (Exception e) {
+                        log.warn("LLM 决策故障转移: 备用模型 [{}] 异常: {}",
+                                batch.get(i).getModelName(), e.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("LLM 决策故障转移流程异常，返回主模型原始失败响应", e);
+        }
+        return primaryResponse;
     }
 
     // ========== Prompt 构建 ==========

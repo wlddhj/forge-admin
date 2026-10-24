@@ -49,6 +49,7 @@ public class AgentGraphRunner {
 
     private final AgentGraphRegistry registry;
     private final ToolRegistry toolRegistry;
+    private final com.forge.modules.ai.agent.AgentProperties agentProperties;
     private final AiAgentConfigMapper agentConfigMapper;
     private final AiAgentRunMapper runMapper;
     private final AiAgentRunStepMapper runStepMapper;
@@ -76,7 +77,12 @@ public class AgentGraphRunner {
         runMapper.insert(run);
 
         try {
-            return execute(run, agentConfig, GraphInput.args(initialState(input, images)), sseEmitter, null, null);
+            Map<String, Object> state = initialState(input, images);
+            String memory = buildConversationMemory(conversationId);
+            if (memory != null) {
+                state.put(AgentGraphState.CONVERSATION_MEMORY, memory);
+            }
+            return execute(run, agentConfig, GraphInput.args(state), sseEmitter, null, null);
         } catch (Exception e) {
             log.error("Agent 运行失败 runId={}", run.getId(), e);
             return finishRun(run, AiAgentRun.STATUS_FAILED, e.getMessage());
@@ -111,6 +117,12 @@ public class AgentGraphRunner {
         state.put(AgentGraphState.TEAM_ID, team.getId());
         state.put(AgentGraphState.AGENT_REPORTS, new java.util.ArrayList<>());
         state.put(AgentGraphState.EXPERT_STEPS, 0);
+        state.put(AgentGraphState.DISPATCH_QUEUE, new java.util.ArrayList<>());
+        state.put(AgentGraphState.EXPERT_ROUND, 0);
+        String memory = buildConversationMemory(conversationId);
+        if (memory != null) {
+            state.put(AgentGraphState.CONVERSATION_MEMORY, memory);
+        }
         try {
             return execute(run, virtualTeamConfig(team), GraphInput.args(state), sseEmitter, team, members);
         } catch (Exception e) {
@@ -181,13 +193,37 @@ public class AgentGraphRunner {
     private AiAgentRun execute(AiAgentRun run, AiAgentConfig agentConfig, GraphInput graphInput,
                                Consumer<AgentEvents.AgentEvent> sseEmitter,
                                AiAgentTeam team, List<AiAgentTeamMember> teamMembers) {
+        StepRecorder stepRecorder = new StepRecorder(run.getId(), runStepMapper, objectMapper,
+                agentProperties.getStepBatchSize());
+        // 团队图检查点按间隔节流（中断/终态 flush 兜底）；单 Agent 图逐节点落库
+        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(checkpointMapper, objectMapper, run.getId(),
+                team != null ? Math.max(1, agentProperties.getCheckpointIntervalTeam()) : 1, false);
+        try {
+            return doExecute(run, agentConfig, graphInput, sseEmitter, team, teamMembers, stepRecorder, saver);
+        } finally {
+            // 任何退出路径（成功/中断/异常）保证恢复点与缓冲步骤落库（released 后 no-op）
+            RunnableConfig config = RunnableConfig.builder().threadId("run-" + run.getId()).build();
+            saver.flush(config);
+            stepRecorder.flush();
+        }
+    }
+
+    private AiAgentRun doExecute(AiAgentRun run, AiAgentConfig agentConfig, GraphInput graphInput,
+                                 Consumer<AgentEvents.AgentEvent> sseEmitter,
+                                 AiAgentTeam team, List<AiAgentTeamMember> teamMembers,
+                                 StepRecorder stepRecorder, MysqlCheckpointSaver saver) {
         Consumer<AgentEvents.AgentEvent> emitter = event -> {
             sseEmitter.accept(event);
-            persistStep(run.getId(), event);
+            stepRecorder.record(event);
         };
 
+        RunScopedCache runCache = new RunScopedCache(agentConfigMapper, modelConfigMapper);
         AgentGraphContext ctx = new AgentGraphContext(
-                agentConfig, resolveNodeModels(agentConfig), toolRegistry, emitter, new AtomicInteger());
+                agentConfig, resolveNodeModels(agentConfig, runCache), toolRegistry, emitter, new AtomicInteger());
+        ctx.setRunCache(runCache);
+        ctx.setRunId(run.getId());
+        ctx.setSubSaverFactory(threadKey -> new MysqlCheckpointSaver(
+                checkpointMapper, objectMapper, run.getId(), 1, true));
         if (team != null) {
             ctx.setTeam(team);
             ctx.setTeamMembers(teamMembers);
@@ -195,22 +231,21 @@ public class AgentGraphRunner {
 
         AgentGraphDefinition definition = registry.get(agentConfig.getGraphKey());
         int maxSteps = agentConfig.getMaxSteps() == null ? 8 : agentConfig.getMaxSteps();
-        // 团队图节点遍历量 = 轮次 ×（每轮 supervisor+专家循环+汇报），远大于单 Agent 的 maxSteps*3
+        // 外层团队图每轮 = supervisor + expert_pool 两节点；专家子图独立编译（各自 maxSteps*3 上限）
         int recursionLimit;
         if (team != null) {
-            int maxExpertSteps = teamMembers.stream()
-                    .map(m -> m.getMaxSteps() == null ? 8 : m.getMaxSteps())
-                    .max(Integer::compareTo).orElse(8);
-            recursionLimit = maxSteps * (2 * maxExpertSteps + 10) + 20;
+            recursionLimit = maxSteps * 3 + 10;
         } else {
             recursionLimit = maxSteps * 3;
         }
-        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(checkpointMapper, objectMapper, run.getId());
         CompiledGraph<AgentGraphState> app;
         try {
+            // releaseThread(false)：动态中断（框架吞异常正常收流）不触发检查点清理，保证审批恢复点；
+            // 成功路径由 reachedEnd 后显式 deleteThread 清理
             app = definition.build(ctx).compile(CompileConfig.builder()
                     .checkpointSaver(saver)
                     .recursionLimit(recursionLimit)
+                    .releaseThread(false)
                     .build());
         } catch (org.bsc.langgraph4j.GraphStateException e) {
             throw new BusinessException("编排图构建失败: " + e.getMessage());
@@ -235,6 +270,7 @@ public class AgentGraphRunner {
             }
         } catch (RuntimeException streamError) {
             if (containsInterrupt(streamError)) {
+                stepRecorder.flush();
                 AiAgentTodo todo = new AiAgentTodo();
                 todo.setRunId(run.getId());
                 todo.setTitle("Agent 高危操作确认（运行 #" + run.getId() + "）");
@@ -255,14 +291,21 @@ public class AgentGraphRunner {
             run.setFinalAnswer(finalAnswer);
             emitter.accept(new AgentEvents.AgentEvent(AgentEvents.Type.FINAL, null, "final",
                     Map.of("runId", run.getId(), "answer", finalAnswer == null ? "" : finalAnswer)));
+            // 正常完成：显式清理本线程检查点（替代被 releaseThread(false) 关闭的自动清理）
+            try {
+                saver.deleteThread(threadId);
+            } catch (Exception e) {
+                log.warn("清理完成 run 的检查点失败 runId={}: {}", run.getId(), e.getMessage());
+            }
             return finishRun(run, AiAgentRun.STATUS_SUCCEEDED, null);
         }
 
         // 未到 END 且无异常：按动态中断处理（框架可能吞掉中断异常正常收流）
+        stepRecorder.flush();
         AiAgentTodo todo = new AiAgentTodo();
         todo.setRunId(run.getId());
         todo.setTitle("Agent 高危操作确认（运行 #" + run.getId() + "）");
-        todo.setContent(buildTodoContent(run.getId(), config, saver));
+        todo.setContent(buildTodoContent(run.getId(), config, saver, stepRecorder));
         todo.setStatus(AiAgentTodo.STATUS_PENDING);
         todoMapper.insert(todo);
         runMapper.updateById(run);
@@ -307,6 +350,47 @@ public class AgentGraphRunner {
         return state;
     }
 
+    /**
+     * 多轮记忆：同会话最近 N 次成功 run 的「问/答」摘要（决策/调度提示词注入，追问不重复执行已完成的查询）。
+     * 定时任务等无会话场景（conversationId=null）不注入；查询失败静默跳过（不影响主流程）。
+     */
+    String buildConversationMemory(Long conversationId) {
+        if (conversationId == null) {
+            return null;
+        }
+        try {
+            List<AiAgentRun> runs = runMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiAgentRun>()
+                            .eq(AiAgentRun::getConversationId, conversationId)
+                            .eq(AiAgentRun::getStatus, AiAgentRun.STATUS_SUCCEEDED)
+                            .isNotNull(AiAgentRun::getFinalAnswer)
+                            .orderByDesc(AiAgentRun::getId)
+                            .last("LIMIT " + Math.max(1, agentProperties.getPrompt().getMemoryRuns())));
+            if (runs.isEmpty()) {
+                return null;
+            }
+            int perAnswerBudget = Math.max(200,
+                    agentProperties.getPrompt().getMemoryBudget() / runs.size() - 200);
+            StringBuilder sb = new StringBuilder();
+            for (int i = runs.size() - 1; i >= 0; i--) { // 时间正序呈现
+                AiAgentRun run = runs.get(i);
+                sb.append("问：").append(truncate(run.getInputSummary(), 200)).append('\n');
+                sb.append("答：").append(truncate(run.getFinalAnswer(), perAnswerBudget)).append("\n\n");
+            }
+            return sb.toString().trim();
+        } catch (Exception e) {
+            log.warn("多轮记忆加载失败 conversationId={}: {}", conversationId, e.getMessage());
+            return null;
+        }
+    }
+
+    private String truncate(String text, int limit) {
+        if (text == null) {
+            return "";
+        }
+        return text.length() > limit ? text.substring(0, limit) + "…" : text;
+    }
+
     private AiAgentRun finishRun(AiAgentRun run, String status, String errorMsg) {
         run.setStatus(status);
         run.setErrorMsg(errorMsg);
@@ -316,9 +400,10 @@ public class AgentGraphRunner {
     }
 
     /**
-     * 兜底待办内容：依次尝试 checkpoint 状态 → 中断前最近一次决策步骤的落库输出，提取待执行的高危工具调用明细
+     * 兜底待办内容：依次尝试 checkpoint 状态 → 缓冲/落库的最近决策步骤输出，提取待执行的高危工具调用明细
      */
-    private String buildTodoContent(Long runId, RunnableConfig config, MysqlCheckpointSaver saver) {
+    private String buildTodoContent(Long runId, RunnableConfig config, MysqlCheckpointSaver saver,
+                                    StepRecorder stepRecorder) {
         try {
             var checkpoint = saver.get(config);
             if (checkpoint.isPresent()) {
@@ -329,6 +414,12 @@ public class AgentGraphRunner {
             }
         } catch (Exception e) {
             log.warn("从 checkpoint 提取待办明细失败 runId={}: {}", runId, e.getMessage());
+        }
+        // 缓冲优先（中断路径刚 flush 过则缓冲已空，转 DB）
+        String decisionOutput = stepRecorder.latestDecisionOutput();
+        String fromBuffer = formatDecisionOutput(decisionOutput);
+        if (fromBuffer != null) {
+            return fromBuffer;
         }
         // 最可靠来源：中断前最近一次决策步骤的落库输出（含模型原始 JSON，SQL 可见）
         try {
@@ -365,6 +456,14 @@ public class AgentGraphRunner {
         if (!(decision.get("calls") instanceof List<?> calls) || calls.isEmpty()) {
             return null;
         }
+        // 团队模式下 checkpoint 的 DECISION 可能是 Supervisor 的分派决策（agent/task 结构），
+        // 并非待执行的工具调用（tool/args），不作为待办明细（交由决策步骤输出兜底）
+        boolean anyToolCall = calls.stream()
+                .filter(c -> c instanceof Map<?, ?>)
+                .anyMatch(c -> ((Map<?, ?>) c).get("tool") != null);
+        if (!anyToolCall) {
+            return null;
+        }
         StringBuilder sb = new StringBuilder("Agent 判定需要执行高危工具，请人工确认：\n");
         for (Object call : calls) {
             if (call instanceof Map<?, ?> c) {
@@ -399,9 +498,24 @@ public class AgentGraphRunner {
     }
 
     /**
-     * 解析 model_bindings：{"节点":{"modelId":1}|{"modelType":"text"}}
+     * 从步骤落库 JSON（{"output":"..."}）提取决策并格式化调用明细，失败返回 null
      */
-    private Map<String, AiModelConfig> resolveNodeModels(AiAgentConfig agentConfig) {
+    private String formatDecisionOutput(String stepOutputJson) {
+        if (stepOutputJson == null || stepOutputJson.isBlank()) {
+            return null;
+        }
+        try {
+            String modelOutput = objectMapper.readTree(stepOutputJson).path("output").asText("");
+            return formatCalls(parseDecisionJson(modelOutput));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 解析 model_bindings：{"节点":{"modelId":1}|{"modelType":"text"}}（经 run 级缓存取模型）
+     */
+    private Map<String, AiModelConfig> resolveNodeModels(AiAgentConfig agentConfig, RunScopedCache runCache) {
         Map<String, AiModelConfig> nodeModels = new HashMap<>();
         if (agentConfig.getModelBindings() == null || agentConfig.getModelBindings().isBlank()) {
             return nodeModels;
@@ -413,15 +527,9 @@ public class AgentGraphRunner {
                 JsonNode binding = entry.getValue();
                 AiModelConfig model = null;
                 if (binding.has("modelId")) {
-                    model = modelConfigMapper.selectById(binding.get("modelId").asLong());
+                    model = runCache.model(binding.get("modelId").asLong());
                 } else if (binding.has("modelType")) {
-                    String modelType = binding.get("modelType").asText();
-                    model = modelConfigMapper.selectList(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiModelConfig>()
-                                    .eq(AiModelConfig::getModelType, modelType)
-                                    .eq(AiModelConfig::getStatus, 1)
-                                    .orderByAsc(AiModelConfig::getId)
-                                    .last("LIMIT 1"))
-                            .stream().findFirst().orElse(null);
+                    model = runCache.modelByType(binding.get("modelType").asText());
                 }
                 if (model != null) {
                     nodeModels.put(node, model);
@@ -431,56 +539,5 @@ public class AgentGraphRunner {
             log.warn("解析 model_bindings 失败: {}", e.getMessage());
         }
         return nodeModels;
-    }
-
-    private void persistStep(long runId, AgentEvents.AgentEvent event) {
-        if (event.type() != AgentEvents.Type.STEP_END && event.type() != AgentEvents.Type.TOOL_RESULT) {
-            return;
-        }
-        try {
-            AiAgentRunStep step = new AiAgentRunStep();
-            step.setRunId(runId);
-            step.setSeq(event.payload() != null && event.payload().get("seq") instanceof Number n
-                    ? n.intValue() : 0);
-            step.setNodeName(event.node() == null ? event.name() : event.node());
-            step.setStepType(event.type() == AgentEvents.Type.TOOL_RESULT ? "TOOL" : nodeStepType(event.node()));
-            step.setToolName(event.type() == AgentEvents.Type.TOOL_RESULT ? event.name() : null);
-            if (event.payload() != null) {
-                if (event.payload().get("modelId") instanceof Number m) {
-                    step.setModelId(m.longValue());
-                }
-                step.setStepOutput(toJson(event.payload()));
-                if (event.payload().get("durationMs") instanceof Number d) {
-                    step.setDurationMs(d.intValue());
-                }
-                if (event.payload().get("tokensIn") instanceof Number ti) {
-                    step.setTokensIn(ti.intValue());
-                }
-                if (event.payload().get("tokensOut") instanceof Number to) {
-                    step.setTokensOut(to.intValue());
-                }
-                step.setStatus("FAILED".equals(event.payload().get("status")) ? "FAILED" : "SUCCESS");
-            }
-            runStepMapper.insert(step);
-        } catch (Exception e) {
-            log.warn("Agent 步骤落库失败 runId={}: {}", runId, e.getMessage());
-        }
-    }
-
-    private String nodeStepType(String node) {
-        return switch (node == null ? "" : node) {
-            case "multimodal" -> "MULTIMODAL";
-            case "approval", "expert_approval" -> "INTERRUPT";
-            case "supervisor" -> "SUPERVISOR";
-            default -> "LLM";
-        };
-    }
-
-    private String toJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (Exception e) {
-            return String.valueOf(value);
-        }
     }
 }

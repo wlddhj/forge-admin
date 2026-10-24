@@ -80,17 +80,43 @@ public class SqlQueryTool implements AgentTool {
                 for (int i = 1; i <= columnCount; i++) {
                     columns.add(meta.getColumnLabel(i));
                 }
+                // 字符预算裁剪：行集序列化长度达到预算即停止取行，避免物化大量随后被截断丢弃的数据
+                int charBudget = Math.max(1, properties.getSqlResultCharBudget());
+                int usedChars = 0;
+                boolean truncated = false;
+                int omittedRows = 0;
                 List<Map<String, Object>> rows = new ArrayList<>();
                 while (rs.next() && rows.size() < properties.getSqlMaxRows()) {
                     Map<String, Object> row = new LinkedHashMap<>();
+                    int rowChars = 2;
                     for (int i = 1; i <= columnCount; i++) {
                         Object value = rs.getObject(i);
-                        row.put(columns.get(i - 1), value == null ? null : String.valueOf(value));
+                        String text = value == null ? null : String.valueOf(value);
+                        row.put(columns.get(i - 1), text);
+                        rowChars += columns.get(i - 1).length() + 2 + (text == null ? 4 : text.length()) + 2;
+                    }
+                    if (usedChars + rowChars > charBudget && !rows.isEmpty()) {
+                        // 预算耗尽：当前已读行丢弃计 1，余下行计数（受 maxRows 封顶）后停止物化
+                        truncated = true;
+                        omittedRows = 1;
+                        while (rs.next() && rows.size() + omittedRows < properties.getSqlMaxRows()) {
+                            omittedRows++;
+                        }
+                        break;
                     }
                     rows.add(row);
+                    usedChars += rowChars;
                 }
-                return Map.of("columns", columns, "rowCount", rows.size(),
-                        "rows", rows, "durationMs", System.currentTimeMillis() - start);
+                Map<String, Object> result = new LinkedHashMap<>();
+                result.put("columns", columns);
+                result.put("rowCount", rows.size());
+                result.put("rows", rows);
+                result.put("durationMs", System.currentTimeMillis() - start);
+                if (truncated) {
+                    result.put("truncated", true);
+                    result.put("omittedRows", omittedRows);
+                }
+                return result;
             }
         } catch (BusinessException e) {
             throw e;

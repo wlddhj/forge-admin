@@ -8,10 +8,10 @@ import com.forge.modules.ai.agent.kernel.AgentGraphContext;
 import com.forge.modules.ai.agent.kernel.AgentGraphDefinition;
 import com.forge.modules.ai.agent.kernel.AgentGraphState;
 import com.forge.modules.ai.client.LlmClient;
+import com.forge.modules.ai.client.NativeToolCalling;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.entity.AiModelConfig;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.StateGraph;
 import org.bsc.langgraph4j.action.AsyncEdgeAction;
@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
  */
 @Component
 @Slf4j
-@RequiredArgsConstructor
 public class ConversationalAssistantGraph implements AgentGraphDefinition {
 
     public static final String NODE_MULTIMODAL = "multimodal";
@@ -43,6 +42,28 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
     private final DecisionJsonParser decisionJsonParser;
     private final MultimodalSupport multimodalSupport;
     private final com.forge.modules.ai.agent.tools.TableSchemaInspector tableSchemaInspector;
+    private final PromptBudgeter promptBudgeter;
+    private final com.forge.modules.ai.client.NativeToolCalling nativeToolCalling;
+    private final java.util.concurrent.Executor agentExecutor;
+
+    public ConversationalAssistantGraph(LlmClient llmClient,
+                                        ObjectMapper objectMapper,
+                                        DecisionJsonParser decisionJsonParser,
+                                        MultimodalSupport multimodalSupport,
+                                        com.forge.modules.ai.agent.tools.TableSchemaInspector tableSchemaInspector,
+                                        PromptBudgeter promptBudgeter,
+                                        com.forge.modules.ai.client.NativeToolCalling nativeToolCalling,
+                                        @org.springframework.beans.factory.annotation.Qualifier("agentExecutor")
+                                        java.util.concurrent.Executor agentExecutor) {
+        this.llmClient = llmClient;
+        this.objectMapper = objectMapper;
+        this.decisionJsonParser = decisionJsonParser;
+        this.multimodalSupport = multimodalSupport;
+        this.tableSchemaInspector = tableSchemaInspector;
+        this.promptBudgeter = promptBudgeter;
+        this.nativeToolCalling = nativeToolCalling;
+        this.agentExecutor = agentExecutor;
+    }
 
     @Override
     public String graphKey() {
@@ -150,30 +171,51 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         });
     }
 
+    /**
+     * 决策调用双轨：native tool-calling（结构化，无协议解析）优先，端点不支持或模式关闭时回退
+     * JSON 协议（决策流式聚合 + decision-timeout + 并行 failover）；文本增量实时推送 THOUGHT 事件
+     */
     private Map<String, Object> decide(AgentGraphContext ctx, AgentGraphState state,
                                        AiModelConfig model, int retry) {
-        String prompt = buildDecisionPrompt(ctx, state);
-        ChatRequest request = new ChatRequest();
-        request.setContent(prompt);
-        request.setTemperature(0.1);
-        ChatResponse response = llmClient.chat(request, model);
+        ChatResponse response;
+        boolean nativeMode = false;
+        java.util.function.Consumer<String> onDelta =
+                delta -> ctx.emit(AgentEvents.Type.THOUGHT, NODE_DECISION, "工具决策", Map.of("delta", delta));
+        if (!retryUsedNative() && nativeToolCalling.enabled(model)) {
+            try {
+                response = nativeToolCalling.call(buildNativeRequest(ctx, state), model,
+                        ctx.getToolRegistry(), null, onDelta);
+                nativeMode = true;
+            } catch (NativeToolCalling.ToolsUnsupportedException e) {
+                log.info("[agent-decision] native 不支持，回退 JSON 协议: {}", e.getMessage());
+                response = null;
+            } catch (Exception e) {
+                log.warn("[agent-decision] native 调用失败，回退 JSON 协议: {}", e.getMessage());
+                response = null;
+            }
+        } else {
+            response = null;
+        }
+        if (response == null) {
+            ChatRequest request = new ChatRequest();
+            request.setContent(buildDecisionPrompt(ctx, state));
+            request.setTemperature(0.1);
+            response = llmClient.chatForDecision(request, model, onDelta);
+        }
         if (!Boolean.TRUE.equals(response.getSuccess())) {
             throw new BusinessException("决策模型调用失败: " + response.getErrorMessage());
         }
-        log.info("[agent-decision] 模型原始输出: {}", response.getContent());
         Map<String, Object> decision = decisionJsonParser.parseDecision(response.getContent());
-        if (decision == null) {
-            log.warn("[agent-decision] 解析失败（提取 JSON 块数={}，输出长度={}），retry={}",
-                    decisionJsonParser.extractJsonObjects(String.valueOf(response.getContent())).size(),
+        if (decision == null && !retryUsedNative()) {
+            log.warn("[agent-decision] 解析失败（输出长度={}），retry={}",
                     response.getContent() == null ? 0 : response.getContent().length(), retry);
             if (retry < 1) {
                 ChatRequest retryRequest = new ChatRequest();
                 retryRequest.setContent(buildDecisionPrompt(ctx, state)
                         + "\n\n注意：上一次输出无法解析为合法 JSON（可能被截断或格式错误），请务必只输出一个完整合法的 JSON 对象。");
                 retryRequest.setTemperature(0.1);
-                ChatResponse retryResponse = llmClient.chat(retryRequest, model);
+                ChatResponse retryResponse = llmClient.chatForDecision(retryRequest, model, onDelta);
                 if (Boolean.TRUE.equals(retryResponse.getSuccess())) {
-                    log.info("[agent-decision] 重试输出: {}", retryResponse.getContent());
                     Map<String, Object> retryDecision = decisionJsonParser.parseDecision(retryResponse.getContent());
                     if (retryDecision != null) {
                         retryDecision.put("__response", retryResponse);
@@ -181,7 +223,6 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                         return retryDecision;
                     }
                 }
-                // 重试仍失败走兜底
             }
             // 二次仍无法按协议解析：模型输出非空时按自然语言回答原文兜底；空内容判失败（避免假成功）
             if (response.getContent() == null || response.getContent().isBlank()) {
@@ -196,11 +237,13 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         return decision;
     }
 
-    private String buildDecisionPrompt(AgentGraphContext ctx, AgentGraphState state) {
+    /** native 轨提示词：不含 JSON 协议说明与工具清单文本（由 tools API 结构化传递），保留表清单/记忆/历史 */
+    private ChatRequest buildNativeRequest(AgentGraphContext ctx, AgentGraphState state) {
         StringBuilder sb = new StringBuilder();
         sb.append(ctx.getAgentConfig().getSystemPrompt()).append('\n');
-        sb.append("可用工具：\n").append(ctx.getToolRegistry().describeTools()).append('\n');
-        String tables = tableSchemaInspector.describeTables();
+        String tables = promptBudgeter.renderTables(
+                state.value(AgentGraphState.INPUT).map(String::valueOf).orElse(""),
+                tableSchemaInspector.enabledTables());
         if (!tables.isBlank()) {
             sb.append("数据库可用表（编写 SQL 必须使用以下真实表名，禁止臆造）：\n").append(tables).append('\n');
         }
@@ -210,13 +253,55 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                 : userTemplate.replace("{input}", input)).append('\n');
         state.value(AgentGraphState.IMAGE_TEXT)
                 .ifPresent(t -> sb.append("图片识别结果：").append(t).append('\n'));
-        List<?> history = state.value(AgentGraphState.TOOL_HISTORY)
-                .map(v -> (List<?>) v).orElse(List.of());
-        if (!history.isEmpty()) {
-            sb.append("已执行的工具与结果：\n");
-            for (Object h : history) {
-                sb.append("- ").append(h).append('\n');
-            }
+        appendMemory(ctx, state, sb);
+        String history = promptBudgeter.renderToolHistory(
+                state.value(AgentGraphState.TOOL_HISTORY).map(v -> (List<?>) v).orElse(List.of()), null);
+        if (!history.isBlank()) {
+            sb.append("已执行的工具与结果：\n").append(history);
+        }
+        sb.append("\n请决定：需要工具则调用对应工具；已可回答则直接给出完整回答。");
+        ChatRequest request = new ChatRequest();
+        request.setContent(sb.toString());
+        request.setTemperature(0.1);
+        return request;
+    }
+
+    private boolean retryUsedNative() {
+        // 重试路径固定走 JSON 协议（native 输出本就是结构化，无需重试提示）
+        return false;
+    }
+
+    private void appendMemory(AgentGraphContext ctx, AgentGraphState state, StringBuilder sb) {
+        String memory = state.value(AgentGraphState.CONVERSATION_MEMORY)
+                .map(String::valueOf).orElse("");
+        String rendered = promptBudgeter.renderMemory(memory);
+        if (!rendered.isBlank()) {
+            sb.append("先前对话结论（同会话历史，供参考，勿重复执行已完成的查询）：\n")
+                    .append(rendered).append('\n');
+        }
+    }
+
+    private String buildDecisionPrompt(AgentGraphContext ctx, AgentGraphState state) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(ctx.getAgentConfig().getSystemPrompt()).append('\n');
+        sb.append("可用工具：\n").append(ctx.getToolRegistry().describeTools()).append('\n');
+        String tables = promptBudgeter.renderTables(
+                state.value(AgentGraphState.INPUT).map(String::valueOf).orElse(""),
+                tableSchemaInspector.enabledTables());
+        if (!tables.isBlank()) {
+            sb.append("数据库可用表（编写 SQL 必须使用以下真实表名，禁止臆造）：\n").append(tables).append('\n');
+        }
+        String input = state.value(AgentGraphState.INPUT).map(String::valueOf).orElse("");
+        String userTemplate = ctx.getAgentConfig().getUserPromptTemplate();
+        sb.append(userTemplate == null || userTemplate.isBlank() ? input
+                : userTemplate.replace("{input}", input)).append('\n');
+        state.value(AgentGraphState.IMAGE_TEXT)
+                .ifPresent(t -> sb.append("图片识别结果：").append(t).append('\n'));
+        appendMemory(ctx, state, sb);
+        String history = promptBudgeter.renderToolHistory(
+                state.value(AgentGraphState.TOOL_HISTORY).map(v -> (List<?>) v).orElse(List.of()), null);
+        if (!history.isBlank()) {
+            sb.append("已执行的工具与结果：\n").append(history);
         }
         sb.append("""
 
@@ -296,7 +381,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                     synchronized (newHistory) {
                         newHistory.add(record);
                     }
-                }));
+                }, agentExecutor));
             }
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
             history.addAll(newHistory);
