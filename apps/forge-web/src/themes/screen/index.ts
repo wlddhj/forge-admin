@@ -18,7 +18,8 @@ export function applyScreenTheme(theme: ScreenTheme): void {
   let primary = PALETTE_PRIMARY.blue
   try {
     const pageConfig = usePageConfigStore()
-    const cfg = (pageConfig.config as unknown as { value?: unknown })?.value as typeof pageConfig.config | undefined
+    // 历史误用修复:config 是普通对象非 ref,曾取 ?.value 恒 undefined 致自定义主题从未生效
+    const cfg = pageConfig.config
     const palette = cfg?.palette
     if (palette === 'custom') {
       primary = cfg?.customPrimary || PALETTE_PRIMARY.custom

@@ -47,7 +47,7 @@ export const usePermissionStore = defineStore('permission', () => {
         if (menu.componentPath && menu.componentPath !== 'Layout' && menu.componentPath !== 'Layouts') {
           const route: RouteRecordRaw = {
             path: menu.routePath || '',
-            name: menu.menuCode || `menu_${menu.id}`,
+            name: `menu_${menu.id}`,
             meta: {
               title: menu.menuName,
               icon: menu.icon || '',
@@ -56,7 +56,7 @@ export const usePermissionStore = defineStore('permission', () => {
               menuType: menu.menuType,
               keepAlive: menu.isCached === 1
             },
-            component: loadComponent(menu.componentPath, menu.menuCode || `menu_${menu.id}`)
+            component: loadComponent(menu.componentPath, `menu_${menu.id}`)
           }
 
           if (import.meta.env.DEV) {

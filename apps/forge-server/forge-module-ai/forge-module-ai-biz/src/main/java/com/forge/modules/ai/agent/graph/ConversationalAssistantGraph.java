@@ -335,6 +335,12 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                 }
                 return "tools";
             }
+            if ("tool".equals(action)) {
+                // 步数达上限强制收束:可见提示(不再静默)
+                ctx.emit(AgentEvents.Type.STEP_END, NODE_DECISION, "工具决策", Map.of(
+                        "seq", ctx.nextSeq(), "status", "SKIPPED",
+                        "output", "已达最大步数 " + maxSteps + ",提前总结回答"));
+            }
             return "summary";
         });
     }

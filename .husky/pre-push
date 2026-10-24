@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+# 前端质量门禁快检(推送前):vitest / vue-tsc / eslint
+# 跳过方式: git push --no-verify(紧急修复时使用,事后须补跑)
+command -v pnpm >/dev/null 2>&1 || { echo "[pre-push] pnpm 不可用,跳过前端检查"; exit 0; }
+[ -d apps/forge-web ] || exit 0
+
+cd apps/forge-web || exit 1
+
+echo "[pre-push] vitest..."
+CI=true npx vitest run --reporter=basic >/dev/null 2>&1 || { echo "[pre-push] vitest 失败,推送被阻断(跳过: git push --no-verify)"; exit 1; }
+echo "[pre-push] vue-tsc..."
+npx vue-tsc --noEmit >/dev/null 2>&1 || { echo "[pre-push] 类型检查失败,推送被阻断"; exit 1; }
+echo "[pre-push] eslint..."
+pnpm lint >/dev/null 2>&1 || { echo "[pre-push] lint 失败,推送被阻断"; exit 1; }
+echo "[pre-push] 前端检查全部通过"

@@ -123,6 +123,12 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                             .map(v -> (Map<?, ?>) v).orElse(Map.of());
                     int rounds = state.value(AgentGraphState.STEPS).map(v -> (Integer) v).orElse(0);
                     int maxRounds = ctx.getAgentConfig().getMaxSteps() == null ? 6 : ctx.getAgentConfig().getMaxSteps();
+                    if ("dispatch".equals(decision.get("action")) && rounds >= maxRounds) {
+                        // 轮次达上限强制收束:可见提示(不再静默)
+                        ctx.emit(AgentEvents.Type.STEP_END, NODE_SUPERVISOR, "调度决策", Map.of(
+                                "seq", ctx.nextSeq(), "status", "SKIPPED",
+                                "output", "已达最大调度轮次 " + maxRounds + ",基于现有汇报总结回答"));
+                    }
                     return "dispatch".equals(decision.get("action")) && rounds < maxRounds
                             ? "experts" : "summary";
                 }), Map.of("experts", NODE_EXPERT_POOL, "summary", NODE_SUMMARY))

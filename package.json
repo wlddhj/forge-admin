@@ -14,7 +14,8 @@
     "dev:miniapp": "pnpm --filter forge-miniapp dev:mp-weixin",
     "build:miniapp": "pnpm --filter forge-miniapp build:mp-weixin",
     "dev:miniapp:h5": "pnpm --filter forge-miniapp dev:h5",
-    "build:miniapp:h5": "pnpm --filter forge-miniapp build:h5"
+    "build:miniapp:h5": "pnpm --filter forge-miniapp build:h5",
+    "prepare": "husky"
   },
   "keywords": [
     "admin",
@@ -28,5 +29,8 @@
   "volta": {
     "node": "22.9.0",
     "pnpm": "11.10.0"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
   }
 }
