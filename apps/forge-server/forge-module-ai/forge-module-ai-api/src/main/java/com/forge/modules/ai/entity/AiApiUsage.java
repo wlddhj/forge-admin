@@ -21,6 +21,10 @@ public class AiApiUsage {
 
     private Long userId;
 
+    /** 租户ID(多租户部署由拦截器注入,单租户默认 1) */
+    private Long tenantId;
+
+
     private Long modelId;
 
     private LocalDateTime usageDate;

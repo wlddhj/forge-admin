@@ -45,6 +45,9 @@ public class AgentGraphContext {
     /** runId（子图检查点 threadId 组成部分） */
     private Long runId;
 
+    /** 发起用户（0/空=定时任务/系统触发，工具按全量语义执行） */
+    private Long userId;
+
     /** 子图检查点 saver 工厂（threadKey → keepOnRelease 的子图 saver），由 Runner 装配 */
     private java.util.function.Function<String, MysqlCheckpointSaver> subSaverFactory;
 

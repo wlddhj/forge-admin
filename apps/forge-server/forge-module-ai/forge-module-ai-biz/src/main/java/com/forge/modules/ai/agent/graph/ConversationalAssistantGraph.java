@@ -365,7 +365,8 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                     record.put("tool", toolName);
                     record.put("args", args);
                     try {
-                        Object result = ctx.getToolRegistry().get(toolName).execute(args);
+                        Object result = ctx.getToolRegistry().execute(toolName, args,
+                                com.forge.modules.ai.agent.tools.ToolExecutionContext.of(ctx.getUserId()));
                         record.put("result", decisionJsonParser.truncate(String.valueOf(result)));
                         record.put("status", "SUCCESS");
                         ctx.emit(AgentEvents.Type.TOOL_RESULT, NODE_TOOLS, toolName, Map.of(

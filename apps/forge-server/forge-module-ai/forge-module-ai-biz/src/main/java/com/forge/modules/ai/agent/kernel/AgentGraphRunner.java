@@ -222,6 +222,7 @@ public class AgentGraphRunner {
                 agentConfig, resolveNodeModels(agentConfig, runCache), toolRegistry, emitter, new AtomicInteger());
         ctx.setRunCache(runCache);
         ctx.setRunId(run.getId());
+        ctx.setUserId(run.getUserId());
         ctx.setSubSaverFactory(threadKey -> new MysqlCheckpointSaver(
                 checkpointMapper, objectMapper, run.getId(), 1, true));
         if (team != null) {

@@ -43,4 +43,7 @@ public class AiMessage {
     private String errorMsg;
 
     private LocalDateTime createTime;
+
+    /** 租户ID(多租户部署由拦截器注入,单租户默认 1) */
+    private Long tenantId;
 }

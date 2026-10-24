@@ -56,6 +56,7 @@ CREATE TABLE `ai_chat_conversation` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `conversation_id` varchar(64) NOT NULL COMMENT '会话ID',
   `user_id` bigint NOT NULL COMMENT '用户ID',
+  `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '租户ID',
   `model_id` bigint DEFAULT NULL COMMENT '使用的模型ID',
   `title` varchar(200) DEFAULT NULL COMMENT '会话标题',
   `summary` varchar(500) DEFAULT NULL COMMENT '会话摘要',
@@ -83,6 +84,7 @@ CREATE TABLE `ai_chat_message` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `message_id` varchar(64) NOT NULL COMMENT '消息ID',
   `conversation_id` varchar(64) NOT NULL COMMENT '会话ID',
+  `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '租户ID',
   `role` varchar(20) NOT NULL COMMENT '角色(user/assistant/system)',
   `content` text NOT NULL COMMENT '消息内容',
   `input_tokens` int DEFAULT 0 COMMENT '输入Token数',
@@ -108,6 +110,7 @@ DROP TABLE IF EXISTS `ai_document`;
 CREATE TABLE `ai_document` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `user_id` bigint NOT NULL COMMENT '用户ID',
+  `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '租户ID',
   `attachment_id` bigint DEFAULT NULL COMMENT '附件ID',
   `file_name` varchar(255) NOT NULL COMMENT '文件名称',
   `content` longtext COMMENT '提取的文本内容',
@@ -134,6 +137,7 @@ DROP TABLE IF EXISTS `ai_api_usage`;
 CREATE TABLE `ai_api_usage` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `user_id` bigint NOT NULL COMMENT '用户ID',
+  `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '租户ID',
   `model_id` bigint DEFAULT NULL COMMENT '模型ID',
   `usage_date` date NOT NULL COMMENT '使用日期',
   `request_count` int DEFAULT 0 COMMENT '请求次数',

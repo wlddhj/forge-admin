@@ -20,6 +20,10 @@ public class AiDocument {
 
     private Long userId;
 
+    /** 租户ID(多租户部署由拦截器注入,单租户默认 1) */
+    private Long tenantId;
+
+
     private Long attachmentId;  // 新增：关联附件ID
 
     private String fileName;    // 保留：文件名用于显示

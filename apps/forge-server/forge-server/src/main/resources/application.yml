@@ -123,6 +123,7 @@ forge:
       - sys_tenant_package_role
       - sys_print_template
       - ai_sql_whitelist
+      - ai_model_config
     # 跨租户共享的缓存名（key 不加 tenantId 前缀）
     ignore-caches:
       - dictData

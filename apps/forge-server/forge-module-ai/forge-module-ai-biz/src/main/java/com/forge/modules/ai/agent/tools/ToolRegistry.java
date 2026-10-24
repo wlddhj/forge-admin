@@ -30,6 +30,11 @@ public class ToolRegistry {
         return tool;
     }
 
+    /** 带执行上下文的工具执行（不感知上下文的工具经 default 委托保持原行为） */
+    public Object execute(String name, Map<String, Object> args, ToolExecutionContext context) {
+        return get(name).execute(args, context);
+    }
+
     /** 全部注册工具（原生 tool-callback 构建用） */
     public Collection<AgentTool> all() {
         return tools.values();

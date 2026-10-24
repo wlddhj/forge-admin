@@ -117,6 +117,52 @@ class DocumentSearchToolTest {
         assertTrue(tool.description().contains("知识库"));
     }
 
+    @Test
+    void 会话用户仅检索本人文档_无用户全量() {
+        // 注册 TableInfo 使 Lambda 条件可渲染(复刻 SupervisorTeamParallelTest 做法)
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""),
+                AiDocument.class);
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiDocument>> captor =
+                org.mockito.ArgumentCaptor.forClass(
+                        (Class) com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
+        when(documentMapper.selectList(captor.capture())).thenReturn(List.of());
+
+        tool.execute(Map.of("keyword", "目标"),
+                com.forge.modules.ai.agent.tools.ToolExecutionContext.of(77L));
+        String withUser = captor.getValue().getSqlSegment();
+        org.junit.jupiter.api.Assertions.assertTrue(withUser.contains("user_id"), "应含 user_id 条件: " + withUser);
+
+        tool.execute(Map.of("keyword", "目标"),
+                com.forge.modules.ai.agent.tools.ToolExecutionContext.of(0L));
+        String withoutUser = captor.getValue().getSqlSegment();
+        org.junit.jupiter.api.Assertions.assertFalse(withoutUser.contains("user_id"), "无用户上下文不应含 user_id 条件");
+    }
+
+    @Test
+    void 定时任务无用户全量检索_上下文归一() {
+        when(documentMapper.selectList(any())).thenReturn(List.of(
+                doc(1L, "他人文档.docx", null, "目标内容")));
+        // userId=0 与 null 均归一为无限制
+        Map<?, ?> byZero = (Map<?, ?>) tool.execute(Map.of("keyword", "目标"),
+                com.forge.modules.ai.agent.tools.ToolExecutionContext.of(0L));
+        Map<?, ?> byNull = (Map<?, ?>) tool.execute(Map.of("keyword", "目标"),
+                com.forge.modules.ai.agent.tools.ToolExecutionContext.UNRESTRICTED);
+        assertEquals(1, byZero.get("total"));
+        assertEquals(1, byNull.get("total"));
+    }
+
+    @Test
+    void 上下文语义判定() {
+        var ctx = com.forge.modules.ai.agent.tools.ToolExecutionContext.of(77L);
+        org.junit.jupiter.api.Assertions.assertTrue(ctx.hasUser());
+        org.junit.jupiter.api.Assertions.assertTrue(ctx.limitedToUser(88L));
+        org.junit.jupiter.api.Assertions.assertFalse(ctx.limitedToUser(77L));
+        org.junit.jupiter.api.Assertions.assertFalse(
+                com.forge.modules.ai.agent.tools.ToolExecutionContext.of(0L).hasUser());
+    }
+
     private AiDocument doc(Long id, String fileName, String summary, String content) {
         AiDocument doc = new AiDocument();
         doc.setId(id);

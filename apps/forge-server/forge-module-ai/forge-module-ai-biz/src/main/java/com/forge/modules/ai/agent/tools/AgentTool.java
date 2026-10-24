@@ -27,4 +27,13 @@ public interface AgentTool {
      * 执行工具；抛出异常视为工具失败（决策节点可感知重试或转直接回答）
      */
     Object execute(Map<String, Object> args);
+
+    /**
+     * 带执行上下文的执行入口（发起者身份供工具做数据可见性决策）。
+     * 默认委托单参入口——不感知上下文的工具（SQL/HTTP 等）零改动；
+     * 需要按用户过滤的工具（如文档检索）覆写本方法。
+     */
+    default Object execute(Map<String, Object> args, ToolExecutionContext context) {
+        return execute(args);
+    }
 }

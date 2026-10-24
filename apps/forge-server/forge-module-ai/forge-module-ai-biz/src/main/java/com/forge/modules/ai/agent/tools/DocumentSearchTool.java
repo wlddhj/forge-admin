@@ -52,15 +52,28 @@ public class DocumentSearchTool implements AgentTool {
 
     @Override
     public Object execute(Map<String, Object> args) {
+        return execute(args, ToolExecutionContext.UNRESTRICTED);
+    }
+
+    /**
+     * 带上下文执行:会话用户(有效 userId)仅检索本人文档(对齐文档管理页非管理员语义);
+     * 定时任务/系统触发(无用户)全量检索
+     */
+    @Override
+    public Object execute(Map<String, Object> args, ToolExecutionContext context) {
         String keyword = normalizeKeyword(String.valueOf(args.get("keyword")));
         int limit = resolveLimit(args.get("limit"));
         String escaped = escapeLike(keyword);
 
-        List<AiDocument> docs = documentMapper.selectList(new LambdaQueryWrapper<AiDocument>()
+        LambdaQueryWrapper<AiDocument> wrapper = new LambdaQueryWrapper<AiDocument>()
                 .eq(AiDocument::getStatus, DocumentStatus.COMPLETED.getCode())
                 .and(w -> w.like(AiDocument::getFileName, escaped)
                         .or().like(AiDocument::getSummary, escaped)
-                        .or().like(AiDocument::getContent, escaped))
+                        .or().like(AiDocument::getContent, escaped));
+        if (context != null && context.hasUser()) {
+            wrapper.eq(AiDocument::getUserId, context.userId());
+        }
+        List<AiDocument> docs = documentMapper.selectList(wrapper
                 .orderByDesc(AiDocument::getUpdateTime)
                 .last("LIMIT " + (limit + 1)));
 

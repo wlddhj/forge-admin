@@ -910,7 +910,8 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                                 "agentCode", agentCode, "agentName", agentName));
                     } else {
                         try {
-                            Object result = ctx.getToolRegistry().get(toolName).execute(args);
+                            Object result = ctx.getToolRegistry().execute(toolName, args,
+                                    com.forge.modules.ai.agent.tools.ToolExecutionContext.of(ctx.getUserId()));
                             record.put("result", decisionJsonParser.truncate(String.valueOf(result)));
                             record.put("status", "SUCCESS");
                             ctx.emit(AgentEvents.Type.TOOL_RESULT, NODE_EXPERT_TOOLS, toolName, Map.of(
