@@ -55,6 +55,11 @@ public class AgentProperties {
     private int stepBatchSize = 8;
 
     /**
+     * 图片识别结果缓存 TTL（分钟，0=禁用；同图同模型追问不重复调用视觉模型）
+     */
+    private int imageCacheTtlMinutes = 60;
+
+    /**
      * Agent 专用线程池（工具并行/专家子图/failover 竞速/SSE 图执行）
      */
     private Executor executor = new Executor();

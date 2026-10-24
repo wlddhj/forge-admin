@@ -109,7 +109,8 @@ class SupervisorTeamParallelTest {
 
         PromptBudgeter promptBudgeter = new PromptBudgeter(agentProperties);
         DecisionJsonParser parser = new DecisionJsonParser(objectMapper);
-        MultimodalSupport multimodalSupport = new MultimodalSupport(llmClient, parser);
+        MultimodalSupport multimodalSupport = new MultimodalSupport(llmClient, parser, agentProperties,
+                new com.forge.framework.localcache.LocalCaches());
         SupervisorTeamGraph teamGraph = new SupervisorTeamGraph(llmClient, objectMapper, parser,
                 multimodalSupport, tableSchemaInspector, promptBudgeter, nativeToolCalling,
                 agentProperties, agentExecutor);

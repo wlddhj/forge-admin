@@ -51,6 +51,11 @@ public class AiModuleConfig {
          * failover 备用模型并行竞速数（1=保持串行尝试）
          */
         private Integer failoverParallelism = 2;
+
+        /**
+         * 模型健康负缓存 TTL（毫秒，近期失败的模型在 failover 中跳过；<=0 按默认 60000）
+         */
+        private Integer healthCacheTtlMs = 60000;
     }
 
     /**

@@ -54,19 +54,22 @@ public class SpringAiLlmClient implements LlmClient {
     private final SysConfigService sysConfigService;
     private final AiModuleConfig aiModuleConfig;
     private final Executor agentExecutor;
+    private final ModelHealthCache healthCache;
 
     public SpringAiLlmClient(OpenAiChatModelFactory modelFactory,
                              ObjectMapper objectMapper,
                              AiModelConfigMapper modelConfigMapper,
                              SysConfigService sysConfigService,
                              AiModuleConfig aiModuleConfig,
-                             @Qualifier("agentExecutor") Executor agentExecutor) {
+                             @Qualifier("agentExecutor") Executor agentExecutor,
+                             ModelHealthCache healthCache) {
         this.modelFactory = modelFactory;
         this.objectMapper = objectMapper;
         this.modelConfigMapper = modelConfigMapper;
         this.sysConfigService = sysConfigService;
         this.aiModuleConfig = aiModuleConfig;
         this.agentExecutor = agentExecutor;
+        this.healthCache = healthCache;
     }
 
     @Override
@@ -116,12 +119,16 @@ public class SpringAiLlmClient implements LlmClient {
     }
 
     private List<AiModelConfig> fallbackCandidates(AiModelConfig primary) {
-        return modelConfigMapper.selectList(new LambdaQueryWrapper<AiModelConfig>()
+        List<AiModelConfig> candidates = modelConfigMapper.selectList(new LambdaQueryWrapper<AiModelConfig>()
                 .eq(AiModelConfig::getModelType, primary.getModelType())
                 .eq(AiModelConfig::getStatus, 1)
                 .ne(AiModelConfig::getId, primary.getId())
                 .orderByAsc(AiModelConfig::getId)
                 .last("LIMIT " + FALLBACK_MAX_CANDIDATES));
+        // 健康预筛：近期失败的候选不进入故障转移（零额外探测延迟，失败历史负缓存）
+        return candidates.stream()
+                .filter(candidate -> !healthCache.recentlyFailed(candidate))
+                .toList();
     }
 
     private ChatResponse doChat(ChatRequest request, AiModelConfig modelConfig) {
@@ -162,7 +169,17 @@ public class SpringAiLlmClient implements LlmClient {
             response.setErrorMessage(friendly);
             response.setResponseTime(System.currentTimeMillis() - start);
         }
+        recordHealth(modelConfig, response);
         return response;
+    }
+
+    /** 成败挂健康负缓存标记（failover 预筛依据） */
+    private void recordHealth(AiModelConfig modelConfig, ChatResponse response) {
+        if (Boolean.TRUE.equals(response.getSuccess())) {
+            healthCache.markHealthy(modelConfig);
+        } else {
+            healthCache.markFailed(modelConfig);
+        }
     }
 
     @Override
@@ -187,13 +204,18 @@ public class SpringAiLlmClient implements LlmClient {
     }
 
     /**
-     * 决策类调用：流式聚合 + decision-timeout 独立收紧 + 失败后备用模型并行竞速（首成功即采用）。
+     * 决策类调用：流式聚合 + decision-timeout 独立收紧 + 失败后备用模型并行竞速（真·首成功即采用）。
+     * 主模型近期失败时跳过直接竞速（全被健康预筛过滤时 fail-open 仍尝试主模型）。
      * 文本增量实时回调 onDelta（决策节点转发 THOUGHT 事件），超时/错误返回 success=false。
      */
     @Override
     public ChatResponse chatForDecision(ChatRequest request, AiModelConfig modelConfig, Consumer<String> onDelta) {
-        ChatResponse primary = doDecisionChat(request, modelConfig, onDelta);
-        if (Boolean.TRUE.equals(primary.getSuccess())) {
+        boolean skipPrimary = healthCache.recentlyFailed(modelConfig);
+        if (skipPrimary) {
+            log.info("主模型 [{}] 近期失败已标记，跳过直接竞速备用模型", modelConfig.getModelName());
+        }
+        ChatResponse primary = skipPrimary ? null : doDecisionChat(request, modelConfig, onDelta);
+        if (primary != null && Boolean.TRUE.equals(primary.getSuccess())) {
             return primary;
         }
         return raceFailover(modelConfig, primary, candidate -> doDecisionChat(request, candidate, onDelta));
@@ -256,6 +278,7 @@ public class SpringAiLlmClient implements LlmClient {
                     : friendly);
             response.setResponseTime(System.currentTimeMillis() - start);
         }
+        recordHealth(modelConfig, response);
         return response;
     }
 
@@ -267,36 +290,69 @@ public class SpringAiLlmClient implements LlmClient {
                                       Function<AiModelConfig, ChatResponse> attempt) {
         try {
             if (!fallbackEnabled()) {
-                return primaryResponse;
+                return finalResponse(primary, primaryResponse);
             }
+            // fail-open：主模型被跳过且候选全部被健康预筛过滤时，仍直接尝试主模型一次（可用性优先）
             List<AiModelConfig> candidates = fallbackCandidates(primary);
+            if (candidates.isEmpty() && primaryResponse == null) {
+                log.info("决策故障转移: 无可用备用候选（健康预筛后为空），fail-open 重试主模型 [{}]", primary.getModelName());
+                return attempt.apply(primary);
+            }
             int parallelism = Math.max(1, aiModuleConfig.getClient().getFailoverParallelism() == null
                     ? 1 : aiModuleConfig.getClient().getFailoverParallelism());
             for (int start = 0; start < candidates.size(); start += parallelism) {
                 List<AiModelConfig> batch = candidates.subList(start,
                         Math.min(candidates.size(), start + parallelism));
-                List<CompletableFuture<ChatResponse>> futures = batch.stream()
-                        .map(candidate -> CompletableFuture.supplyAsync(() -> attempt.apply(candidate), agentExecutor))
-                        .toList();
-                for (int i = 0; i < futures.size(); i++) {
-                    try {
-                        ChatResponse response = futures.get(i).join();
-                        if (Boolean.TRUE.equals(response.getSuccess())) {
-                            log.warn("LLM 决策故障转移: 主模型 [{}] 失败，切换 [{}] 成功",
-                                    primary.getModelName(), batch.get(i).getModelName());
-                            return response;
-                        }
-                        log.warn("LLM 决策故障转移: 备用模型 [{}] 失败", batch.get(i).getModelName());
-                    } catch (Exception e) {
-                        log.warn("LLM 决策故障转移: 备用模型 [{}] 异常: {}",
-                                batch.get(i).getModelName(), e.getMessage());
-                    }
+                ChatResponse outcome = raceBatch(primary, batch, attempt);
+                if (outcome != null) {
+                    return outcome;
                 }
             }
         } catch (Exception e) {
             log.warn("LLM 决策故障转移流程异常，返回主模型原始失败响应", e);
         }
-        return primaryResponse;
+        return finalResponse(primary, primaryResponse);
+    }
+
+    /**
+     * 批内真·首成功竞速：任一候选成功即刻完成（不再按提交顺序 join，慢速候选不拖快成功）；
+     * 全部失败返回 null（进入下一批）。其余未完成 future 不再等待（结果丢弃，竞速成本已接受）。
+     */
+    private ChatResponse raceBatch(AiModelConfig primary, List<AiModelConfig> batch,
+                                   Function<AiModelConfig, ChatResponse> attempt) {
+        CompletableFuture<ChatResponse> firstSuccess = new CompletableFuture<>();
+        java.util.concurrent.atomic.AtomicInteger remaining =
+                new java.util.concurrent.atomic.AtomicInteger(batch.size());
+        for (AiModelConfig candidate : batch) {
+            CompletableFuture.supplyAsync(() -> attempt.apply(candidate), agentExecutor)
+                    .whenComplete((response, error) -> {
+                        if (error == null && response != null && Boolean.TRUE.equals(response.getSuccess())) {
+                            firstSuccess.complete(response);
+                        } else if (remaining.decrementAndGet() == 0 && !firstSuccess.isDone()) {
+                            firstSuccess.complete(null);
+                        }
+                    });
+        }
+        ChatResponse outcome = firstSuccess.join();
+        if (outcome != null) {
+            log.warn("LLM 决策故障转移: 主模型 [{}] 失败，竞速切换成功", primary.getModelName());
+        } else {
+            log.warn("LLM 决策故障转移: 批次全部失败 {}",
+                    batch.stream().map(AiModelConfig::getModelName).toList());
+        }
+        return outcome;
+    }
+
+    /** 兜底响应：主模型被跳过（primaryResponse=null）时给出明确的预筛失败文案 */
+    private ChatResponse finalResponse(AiModelConfig primary, ChatResponse primaryResponse) {
+        if (primaryResponse != null) {
+            return primaryResponse;
+        }
+        ChatResponse response = new ChatResponse();
+        response.setSuccess(false);
+        response.setModelName(primary.getModelName());
+        response.setErrorMessage("主模型近期失败已跳过，且备用模型均不可用（健康预筛过滤或全部失败），请稍后重试");
+        return response;
     }
 
     // ========== Prompt 构建 ==========
