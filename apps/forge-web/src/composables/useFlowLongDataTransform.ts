@@ -30,6 +30,8 @@ export interface FlowlongNodeModel {
   nodeName: string
   nodeKey: string
   type: number // -1=结束, 0=发起人, 1=审批, 2=抄送, 3=条件审批, 4=条件分支, 7=触发器任务
+  /** 后端扩展配置（提醒/AI审批/条件列表等，后端→设计器方向消费） */
+  extendConfig?: Record<string, unknown>
   setType?: number
   nodeAssigneeList?: FlowlongNodeAssignee[]
   examineLevel?: number // 指定主管层级
@@ -111,7 +113,7 @@ export function useFlowLongDataTransform() {
         nodeKey: node.nodeKey,
         type: node.type,
         setType: node.setType,
-        nodeAssigneeList: node.nodeAssigneeList,
+        nodeAssigneeList: node.nodeAssigneeList as any, // 双历史模型字段同构,精确断言由运行时保证
         childNode: transformNode(node.childNode)
       }
 
@@ -191,8 +193,8 @@ export function useFlowLongDataTransform() {
   /**
    * 将 FlowLong 后端格式转换为设计器格式
    */
-  const transformBackendToDesigner = (backendModel: FlowLongNodeModel): FlowlongProcessModel => {
-    const transformNode = (node: FlowLongNodeModel | undefined): FlowlongNodeModel | undefined => {
+  const transformBackendToDesigner = (backendModel: FlowlongNodeModel): FlowlongProcessModel => {
+    const transformNode = (node: FlowlongNodeModel | undefined): FlowlongNodeModel | undefined => {
       if (!node) return undefined
 
       const result: FlowlongNodeModel = {
@@ -200,7 +202,7 @@ export function useFlowLongDataTransform() {
         nodeKey: node.nodeKey,
         type: node.type,
         setType: node.setType,
-        nodeAssigneeList: node.nodeAssigneeList,
+        nodeAssigneeList: node.nodeAssigneeList as any, // 双历史模型字段同构
         childNode: transformNode(node.childNode)
       }
 
@@ -218,10 +220,10 @@ export function useFlowLongDataTransform() {
       // 从 extendConfig 解析扩展配置
       if (node.extendConfig) {
         // 超时提醒配置
-        if (node.extendConfig.remindAuto !== undefined) result.remindAuto = node.extendConfig.remindAuto
-        if (node.extendConfig.remindAdvanceMinutes !== undefined) result.remindAdvanceMinutes = node.extendConfig.remindAdvanceMinutes
-        if (node.extendConfig.remindIntervalHours !== undefined) result.remindIntervalHours = node.extendConfig.remindIntervalHours
-        if (node.extendConfig.remindChannels !== undefined) result.remindChannels = node.extendConfig.remindChannels
+        if (node.extendConfig.remindAuto !== undefined) result.remindAuto = node.extendConfig.remindAuto as boolean
+        if (node.extendConfig.remindAdvanceMinutes !== undefined) result.remindAdvanceMinutes = node.extendConfig.remindAdvanceMinutes as number
+        if (node.extendConfig.remindIntervalHours !== undefined) result.remindIntervalHours = node.extendConfig.remindIntervalHours as number
+        if (node.extendConfig.remindChannels !== undefined) result.remindChannels = node.extendConfig.remindChannels as string[]
 
         // AI 审批配置
         if (node.extendConfig.aiApproval) {
@@ -231,17 +233,17 @@ export function useFlowLongDataTransform() {
 
         // 条件审批（type=3）条件列表
         if (node.type === 3 && node.extendConfig.conditionList !== undefined) {
-          result.conditionList = node.extendConfig.conditionList
+          result.conditionList = node.extendConfig.conditionList as FlowlongCondition[][]
         }
 
         // 触发器任务(type=7)多模式配置从 extendConfig 读出
         if (node.type === 7 && node.extendConfig) {
-          if (node.extendConfig.triggerType !== undefined) result.triggerType = node.extendConfig.triggerType
-          if (node.extendConfig.triggerExpression !== undefined) result.triggerExpression = node.extendConfig.triggerExpression
-          if (node.extendConfig.triggerBean !== undefined) result.triggerBean = node.extendConfig.triggerBean
-          if (node.extendConfig.triggerClass !== undefined) result.triggerClass = node.extendConfig.triggerClass
-          if (node.extendConfig.triggerMethod !== undefined) result.triggerMethod = node.extendConfig.triggerMethod
-          if (node.extendConfig.continueOnError !== undefined) result.continueOnError = node.extendConfig.continueOnError
+          if (node.extendConfig.triggerType !== undefined) result.triggerType = node.extendConfig.triggerType as string
+          if (node.extendConfig.triggerExpression !== undefined) result.triggerExpression = node.extendConfig.triggerExpression as string
+          if (node.extendConfig.triggerBean !== undefined) result.triggerBean = node.extendConfig.triggerBean as string
+          if (node.extendConfig.triggerClass !== undefined) result.triggerClass = node.extendConfig.triggerClass as string
+          if (node.extendConfig.triggerMethod !== undefined) result.triggerMethod = node.extendConfig.triggerMethod as string
+          if (node.extendConfig.continueOnError !== undefined) result.continueOnError = node.extendConfig.continueOnError as boolean
         }
       }
 

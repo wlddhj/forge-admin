@@ -28,10 +28,10 @@ describe('useFlowLongDataTransform', () => {
 
       const result = transformDesignerToBackend(designerModel)
 
-      expect(result.remindAuto).toBe(true)
-      expect(result.remindAdvanceMinutes).toBe(30)
-      expect(result.remindIntervalHours).toBe(4)
-      expect(result.remindChannels).toEqual(['websocket'])
+      expect(result.extendConfig?.remindAuto).toBe(true)
+      expect(result.extendConfig?.remindAdvanceMinutes).toBe(30)
+      expect(result.extendConfig?.remindIntervalHours).toBe(4)
+      expect(result.extendConfig?.remindChannels).toEqual(['websocket'])
     })
 
     it('应正确从后端格式转换提醒配置字段', () => {
@@ -43,10 +43,12 @@ describe('useFlowLongDataTransform', () => {
         termAuto: true,
         term: 24,
         termMode: 0,
-        remindAuto: true,
-        remindAdvanceMinutes: 60,
-        remindIntervalHours: 12,
-        remindChannels: ['websocket', 'email'],
+        extendConfig: {
+          remindAuto: true,
+          remindAdvanceMinutes: 60,
+          remindIntervalHours: 12,
+          remindChannels: ['websocket', 'email']
+        },
         childNode: undefined
       }
 
@@ -94,7 +96,7 @@ describe('useFlowLongDataTransform', () => {
 
       const result = transformDesignerToBackend(designerModel)
 
-      expect(result.remindAuto).toBe(false)
+      expect(result.extendConfig?.remindAuto).toBe(false)
     })
 
     it('应正确处理嵌套节点中的提醒配置', () => {
@@ -124,10 +126,10 @@ describe('useFlowLongDataTransform', () => {
 
       const result = transformDesignerToBackend(designerModel)
 
-      expect(result.childNode?.remindAuto).toBe(true)
-      expect(result.childNode?.remindAdvanceMinutes).toBe(30)
-      expect(result.childNode?.remindIntervalHours).toBe(8)
-      expect(result.childNode?.remindChannels).toEqual(['websocket'])
+      expect(result.childNode?.extendConfig?.remindAuto).toBe(true)
+      expect(result.childNode?.extendConfig?.remindAdvanceMinutes).toBe(30)
+      expect(result.childNode?.extendConfig?.remindIntervalHours).toBe(8)
+      expect(result.childNode?.extendConfig?.remindChannels).toEqual(['websocket'])
     })
 
     it('应正确处理多提醒渠道', () => {
@@ -146,7 +148,7 @@ describe('useFlowLongDataTransform', () => {
 
       const result = transformDesignerToBackend(designerModel)
 
-      expect(result.remindChannels).toEqual(['websocket', 'email', 'sms'])
+      expect(result.extendConfig?.remindChannels).toEqual(['websocket', 'email', 'sms'])
     })
   })
 
@@ -184,10 +186,12 @@ describe('useFlowLongDataTransform', () => {
         termAuto: true,
         term: 24,
         termMode: 0,
-        remindAuto: true,
-        remindAdvanceMinutes: 30,
-        remindIntervalHours: 6,
-        remindChannels: ['websocket'],
+        extendConfig: {
+          remindAuto: true,
+          remindAdvanceMinutes: 30,
+          remindIntervalHours: 6,
+          remindChannels: ['websocket']
+        },
         examineMode: 2,
         childNode: undefined
       }
@@ -195,10 +199,10 @@ describe('useFlowLongDataTransform', () => {
       const designerModel = transformBackendToDesigner(backendModel)
       const resultModel = transformDesignerToBackend(designerModel)
 
-      expect(resultModel.remindAuto).toBe(backendModel.remindAuto)
-      expect(resultModel.remindAdvanceMinutes).toBe(backendModel.remindAdvanceMinutes)
-      expect(resultModel.remindIntervalHours).toBe(backendModel.remindIntervalHours)
-      expect(resultModel.remindChannels).toEqual(backendModel.remindChannels)
+      expect(resultModel.extendConfig?.remindAuto).toBe(backendModel.extendConfig?.remindAuto)
+      expect(resultModel.extendConfig?.remindAdvanceMinutes).toBe(backendModel.extendConfig?.remindAdvanceMinutes)
+      expect(resultModel.extendConfig?.remindIntervalHours).toBe(backendModel.extendConfig?.remindIntervalHours)
+      expect(resultModel.extendConfig?.remindChannels).toEqual(backendModel.extendConfig?.remindChannels)
       expect(resultModel.termAuto).toBe(backendModel.termAuto)
       expect(resultModel.term).toBe(backendModel.term)
       expect(resultModel.termMode).toBe(backendModel.termMode)

@@ -21,10 +21,10 @@
     <el-card shadow="never" class="table-card">
       <vxe-toolbar ref="toolbarRef" custom>
         <template #buttons>
-          <el-button type="primary" v-permission="'ai:sql-whitelist:add'" @click="handleAdd">新增</el-button>
+          <el-button v-permission="'ai:sql-whitelist:add'" type="primary" @click="handleAdd">新增</el-button>
         </template>
       </vxe-toolbar>
-      <vxe-table ref="tableRef" id="aiSqlWhitelistTable" :data="tableData" :height="tableHeight"
+      <vxe-table id="aiSqlWhitelistTable" ref="tableRef" :data="tableData" :height="tableHeight"
         :row-config="{ isCurrent: true, isHover: true }" show-overflow="tooltip">
         <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
         <vxe-column field="tableName" title="表名" min-width="180" />
@@ -40,8 +40,8 @@
         <vxe-column field="updateTime" title="更新时间" width="170" />
         <vxe-column title="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" v-permission="'ai:sql-whitelist:edit'" @click="handleEdit(row)">编辑</el-button>
-            <el-button type="danger" link size="small" v-permission="'ai:sql-whitelist:remove'" @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'ai:sql-whitelist:edit'" type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'ai:sql-whitelist:remove'" type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>

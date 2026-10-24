@@ -41,8 +41,8 @@ describe('screen API', () => {
 
   it('updateScreen → PUT /screen', async () => {
     vi.mocked(request.put).mockResolvedValue({})
-    await updateScreen({ id: 1, name: 'A2' })
-    expect(request.put).toHaveBeenCalledWith('/screen', { id: 1, name: 'A2' })
+    await updateScreen({ id: 1, code: 'a', name: 'A2' })
+    expect(request.put).toHaveBeenCalledWith('/screen', { id: 1, code: 'a', name: 'A2' })
   })
 
   it('deleteScreen → DELETE /screen with ids array', async () => {
@@ -87,8 +87,8 @@ describe('dataSource API', () => {
 
   it('updateDataSource → PUT /screen/data-source', async () => {
     vi.mocked(request.put).mockResolvedValue({})
-    await updateDataSource({ id: 1, name: 'A2' })
-    expect(request.put).toHaveBeenCalledWith('/screen/data-source', { id: 1, name: 'A2' })
+    await updateDataSource({ id: 1, code: 'ds', name: 'A2', type: 'HTTP', config: '{}' })
+    expect(request.put).toHaveBeenCalledWith('/screen/data-source', { id: 1, code: 'ds', name: 'A2', type: 'HTTP', config: '{}' })
   })
 
   it('deleteDataSource → DELETE /screen/data-source with ids', async () => {

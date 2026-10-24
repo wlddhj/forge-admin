@@ -3,7 +3,7 @@
     <el-tag
       v-for="(item, index) in displayItems"
       :key="index"
-      :type="item.tagType"
+      :type="(item.tagType as any)"
       :class="item.cssClass || undefined"
       size="small"
       style="margin-right: 4px;"

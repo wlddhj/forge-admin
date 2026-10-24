@@ -63,8 +63,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="wfFormTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"

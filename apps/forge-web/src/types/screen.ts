@@ -1,4 +1,5 @@
-import type { JSONSchema7 } from 'json-schema'
+// 本地 JSON Schema 形状(仓库内无结构消费,免引 json-schema 依赖)
+export type JSONSchema7 = Record<string, unknown>
 
 /** 大屏主题（与后端 sys_screen.theme 对齐） */
 export type ScreenTheme = 'dark-tech' | 'blue-deep' | 'black-gold'
@@ -41,7 +42,7 @@ export interface ScreenConfig {
 }
 
 /** 卡片组件契约 */
-export interface ScreenCardComponent<TConfig = Record<string, unknown>, TData = unknown> {
+export interface ScreenCardComponent<TConfig = Record<string, unknown>, _TData = unknown> {
   type: string
   component: import('vue').Component
   meta: {

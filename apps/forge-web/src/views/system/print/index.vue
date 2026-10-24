@@ -4,10 +4,10 @@
     <el-card shadow="never" class="search-card">
       <el-form :model="queryParams" inline>
         <el-form-item label="模板编号">
-          <el-input v-model="queryParams.templateCode" placeholder="请输入模板编号" clearable @keyup.enter="handleQuery" style="width: 180px" />
+          <el-input v-model="queryParams.templateCode" placeholder="请输入模板编号" clearable style="width: 180px" @keyup.enter="handleQuery" />
         </el-form-item>
         <el-form-item label="模板名称">
-          <el-input v-model="queryParams.templateName" placeholder="请输入模板名称" clearable @keyup.enter="handleQuery" style="width: 180px" />
+          <el-input v-model="queryParams.templateName" placeholder="请输入模板名称" clearable style="width: 180px" @keyup.enter="handleQuery" />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 120px">
@@ -26,7 +26,7 @@
     <el-card shadow="never" class="table-card">
       <vxe-toolbar ref="toolbarRef" custom>
         <template #buttons>
-          <el-button type="primary" v-permission="'system:print-template:add'" @click="handleAdd">新增模板</el-button>
+          <el-button v-permission="'system:print-template:add'" type="primary" @click="handleAdd">新增模板</el-button>
         </template>
         <template #tools>
           <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
@@ -34,8 +34,8 @@
       </vxe-toolbar>
 
       <vxe-table
-        ref="tableRef"
         id="sysPrintTemplateTable"
+        ref="tableRef"
         :data="tableData"
         :height="tableHeight"
         :loading="loading"
@@ -64,9 +64,9 @@
         <vxe-column title="操作" width="250" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click.stop="handleDesign(row)">设计</el-button>
-            <el-button type="primary" link size="small" v-permission="'system:print-template:edit'" @click.stop="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'system:print-template:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
             <el-button type="primary" link size="small" @click.stop="handlePrint(row)">测试打印</el-button>
-            <el-button type="danger" link size="small" v-permission="'system:print-template:remove'" @click.stop="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'system:print-template:remove'" type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>
@@ -77,9 +77,9 @@
         :total="total"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
+        style="margin-top: 15px; justify-content: flex-end; display: flex"
         @size-change="getList"
         @current-change="getList"
-        style="margin-top: 15px; justify-content: flex-end; display: flex"
       />
     </el-card>
 

@@ -273,6 +273,11 @@ export const request = {
     return service.get(url, config)
   },
 
+  /** blob 响应（导出下载等）：拦截器对 responseType=blob 直接返回数据，此处类型如实标注 */
+  getBlob(url: string, config?: AxiosRequestConfig & { silent?: boolean }): Promise<Blob> {
+    return service.get(url, config)
+  },
+
   post<T = any>(url: string, data?: any, config?: AxiosRequestConfig & { silent?: boolean }): Promise<Result<T>> {
     return service.post(url, data, config)
   },

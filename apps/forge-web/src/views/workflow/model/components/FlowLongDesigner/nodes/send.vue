@@ -11,11 +11,11 @@
         <span v-else class="placeholder">请选择人员</span>
       </div>
     </div>
-    <add-node v-model="nodeConfig.childNode"></add-node>
-    <el-drawer title="抄送人设置" v-model="drawer" destroy-on-close append-to-body :size="500">
+    <add-node :model-value="nodeConfig.childNode ?? null" @update:model-value="nodeConfig.childNode = $event"></add-node>
+    <el-drawer v-model="drawer" title="抄送人设置" destroy-on-close append-to-body :size="500">
       <template #header>
         <div class="node-wrap-drawer__title">
-          <label @click="editTitle" v-if="!isEditTitle">
+          <label v-if="!isEditTitle" @click="editTitle">
             {{ form.nodeName }}
             <el-icon class="node-wrap-drawer__title-edit"><Edit /></el-icon>
           </label>
@@ -33,7 +33,7 @@
         <el-main style="padding: 0 20px 20px 20px">
           <el-form label-position="top">
             <el-form-item label="选择要抄送的人员">
-              <el-button type="primary" icon="Plus" round @click="selectHandle(1, form.nodeAssigneeList)">
+              <el-button type="primary" icon="Plus" round @click="selectHandle(1, form.nodeAssigneeList ?? [])">
                 选择人员
               </el-button>
               <div class="tags-list">
@@ -67,16 +67,16 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: FlowlongNodeModel): void
+  (e: 'update:modelValue', value: FlowlongNodeModel | null): void
 }>()
 
 const select = inject<(type: number, data: FlowlongNodeAssignee[]) => void>('select')
 
-const nodeConfig = ref<FlowlongNodeModel>({})
+const nodeConfig = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 const drawer = ref(false)
 const isEditTitle = ref(false)
 const nodeTitleRef = ref<HTMLInputElement | null>(null)
-const form = ref<FlowlongNodeModel>({})
+const form = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 
 watch(
   () => props.modelValue,

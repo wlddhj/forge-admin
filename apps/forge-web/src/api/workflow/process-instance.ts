@@ -1,4 +1,4 @@
-import request from '@/utils/request'
+import { request } from '@/utils/request'
 import type { PageResult } from '@/utils/request'
 import type { ProcessInstance, ProcessInstanceQuery, ProcessStartRequest, ApprovalComment, ApprovalDetail } from '@/types/workflow'
 
@@ -14,7 +14,7 @@ export const processInstanceApi = {
   cancel: (id: string) =>
     request.delete(`/workflow/instance/${id}`).then(res => res.data),
   getDiagram: (id: string) =>
-    request.get(`/workflow/instance/${id}/diagram`, { responseType: 'blob' }),
+    request.getBlob(`/workflow/instance/${id}/diagram`),
   getComments: (id: string) =>
     request.get<ApprovalComment[]>(`/workflow/instance/${id}/comments`).then(res => res.data),
   getVariables: (id: string) =>

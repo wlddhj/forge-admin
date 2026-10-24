@@ -49,7 +49,7 @@ export class SSEClient {
       const decoder = new TextDecoder()
       let buffer = ''
 
-      while (true) {
+      for (;;) { // eslint-disable-line no-constant-condition -- SSE 流式读取循环
         const { done, value } = await reader.read()
 
         if (done) {

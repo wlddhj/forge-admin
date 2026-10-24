@@ -104,6 +104,8 @@ export const DataScopeOptions = [
 export interface Menu {
   id: number
   menuName: string
+  /** 菜单编码（后端当前未返回,权限存储以 fallback `menu_${id}` 兜底） */
+  menuCode?: string
   parentId: number
   routePath: string
   componentPath: string

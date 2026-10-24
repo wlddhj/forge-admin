@@ -17,7 +17,7 @@
     </div>
 
     <div class="editor-body">
-      <FcDesigner ref="designerRef" height="calc(100vh - 60px)" :fieldReadonly="false" :config="designerConfig" />
+      <FcDesigner ref="designerRef" height="calc(100vh - 60px)" :field-readonly="false" :config="designerConfig" />
     </div>
 
     <!-- 保存对话框 -->

@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted, type ComputedRef, type Ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 /**
  * 响应式断点配置

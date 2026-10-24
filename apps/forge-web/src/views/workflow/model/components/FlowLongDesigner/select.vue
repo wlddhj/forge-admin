@@ -18,11 +18,11 @@
             </el-input>
           </div>
           <div class="sc-user-select__select">
-            <div class="sc-user-select__tree" v-loading="showGroupLoading">
+            <div v-loading="showGroupLoading" class="sc-user-select__tree">
               <el-scrollbar>
                 <el-tree
-                  class="menu"
                   ref="groupTreeRef"
+                  class="menu"
                   :data="group"
                   :node-key="groupProps.key"
                   :props="groupProps"
@@ -33,12 +33,12 @@
                 />
               </el-scrollbar>
             </div>
-            <div class="sc-user-select__user" v-loading="showUserLoading">
+            <div v-loading="showUserLoading" class="sc-user-select__user">
               <div class="sc-user-select__user__list">
                 <el-scrollbar ref="userScrollbarRef">
                   <el-tree
-                    class="menu"
                     ref="userTreeRef"
+                    class="menu"
                     :data="user"
                     :node-key="userProps.key"
                     :props="userProps"
@@ -76,11 +76,11 @@
       <div class="sc-user-select sc-user-select-role">
         <div class="sc-user-select__left">
           <div class="sc-user-select__select">
-            <div class="sc-user-select__tree" v-loading="showGroupLoading">
+            <div v-loading="showGroupLoading" class="sc-user-select__tree">
               <el-scrollbar>
                 <el-tree
-                  class="menu"
                   ref="roleTreeRef"
+                  class="menu"
                   :data="role"
                   :node-key="roleProps.key"
                   :props="roleProps"
@@ -123,7 +123,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { ArrowRight, Delete, Search } from '@element-plus/icons-vue'
+import { ArrowRight } from '@element-plus/icons-vue'
 import { getDeptTree, getAllUsersSimple, getAllRoles } from '@/api/system'
 import type { FlowlongNodeAssignee } from '@/composables/useFlowLongDataTransform'
 

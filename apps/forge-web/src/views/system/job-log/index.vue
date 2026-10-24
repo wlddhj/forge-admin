@@ -72,8 +72,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysJobLogTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"
@@ -205,7 +205,7 @@ const searchDrawerVisible = ref(false)
 const queryParams = reactive({
   pageNum: 1,
   pageSize: 20,
-  jobId: route.query.jobId as string | undefined,
+  jobId: route.query.jobId ? Number(route.query.jobId) : undefined,
   jobName: (route.query.jobName as string) || '',
   status: undefined as number | undefined
 })

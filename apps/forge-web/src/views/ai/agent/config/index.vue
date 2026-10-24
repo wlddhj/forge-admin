@@ -7,14 +7,14 @@
             <el-icon><Refresh /></el-icon>
             刷新
           </el-button>
-          <el-button type="danger" v-permission="'ai:agent:data-clean'" @click="handleCleanData">
+          <el-button v-permission="'ai:agent:data-clean'" type="danger" @click="handleCleanData">
             <el-icon><Delete /></el-icon>
             清理运行数据
           </el-button>
         </template>
       </vxe-toolbar>
 
-      <vxe-table ref="tableRef" id="agentConfigTable" :data="tableData" :height="tableHeight" :loading="loading"
+      <vxe-table id="agentConfigTable" ref="tableRef" :data="tableData" :height="tableHeight" :loading="loading"
         :row-config="{ isHover: true }" stripe show-overflow="tooltip">
         <vxe-column type="seq" title="序号" width="60" />
         <vxe-column field="agentName" title="Agent 名称" min-width="160" />
@@ -29,8 +29,8 @@
         </vxe-column>
         <vxe-column title="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" v-permission="'ai:agent:config'" @click="handleEdit(row)">编辑</el-button>
-            <el-button :type="row.status === 1 ? 'danger' : 'success'" link size="small" v-permission="'ai:agent:config'" @click="handleToggle(row)">
+            <el-button v-permission="'ai:agent:config'" type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'ai:agent:config'" :type="row.status === 1 ? 'danger' : 'success'" link size="small" @click="handleToggle(row)">
               {{ row.status === 1 ? '禁用' : '启用' }}
             </el-button>
           </template>

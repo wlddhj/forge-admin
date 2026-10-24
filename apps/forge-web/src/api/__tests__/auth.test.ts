@@ -42,7 +42,7 @@ describe('auth API', () => {
     vi.mocked(request.post).mockResolvedValue(mockResponse)
 
     const result = await refreshToken({ refreshToken: 'old-refresh' })
-    expect(request.post).toHaveBeenCalledWith('/auth/refresh', { refreshToken: 'old-refresh' })
+    expect(request.post).toHaveBeenCalledWith('/auth/refresh', { refreshToken: 'old-refresh' }, expect.objectContaining({ silent: true }))
     expect(result).toEqual(mockResponse.data)
   })
 
@@ -69,7 +69,7 @@ describe('auth API', () => {
   it('heartbeat 应调用 POST /auth/heartbeat', async () => {
     vi.mocked(request.post).mockResolvedValue({})
     await heartbeat()
-    expect(request.post).toHaveBeenCalledWith('/auth/heartbeat')
+    expect(request.post).toHaveBeenCalledWith('/auth/heartbeat', undefined, expect.objectContaining({ silent: true }))
   })
 
   it('logout 应带 X-Refresh-Token header', async () => {

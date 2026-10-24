@@ -20,11 +20,11 @@
         <span style="margin-left: 6px">{{ modeSummary }}</span>
       </div>
     </div>
-    <add-node v-model="nodeConfig.childNode"></add-node>
-    <el-drawer title="触发器任务设置" v-model="drawer" destroy-on-close append-to-body :size="560">
+    <add-node :model-value="nodeConfig.childNode ?? null" @update:model-value="nodeConfig.childNode = $event"></add-node>
+    <el-drawer v-model="drawer" title="触发器任务设置" destroy-on-close append-to-body :size="560">
       <template #header>
         <div class="node-wrap-drawer__title">
-          <label @click="editTitle" v-if="!isEditTitle">
+          <label v-if="!isEditTitle" @click="editTitle">
             {{ form.nodeName }}
             <el-icon class="node-wrap-drawer__title-edit"><Edit /></el-icon>
           </label>
@@ -88,7 +88,7 @@
                     <span style="float: right; color: #909399; font-size: 12px">{{ b.className }}</span>
                   </el-option>
                 </el-select>
-                <el-button link type="primary" @click="loadBeanList" style="margin-top: 4px">刷新列表</el-button>
+                <el-button link type="primary" style="margin-top: 4px" @click="loadBeanList">刷新列表</el-button>
               </el-form-item>
               <el-form-item label="方法名">
                 <el-input v-model="form.triggerMethod" placeholder="如: execute / evaluateFlexible" />
@@ -163,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed, onMounted } from 'vue'
+import { ref, watch, nextTick, computed } from 'vue'
 import { Lightning, Close, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import addNode from './addNode.vue'
@@ -175,7 +175,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: FlowlongNodeModel): void
+  (e: 'update:modelValue', value: FlowlongNodeModel | null): void
 }>()
 
 interface TriggerBeanInfo {
@@ -186,11 +186,11 @@ interface TriggerBeanInfo {
   category: string
 }
 
-const nodeConfig = ref<FlowlongNodeModel>({})
+const nodeConfig = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 const drawer = ref(false)
 const isEditTitle = ref(false)
 const nodeTitleRef = ref<HTMLInputElement | null>(null)
-const form = ref<FlowlongNodeModel>({})
+const form = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 
 const beanList = ref<TriggerBeanInfo[]>([])
 const beanListLoading = ref(false)

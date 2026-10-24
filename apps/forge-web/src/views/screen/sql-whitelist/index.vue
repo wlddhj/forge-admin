@@ -15,10 +15,10 @@
     <el-card shadow="never" class="table-card">
       <vxe-toolbar ref="toolbarRef" custom>
         <template #buttons>
-          <el-button type="primary" v-permission="'screen:sql-whitelist:add'" @click="handleAdd">新增</el-button>
+          <el-button v-permission="'screen:sql-whitelist:add'" type="primary" @click="handleAdd">新增</el-button>
         </template>
       </vxe-toolbar>
-      <vxe-table ref="tableRef" id="sqlWhitelistTable" :data="tableData" :height="tableHeight"
+      <vxe-table id="sqlWhitelistTable" ref="tableRef" :data="tableData" :height="tableHeight"
         :row-config="{ isCurrent: true, isHover: true }" show-overflow="tooltip">
         <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
         <vxe-column field="schemaName" title="库名" min-width="140" />
@@ -30,7 +30,7 @@
         </vxe-column>
         <vxe-column field="riskLevel" title="风险等级" width="100">
           <template #default="{ row }">
-            <el-tag :type="riskTagType(row.riskLevel)" size="small">
+            <el-tag :type="(riskTagType(row.riskLevel) as any)" size="small">
               {{ riskLabel(row.riskLevel) }}
             </el-tag>
           </template>
@@ -43,8 +43,8 @@
         <vxe-column field="remark" title="备注" min-width="160" />
         <vxe-column title="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" v-permission="'screen:sql-whitelist:edit'" @click="handleEdit(row)">编辑</el-button>
-            <el-button type="danger" link size="small" v-permission="'screen:sql-whitelist:remove'" @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'screen:sql-whitelist:edit'" type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'screen:sql-whitelist:remove'" type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>
@@ -60,7 +60,7 @@
       :close-on-click-modal="false"
       @update:model-value="(v: boolean) => dialogVisible = v"
     >
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px" v-loading="formLoading">
+      <el-form ref="formRef" v-loading="formLoading" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="库名" prop="schemaName">
           <el-input v-model="form.schemaName" :disabled="isEdit" placeholder="forge_admin" />
         </el-form-item>

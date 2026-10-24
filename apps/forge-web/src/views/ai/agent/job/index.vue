@@ -21,14 +21,14 @@
     <el-card shadow="never" class="table-card">
       <vxe-toolbar ref="toolbarRef" custom>
         <template #buttons>
-          <el-button type="primary" v-permission="'ai:agent:job:config'" @click="handleAdd">
+          <el-button v-permission="'ai:agent:job:config'" type="primary" @click="handleAdd">
             <el-icon><Plus /></el-icon>
             新增任务
           </el-button>
         </template>
       </vxe-toolbar>
 
-      <vxe-table ref="tableRef" id="agentJobTable" :data="tableData" :height="tableHeight" :loading="loading"
+      <vxe-table id="agentJobTable" ref="tableRef" :data="tableData" :height="tableHeight" :loading="loading"
         :row-config="{ isHover: true }" stripe show-overflow="tooltip">
         <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
         <vxe-column field="id" title="ID" width="70" />
@@ -54,12 +54,12 @@
         </vxe-column>
         <vxe-column title="操作" width="230" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" v-permission="'ai:agent:job:config'" @click="handleEdit(row)">编辑</el-button>
-            <el-button type="success" link size="small" v-permission="'ai:agent:job:run'" :loading="runningId === row.id" @click="handleRun(row)">执行</el-button>
-            <el-button :type="row.status === 1 ? 'warning' : 'success'" link size="small" v-permission="'ai:agent:job:config'" @click="handleToggle(row)">
+            <el-button v-permission="'ai:agent:job:config'" type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'ai:agent:job:run'" type="success" link size="small" :loading="runningId === row.id" @click="handleRun(row)">执行</el-button>
+            <el-button v-permission="'ai:agent:job:config'" :type="row.status === 1 ? 'warning' : 'success'" link size="small" @click="handleToggle(row)">
               {{ row.status === 1 ? '停止' : '启用' }}
             </el-button>
-            <el-button type="danger" link size="small" v-permission="'ai:agent:job:config'" @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'ai:agent:job:config'" type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>

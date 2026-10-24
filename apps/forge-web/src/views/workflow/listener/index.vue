@@ -52,8 +52,8 @@
       </vxe-toolbar>
 
       <vxe-table
-        ref="tableRef"
         id="wfListenerTable"
+        ref="tableRef"
         :custom-config="{ mode: 'modal' }"
         :data="tableData"
         :height="tableHeight"
@@ -163,7 +163,7 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
-import { formatDateTime } from '@/utils/dateFormat'
+import {} from '@/utils/dateFormat'
 import { listenerApi, type ListenerQuery, type ListenerRequest, type ProcessListener } from '@/api/workflow/process-listener'
 
 const { tableHeight } = useTableHeight({extraOffset: 60})

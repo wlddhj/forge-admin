@@ -56,7 +56,7 @@
             <el-button v-if="row.status === 1" link size="small" @click="handleCopyLink(row)">使用链接</el-button>
             <el-button link size="small" @click="openAccessDialog(row)">授权</el-button>
             <el-button v-permission="'screen:screen:copy'" link size="small" @click="handleCopy(row)">复制</el-button>
-            <el-button v-permission="'screen:screen:publish'" link size="small" type="warning" v-if="row.status !== 1" @click="handlePublish(row)">发布</el-button>
+            <el-button v-if="row.status !== 1" v-permission="'screen:screen:publish'" link size="small" type="warning" @click="handlePublish(row)">发布</el-button>
             <el-button v-if="row.status !== 1" v-permission="'screen:screen:remove'" type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
@@ -116,7 +116,7 @@
           show-icon
           style="margin-bottom: 16px"
         />
-        <el-form-item label="授权类型" v-if="accessForm.isPublic === 0">
+        <el-form-item v-if="accessForm.isPublic === 0" label="授权类型">
           <el-radio-group v-model="accessForm.accessType">
             <el-radio :value="0">所有登录用户</el-radio>
             <el-radio :value="1">指定角色</el-radio>
@@ -127,7 +127,7 @@
             <el-option
               v-for="r in roleOptions"
               :key="r.id"
-              :label="r.name"
+              :label="r.roleName"
               :value="r.id"
             />
           </el-select>
@@ -176,7 +176,8 @@ import {
   getScreenList, createScreen, updateScreen, copyScreen, deleteScreen, publishScreen,
   type ScreenListQuery, type ScreenDetailResponse, type ScreenCopyRequest
 } from '@/api/screen'
-import { getAllRoles, type Role } from '@/api/system'
+import { getAllRoles } from '@/api/system'
+import type { Role } from '@/types/system'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
 import { formatDateTime } from '@/utils/dateFormat'

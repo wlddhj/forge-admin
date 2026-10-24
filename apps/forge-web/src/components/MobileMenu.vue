@@ -48,7 +48,7 @@
           </el-avatar>
           <div class="user-detail">
             <div class="username">{{ userStore.userInfo?.nickname }}</div>
-            <div class="user-role">{{ userStore.userInfo?.roles?.[0]?.roleName || '用户' }}</div>
+            <div class="user-role">{{ userStore.userInfo?.roles?.[0] || '用户' }}</div>
           </div>
         </div>
         <el-button type="danger" text @click="handleLogout">
@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'

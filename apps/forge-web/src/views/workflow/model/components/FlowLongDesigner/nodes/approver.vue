@@ -11,11 +11,11 @@
         <span v-else class="placeholder">请选择</span>
       </div>
     </div>
-    <add-node v-model="nodeConfig.childNode"></add-node>
-    <el-drawer title="审批人设置" v-model="drawer" destroy-on-close append-to-body :size="500">
+    <add-node :model-value="nodeConfig.childNode ?? null" @update:model-value="nodeConfig.childNode = $event"></add-node>
+    <el-drawer v-model="drawer" title="审批人设置" destroy-on-close append-to-body :size="500">
       <template #header>
         <div class="node-wrap-drawer__title">
-          <label @click="editTitle" v-if="!isEditTitle">
+          <label v-if="!isEditTitle" @click="editTitle">
             {{ form.nodeName }}
             <el-icon class="node-wrap-drawer__title-edit"><Edit /></el-icon>
           </label>
@@ -46,7 +46,7 @@
             </el-form-item>
 
             <el-form-item v-if="form.setType == 1" label="选择成员">
-              <el-button type="primary" icon="Plus" round @click="selectHandle(1, form.nodeAssigneeList)">
+              <el-button type="primary" icon="Plus" round @click="selectHandle(1, form.nodeAssigneeList ?? [])">
                 选择人员
               </el-button>
               <div class="tags-list">
@@ -63,7 +63,7 @@
             </el-form-item>
 
             <el-form-item v-if="form.setType == 3" label="选择角色">
-              <el-button type="primary" icon="Plus" round @click="selectHandle(2, form.nodeAssigneeList)">
+              <el-button type="primary" icon="Plus" round @click="selectHandle(2, form.nodeAssigneeList ?? [])">
                 选择角色
               </el-button>
               <div class="tags-list">
@@ -242,17 +242,17 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: FlowlongNodeModel): void
+  (e: 'update:modelValue', value: FlowlongNodeModel | null): void
 }>()
 
 // 从父组件注入的选择器方法
 const select = inject<(type: number, data: FlowlongNodeAssignee[]) => void>('select')
 
-const nodeConfig = ref<FlowlongNodeModel>({})
+const nodeConfig = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 const drawer = ref(false)
 const isEditTitle = ref(false)
 const nodeTitleRef = ref<HTMLInputElement | null>(null)
-const form = ref<FlowlongNodeModel>({})
+const form = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 
 // 默认 AI 审批配置
 const defaultAiApprovalConfig: FlowlongAiApprovalConfig = {
@@ -273,7 +273,7 @@ watch(
       form.value.aiApprovalConfig = { ...defaultAiApprovalConfig }
     }
     if (form.value.aiApprovalConfig) {
-      form.value.aiApprovalConfig.enabled = val
+      form.value.aiApprovalConfig.enabled = val ?? false
     }
   }
 )
@@ -314,7 +314,7 @@ const show = () => {
   }
   // 确保 AI 审批配置的 enabled 与开关状态一致
   if (form.value.aiApprovalConfig) {
-    form.value.aiApprovalConfig.enabled = form.value.aiApproval
+    form.value.aiApprovalConfig.enabled = form.value.aiApproval ?? false
   }
   drawer.value = true
 }
@@ -333,7 +333,7 @@ const saveTitle = () => {
 const save = () => {
   // 确保 AI 审批配置的 enabled 与开关状态一致
   if (form.value.aiApprovalConfig) {
-    form.value.aiApprovalConfig.enabled = form.value.aiApproval
+    form.value.aiApprovalConfig.enabled = form.value.aiApproval ?? false
   }
   // 如果关闭了 AI 审批，清除配置
   if (!form.value.aiApproval) {

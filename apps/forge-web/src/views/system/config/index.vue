@@ -57,8 +57,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysConfigTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"
@@ -100,7 +100,7 @@
         <vxe-column v-if="!isMobile" title="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:config:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
-            <el-button v-permission="'system:config:delete'" type="danger" link size="small" @click.stop="handleDelete(row)" :disabled="row.isSystem === 1">删除</el-button>
+            <el-button v-permission="'system:config:delete'" type="danger" link size="small" :disabled="row.isSystem === 1" @click.stop="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>
@@ -122,7 +122,7 @@
     >
       <template #actions="{ item }">
         <el-button v-permission="'system:config:edit'" size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
-        <el-button v-permission="'system:config:delete'" size="small" type="danger" @click.stop="handleDelete(item)" :disabled="item.isSystem === 1">删除</el-button>
+        <el-button v-permission="'system:config:delete'" size="small" type="danger" :disabled="item.isSystem === 1" @click.stop="handleDelete(item)">删除</el-button>
       </template>
     </MobileBottomActions>
 

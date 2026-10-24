@@ -87,8 +87,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysRoleTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"
@@ -140,7 +140,7 @@
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
             <el-button type="primary" link size="small" @click.stop="handleAssignMenus(row)">分配菜单</el-button>
-            <el-button type="danger" link size="small" @click.stop="handleDelete(row)" :disabled="row.isFixed === 1">删除</el-button>
+            <el-button type="danger" link size="small" :disabled="row.isFixed === 1" @click.stop="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>
@@ -163,7 +163,7 @@
       <template #actions="{ item }">
         <el-button size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
         <el-button size="small" @click.stop="handleAssignMenus(item)">分配菜单</el-button>
-        <el-button size="small" type="danger" @click.stop="handleDelete(item)" :disabled="item.isFixed === 1">删除</el-button>
+        <el-button size="small" type="danger" :disabled="item.isFixed === 1" @click.stop="handleDelete(item)">删除</el-button>
       </template>
     </MobileBottomActions>
 

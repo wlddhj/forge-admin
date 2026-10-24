@@ -91,8 +91,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysNoticeTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"

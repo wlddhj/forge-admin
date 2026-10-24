@@ -33,7 +33,7 @@ export function useTableHeight(options: UseTableHeightOptions = {}) {
     const style = window.getComputedStyle(el)
     const marginTop = parseFloat(style.marginTop) || 0
     const marginBottom = parseFloat(style.marginBottom) || 0
-    return el.offsetHeight + marginTop + marginBottom
+    return (el as HTMLElement).offsetHeight + marginTop + marginBottom
   }
 
   /**

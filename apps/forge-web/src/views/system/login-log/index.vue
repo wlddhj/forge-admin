@@ -61,7 +61,7 @@
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
       <!-- vxe-toolbar 工具栏（桌面端） -->
-      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom >
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
         <template #buttons>
           <el-button type="success" @click="handleExport">
             <el-icon><Download /></el-icon>
@@ -79,8 +79,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysLoginLogTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"

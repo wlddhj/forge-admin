@@ -39,7 +39,7 @@ function setRuleDisabled(rule: any): any {
 
   // 如果有 children，递归处理
   if (rule.children && Array.isArray(rule.children)) {
-    rule.children = rule.children.map(child => setRuleDisabled(child))
+    rule.children = rule.children.map((child: any) => setRuleDisabled(child))
   }
 
   // 获取组件类型

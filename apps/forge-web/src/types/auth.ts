@@ -47,6 +47,8 @@ export interface UserInfo {
   deptName: string
   roles: string[]
   permissions: string[]
+  phone?: string
+  email?: string
   passwordExpireDays?: number
   passwordExpired?: boolean
   tenantId?: number | null

@@ -23,7 +23,7 @@
       </el-form-item>
       <el-form-item label="模型绑定">
         <el-input v-model="formData.modelBindings" type="textarea" :rows="3"
-          placeholder='JSON：{"supervisor":{"modelType":"text"},"summary":{"modelType":"text"}}，modelId 优先；留空则报错提示绑定' />
+          placeholder="JSON：{&quot;supervisor&quot;:{&quot;modelType&quot;:&quot;text&quot;},&quot;summary&quot;:{&quot;modelType&quot;:&quot;text&quot;}}，modelId 优先；留空则报错提示绑定" />
       </el-form-item>
       <el-row :gutter="12">
         <el-col :span="12">
@@ -63,7 +63,7 @@
         <el-table-column label="步数上限" width="120">
           <template #default="{ row }">
             <el-input-number :min="1" :max="50" :model-value="row.maxSteps ?? undefined"
-              @update:model-value="(v: number | undefined) => (row.maxSteps = v ?? null)" placeholder="默认" />
+              placeholder="默认" @update:model-value="(v: number | undefined) => (row.maxSteps = v ?? null)" />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="70" fixed="right">

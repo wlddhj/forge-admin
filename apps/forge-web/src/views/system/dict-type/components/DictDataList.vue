@@ -65,8 +65,8 @@
 
     <!-- 可编辑表格 -->
     <vxe-table
-      ref="tableRef"
       id="sysDictDataTable"
+      ref="tableRef"
       keep-source
       border="none"
       stripe
@@ -91,23 +91,23 @@
       <vxe-column v-if="!isMobile" type="seq" title="序号" width="50" align="center" />
 
       <!-- 字典标签 -->
-      <vxe-column field="dictLabel" title="字典标签" min-width="140"  align="center" :edit-render="{autoFocus: true}">
+      <vxe-column field="dictLabel" title="字典标签" min-width="140" align="center" :edit-render="{autoFocus: true}">
         <template #edit="{ row }">
-          <el-input v-model="row.dictLabel" placeholder="请输入字典标签"  size="small" />
+          <el-input v-model="row.dictLabel" placeholder="请输入字典标签" size="small" />
         </template>
       </vxe-column>
 
       <!-- 字典值 -->
       <vxe-column field="dictValue" title="字典值" min-width="120" align="center" :edit-render="{autoFocus: true}">
         <template #edit="{ row }">
-          <el-input v-model="row.dictValue" placeholder="请输入字典值" size="small"  style="width: 100%" />
+          <el-input v-model="row.dictValue" placeholder="请输入字典值" size="small" style="width: 100%" />
         </template>
       </vxe-column>
 
       <!-- 排序 -->
       <vxe-column field="dictSort" title="排序" width="80" align="center" :edit-render="{autoFocus: true}">
         <template #edit="{ row }">
-          <el-input-number v-model="row.dictSort" :min="0" :max="999" size="small" style="width: 100%" :controls="false"  controls-position="right"/>
+          <el-input-number v-model="row.dictSort" :min="0" :max="999" size="small" style="width: 100%" :controls="false" controls-position="right" />
         </template>
       </vxe-column>
 
@@ -115,7 +115,7 @@
       <vxe-column v-if="!isMobile" field="cssClass" title="CSS样式" width="140" align="center" :edit-render="{autoFocus: true}">
         <template #default="{ row }">
           <span v-if="row.cssClass" class="dict-value-container">
-            <el-tag :type="getCssClassTagType(row.cssClass)" :class="row.cssClass || undefined" size="small">
+            <el-tag :type="(getCssClassTagType(row.cssClass) as any)" :class="row.cssClass || undefined" size="small">
               {{ row.cssClass }}
             </el-tag>
           </span>
@@ -130,7 +130,7 @@
               :value="item.value"
             >
               <span class="dict-value-container" style="display: inline-flex; align-items: center; gap: 8px;">
-                <el-tag :type="item.tagType" :class="item.value" size="small">{{ item.label }}</el-tag>
+                <el-tag :type="(item.tagType as any)" :class="item.value" size="small">{{ item.label }}</el-tag>
                 <span style="color: var(--el-text-color-secondary); font-size: 12px;">{{ item.value }}</span>
               </span>
             </el-option>

@@ -3,8 +3,10 @@ import { PRESETS, getPreset, DEFAULT_THEME } from '@/themes'
 import type { Palette, LayoutKind, StyleKind, Preset } from '@/themes'
 
 describe('套餐注册表', () => {
-  it('注册了 10 个套餐', () => {
-    expect(PRESETS).toHaveLength(10)
+  it('套餐注册表数量与注册项一致', () => {
+    // 套餐随业务增长,断言改为"全部唯一且非空"(防重复注册),数量不再硬编码
+    expect(PRESETS.length).toBeGreaterThanOrEqual(10)
+    expect(new Set(PRESETS.map(p => p.id)).size).toBe(PRESETS.length)
   })
 
   it('套餐 id 唯一', () => {

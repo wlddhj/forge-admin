@@ -8,18 +8,22 @@
           :key="type"
           :class="['paper-btn', curPaperType === type ? 'active' : '']"
           @click="setPaper(type, value)"
-        >{{ type }}</button>
+        >
+{{ type }}
+</button>
         <button
           :class="['paper-btn', curPaperType === 'other' ? 'active' : '']"
           @click="paperPopVisible = !paperPopVisible"
-        >自定义</button>
-        <div class="popover" v-show="paperPopVisible">
+        >
+自定义
+</button>
+        <div v-show="paperPopVisible" class="popover">
           <div class="popover-content">
             <div style="font-size: 14px; font-weight: bold; margin-bottom: 6px">设置纸张宽高(mm)</div>
             <div style="display: flex; align-items: center; gap: 6px">
-              <input class="paper-input" v-model.number="paperWidth" type="number" placeholder="宽" />
+              <input v-model.number="paperWidth" class="paper-input" type="number" placeholder="宽" />
               <span>x</span>
-              <input class="paper-input" v-model.number="paperHeight" type="number" placeholder="高" />
+              <input v-model.number="paperHeight" class="paper-input" type="number" placeholder="高" />
               <button class="action-btn primary" @click.stop="setPaperOther">确定</button>
             </div>
           </div>
@@ -77,7 +81,7 @@ import startPreview from '@/components/hiprint/preview.vue'
 import { PrintTemplateApi } from '@/api/system/print-template'
 
 export default {
-  name: 'print-template-design',
+  name: 'PrintTemplateDesign',
   components: { startPreview },
   setup() {
     const TEMPLATE_KEY = getCurrentInstance().type.name

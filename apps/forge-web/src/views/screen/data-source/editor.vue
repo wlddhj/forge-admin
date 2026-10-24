@@ -7,7 +7,7 @@
     :close-on-click-modal="false"
     @update:model-value="(v: boolean) => emit('update:modelValue', v)"
   >
-    <el-form :model="form" :rules="rules" ref="formRef" label-width="100px" v-loading="loading">
+    <el-form ref="formRef" v-loading="loading" :model="form" :rules="rules" label-width="100px">
       <el-form-item label="编码" prop="code">
         <el-input v-model="form.code" :disabled="isEdit" />
       </el-form-item>
@@ -31,10 +31,10 @@
           <el-input v-model="httpCfg.url" placeholder="https://internal-api.example.com/path" />
         </el-form-item>
         <el-form-item label="Headers">
-          <el-input v-model="httpCfg.headers" type="textarea" :rows="3" placeholder='{"Authorization":"Bearer xxx"}' />
+          <el-input v-model="httpCfg.headers" type="textarea" :rows="3" placeholder="{&quot;Authorization&quot;:&quot;Bearer xxx&quot;}" />
         </el-form-item>
         <el-form-item label="Params">
-          <el-input v-model="httpCfg.params" type="textarea" :rows="3" placeholder='{"key":"value"}' />
+          <el-input v-model="httpCfg.params" type="textarea" :rows="3" placeholder="{&quot;key&quot;:&quot;value&quot;}" />
         </el-form-item>
         <el-form-item label="Timeout(s)">
           <el-input-number v-model="httpCfg.timeout" :min="1" :max="60" />
@@ -48,7 +48,7 @@
         </el-form-item>
         <el-form-item label="参数 Schema">
           <el-input v-model="sqlCfg.paramSchema" type="textarea" :rows="3"
-            placeholder='{"startTime":{"type":"string","required":true}}' />
+            placeholder="{&quot;startTime&quot;:{&quot;type&quot;:&quot;string&quot;,&quot;required&quot;:true}}" />
         </el-form-item>
         <el-form-item label="最大行数">
           <el-input-number v-model="sqlCfg.maxRows" :min="1" :max="1000" />

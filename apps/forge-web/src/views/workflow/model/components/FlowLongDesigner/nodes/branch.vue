@@ -3,11 +3,11 @@
     <div class="branch-box-wrap">
       <div class="branch-box">
         <el-button class="add-branch" type="success" plain round @click="addTerm">添加条件</el-button>
-        <div class="col-box" v-for="(item, index) in nodeConfig.conditionNodes" :key="index">
+        <div v-for="(item, index) in nodeConfig.conditionNodes" :key="index" class="col-box">
           <div class="condition-node">
             <div class="condition-node-box">
               <div class="auto-judge" @click="show(index)">
-                <div class="sort-left" v-if="index != 0" @click.stop="arrTransfer(index, -1)">
+                <div v-if="index != 0" class="sort-left" @click.stop="arrTransfer(index, -1)">
                   <el-icon><ArrowLeft /></el-icon>
                 </div>
                 <div class="title">
@@ -20,29 +20,29 @@
                   <span v-else class="placeholder">请设置条件</span>
                 </div>
                 <div
-                  class="sort-right"
                   v-if="index != nodeConfig.conditionNodes!.length - 1"
+                  class="sort-right"
                   @click.stop="arrTransfer(index)"
                 >
                   <el-icon><ArrowRight /></el-icon>
                 </div>
               </div>
-              <add-node v-model="item.childNode"></add-node>
+              <add-node :model-value="item.childNode ?? null" @update:model-value="item.childNode = $event"></add-node>
             </div>
           </div>
           <slot v-if="item.childNode" :node="item"></slot>
-          <div class="top-left-cover-line" v-if="index == 0"></div>
-          <div class="bottom-left-cover-line" v-if="index == 0"></div>
-          <div class="top-right-cover-line" v-if="index == nodeConfig.conditionNodes!.length - 1"></div>
-          <div class="bottom-right-cover-line" v-if="index == nodeConfig.conditionNodes!.length - 1"></div>
+          <div v-if="index == 0" class="top-left-cover-line"></div>
+          <div v-if="index == 0" class="bottom-left-cover-line"></div>
+          <div v-if="index == nodeConfig.conditionNodes!.length - 1" class="top-right-cover-line"></div>
+          <div v-if="index == nodeConfig.conditionNodes!.length - 1" class="bottom-right-cover-line"></div>
         </div>
       </div>
-      <add-node v-model="nodeConfig.childNode"></add-node>
+      <add-node :model-value="nodeConfig.childNode ?? null" @update:model-value="nodeConfig.childNode = $event"></add-node>
     </div>
-    <el-drawer title="条件设置" v-model="drawer" destroy-on-close append-to-body :size="600">
+    <el-drawer v-model="drawer" title="条件设置" destroy-on-close append-to-body :size="600">
       <template #header>
         <div class="node-wrap-drawer__title">
-          <label @click="editTitle" v-if="!isEditTitle">
+          <label v-if="!isEditTitle" @click="editTitle">
             {{ form.nodeName }}
             <el-icon class="node-wrap-drawer__title-edit"><Edit /></el-icon>
           </label>
@@ -60,7 +60,7 @@
         <el-main style="padding: 0 20px 20px 20px">
           <div class="top-tips">满足以下条件时进入当前分支</div>
           <template v-for="(conditionGroup, conditionGroupIdx) in form.conditionList" :key="conditionGroupIdx">
-            <div class="or-branch-link-tip" v-if="conditionGroupIdx != 0">或满足</div>
+            <div v-if="conditionGroupIdx != 0" class="or-branch-link-tip">或满足</div>
             <div class="condition-group-editor">
               <div class="header">
                 <span>条件组 {{ conditionGroupIdx + 1 }}</span>
@@ -74,7 +74,7 @@
                   <div>运算符</div>
                   <div>值</div>
                 </div>
-                <div class="condition-content" v-for="(condition, idx) in conditionGroup" :key="idx">
+                <div v-for="(condition, idx) in conditionGroup" :key="idx" class="condition-content">
                   <div class="condition-relation">
                     <span>{{ idx == 0 ? '当' : '且' }}</span>
                     <el-icon class="branch-delete-icon" @click="deleteConditionList(conditionGroup, idx)"><Delete /></el-icon>
@@ -99,7 +99,7 @@
                 </div>
               </div>
               <div class="sub-content">
-                <el-button link type="primary" @click="addConditionList(conditionGroup)" icon="Plus">添加条件</el-button>
+                <el-button link type="primary" icon="Plus" @click="addConditionList(conditionGroup)">添加条件</el-button>
               </div>
             </div>
           </template>
@@ -118,7 +118,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
-import { ArrowLeft, ArrowRight, Close, Edit, Delete, Plus } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Close, Edit, Delete } from '@element-plus/icons-vue'
 import addNode from './addNode.vue'
 import type { FlowlongNodeModel, FlowlongConditionNode, FlowlongCondition } from '@/composables/useFlowLongDataTransform'
 
@@ -127,15 +127,15 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: FlowlongNodeModel): void
+  (e: 'update:modelValue', value: FlowlongNodeModel | null): void
 }>()
 
-const nodeConfig = ref<FlowlongNodeModel>({})
+const nodeConfig = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 const drawer = ref(false)
 const isEditTitle = ref(false)
 const nodeTitleRef = ref<HTMLInputElement | null>(null)
 const index = ref(0)
-const form = ref<FlowlongConditionNode>({})
+const form = ref<FlowlongConditionNode>({} as FlowlongConditionNode)
 
 watch(
   () => props.modelValue,
@@ -201,7 +201,7 @@ const delTerm = (idx: number) => {
   }
 }
 
-const reData = (data: FlowlongConditionNode, addData: FlowlongNodeModel | undefined) => {
+const reData = (data: FlowlongConditionNode | FlowlongNodeModel, addData: FlowlongNodeModel | undefined) => {
   if (!data.childNode) {
     data.childNode = addData
   } else {

@@ -62,8 +62,8 @@
       </vxe-toolbar>
 
       <vxe-table
-        ref="tableRef"
         id="sysTenantTable"
+        ref="tableRef"
         :custom-config="{ mode: 'modal' }"
         :data="tableData"
         :height="tableHeight"

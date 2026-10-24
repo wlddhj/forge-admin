@@ -4,7 +4,7 @@
       v-model="activeTab"
       type="card"
       @tab-click="handleTabClick"
-      @tab-remove="handleTabRemove"
+      @tab-remove="(name: any) => handleTabRemove(String(name))"
     >
       <el-tab-pane
         v-for="tab in tabs"
@@ -26,7 +26,7 @@
 
     <!-- 标签页操作按钮 -->
     <div class="tabs-actions">
-      <el-dropdown @command="handleCommand" trigger="click">
+      <el-dropdown trigger="click" @command="handleCommand">
         <el-button :icon="ArrowDown" size="small" circle />
         <template #dropdown>
           <el-dropdown-menu>
@@ -151,7 +151,7 @@ const handleContextMenu = (event: MouseEvent, tab: TabItem) => {
 }
 
 // 点击外部关闭右键菜单
-const handleClickOutside = (event: MouseEvent) => {
+const handleClickOutside = (_event: MouseEvent) => {
   if (contextMenuVisible.value) {
     contextMenuVisible.value = false
   }

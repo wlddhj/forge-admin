@@ -19,7 +19,9 @@
                 size="small"
                 :loading="actionLoading"
                 @click="handleWithdraw"
-              >撤回</el-button>
+              >
+撤回
+</el-button>
               <el-button type="primary" size="small" @click="diagramDialogVisible = true">
                 查看流程图
               </el-button>
@@ -155,7 +157,7 @@
       <!-- 审批记录 -->
       <el-card shadow="never" class="timeline-card">
         <template #header>审批记录</template>
-        <el-table :data="comments" size="small" v-if="comments.length">
+        <el-table v-if="comments.length" :data="comments" size="small">
           <el-table-column type="index" label="序号" width="60" align="center" />
           <el-table-column prop="createTime" label="时间" width="160">
             <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
@@ -304,7 +306,7 @@
       </el-form>
       <template #footer>
         <el-button @click="returnDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="actionLoading" @click="handleReturnConfirm" :disabled="!returnTargetKey">确定</el-button>
+        <el-button type="primary" :loading="actionLoading" :disabled="!returnTargetKey" @click="handleReturnConfirm">确定</el-button>
       </template>
     </el-dialog>
 
@@ -396,12 +398,6 @@ const selectedUsers = reactive<Record<string, number[]>>({})
 // 判断是否为已办任务
 const isDoneTask = computed(() => !!taskInfo.value?.endTime)
 
-// 当前活跃节点ID列表（用于流程图高亮）
-const activeActivityIds = computed(() => {
-  return approvalNodes.value
-    .filter(n => n.status === 1)
-    .map(n => n.activityId)
-})
 
 // 流程图弹窗
 const diagramDialogVisible = ref(false)

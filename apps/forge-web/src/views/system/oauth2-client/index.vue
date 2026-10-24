@@ -27,8 +27,8 @@
       </vxe-toolbar>
 
       <vxe-table
-        ref="tableRef"
         id="sysOAuth2ClientTable"
+        ref="tableRef"
         :custom-config="{ mode: 'modal' }"
         :data="tableData"
         :height="tableHeight"

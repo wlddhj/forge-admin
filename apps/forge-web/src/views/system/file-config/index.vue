@@ -45,11 +45,11 @@
     </el-card>
 
     <!-- 数据表格 -->
-    <el-card shadow="never"  class="table-card">
+    <el-card shadow="never" class="table-card">
       <!-- vxe-toolbar 工具栏 -->
       <vxe-toolbar ref="toolbarRef" custom>
         <template #buttons>
-          <el-button type="primary" @click="handleAdd" v-permission="['system:file-config:add']">
+          <el-button v-permission="['system:file-config:add']" type="primary" @click="handleAdd">
             <el-icon><Plus /></el-icon>
             新增配置
           </el-button>
@@ -61,8 +61,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysFileConfigTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"
@@ -123,13 +123,13 @@
         <!-- 操作列 -->
         <vxe-column title="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)" v-permission="['system:file-config:edit']">
+            <el-button v-permission="['system:file-config:edit']" link type="primary" @click="handleEdit(row)">
               编辑
             </el-button>
             <el-button link type="primary" @click="handleTest(row)">
               测试
             </el-button>
-            <el-button link type="danger" @click="handleDelete(row)" v-permission="['system:file-config:delete']">
+            <el-button v-permission="['system:file-config:delete']" link type="danger" @click="handleDelete(row)">
               删除
             </el-button>
           </template>
@@ -215,12 +215,12 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="formData.remark" type="textarea" rows="3" placeholder="请输入备注" />
+          <el-input v-model="formData.remark" type="textarea" :rows="3" placeholder="请输入备注" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确定</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -306,27 +306,7 @@ const formRules: FormRules = {
   storageType: [{ required: true, message: '请选择存储类型', trigger: 'change' }]
 }
 
-// 获取存储类型标签
-const getStorageTypeTag = (type: string) => {
-  const map: Record<string, string> = {
-    local: '',
-    aliyun_oss: 'success',
-    tencent_cos: 'warning',
-    minio: 'info'
-  }
-  return map[type] || ''
-}
 
-// 获取存储类型标签
-const getStorageTypeLabel = (type: string) => {
-  const map: Record<string, string> = {
-    local: '本地存储',
-    aliyun_oss: '阿里云 OSS',
-    tencent_cos: '腾讯云 COS',
-    minio: 'MinIO'
-  }
-  return map[type] || type
-}
 
 // 关联工具栏与表格
 onMounted(() => {

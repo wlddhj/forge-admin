@@ -1,7 +1,7 @@
 <template>
   <div class="mobile-search-button" @click="handleClick">
     <el-icon class="search-icon"><Search /></el-icon>
-    <el-badge v-if="badgeCount > 0" :value="badgeCount" class="search-badge" />
+    <el-badge v-if="(badgeCount ?? 0) > 0" :value="badgeCount ?? 0" class="search-badge" />
   </div>
 </template>
 

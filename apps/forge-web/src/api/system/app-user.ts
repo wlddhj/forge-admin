@@ -12,6 +12,8 @@ export interface AppUserEntity {
   lastLoginTime: string
   deactivatedTime: string | null
   createTime: string
+  unionId?: string
+  updateTime?: string
 }
 
 export interface AppUserQuery {

@@ -35,13 +35,13 @@
     </div>
 
     <!-- 设计器主体 -->
-    <div class="designer-content" :style="canvasStyle" v-if="processModel">
+    <div v-if="processModel" class="designer-content" :style="canvasStyle">
       <ScWorkflow
         ref="workflowRef"
         v-model="processModel.nodeConfig"
       />
     </div>
-    <div class="designer-content loading-content" v-else>
+    <div v-else class="designer-content loading-content">
       <el-icon class="is-loading" size="40"><Loading /></el-icon>
     </div>
 
@@ -235,7 +235,7 @@ const handleSave = async () => {
       id,
       name: modelData.value?.name || '',
       key: modelData.value?.key || '',
-      category: modelData.value?.category,
+      categoryId: modelData.value?.category,
       description: modelData.value?.description,
       formType: modelData.value?.formType,
       formId: modelData.value?.formId,

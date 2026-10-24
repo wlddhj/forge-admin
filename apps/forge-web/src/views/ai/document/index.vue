@@ -50,8 +50,8 @@
       </vxe-toolbar>
 
       <vxe-table
-        ref="tableRef"
         id="aiDocumentTable"
+        ref="tableRef"
         :data="tableData"
         :height="tableHeight"
         :loading="loading"
@@ -91,7 +91,7 @@
         <vxe-column title="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleDetail(row)">详情</el-button>
-            <el-button type="success" link size="small" @click="handleSummary(row)" :disabled="row.status !== 1">摘要</el-button>
+            <el-button type="success" link size="small" :disabled="row.status !== 1" @click="handleSummary(row)">摘要</el-button>
             <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
@@ -104,8 +104,7 @@
           :total="total"
           @change="getList"
       />
-
-    </el-card>
+</el-card>
 
     <!-- 详情对话框 -->
     <el-dialog v-model="detailDialogVisible" title="文档详情" width="800px">

@@ -20,9 +20,9 @@
             @click="handlePresetChange(preset.id)"
           >
             <div class="preset-thumb" :data-palette="preset.palette" :data-style="preset.style">
-              <span class="preset-thumb-sidebar" v-if="preset.layout === 'sidebar'"></span>
-              <span class="preset-thumb-topbar" v-else-if="preset.layout === 'top'"></span>
-              <span class="preset-thumb-portal" v-else></span>
+              <span v-if="preset.layout === 'sidebar'" class="preset-thumb-sidebar"></span>
+              <span v-else-if="preset.layout === 'top'" class="preset-thumb-topbar"></span>
+              <span v-else class="preset-thumb-portal"></span>
               <span class="preset-thumb-dot"></span>
             </div>
             <span class="preset-name">{{ preset.name }}</span>
@@ -59,7 +59,7 @@
           </div>
 
           <!-- 自定义主色（仅 palette='custom' 时显示） -->
-          <div class="setting-item" v-if="localConfig.palette === 'custom'">
+          <div v-if="localConfig.palette === 'custom'" class="setting-item">
             <div class="item-label">
               <span>自定义主色</span>
               <p class="item-desc">点击选色，实时预览</p>
@@ -145,7 +145,7 @@
           />
         </div>
 
-        <div class="setting-item" v-if="localConfig.showTabs">
+        <div v-if="localConfig.showTabs" class="setting-item">
           <div class="item-label">
             <span>最大标签数</span>
             <p class="item-desc">超过此数量时自动关闭最早的标签页</p>
@@ -160,7 +160,7 @@
           />
         </div>
 
-        <div class="setting-item" v-if="localConfig.showTabs">
+        <div v-if="localConfig.showTabs" class="setting-item">
           <div class="item-label">
             <span>移动端隐藏标签</span>
             <p class="item-desc">在移动设备上自动隐藏标签页栏</p>

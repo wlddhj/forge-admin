@@ -27,9 +27,9 @@
           <div class="stat-info">
             <div class="stat-value">{{ stats.userCount }}</div>
             <div class="stat-label">用户总数</div>
-            <div class="stat-trend" :class="{ up: stats.userTrend > 0, down: stats.userTrend < 0 }">
-              <el-icon><component :is="stats.userTrend > 0 ? 'Top' : 'Bottom'" /></el-icon>
-              {{ Math.abs(stats.userTrend) || 0 }}%
+            <div class="stat-trend" :class="{ up: (stats.userTrend ?? 0) > 0, down: (stats.userTrend ?? 0) < 0 }">
+              <el-icon><component :is="(stats.userTrend ?? 0) > 0 ? 'Top' : 'Bottom'" /></el-icon>
+              {{ Math.abs(stats.userTrend ?? 0) || 0 }}%
             </div>
           </div>
         </div>
@@ -66,9 +66,9 @@
           <div class="stat-info">
             <div class="stat-value">{{ stats.logCount }}</div>
             <div class="stat-label">操作日志</div>
-            <div class="stat-trend" :class="{ up: stats.logTrend > 0, down: stats.logTrend < 0 }">
-              <el-icon><component :is="stats.logTrend > 0 ? 'Top' : 'Bottom'" /></el-icon>
-              {{ Math.abs(stats.logTrend) || 0 }}%
+            <div class="stat-trend" :class="{ up: (stats.logTrend ?? 0) > 0, down: (stats.logTrend ?? 0) < 0 }">
+              <el-icon><component :is="(stats.logTrend ?? 0) > 0 ? 'Top' : 'Bottom'" /></el-icon>
+              {{ Math.abs(stats.logTrend ?? 0) || 0 }}%
             </div>
           </div>
         </div>
@@ -95,7 +95,7 @@
           </template>
           <div class="favorites-grid">
             <div
-              v-for="(item, index) in favoriteItems"
+              v-for="(item, _index) in favoriteItems"
               :key="item.id"
               class="favorite-item"
               :class="{ dragging: dragItemId === (typeof item.id === 'string' ? parseInt(item.id, 10) : item.id) }"
@@ -295,7 +295,7 @@
 
     <!-- 公告详情对话框 -->
     <el-dialog v-model="noticeVisible" title="公告详情" width="600px">
-      <el-descriptions :column="1" border v-if="currentNotice">
+      <el-descriptions v-if="currentNotice" :column="1" border>
         <el-descriptions-item label="公告标题">{{ currentNotice.noticeTitle }}</el-descriptions-item>
         <el-descriptions-item label="公告类型">
           <el-tag :type="currentNotice.noticeType === 1 ? 'warning' : 'success'">
@@ -312,14 +312,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { useRoute } from 'vue-router'
 import { getDashboardStats, getLatestNotices, type DashboardStats, type Notice } from '@/api/system'
 import type { MenuTree } from '@/types/system'
 import { ElMessage } from 'element-plus'
 
-const route = useRoute()
 const userStore = useUserStore()
 
 // 颜色循环列表
@@ -487,7 +485,7 @@ const handleDragStart = (itemId: number) => {
 }
 
 // 拖拽经过
-const handleDragOver = (e: DragEvent, targetItemId: number) => {
+const handleDragOver = (e: DragEvent, _targetItemId: number) => {
   e.preventDefault()
 }
 
@@ -582,7 +580,7 @@ const todos = ref([
   { id: 3, text: '备份数据库', completed: false }
 ])
 
-const toggleTodo = (todo: any) => {
+const toggleTodo = (_todo: any) => {
   localStorage.setItem('dashboard-todos', JSON.stringify(todos.value))
 }
 

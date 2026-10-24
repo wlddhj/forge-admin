@@ -17,7 +17,7 @@
     </el-card>
 
     <el-card shadow="never" class="table-card">
-      <vxe-table ref="tableRef" id="agentTodoTable" :data="tableData" :height="tableHeight" :loading="loading"
+      <vxe-table id="agentTodoTable" ref="tableRef" :data="tableData" :height="tableHeight" :loading="loading"
         :row-config="{ isHover: true }" stripe show-overflow="tooltip">
         <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
         <vxe-column field="id" title="待办ID" width="90" />
@@ -41,8 +41,8 @@
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleDetail(row)">详情</el-button>
             <template v-if="row.status === 'PENDING'">
-              <el-button type="success" link size="small" v-permission="'ai:agent:approve'" @click="handle(row, true)">通过</el-button>
-              <el-button type="danger" link size="small" v-permission="'ai:agent:reject'" @click="handle(row, false)">驳回</el-button>
+              <el-button v-permission="'ai:agent:approve'" type="success" link size="small" @click="handle(row, true)">通过</el-button>
+              <el-button v-permission="'ai:agent:reject'" type="danger" link size="small" @click="handle(row, false)">驳回</el-button>
             </template>
           </template>
         </vxe-column>

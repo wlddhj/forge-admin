@@ -1,7 +1,7 @@
 <template>
   <el-dialog v-model="show" title="预览" width="80%" top="5vh" append-to-body>
     <div class="preview-body">
-      <div class="preview-container" ref="containerRef"></div>
+      <div ref="containerRef" class="preview-container"></div>
     </div>
     <template #footer>
       <el-button @click="close">关闭</el-button>

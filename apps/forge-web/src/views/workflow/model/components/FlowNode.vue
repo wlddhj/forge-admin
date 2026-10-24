@@ -84,9 +84,9 @@
               :user-list="userList"
               :role-list="roleList"
               :disabled="disabled"
-              @add-node="(parent, type) => emit('add-node', parent, type)"
-              @delete-node="(n) => emit('delete-node', n)"
-              @update-node="(n, updates) => emit('update-node', n, updates)"
+              @add-node="(parent: FlowLongNodeModel, type: number) => emit('add-node', parent, type)"
+              @delete-node="(n: FlowLongNodeModel) => emit('delete-node', n)"
+              @update-node="(n: FlowLongNodeModel, updates: Partial<FlowLongNodeModel>) => emit('update-node', n, updates)"
             />
             <!-- 分支内没有子节点时，显示添加按钮 -->
             <div v-else-if="!disabled" class="branch-add-btn">
@@ -124,9 +124,9 @@
       :user-list="userList"
       :role-list="roleList"
       :disabled="disabled"
-      @add-node="(parent, type) => emit('add-node', parent, type)"
-      @delete-node="(n) => emit('delete-node', n)"
-      @update-node="(n, updates) => emit('update-node', n, updates)"
+      @add-node="(parent: FlowLongNodeModel, type: number) => emit('add-node', parent, type)"
+      @delete-node="(n: FlowLongNodeModel) => emit('delete-node', n)"
+      @update-node="(n: FlowLongNodeModel, updates: Partial<FlowLongNodeModel>) => emit('update-node', n, updates)"
     />
 
     <!-- 删除按钮（非开始/结束节点） -->

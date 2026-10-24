@@ -15,7 +15,7 @@
       </el-form-item>
       <el-form-item label="模型绑定">
         <el-input v-model="formData.modelBindings" type="textarea" :rows="4"
-          placeholder='JSON：{"decision":{"modelType":"text"},"multimodal":{"modelType":"multimodal"},"summary":{"modelType":"text"}}，modelId 优先' />
+          placeholder="JSON：{&quot;decision&quot;:{&quot;modelType&quot;:&quot;text&quot;},&quot;multimodal&quot;:{&quot;modelType&quot;:&quot;multimodal&quot;},&quot;summary&quot;:{&quot;modelType&quot;:&quot;text&quot;}}，modelId 优先" />
       </el-form-item>
       <el-form-item label="步数上限">
         <el-input-number v-model="formData.maxSteps" :min="1" :max="50" />

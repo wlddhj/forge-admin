@@ -17,7 +17,7 @@
           <el-tree-select
             v-model="queryParams.deptId"
             :data="deptTree"
-            :props="{ label: 'deptName', value: 'id' }"
+            :props="({ label: 'deptName', value: 'id' } as any)"
             placeholder="请选择部门"
             check-strictly
             clearable
@@ -74,7 +74,7 @@
           <el-tree-select
             v-model="queryParams.deptId"
             :data="deptTree"
-            :props="{ label: 'deptName', value: 'id' }"
+            :props="({ label: 'deptName', value: 'id' } as any)"
             placeholder="请选择部门"
             check-strictly
             clearable
@@ -97,7 +97,7 @@
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
       <!-- vxe-toolbar 工具栏（桌面端） -->
-      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom >
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
         <template #buttons>
           <el-button v-permission="'system:user:import'" type="warning" @click="handleImport">
             <el-icon><Upload /></el-icon>
@@ -122,9 +122,9 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
+        id="sysUserTable"
         ref="tableRef"
         :data="tableData"
-        id="sysUserTable"
         :custom-config="{mode: 'modal'}"
         :height="tableHeight"
         :loading="loading"
@@ -257,7 +257,7 @@
           <el-tree-select
             v-model="form.deptId"
             :data="deptTree"
-            :props="{ label: 'deptName', value: 'id' }"
+            :props="({ label: 'deptName', value: 'id' } as any)"
             placeholder="请选择部门"
             check-strictly
             clearable
@@ -322,6 +322,7 @@ import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
+const { tableHeight } = useTableHeight()
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
@@ -335,8 +336,6 @@ import { useDict } from '@/composables/useDict'
 const { isMobile } = useResponsive()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
 
-// 表格高度自适应
-const { tableHeight, updateHeight } = useTableHeight()
 
 // 表格实例
 const tableRef = ref<VxeTableInstance | null>(null)

@@ -34,7 +34,7 @@
         <keep-alive v-if="pageConfigStore.config.keepAlive" :include="tabsStore.cachedViews">
           <component :is="Component" :key="$route.path" />
         </keep-alive>
-        <component v-else :is="Component" />
+        <component :is="Component" v-else />
       </router-view>
     </el-main>
 

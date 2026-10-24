@@ -1,4 +1,5 @@
-import request, { PageResult } from '@/utils/request'
+import { request, PageResult } from '@/utils/request'
+import type { DictType } from '@/types/system'
 import type { AxiosRequestConfig } from 'axios'
 import type {
   User, UserQuery, UserRequest,
@@ -65,7 +66,7 @@ export function batchAssignUserRoles(userIds: number[], roleIds: number[]) {
 }
 
 export function exportUsers(params: UserQuery) {
-  return request.get('/system/user/export', { params, responseType: 'blob' }).then(res => {
+  return request.getBlob('/system/user/export', { params, responseType: 'blob' }).then(res => {
     const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -76,7 +77,7 @@ export function exportUsers(params: UserQuery) {
 }
 
 export function downloadImportTemplate() {
-  return request.get('/system/user/import-template', { responseType: 'blob' }).then(res => {
+  return request.getBlob('/system/user/import-template', { responseType: 'blob' }).then(res => {
     const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -140,7 +141,7 @@ export function assignRoleMenus(id: number, menuIds: number[]) {
 }
 
 export function exportRoles(params: RoleQuery) {
-  return request.get('/system/role/export', { params, responseType: 'blob' }).then(res => {
+  return request.getBlob('/system/role/export', { params, responseType: 'blob' }).then(res => {
     const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -221,7 +222,7 @@ export function clearOperationLogs() {
 }
 
 export function exportOperationLogs(params: OperationLogQuery) {
-  return request.get('/system/operation-log/export', { params, responseType: 'blob' }).then(res => {
+  return request.getBlob('/system/operation-log/export', { params, responseType: 'blob' }).then(res => {
     const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -441,7 +442,7 @@ export function clearLoginLogs() {
 }
 
 export function exportLoginLogs(params: LoginLogQuery) {
-  return request.get('/system/login-log/export', { params, responseType: 'blob' }).then(res => {
+  return request.getBlob('/system/login-log/export', { params, responseType: 'blob' }).then(res => {
     const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)

@@ -20,11 +20,11 @@
         <span v-if="!conditionSummary && !assigneeSummary" class="placeholder">请选择</span>
       </div>
     </div>
-    <add-node v-model="nodeConfig.childNode"></add-node>
-    <el-drawer title="条件审批设置" v-model="drawer" destroy-on-close append-to-body :size="640">
+    <add-node :model-value="nodeConfig.childNode ?? null" @update:model-value="nodeConfig.childNode = $event"></add-node>
+    <el-drawer v-model="drawer" title="条件审批设置" destroy-on-close append-to-body :size="640">
       <template #header>
         <div class="node-wrap-drawer__title">
-          <label @click="editTitle" v-if="!isEditTitle">
+          <label v-if="!isEditTitle" @click="editTitle">
             {{ form.nodeName }}
             <el-icon class="node-wrap-drawer__title-edit"><Edit /></el-icon>
           </label>
@@ -52,16 +52,18 @@
                     <div>值</div>
                   </div>
                   <div
-                    class="condition-content"
                     v-for="(condition, idx) in (form.conditionList && form.conditionList[0]) || []"
                     :key="idx"
+                    class="condition-content"
                   >
                     <div class="condition-relation">
                       <span>{{ idx == 0 ? '当' : '且' }}</span>
                       <el-icon
                         class="branch-delete-icon"
                         @click="deleteCondition(idx)"
-                      ><Delete /></el-icon>
+                      >
+<Delete />
+</el-icon>
                     </div>
                     <div class="condition-content">
                       <div class="condition-content-box">
@@ -82,12 +84,12 @@
                     </div>
                   </div>
                   <template v-if="!form.conditionList || !form.conditionList[0] || form.conditionList[0].length === 0">
-                    <el-button link type="primary" @click="addCondition" icon="Plus" style="margin: 12px 0 0 0">
+                    <el-button link type="primary" icon="Plus" style="margin: 12px 0 0 0" @click="addCondition">
                       添加条件
                     </el-button>
                   </template>
                   <template v-else>
-                    <el-button link type="primary" @click="addCondition" icon="Plus" style="margin: 12px 0 0 0">
+                    <el-button link type="primary" icon="Plus" style="margin: 12px 0 0 0" @click="addCondition">
                       添加条件
                     </el-button>
                   </template>
@@ -108,7 +110,7 @@
             </el-form-item>
 
             <el-form-item v-if="form.setType == 1" label="选择成员">
-              <el-button type="primary" icon="Plus" round @click="selectHandle(1, form.nodeAssigneeList)">
+              <el-button type="primary" icon="Plus" round @click="selectHandle(1, form.nodeAssigneeList ?? [])">
                 选择人员
               </el-button>
               <div class="tags-list">
@@ -125,7 +127,7 @@
             </el-form-item>
 
             <el-form-item v-if="form.setType == 3" label="选择角色">
-              <el-button type="primary" icon="Plus" round @click="selectHandle(2, form.nodeAssigneeList)">
+              <el-button type="primary" icon="Plus" round @click="selectHandle(2, form.nodeAssigneeList ?? [])">
                 选择角色
               </el-button>
               <div class="tags-list">
@@ -176,12 +178,11 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, inject, computed } from 'vue'
-import { Filter, Close, Edit, Delete, Plus } from '@element-plus/icons-vue'
+import { Filter, Close, Edit, Delete } from '@element-plus/icons-vue'
 import addNode from './addNode.vue'
 import type {
   FlowlongNodeModel,
-  FlowlongNodeAssignee,
-  FlowlongCondition
+  FlowlongNodeAssignee
 } from '@/composables/useFlowLongDataTransform'
 
 const props = defineProps<{
@@ -189,16 +190,16 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: FlowlongNodeModel): void
+  (e: 'update:modelValue', value: FlowlongNodeModel | null): void
 }>()
 
 const select = inject<(type: number, data: FlowlongNodeAssignee[]) => void>('select')
 
-const nodeConfig = ref<FlowlongNodeModel>({})
+const nodeConfig = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 const drawer = ref(false)
 const isEditTitle = ref(false)
 const nodeTitleRef = ref<HTMLInputElement | null>(null)
-const form = ref<FlowlongNodeModel>({})
+const form = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 
 watch(
   () => props.modelValue,

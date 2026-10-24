@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from 'vue'
+import { type Ref } from 'vue'
 
 /**
  * 序号计算 Hook
@@ -12,7 +12,8 @@ export interface UseTableSeqOptions {
 }
 
 export interface UseTableSeqReturn {
-  seqMethod: ({ seq }: { seq: number }) => number
+  /** vxe-table seqMethod 实参为表格上下文对象（row/$rowIndex 等），此处仅消费 seq */
+  seqMethod: (params: any) => number
 }
 
 export function useTableSeq(options: UseTableSeqOptions): UseTableSeqReturn {

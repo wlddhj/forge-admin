@@ -85,8 +85,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="wfProcessDefinitionTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"
@@ -140,25 +140,33 @@
               v-permission="'workflow:instance:start'"
               type="success" link size="small"
               @click.stop="handleStartProcess(row)"
-            >发起</el-button>
+            >
+发起
+</el-button>
             <el-button type="primary" link size="small" @click.stop="handleViewJson(row)">JSON</el-button>
             <el-button
               v-if="row.processState === 1"
               v-permission="'workflow:process:edit'"
               type="warning" link size="small"
               @click.stop="handleSuspend(row)"
-            >挂起</el-button>
+            >
+挂起
+</el-button>
             <el-button
               v-if="row.processState === 0"
               v-permission="'workflow:process:edit'"
               type="success" link size="small"
               @click.stop="handleActivate(row)"
-            >激活</el-button>
+            >
+激活
+</el-button>
             <el-button
               v-permission="'workflow:process:delete'"
               type="danger" link size="small"
               @click.stop="handleDelete(row)"
-            >删除</el-button>
+            >
+删除
+</el-button>
           </template>
         </vxe-column>
       </vxe-table>
@@ -184,25 +192,33 @@
           v-permission="'workflow:instance:start'"
           size="small" type="success"
           @click.stop="handleStartProcess(item)"
-        >发起</el-button>
+        >
+发起
+</el-button>
         <el-button size="small" @click.stop="handleViewJson(item)">JSON</el-button>
         <el-button
           v-if="item.suspensionState === 1"
           v-permission="'workflow:process:edit'"
           size="small" type="warning"
           @click.stop="handleSuspend(item)"
-        >挂起</el-button>
+        >
+挂起
+</el-button>
         <el-button
           v-if="item.suspensionState === 2"
           v-permission="'workflow:process:edit'"
           size="small" type="success"
           @click.stop="handleActivate(item)"
-        >激活</el-button>
+        >
+激活
+</el-button>
         <el-button
           v-permission="'workflow:process:delete'"
           size="small" type="danger"
           @click.stop="handleDelete(item)"
-        >删除</el-button>
+        >
+删除
+</el-button>
       </template>
     </MobileBottomActions>
 
@@ -279,7 +295,6 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
-import { useRouter } from 'vue-router'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
 import { processInstanceApi } from '@/api/workflow/process-instance'
 import { categoryApi } from '@/api/workflow/category'
@@ -296,7 +311,6 @@ import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
 
-const router = useRouter()
 const { isMobile } = useResponsive()
 
 // 表格高度自适应
@@ -322,6 +336,7 @@ const queryParams = reactive({
   key: '',
   categoryId: undefined as number | undefined,
   processState: undefined as number | undefined,
+  suspensionState: undefined as number | undefined,
   pageNum: 1,
   pageSize: 20
 })

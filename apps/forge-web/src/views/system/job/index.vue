@@ -77,8 +77,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysJobTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"
@@ -187,8 +187,8 @@
       @cancel="cancelSelection"
     >
       <template #actions="{ item }">
-        <el-button size="small" v-if="item.status === 1" type="warning" @click.stop="handlePause(item)">暂停</el-button>
-        <el-button size="small" v-else type="success" @click.stop="handleResume(item)">恢复</el-button>
+        <el-button v-if="item.status === 1" size="small" type="warning" @click.stop="handlePause(item)">暂停</el-button>
+        <el-button v-else size="small" type="success" @click.stop="handleResume(item)">恢复</el-button>
         <el-button size="small" type="primary" @click.stop="handleRunOnce(item)">执行一次</el-button>
         <el-button size="small" type="info" @click.stop="handleViewLog(item)">日志</el-button>
         <el-button size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
@@ -272,10 +272,10 @@
           </el-col>
         </el-row>
         <el-form-item label="任务参数">
-          <el-input v-model="jobParamsJson" type="textarea" :rows="3" placeholder='JSON格式，如: {"key": "value"}' />
+          <el-input v-model="jobParamsJson" type="textarea" :rows="3" placeholder="JSON格式，如: {&quot;key&quot;: &quot;value&quot;}" />
         </el-form-item>
         <el-form-item label="通知配置">
-          <el-input v-model="notifyConfigJson" type="textarea" :rows="3" placeholder='{"emails": ["admin@example.com"]}' />
+          <el-input v-model="notifyConfigJson" type="textarea" :rows="3" placeholder="{&quot;emails&quot;: [&quot;admin@example.com&quot;]}" />
           <div class="form-tip">
             <p>可选字段：notifyOnFailure(失败通知，默认true)、notifyOnSuccess(成功通知，默认false)</p>
             <p>emails(邮件列表)、webhookUrl(Webhook地址)</p>

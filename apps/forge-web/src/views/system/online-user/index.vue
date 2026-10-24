@@ -17,13 +17,13 @@
       <!-- 移动端头部 -->
       <div v-if="isMobile" class="mobile-header">
         <span class="title">在线用户</span>
-        <el-button @click="getList" :icon="Refresh" size="small">刷新</el-button>
+        <el-button :icon="Refresh" size="small" @click="getList">刷新</el-button>
       </div>
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysOnlineUserTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"

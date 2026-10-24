@@ -15,7 +15,7 @@
           <el-input v-model="printForm.templateCode" placeholder="请输入模板编号（需先在管理页创建）" style="width: 320px" />
         </el-form-item>
         <el-form-item label="示例数据">
-          <el-input v-model="printForm.dataJson" type="textarea" :rows="8" placeholder='JSON 格式，如 {"title":"示例","items":[{"name":"商品A","qty":2}]}' />
+          <el-input v-model="printForm.dataJson" type="textarea" :rows="8" placeholder="JSON 格式，如 {&quot;title&quot;:&quot;示例&quot;,&quot;items&quot;:[{&quot;name&quot;:&quot;商品A&quot;,&quot;qty&quot;:2}]}" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handlePrint">调用打印</el-button>

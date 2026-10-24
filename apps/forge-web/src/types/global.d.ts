@@ -1,8 +1,5 @@
-// BPMN Modeler 全局类型声明
-declare global {
-  interface Window {
-    bpmnModeler: import('bpmn-js/lib/Modeler').default | null
-  }
+// 全局 jQuery(引入的第三方脚本挂载)
+interface Window {
+  $?: unknown
+  jQuery?: unknown
 }
-
-export {}

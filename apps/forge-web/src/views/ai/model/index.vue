@@ -22,7 +22,7 @@
     <el-card shadow="never" class="table-card">
       <vxe-toolbar ref="toolbarRef" custom>
         <template #buttons>
-          <el-button type="primary" v-permission="'ai:model:add'" @click="handleAdd">
+          <el-button v-permission="'ai:model:add'" type="primary" @click="handleAdd">
             <el-icon><Plus /></el-icon>
             新增
           </el-button>
@@ -37,8 +37,8 @@
       </vxe-toolbar>
 
       <vxe-table
-        ref="tableRef"
         id="aiModelTable"
+        ref="tableRef"
         :data="tableData"
         :height="tableHeight"
         :loading="loading"
@@ -78,10 +78,10 @@
         </vxe-column>
         <vxe-column title="操作" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" v-permission="'ai:model:config'" @click="handleEdit(row)">编辑</el-button>
-            <el-button type="warning" link size="small" v-permission="'ai:model:switch'" @click="handleSetDefault(row)" :disabled="row.isDefault === 1">设为默认</el-button>
+            <el-button v-permission="'ai:model:config'" type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'ai:model:switch'" type="warning" link size="small" :disabled="row.isDefault === 1" @click="handleSetDefault(row)">设为默认</el-button>
             <el-button type="success" link size="small" @click="handleRefresh(row)">刷新</el-button>
-            <el-button type="danger" link size="small" v-permission="'ai:model:delete'" @click="handleDelete(row)" :disabled="row.isDefault === 1">删除</el-button>
+            <el-button v-permission="'ai:model:delete'" type="danger" link size="small" :disabled="row.isDefault === 1" @click="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>

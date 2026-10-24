@@ -31,8 +31,8 @@
       </vxe-toolbar>
 
       <vxe-table
-        ref="tableRef"
         id="wfTodoTaskTable"
+        ref="tableRef"
         :custom-config="{ mode: 'modal' }"
         :data="tableData"
         :height="tableHeight"
@@ -98,7 +98,7 @@ import { useTableSeq } from '@/composables/useTableSeq'
 import { useResponsive } from '@/composables/useResponsive'
 import TaskDetailDrawer from './components/TaskDetailDrawer.vue'
 
-const { isMobile } = useResponsive()
+const { isMobile: _isMobile } = useResponsive()
 
 // 表格高度自适应
 const { tableHeight } = useTableHeight()

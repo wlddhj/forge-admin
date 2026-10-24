@@ -25,7 +25,7 @@ export function useDrawerTableHeight(options: UseDrawerTableHeightOptions) {
       const el = container.querySelector(selector)
       if (el) {
         const style = window.getComputedStyle(el)
-        excluded += el.offsetHeight
+        excluded += (el as HTMLElement).offsetHeight
           + (parseFloat(style.marginTop) || 0)
           + (parseFloat(style.marginBottom) || 0)
       }

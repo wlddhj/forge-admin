@@ -18,7 +18,7 @@
     </el-card>
 
     <el-card shadow="never" class="table-card">
-      <vxe-table ref="tableRef" id="agentRunTable" :data="tableData" :height="tableHeight" :loading="loading"
+      <vxe-table id="agentRunTable" ref="tableRef" :data="tableData" :height="tableHeight" :loading="loading"
         :row-config="{ isHover: true }" stripe show-overflow="tooltip">
         <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
         <vxe-column field="id" title="运行ID" width="90" />

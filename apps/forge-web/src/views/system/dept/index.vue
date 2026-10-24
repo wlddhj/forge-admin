@@ -81,8 +81,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysDeptTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :loading="loading"
@@ -155,7 +155,7 @@
           <el-tree-select
             v-model="formData.parentId"
             :data="deptTreeOptions"
-            :props="{ label: 'deptName', value: 'id' }"
+            :props="({ label: 'deptName', value: 'id' } as any)"
             placeholder="请选择上级部门（不选则为顶级部门）"
             clearable
             check-strictly
@@ -202,9 +202,9 @@ import { reactive, ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
-import { Plus, Fold, Expand, Search, Refresh } from '@element-plus/icons-vue'
+import { Plus, Search, Refresh } from '@element-plus/icons-vue'
 import { getDeptList, getDeptTree, addDept, updateDept, deleteDept } from '@/api/system'
-import type { Dept, DeptTree, DeptRequest } from '@/types/system'
+import type { DeptTree, DeptRequest } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
@@ -301,31 +301,6 @@ const getDeptTreeData = async () => {
   }
 }
 
-const buildDeptTree = (flatList: Dept[]): DeptTree[] => {
-  const map = new Map<number, DeptTree>()
-  const tree: DeptTree[] = []
-
-  flatList.forEach(item => {
-    map.set(item.id!, { ...item, children: [] })
-  })
-
-  flatList.forEach(item => {
-    const node = map.get(item.id!)!
-    if (!item.parentId || item.parentId === 0) {
-      tree.push(node)
-    } else {
-      const parent = map.get(item.parentId)
-      if (parent) {
-        if (!parent.children) parent.children = []
-        parent.children.push(node)
-      } else {
-        tree.push(node)
-      }
-    }
-  })
-
-  return tree
-}
 
 const handleToggleExpand = () => {
   allExpanded.value = !allExpanded.value

@@ -187,14 +187,14 @@ VxeUI.setConfig({
 
   // 工具栏配置
   toolbar: {
-    // 导入配置
+    // 导入配置（mode/types 为 vxe 运行时支持但类型声明滞后的字段）
     import: {
       mode: 'covering'
-    },
+    } as any,
     // 导出配置
     export: {
       types: ['csv', 'html', 'xml', 'txt']
-    }
+    } as any
   }
 })
 

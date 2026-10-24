@@ -1,9 +1,9 @@
 <template>
-  <div class="flowlong-designer" ref="containerRef">
+  <div ref="containerRef" class="flowlong-designer">
     <!-- 缩放容器 -->
-    <div class="designer-canvas" :style="canvasStyle" ref="canvasRef">
+    <div ref="canvasRef" class="designer-canvas" :style="canvasStyle">
       <!-- 流程节点树 -->
-      <div class="node-tree" v-if="localModel">
+      <div v-if="localModel" class="node-tree">
         <FlowNode
           :node="localModel.nodeConfig"
           :user-list="userList"

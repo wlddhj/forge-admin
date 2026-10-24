@@ -1,5 +1,5 @@
 <template>
-  <el-dialog title="打印预览" v-model="show" width="80%" top="5vh">
+  <el-dialog v-model="show" title="打印预览" width="80%" top="5vh">
     <div class="preview-body" style="max-height: 70vh; overflow: auto">
       <div class="preview-container"></div>
     </div>
@@ -21,7 +21,7 @@ import { cloneDeep, set, transform } from 'lodash-es'
 import { isArray, isObject } from 'min-dash'
 
 export default {
-  name: 'print-view',
+  name: 'PrintView',
   emits: ['success'],
   setup(props, { emit }) {
     const templateCode = ref('')

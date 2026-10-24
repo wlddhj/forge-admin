@@ -22,7 +22,7 @@
     <el-card shadow="never" class="table-card">
       <vxe-toolbar ref="toolbarRef" custom>
         <template #buttons>
-          <el-button type="danger" v-permission="'ai:conversation:delete'" :disabled="selectedIds.length === 0" @click="handleBatchDelete">
+          <el-button v-permission="'ai:conversation:delete'" type="danger" :disabled="selectedIds.length === 0" @click="handleBatchDelete">
             <el-icon><Delete /></el-icon>
             批量删除
           </el-button>
@@ -33,8 +33,8 @@
       </vxe-toolbar>
 
       <vxe-table
-        ref="tableRef"
         id="aiConversationTable"
+        ref="tableRef"
         :data="tableData"
         :height="tableHeight"
         :loading="loading"
@@ -74,10 +74,10 @@
         </vxe-column>
         <vxe-column title="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" v-permission="'ai:conversation:detail'" @click="handleDetail(row)">
+            <el-button v-permission="'ai:conversation:detail'" type="primary" link size="small" @click="handleDetail(row)">
               查看消息
             </el-button>
-            <el-button type="danger" link size="small" v-permission="'ai:conversation:delete'" @click="handleDelete(row)">
+            <el-button v-permission="'ai:conversation:delete'" type="danger" link size="small" @click="handleDelete(row)">
               删除
             </el-button>
           </template>

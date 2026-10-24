@@ -80,9 +80,9 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
+        id="appUserTable"
         ref="tableRef"
         :data="tableData"
-        id="appUserTable"
         :custom-config="{mode: 'modal'}"
         :height="tableHeight"
         :loading="loading"

@@ -7,14 +7,14 @@
             <el-icon><Refresh /></el-icon>
             刷新
           </el-button>
-          <el-button type="primary" v-permission="'ai:team:add'" @click="handleAdd">
+          <el-button v-permission="'ai:team:add'" type="primary" @click="handleAdd">
             <el-icon><Plus /></el-icon>
             新增团队
           </el-button>
         </template>
       </vxe-toolbar>
 
-      <vxe-table ref="tableRef" id="agentTeamTable" :data="tableData" :height="tableHeight" :loading="loading"
+      <vxe-table id="agentTeamTable" ref="tableRef" :data="tableData" :height="tableHeight" :loading="loading"
         :row-config="{ isHover: true }" stripe show-overflow="tooltip">
         <vxe-column type="seq" title="序号" width="60" />
         <vxe-column field="teamName" title="团队名称" min-width="140" />
@@ -35,8 +35,8 @@
         </vxe-column>
         <vxe-column title="操作" width="130" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" v-permission="'ai:team:edit'" @click="handleEdit(row)">编辑</el-button>
-            <el-button type="danger" link size="small" v-permission="'ai:team:remove'" @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'ai:team:edit'" type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'ai:team:remove'" type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>

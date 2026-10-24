@@ -105,7 +105,7 @@
     <!-- 数据表格 -->
     <el-card shadow="never" class="table-card">
       <!-- vxe-toolbar 工具栏（桌面端） -->
-      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom >
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
         <template #buttons>
           <el-button type="success" @click="handleExport">
             <el-icon><Download /></el-icon>
@@ -123,8 +123,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysOperationLogTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"
@@ -154,7 +154,7 @@
         <!-- 请求方式（桌面端） -->
         <vxe-column v-if="!isMobile" title="请求方式" width="100">
           <template #default="{ row }">
-            <el-tag :type="getMethodTag(row.requestMethod)" size="small">{{ row.requestMethod }}</el-tag>
+            <el-tag :type="(getMethodTag(row.requestMethod) as any)" size="small">{{ row.requestMethod }}</el-tag>
           </template>
         </vxe-column>
 
@@ -223,7 +223,7 @@
       size="50%"
       class="operation-log-drawer"
     >
-      <template #default v-if="currentLog">
+      <template v-if="currentLog" #default>
         <!-- 基础信息 -->
         <div class="detail-section">
           <div class="section-title">基础信息</div>
@@ -233,7 +233,7 @@
               <dict-value :dict-type="DICT_TYPE.SYS_OPERATION_TYPE" :value="currentLog.businessType" />
             </el-descriptions-item>
             <el-descriptions-item label="请求方式">
-              <el-tag :type="getMethodTag(currentLog.requestMethod)" size="small">{{ currentLog.requestMethod }}</el-tag>
+              <el-tag :type="(getMethodTag(currentLog.requestMethod) as any)" size="small">{{ currentLog.requestMethod }}</el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="操作人">{{ currentLog.operatorName }}</el-descriptions-item>
             <el-descriptions-item label="部门">{{ currentLog.deptName || '-' }}</el-descriptions-item>

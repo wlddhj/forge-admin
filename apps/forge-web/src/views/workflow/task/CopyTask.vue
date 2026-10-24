@@ -22,8 +22,8 @@
       </vxe-toolbar>
 
       <vxe-table
-        ref="tableRef"
         id="wfCopyTable"
+        ref="tableRef"
         :custom-config="{ mode: 'modal' }"
         :data="tableData"
         :height="tableHeight"

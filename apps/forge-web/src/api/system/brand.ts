@@ -1,4 +1,4 @@
-import request from '@/utils/request'
+import { request } from '@/utils/request'
 import type { LayoutKind, Palette, StyleKind, ThemeMode } from '@/themes'
 
 /** 系统默认主题（新用户首次进入时的初始主题，palette 不含 custom） */

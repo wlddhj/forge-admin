@@ -51,7 +51,7 @@ const getNodeKey = () => {
 }
 
 const addType = (type: number) => {
-  let node: FlowlongNodeModel = {}
+  let node = {} as FlowlongNodeModel
 
   if (type == 1) {
     node = {

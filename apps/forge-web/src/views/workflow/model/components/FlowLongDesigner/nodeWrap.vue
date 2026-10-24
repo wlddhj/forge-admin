@@ -8,7 +8,7 @@
   <condition-approver v-if="nodeConfig.type == 3" v-model="nodeConfig"></condition-approver>
 
   <branch v-if="nodeConfig.type == 4" v-model="nodeConfig">
-    <template v-slot="slot">
+    <template #default="slot">
       <node-wrap v-if="slot.node" v-model="slot.node.childNode"></node-wrap>
     </template>
   </branch>
@@ -36,7 +36,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: FlowlongNodeModel): void
 }>()
 
-const nodeConfig = ref<FlowlongNodeModel>({})
+const nodeConfig = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 
 watch(
   () => props.modelValue,

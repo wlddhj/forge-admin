@@ -28,6 +28,8 @@ export interface ScreenDetailResponse {
   createTime: string
   updateTime: string
   createBy?: number
+  /** 指定角色可见(保留位) */
+  roleIds?: number[]
   remark?: string
 }
 

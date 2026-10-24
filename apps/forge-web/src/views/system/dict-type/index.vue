@@ -81,8 +81,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysDictTypeTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"
@@ -130,7 +130,7 @@
           <template #default="{ row }">
             <el-button v-permission="'system:dict:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
             <el-button type="primary" link size="small" @click.stop="handleViewData(row)">字典数据</el-button>
-            <el-button v-permission="'system:dict:delete'" type="danger" link size="small" @click.stop="handleDelete(row)" :disabled="row.isSystem === 1">删除</el-button>
+            <el-button v-permission="'system:dict:delete'" type="danger" link size="small" :disabled="row.isSystem === 1" @click.stop="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>
@@ -153,7 +153,7 @@
       <template #actions="{ item }">
         <el-button v-permission="'system:dict:edit'" size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
         <el-button size="small" @click.stop="handleViewData(item)">字典数据</el-button>
-        <el-button v-permission="'system:dict:delete'" size="small" type="danger" @click.stop="handleDelete(item)" :disabled="item.isSystem === 1">删除</el-button>
+        <el-button v-permission="'system:dict:delete'" size="small" type="danger" :disabled="item.isSystem === 1" @click.stop="handleDelete(item)">删除</el-button>
       </template>
     </MobileBottomActions>
 

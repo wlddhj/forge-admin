@@ -18,7 +18,7 @@ export function applyScreenTheme(theme: ScreenTheme): void {
   let primary = PALETTE_PRIMARY.blue
   try {
     const pageConfig = usePageConfigStore()
-    const cfg = pageConfig.config?.value
+    const cfg = (pageConfig.config as unknown as { value?: unknown })?.value as typeof pageConfig.config | undefined
     const palette = cfg?.palette
     if (palette === 'custom') {
       primary = cfg?.customPrimary || PALETTE_PRIMARY.custom

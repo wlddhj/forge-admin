@@ -89,8 +89,8 @@
 
       <!-- vxe-table 表格 -->
       <vxe-table
-        ref="tableRef"
         id="sysMenuTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :loading="loading"
@@ -102,7 +102,7 @@
         show-header-overflow="tooltip"
         @current-change="handleCurrentChange"
       >
-        <vxe-column title="序号" type="seq" align="left" width="70"/>
+        <vxe-column title="序号" type="seq" align="left" width="70" />
         <!-- 菜单名称 -->
         <vxe-column field="menuName" title="菜单名称" width="200" tree-node />
 
@@ -116,7 +116,7 @@
         <!-- 类型 -->
         <vxe-column field="menuType" title="类型" width="80">
           <template #default="{ row }">
-            <el-tag :type="getMenuTypeColor(row.menuType)" size="small">
+            <el-tag :type="(getMenuTypeColor(row.menuType) as any)" size="small">
               {{ getMenuTypeText(row.menuType) }}
             </el-tag>
           </template>
@@ -173,7 +173,7 @@
           <el-tree-select
             v-model="formData.parentId"
             :data="menuTreeOptions"
-            :props="{ label: 'menuName', value: 'id' }"
+            :props="({ label: 'menuName', value: 'id' } as any)"
             placeholder="请选择上级菜单（不选则为顶级菜单）"
             clearable
             check-strictly
@@ -210,7 +210,7 @@
         </el-form-item>
         <!-- 图标/权限标识 + 排序 -->
         <el-row>
-          <el-col :span="12" v-if="formData.menuType !== 2" >
+          <el-col v-if="formData.menuType !== 2" :span="12">
             <el-form-item label="图标">
               <IconPicker v-model="formData.icon" />
             </el-form-item>
@@ -233,7 +233,7 @@
               </el-radio-group>
             </el-form-item>
           </el-col>
-          <el-col :span="12" v-if="formData.menuType !== 2">
+          <el-col v-if="formData.menuType !== 2" :span="12">
             <el-form-item label="显示状态">
               <el-radio-group v-model="formData.visible">
                 <el-radio :value="1">显示</el-radio>
@@ -258,7 +258,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { getMenuList, getMenuTree, addMenu, updateMenu, deleteMenu, refreshMenuCache } from '@/api/system'
 import { Refresh, QuestionFilled } from '@element-plus/icons-vue'
-import type { Menu, MenuTree, MenuRequest } from '@/types/system'
+import type { MenuTree, MenuRequest } from '@/types/system'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useDict } from '@/composables/useDict'
@@ -411,31 +411,6 @@ const getMenuTreeData = async () => {
   }
 }
 
-const buildMenuTree = (flatList: Menu[]): MenuTree[] => {
-  const map = new Map<number, MenuTree>()
-  const tree: MenuTree[] = []
-
-  flatList.forEach(item => {
-    map.set(item.id!, { ...item, children: [] })
-  })
-
-  flatList.forEach(item => {
-    const node = map.get(item.id!)!
-    if (!item.parentId || item.parentId === 0) {
-      tree.push(node)
-    } else {
-      const parent = map.get(item.parentId)
-      if (parent) {
-        if (!parent.children) parent.children = []
-        parent.children.push(node)
-      } else {
-        tree.push(node)
-      }
-    }
-  })
-
-  return tree
-}
 
 const handleToggleExpand = () => {
   allExpanded.value = !allExpanded.value

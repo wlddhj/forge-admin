@@ -28,8 +28,8 @@
       </vxe-toolbar>
 
       <vxe-table
-        ref="tableRef"
         id="keySequenceTable"
+        ref="tableRef"
         :custom-config="{mode: 'modal'}"
         :data="tableData"
         :height="tableHeight"

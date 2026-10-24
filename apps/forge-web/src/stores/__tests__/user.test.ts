@@ -49,7 +49,7 @@ describe('useUserStore', () => {
 
   it('loginAction 应存储 token 到 state 和 localStorage', async () => {
     const store = useUserStore()
-    await store.loginAction({ username: 'admin', password: 'password' })
+    await store.loginAction({ tenantCode: 'default', username: 'admin', password: 'password' })
 
     expect(store.token).toBe('test-access-token')
     expect(store.refreshTokenValue).toBe('test-refresh-token')
@@ -76,7 +76,7 @@ describe('useUserStore', () => {
 
   it('logoutAction 应清除所有状态', async () => {
     const store = useUserStore()
-    await store.loginAction({ username: 'admin', password: 'password' })
+    await store.loginAction({ tenantCode: 'default', username: 'admin', password: 'password' })
     expect(store.token).toBeTruthy()
 
     await store.logoutAction()
