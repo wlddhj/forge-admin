@@ -16,10 +16,16 @@ import java.util.stream.Collectors;
 public class ToolRegistry {
 
     private final Map<String, AgentTool> tools;
+    private final com.forge.modules.ai.config.AiMetrics aiMetrics;
 
     public ToolRegistry(List<AgentTool> toolList) {
+        this(toolList, null);
+    }
+
+    public ToolRegistry(List<AgentTool> toolList, com.forge.modules.ai.config.AiMetrics aiMetrics) {
         this.tools = toolList.stream()
                 .collect(Collectors.toMap(AgentTool::name, Function.identity()));
+        this.aiMetrics = aiMetrics;
     }
 
     public AgentTool get(String name) {
@@ -30,9 +36,20 @@ public class ToolRegistry {
         return tool;
     }
 
-    /** 带执行上下文的工具执行（不感知上下文的工具经 default 委托保持原行为） */
+    /** 带执行上下文的工具执行（不感知上下文的工具经 default 委托保持原行为），含计时指标 */
     public Object execute(String name, Map<String, Object> args, ToolExecutionContext context) {
-        return get(name).execute(args, context);
+        if (aiMetrics == null) {
+            return get(name).execute(args, context);
+        }
+        long start = System.currentTimeMillis();
+        try {
+            Object result = get(name).execute(args, context);
+            aiMetrics.toolCall(name, true, System.currentTimeMillis() - start);
+            return result;
+        } catch (RuntimeException e) {
+            aiMetrics.toolCall(name, false, System.currentTimeMillis() - start);
+            throw e;
+        }
     }
 
     /** 全部注册工具（原生 tool-callback 构建用） */

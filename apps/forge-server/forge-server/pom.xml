@@ -15,6 +15,15 @@
     <description>Spring Boot 启动入口</description>
 
     <dependencies>
+        <!-- 监控指标：Micrometer + Prometheus 抓取端点（暴露面在 application.yml 限定 health,prometheus） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
         <!-- 业务模块 -->
         <dependency>
             <groupId>com.forge</groupId>

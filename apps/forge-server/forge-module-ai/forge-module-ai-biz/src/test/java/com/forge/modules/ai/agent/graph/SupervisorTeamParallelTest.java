@@ -110,13 +110,13 @@ class SupervisorTeamParallelTest {
         PromptBudgeter promptBudgeter = new PromptBudgeter(agentProperties);
         DecisionJsonParser parser = new DecisionJsonParser(objectMapper);
         MultimodalSupport multimodalSupport = new MultimodalSupport(llmClient, parser, agentProperties,
-                new com.forge.framework.localcache.LocalCaches());
+                new com.forge.framework.localcache.LocalCaches(), com.forge.modules.ai.config.TestAiMetrics.noop());
         SupervisorTeamGraph teamGraph = new SupervisorTeamGraph(llmClient, objectMapper, parser,
                 multimodalSupport, tableSchemaInspector, promptBudgeter, nativeToolCalling,
-                agentProperties, agentExecutor);
+                agentProperties, agentExecutor, new com.forge.modules.ai.config.AiModuleConfig());
         AgentGraphRegistry registry = new AgentGraphRegistry(List.of(teamGraph));
 
-        runner = new AgentGraphRunner(registry, toolRegistry, agentProperties,
+        runner = new AgentGraphRunner(registry, toolRegistry, agentProperties, null,
                 agentConfigMapper, runMapper, mock(AiAgentRunStepMapper.class),
                 todoMapper, checkpointMapper, modelConfigMapper,
                 teamMapper, teamMemberMapper, objectMapper);

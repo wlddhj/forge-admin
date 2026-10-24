@@ -37,12 +37,15 @@ public class MultimodalSupport {
     private final DecisionJsonParser decisionJsonParser;
     private final AgentProperties agentProperties;
     private final Cache<String, String> recognitionCache;
+    private final com.forge.modules.ai.config.AiMetrics aiMetrics;
 
     public MultimodalSupport(LlmClient llmClient, DecisionJsonParser decisionJsonParser,
-                             AgentProperties agentProperties, LocalCaches localCaches) {
+                             AgentProperties agentProperties, LocalCaches localCaches,
+                             com.forge.modules.ai.config.AiMetrics aiMetrics) {
         this.llmClient = llmClient;
         this.decisionJsonParser = decisionJsonParser;
         this.agentProperties = agentProperties;
+        this.aiMetrics = aiMetrics;
         int ttlMinutes = Math.max(1, agentProperties.getImageCacheTtlMinutes());
         this.recognitionCache = localCaches.get("ai-image-recognition", b -> b
                 .maximumSize(500)
@@ -70,6 +73,7 @@ public class MultimodalSupport {
             String cacheKey = cacheKey(images, model);
             String cached = cacheEnabled() ? recognitionCache.getIfPresent(cacheKey) : null;
             if (cached != null) {
+                aiMetrics.cacheResult("image", true);
                 ctx.emit(AgentEvents.Type.STEP_END, NODE_MULTIMODAL, "图片理解", Map.of(
                         "seq", seq, "status", "SUCCESS", "cacheHit", true,
                         "output", decisionJsonParser.truncate(cached),
@@ -77,6 +81,7 @@ public class MultimodalSupport {
                         "modelId", model.getId()));
                 return Map.of(AgentGraphState.IMAGE_TEXT, cached);
             }
+            aiMetrics.cacheResult("image", false);
             ChatRequest request = new ChatRequest();
             request.setContent("请识别并详细描述图片内容；若图片包含文字，请完整提取（OCR）。");
             request.setImages(images);

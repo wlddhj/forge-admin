@@ -35,6 +35,11 @@ public class AgentProperties {
     private int toolOutputLimit = 4000;
 
     /**
+     * HTTP 工具响应体字节上限（流式读取防 OOM，超限截断并标注）
+     */
+    private int httpMaxResponseBytes = 1024 * 1024;
+
+    /**
      * SQL 工具结果字符预算（超预算裁剪行集并标注 truncated/omittedRows）
      */
     private int sqlResultCharBudget = 6000;

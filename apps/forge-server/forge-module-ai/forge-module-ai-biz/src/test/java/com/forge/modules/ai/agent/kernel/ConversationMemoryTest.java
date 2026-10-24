@@ -40,7 +40,7 @@ class ConversationMemoryTest {
         toolRegistry = mock(ToolRegistry.class);
         agentProperties = new AgentProperties();
         runMapper = mock(AiAgentRunMapper.class);
-        runner = new AgentGraphRunner(registry, toolRegistry, agentProperties,
+        runner = new AgentGraphRunner(registry, toolRegistry, agentProperties, null,
                 mock(AiAgentConfigMapper.class), runMapper, mock(AiAgentRunStepMapper.class),
                 mock(AiAgentTodoMapper.class), mock(AiAgentCheckpointMapper.class),
                 mock(AiModelConfigMapper.class), mock(AiAgentTeamMapper.class),

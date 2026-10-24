@@ -65,7 +65,8 @@ class FailoverRaceTest {
         healthCache = new ModelHealthCache(new LocalCaches(), aiModuleConfig);
         executor = Executors.newFixedThreadPool(4);
         client = new SpringAiLlmClient(modelFactory, new ObjectMapper(), modelConfigMapper,
-                sysConfigService, aiModuleConfig, executor, healthCache);
+                sysConfigService, aiModuleConfig, executor, healthCache,
+                com.forge.modules.ai.config.TestAiMetrics.noop());
         lenient().when(sysConfigService.getConfigValueByKey("ai.model.fallback-enabled")).thenReturn("1");
     }
 

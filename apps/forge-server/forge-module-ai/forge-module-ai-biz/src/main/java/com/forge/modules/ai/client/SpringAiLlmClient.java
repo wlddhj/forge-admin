@@ -55,6 +55,7 @@ public class SpringAiLlmClient implements LlmClient {
     private final AiModuleConfig aiModuleConfig;
     private final Executor agentExecutor;
     private final ModelHealthCache healthCache;
+    private final com.forge.modules.ai.config.AiMetrics aiMetrics;
 
     public SpringAiLlmClient(OpenAiChatModelFactory modelFactory,
                              ObjectMapper objectMapper,
@@ -62,7 +63,8 @@ public class SpringAiLlmClient implements LlmClient {
                              SysConfigService sysConfigService,
                              AiModuleConfig aiModuleConfig,
                              @Qualifier("agentExecutor") Executor agentExecutor,
-                             ModelHealthCache healthCache) {
+                             ModelHealthCache healthCache,
+                             com.forge.modules.ai.config.AiMetrics aiMetrics) {
         this.modelFactory = modelFactory;
         this.objectMapper = objectMapper;
         this.modelConfigMapper = modelConfigMapper;
@@ -70,6 +72,7 @@ public class SpringAiLlmClient implements LlmClient {
         this.aiModuleConfig = aiModuleConfig;
         this.agentExecutor = agentExecutor;
         this.healthCache = healthCache;
+        this.aiMetrics = aiMetrics;
     }
 
     @Override
@@ -170,6 +173,8 @@ public class SpringAiLlmClient implements LlmClient {
             response.setResponseTime(System.currentTimeMillis() - start);
         }
         recordHealth(modelConfig, response);
+        aiMetrics.llmCall("chat", modelConfig.getModelName(),
+                Boolean.TRUE.equals(response.getSuccess()), response.getResponseTime());
         return response;
     }
 
@@ -279,6 +284,8 @@ public class SpringAiLlmClient implements LlmClient {
             response.setResponseTime(System.currentTimeMillis() - start);
         }
         recordHealth(modelConfig, response);
+        aiMetrics.llmCall("decision", modelConfig.getModelName(),
+                Boolean.TRUE.equals(response.getSuccess()), response.getResponseTime());
         return response;
     }
 
@@ -311,6 +318,7 @@ public class SpringAiLlmClient implements LlmClient {
         } catch (Exception e) {
             log.warn("LLM 决策故障转移流程异常，返回主模型原始失败响应", e);
         }
+        aiMetrics.failover("exhausted");
         return finalResponse(primary, primaryResponse);
     }
 
@@ -336,6 +344,7 @@ public class SpringAiLlmClient implements LlmClient {
         ChatResponse outcome = firstSuccess.join();
         if (outcome != null) {
             log.warn("LLM 决策故障转移: 主模型 [{}] 失败，竞速切换成功", primary.getModelName());
+            aiMetrics.failover("switched");
         } else {
             log.warn("LLM 决策故障转移: 批次全部失败 {}",
                     batch.stream().map(AiModelConfig::getModelName).toList());

@@ -64,6 +64,11 @@
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-tika-document-reader</artifactId>
         </dependency>
+        <!-- Micrometer 指标门面（运行时 registry 由 forge-server 的 actuator 提供；缺失时 AiMetrics 降级 no-op） -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
         <!-- LangGraph4j 编排内核（版本由 langgraph4j-bom 管理） -->
         <dependency>
             <groupId>org.bsc.langgraph4j</groupId>

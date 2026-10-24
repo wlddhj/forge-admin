@@ -37,8 +37,9 @@ public class AgentExecutorConfig {
     }
 
     @Bean("agentScheduler")
-    public Scheduler agentScheduler(ThreadPoolTaskExecutor agentExecutor) {
+    public Scheduler agentScheduler(ThreadPoolTaskExecutor agentExecutor, AiMetrics aiMetrics) {
         ExecutorService service = agentExecutor.getThreadPoolExecutor();
+        aiMetrics.registerExecutorGauges("agentExecutor", agentExecutor);
         return Schedulers.fromExecutorService(service, "agent-sched");
     }
 }

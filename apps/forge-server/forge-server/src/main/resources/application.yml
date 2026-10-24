@@ -71,6 +71,7 @@ forge:
   ai:
     agent:
       sql-result-char-budget: ${AI_AGENT_SQL_BUDGET:6000}     # SQL 工具结果字符预算
+      http-max-response-bytes: ${AI_AGENT_HTTP_MAX_BYTES:1048576}  # HTTP 工具响应字节上限
       expert-parallelism: ${AI_AGENT_EXPERT_PARALLELISM:2}    # 团队图专家并行度
       checkpoint-interval-team: ${AI_AGENT_CKPT_INTERVAL:2}   # 团队图检查点节流间隔
       step-batch-size: ${AI_AGENT_STEP_BATCH:8}               # 步骤事件批量落库阈值
@@ -271,6 +272,7 @@ ai:
     connect-timeout: ${AI_CLIENT_CONNECT_TIMEOUT:5000}
     read-timeout: ${AI_CLIENT_READ_TIMEOUT:120000}
     decision-timeout: ${AI_CLIENT_DECISION_TIMEOUT:45000}
+    summary-timeout: ${AI_CLIENT_SUMMARY_TIMEOUT:60000}      # 总结流式聚合超时
     failover-parallelism: ${AI_CLIENT_FAILOVER_PARALLELISM:2}
     health-cache-ttl-ms: ${AI_CLIENT_HEALTH_CACHE_TTL:60000}   # 模型健康负缓存 TTL
   models:
@@ -280,3 +282,13 @@ ai:
     cache-enabled: ${AI_MODEL_CACHE_ENABLED:true}
     cache-expire-seconds: ${AI_MODEL_CACHE_EXPIRE:3600}
 
+
+# 监控指标（等保最小暴露：仅健康检查与 Prometheus 抓取）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: never

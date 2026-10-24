@@ -194,19 +194,6 @@ public class AiDocumentServiceImpl implements AiDocumentService {
         return response;
     }
 
-    @Override
-    public List<DocumentResponse> getDocumentList() {
-        LambdaQueryWrapper<AiDocument> wrapper = new LambdaQueryWrapper<>();
-        wrapper.orderByDesc(AiDocument::getCreateTime);
-        List<AiDocument> documents = documentMapper.selectList(wrapper);
-        return documents.stream()
-            .map(doc -> {
-                SysAttachment attachment = doc.getAttachmentId() != null
-                    ? attachmentService.getById(doc.getAttachmentId()) : null;
-                return toDocumentResponse(doc, attachment);
-            })
-            .collect(Collectors.toList());
-    }
 
     @Override
     public DocumentResponse getDocument(Long documentId) {

@@ -50,6 +50,7 @@ public class AgentGraphRunner {
     private final AgentGraphRegistry registry;
     private final ToolRegistry toolRegistry;
     private final com.forge.modules.ai.agent.AgentProperties agentProperties;
+    private final com.forge.modules.ai.service.AiUsageRecorder usageRecorder;
     private final AiAgentConfigMapper agentConfigMapper;
     private final AiAgentRunMapper runMapper;
     private final AiAgentRunStepMapper runStepMapper;
@@ -193,8 +194,9 @@ public class AgentGraphRunner {
     private AiAgentRun execute(AiAgentRun run, AiAgentConfig agentConfig, GraphInput graphInput,
                                Consumer<AgentEvents.AgentEvent> sseEmitter,
                                AiAgentTeam team, List<AiAgentTeamMember> teamMembers) {
-        StepRecorder stepRecorder = new StepRecorder(run.getId(), runStepMapper, objectMapper,
-                agentProperties.getStepBatchSize());
+        StepRecorder stepRecorder = new StepRecorder(run.getId(),
+                run.getUserId() == null ? 0L : run.getUserId(),
+                runStepMapper, objectMapper, agentProperties.getStepBatchSize(), usageRecorder);
         // 团队图检查点按间隔节流（中断/终态 flush 兜底）；单 Agent 图逐节点落库
         MysqlCheckpointSaver saver = new MysqlCheckpointSaver(checkpointMapper, objectMapper, run.getId(),
                 team != null ? Math.max(1, agentProperties.getCheckpointIntervalTeam()) : 1, false);

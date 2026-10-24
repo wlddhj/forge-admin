@@ -45,6 +45,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
     private final PromptBudgeter promptBudgeter;
     private final com.forge.modules.ai.client.NativeToolCalling nativeToolCalling;
     private final java.util.concurrent.Executor agentExecutor;
+    private final com.forge.modules.ai.config.AiModuleConfig aiModuleConfig;
 
     public ConversationalAssistantGraph(LlmClient llmClient,
                                         ObjectMapper objectMapper,
@@ -54,7 +55,8 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                                         PromptBudgeter promptBudgeter,
                                         com.forge.modules.ai.client.NativeToolCalling nativeToolCalling,
                                         @org.springframework.beans.factory.annotation.Qualifier("agentExecutor")
-                                        java.util.concurrent.Executor agentExecutor) {
+                                        java.util.concurrent.Executor agentExecutor,
+                                        com.forge.modules.ai.config.AiModuleConfig aiModuleConfig) {
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
         this.decisionJsonParser = decisionJsonParser;
@@ -63,6 +65,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         this.promptBudgeter = promptBudgeter;
         this.nativeToolCalling = nativeToolCalling;
         this.agentExecutor = agentExecutor;
+        this.aiModuleConfig = aiModuleConfig;
     }
 
     @Override
@@ -447,7 +450,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                             ctx.emit(AgentEvents.Type.CONTENT, NODE_SUMMARY, "总结回答", Map.of("delta", delta));
                         }
                     })
-                    .blockLast(java.time.Duration.ofMinutes(3));
+                    .blockLast(java.time.Duration.ofMillis(summaryTimeoutMs()));
             String answer = answerBuf.toString();
             if (answer.isBlank()) {
                 ChatResponse response = llmClient.chat(request, model);
@@ -483,6 +486,11 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private long summaryTimeoutMs() {
+        Integer timeout = aiModuleConfig.getClient().getSummaryTimeout();
+        return timeout == null || timeout <= 0 ? 60000L : timeout;
     }
 
     private int nullToZero(Integer value) {

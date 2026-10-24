@@ -77,6 +77,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
     private final NativeToolCalling nativeToolCalling;
     private final com.forge.modules.ai.agent.AgentProperties agentProperties;
     private final Executor agentExecutor;
+    private final com.forge.modules.ai.config.AiModuleConfig aiModuleConfig;
 
     public SupervisorTeamGraph(LlmClient llmClient,
                                ObjectMapper objectMapper,
@@ -86,7 +87,8 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                                PromptBudgeter promptBudgeter,
                                NativeToolCalling nativeToolCalling,
                                com.forge.modules.ai.agent.AgentProperties agentProperties,
-                               @Qualifier("agentExecutor") Executor agentExecutor) {
+                               @Qualifier("agentExecutor") Executor agentExecutor,
+                               com.forge.modules.ai.config.AiModuleConfig aiModuleConfig) {
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
         this.decisionJsonParser = decisionJsonParser;
@@ -96,6 +98,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
         this.nativeToolCalling = nativeToolCalling;
         this.agentProperties = agentProperties;
         this.agentExecutor = agentExecutor;
+        this.aiModuleConfig = aiModuleConfig;
     }
 
     @Override
@@ -1009,7 +1012,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                             ctx.emit(AgentEvents.Type.CONTENT, NODE_SUMMARY, "总结回答", Map.of("delta", delta));
                         }
                     })
-                    .blockLast(java.time.Duration.ofMinutes(3));
+                    .blockLast(java.time.Duration.ofMillis(summaryTimeoutMs()));
             String answer = answerBuf.toString();
             if (answer.isBlank()) {
                 ChatResponse response = llmClient.chat(request, model);
@@ -1094,6 +1097,11 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private long summaryTimeoutMs() {
+        Integer timeout = aiModuleConfig.getClient().getSummaryTimeout();
+        return timeout == null || timeout <= 0 ? 60000L : timeout;
     }
 
     private int nullToZero(Integer value) {

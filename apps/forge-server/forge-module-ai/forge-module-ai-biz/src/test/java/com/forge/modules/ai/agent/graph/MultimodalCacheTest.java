@@ -48,7 +48,7 @@ class MultimodalCacheTest {
         properties = new AgentProperties();
         properties.setImageCacheTtlMinutes(60);
         support = new MultimodalSupport(llmClient, new DecisionJsonParser(objectMapper),
-                properties, new LocalCaches());
+                properties, new LocalCaches(), com.forge.modules.ai.config.TestAiMetrics.noop());
         lenient().when(llmClient.chat(any(ChatRequest.class), any(AiModelConfig.class)))
                 .thenAnswer(inv -> {
                     llmCalls.incrementAndGet();
@@ -82,7 +82,7 @@ class MultimodalCacheTest {
     void 缓存禁用时直通() throws Exception {
         properties.setImageCacheTtlMinutes(0);
         support = new MultimodalSupport(llmClient, new DecisionJsonParser(objectMapper),
-                properties, new LocalCaches());
+                properties, new LocalCaches(), com.forge.modules.ai.config.TestAiMetrics.noop());
         run(images("http://a/1.png"), visionModel(10L));
         run(images("http://a/1.png"), visionModel(10L));
         assertEquals(2, llmCalls.get());

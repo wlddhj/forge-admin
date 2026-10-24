@@ -19,18 +19,23 @@ import java.util.Map;
 public class StepRecorder {
 
     private final long runId;
+    private final long userId;
     private final AiAgentRunStepMapper runStepMapper;
     private final ObjectMapper objectMapper;
     private final int batchSize;
+    private final com.forge.modules.ai.service.AiUsageRecorder usageRecorder;
 
     private final List<AiAgentRunStep> buffer = Collections.synchronizedList(new ArrayList<>());
 
-    public StepRecorder(long runId, AiAgentRunStepMapper runStepMapper,
-                        ObjectMapper objectMapper, int batchSize) {
+    public StepRecorder(long runId, long userId, AiAgentRunStepMapper runStepMapper,
+                        ObjectMapper objectMapper, int batchSize,
+                        com.forge.modules.ai.service.AiUsageRecorder usageRecorder) {
         this.runId = runId;
+        this.userId = userId;
         this.runStepMapper = runStepMapper;
         this.objectMapper = objectMapper;
         this.batchSize = Math.max(1, batchSize);
+        this.usageRecorder = usageRecorder;
     }
 
     /**
@@ -66,7 +71,19 @@ public class StepRecorder {
             if (!insertWithRetry(step)) {
                 log.warn("Agent 步骤落库失败(已重试) runId={} node={}", runId, step.getNodeName());
             }
+            recordUsage(step);
         }
+    }
+
+    /** 模型调用步骤记账（决策/总结/多模态等带 modelId 的步骤；工具步骤无 modelId 跳过） */
+    private void recordUsage(AiAgentRunStep step) {
+        if (usageRecorder == null || step.getModelId() == null) {
+            return;
+        }
+        usageRecorder.record(userId, step.getModelId(), !"FAILED".equals(step.getStatus()),
+                step.getTokensIn() == null ? 0 : step.getTokensIn(),
+                step.getTokensOut() == null ? 0 : step.getTokensOut(),
+                step.getDurationMs() == null ? 0 : step.getDurationMs());
     }
 
     /** 缓冲中的最新决策步骤输出（待办明细兜底数据源，避免依赖已 flush 的 DB 记录） */

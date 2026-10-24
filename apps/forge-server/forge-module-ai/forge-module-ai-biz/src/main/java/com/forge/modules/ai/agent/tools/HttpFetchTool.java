@@ -65,12 +65,45 @@ public class HttpFetchTool implements AgentTool {
 
         String method = String.valueOf(args.getOrDefault("method", "GET")).toUpperCase();
         RestClient client = client();
-        String body = client.method(HttpMethod.valueOf(method))
+        int maxBytes = Math.max(1, properties.getHttpMaxResponseBytes());
+        CappedRead capped = client.method(HttpMethod.valueOf(method))
                 .uri(uri)
-                .retrieve()
-                .body(String.class);
+                .exchange((request, response) -> {
+                    if (!response.getStatusCode().is2xxSuccessful()) {
+                        throw new BusinessException("HTTP 请求失败: " + response.getStatusCode());
+                    }
+                    try (java.io.InputStream body = response.getBody()) {
+                        return readCapped(body, maxBytes);
+                    }
+                });
+        // 双层截断:字节层防 OOM(流式读取),字符层防决策上下文膨胀
+        String text = capped.body();
         int limit = properties.getToolOutputLimit();
-        return body != null && body.length() > limit ? body.substring(0, limit) + "…(截断)" : body;
+        String result = text.length() > limit ? text.substring(0, limit) + "…(截断)" : text;
+        if (capped.truncated()) {
+            result += "\n…(响应超过 " + maxBytes + " 字节已截断)";
+        }
+        return result;
+    }
+
+    /** 字节上限读取结果 */
+    record CappedRead(String body, boolean truncated) {
+    }
+
+    /**
+     * 流式读取至多 maxBytes 字节(UTF-8),恰好等于上限时探测一个额外字节判断是否真截断
+     */
+    static CappedRead readCapped(java.io.InputStream in, int maxBytes) throws java.io.IOException {
+        java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+        byte[] chunk = new byte[8192];
+        int total = 0;
+        int n;
+        while (total < maxBytes && (n = in.read(chunk, 0, Math.min(chunk.length, maxBytes - total))) != -1) {
+            buffer.write(chunk, 0, n);
+            total += n;
+        }
+        boolean truncated = total >= maxBytes && in.read() != -1;
+        return new CappedRead(buffer.toString(java.nio.charset.StandardCharsets.UTF_8), truncated);
     }
 
     private RestClient client() {

@@ -43,9 +43,14 @@ public class AiModuleConfig {
         private Integer readTimeout = 60000;
 
         /**
-         * 决策类调用超时（毫秒，独立收紧；总结/多模态仍用 readTimeout）
+         * 决策类调用超时（毫秒，独立收紧；多模态仍用 readTimeout）
          */
         private Integer decisionTimeout = 45000;
+
+        /**
+         * 总结类流式聚合超时（毫秒，默认 60s，替代原 3 分钟硬编码）
+         */
+        private Integer summaryTimeout = 60000;
 
         /**
          * failover 备用模型并行竞速数（1=保持串行尝试）

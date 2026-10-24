@@ -39,11 +39,6 @@ public interface AiDocumentService {
     DocumentResponse generateSummary(Long documentId);
 
     /**
-     * 获取文档列表（不分页）
-     */
-    List<DocumentResponse> getDocumentList();
-
-    /**
      * 获取文档详情
      */
     DocumentResponse getDocument(Long documentId);

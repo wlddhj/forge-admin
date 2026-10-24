@@ -44,7 +44,8 @@ class SpringAiLlmClientTest {
         llmClient = new SpringAiLlmClient(modelFactory, new ObjectMapper(), modelConfigMapper, sysConfigService,
                 new com.forge.modules.ai.config.AiModuleConfig(), java.util.concurrent.Executors.newFixedThreadPool(2),
                 new ModelHealthCache(new com.forge.framework.localcache.LocalCaches(),
-                        new com.forge.modules.ai.config.AiModuleConfig()));
+                        new com.forge.modules.ai.config.AiModuleConfig()),
+                com.forge.modules.ai.config.TestAiMetrics.noop());
         modelConfig = new AiModelConfig();
         modelConfig.setId(1L);
         modelConfig.setModelName("DeepSeek Chat");

@@ -41,6 +41,7 @@ public class AiChatServiceImpl implements AiChatService {
     private final AiConversationMapper conversationMapper;
     private final AiMessageMapper messageMapper;
     private final AiModelConfigMapper modelConfigMapper;
+    private final com.forge.modules.ai.service.AiUsageRecorder usageRecorder;
 
     @Override
     @Transactional
@@ -169,6 +170,7 @@ public class AiChatServiceImpl implements AiChatService {
         ChatResponse chatResponse = modelConfig != null
                 ? llmClient.chat(request, modelConfig)
                 : noModelResponse();
+        recordUsage(modelConfig, chatResponse);
 
         // 保存 AI 响应
         MessageResponse aiMessageResponse = new MessageResponse();
@@ -217,6 +219,7 @@ public class AiChatServiceImpl implements AiChatService {
         ChatResponse response = modelConfig != null
                 ? llmClient.chat(request, modelConfig)
                 : noModelResponse();
+        recordUsage(modelConfig, response);
 
         // 保存AI响应消息
         if (response != null && response.getSuccess()) {
@@ -269,6 +272,19 @@ public class AiChatServiceImpl implements AiChatService {
             return Flux.just("{\"error\":true,\"message\":\"没有可用的模型配置，请先在模型管理中启用模型\"}");
         }
         return llmClient.stream(request, modelConfig);
+    }
+
+    /** 非流式调用记账(成功/失败均记;失败无 Token 只记请求与失败次数) */
+    private void recordUsage(AiModelConfig modelConfig, ChatResponse response) {
+        if (modelConfig == null || response == null) {
+            return;
+        }
+        Long userId = SecurityHelper.getCurrentUserId();
+        usageRecorder.record(userId == null ? 0L : userId, modelConfig.getId(),
+                Boolean.TRUE.equals(response.getSuccess()),
+                response.getInputTokens() == null ? 0 : response.getInputTokens(),
+                response.getOutputTokens() == null ? 0 : response.getOutputTokens(),
+                response.getResponseTime() == null ? 0 : response.getResponseTime().intValue());
     }
 
     private ChatResponse noModelResponse() {
