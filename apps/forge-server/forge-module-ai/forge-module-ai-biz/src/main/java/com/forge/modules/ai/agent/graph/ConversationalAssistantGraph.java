@@ -12,6 +12,7 @@ import com.forge.modules.ai.client.NativeToolCalling;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.entity.AiModelConfig;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.StateGraph;
 import org.bsc.langgraph4j.action.AsyncEdgeAction;
@@ -372,10 +373,10 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                 int callSeq = ctx.nextSeq();
                 ctx.emit(AgentEvents.Type.TOOL_CALL, NODE_TOOLS, toolName, Map.of("seq", callSeq, "args", args));
                 // 子线程不继承 ThreadLocal 租户上下文，工具执行(SqlTenantRewriter 等)依赖它——提交前快照传递
-                Long tenantSnapshot = com.forge.framework.tenant.core.context.TenantContextHolder.getTenantId();
+                Long tenantSnapshot = TenantContextHolder.getTenantId();
                 futures.add(CompletableFuture.runAsync(() -> {
                     if (tenantSnapshot != null) {
-                        com.forge.framework.tenant.core.context.TenantContextHolder.setTenantId(tenantSnapshot);
+                        TenantContextHolder.setTenantId(tenantSnapshot);
                     }
                     try {
                     long toolStart = System.currentTimeMillis();
@@ -402,7 +403,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                     }
                     } finally {
                         if (tenantSnapshot != null) {
-                            com.forge.framework.tenant.core.context.TenantContextHolder.clear();
+                            TenantContextHolder.clear();
                         }
                     }
                 }, agentExecutor));

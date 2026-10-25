@@ -12,6 +12,7 @@ import com.forge.modules.ai.mapper.AiAgentRunStepMapper;
 import com.forge.modules.ai.mapper.AiAgentTodoMapper;
 import com.forge.modules.ai.service.AiAgentRunService;
 import com.forge.framework.security.utils.SecurityHelper;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -158,10 +159,10 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
         com.forge.modules.ai.agent.kernel.AgentRunEventBridge.Emitter eventEmitter =
                 agentRunEventBridge.bridge(runUserId, runId);
         // 异步线程不继承 ThreadLocal 租户上下文，图执行中的落库(checkpoint/step)依赖它——提交前快照传递
-        Long tenantSnapshot = com.forge.framework.tenant.core.context.TenantContextHolder.getTenantId();
+        Long tenantSnapshot = TenantContextHolder.getTenantId();
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             if (tenantSnapshot != null) {
-                com.forge.framework.tenant.core.context.TenantContextHolder.setTenantId(tenantSnapshot);
+                TenantContextHolder.setTenantId(tenantSnapshot);
             }
             try {
                 AiAgentRun finished = graphRunner.resume(todo, approved, eventEmitter::accept);
@@ -172,7 +173,7 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
             } finally {
                 eventEmitter.close();
                 if (tenantSnapshot != null) {
-                    com.forge.framework.tenant.core.context.TenantContextHolder.clear();
+                    TenantContextHolder.clear();
                 }
             }
         });

@@ -17,6 +17,7 @@ import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.entity.AiAgentConfig;
 import com.forge.modules.ai.entity.AiAgentTeamMember;
 import com.forge.modules.ai.entity.AiModelConfig;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.CompileConfig;
 import org.bsc.langgraph4j.CompiledGraph;
@@ -943,10 +944,10 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                 ctx.emit(AgentEvents.Type.TOOL_CALL, NODE_EXPERT_TOOLS, toolName, Map.of(
                         "seq", callSeq, "args", args, "agentCode", agentCode, "agentName", agentName));
                 // 子线程不继承 ThreadLocal 租户上下文，工具执行(SqlTenantRewriter 等)依赖它——提交前快照传递
-                Long tenantSnapshot = com.forge.framework.tenant.core.context.TenantContextHolder.getTenantId();
+                Long tenantSnapshot = TenantContextHolder.getTenantId();
                 futures.add(CompletableFuture.runAsync(() -> {
                     if (tenantSnapshot != null) {
-                        com.forge.framework.tenant.core.context.TenantContextHolder.setTenantId(tenantSnapshot);
+                        TenantContextHolder.setTenantId(tenantSnapshot);
                     }
                     try {
                     long toolStart = System.currentTimeMillis();
@@ -987,7 +988,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                     }
                     } finally {
                         if (tenantSnapshot != null) {
-                            com.forge.framework.tenant.core.context.TenantContextHolder.clear();
+                            TenantContextHolder.clear();
                         }
                     }
                 }, agentExecutor));
