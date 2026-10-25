@@ -6,7 +6,9 @@ import lombok.Data;
 @Data
 public class TaskSignDeleteRequest {
 
-    @NotBlank(message = "任务ID不能为空")
+    /**
+     * 任务ID（由 Controller 以路径变量填充，body 无需携带）
+     */
     private String taskId;
 
     /** 被减签的用户ID */

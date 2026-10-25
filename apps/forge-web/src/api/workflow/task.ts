@@ -3,6 +3,8 @@ import type { PageResult } from '@/utils/request'
 import type { TaskInfo, TaskQuery, TaskApproveRequest, TaskDelegateRequest, TaskTransferRequest, TaskReturnRequest } from '@/types/workflow'
 
 export interface TaskSignCreateRequest {
+  /** 任务ID（路径变量为准，body 携带仅为冗余一致性） */
+  taskId?: string
   /** before 前加签 / after 后加签 / parallel 并行加签 */
   type: 'before' | 'after' | 'parallel'
   userIds: string[]
@@ -12,6 +14,8 @@ export interface TaskSignCreateRequest {
 }
 
 export interface TaskSignDeleteRequest {
+  /** 任务ID（路径变量为准，body 携带仅为冗余一致性） */
+  taskId?: string
   /** 被减签的用户ID */
   actorId: string
   reason?: string

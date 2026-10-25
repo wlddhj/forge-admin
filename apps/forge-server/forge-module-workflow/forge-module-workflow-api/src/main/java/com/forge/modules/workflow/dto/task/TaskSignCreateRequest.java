@@ -9,7 +9,9 @@ import java.util.List;
 @Data
 public class TaskSignCreateRequest {
 
-    @NotBlank(message = "任务ID不能为空")
+    /**
+     * 任务ID（由 Controller 以路径变量填充，body 无需携带）
+     */
     private String taskId;
 
     /**

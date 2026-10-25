@@ -87,6 +87,7 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     await taskApi.signDelete(props.taskId, {
+      taskId: props.taskId,
       actorId: actorId.value,
       reason: reason.value || undefined
     })

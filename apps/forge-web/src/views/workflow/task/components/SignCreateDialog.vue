@@ -117,6 +117,7 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     await taskApi.signCreate(props.taskId, {
+      taskId: props.taskId,
       type: type.value,
       userIds: userIds.value,
       examineMode: type.value === 'parallel' ? undefined : examineMode.value,

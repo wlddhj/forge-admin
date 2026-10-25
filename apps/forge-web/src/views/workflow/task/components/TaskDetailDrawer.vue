@@ -2,7 +2,7 @@
   <el-drawer
     v-model="visible"
     :title="isDoneTask ? '任务详情' : '处理任务'"
-    size="700px"
+    size="800px"
     direction="rtl"
     :before-close="handleClose"
   >
@@ -871,7 +871,7 @@ defineExpose({ open })
 .action-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0px;
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid #ebeef5;
