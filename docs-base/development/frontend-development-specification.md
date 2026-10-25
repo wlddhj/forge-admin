@@ -994,7 +994,7 @@ watch(dateRange, (val) => {
 - [ ] 添加 `:row-config="{ isCurrent: true, isHover: true }"`
 - [ ] 添加 `:column-config="{ resizable: true }"`
 - [ ] 添加 `show-header-overflow="tooltip"`
-- [ ] 添加序号列 `<vxe-column type="seq" ... :seq-method="seqMethod" />`
+- [ ] 添加序号列 `<vxe-column type="seq" ... :seq-method="seqMethod" />`（树形页面 tree-config 例外：层级缩进与序号语义冲突，不加序号列）
 - [ ] 添加工具栏 `<vxe-toolbar>` 并关联表格
 - [ ] 导入 `VxeTableInstance` / `VxeToolbarInstance` 类型
 - [ ] 导入并使用 `useTableHeight` / `useTableSeq`

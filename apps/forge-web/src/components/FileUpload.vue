@@ -49,7 +49,9 @@ const props = withDefaults(
     accept: '',
     maxSizeMb: FILE_MAX_SIZE_MB,
     limit: 5,
-    disabled: false
+    disabled: false,
+    bizType: undefined,
+    bizId: undefined
   }
 )
 

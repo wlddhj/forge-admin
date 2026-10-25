@@ -96,15 +96,9 @@
         </vxe-column>
       </vxe-table>
 
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="getList"
-        @current-change="getList"
-      />
+      <TablePagination v-model:page-num="queryParams.pageNum"
+        v-model:page-size="queryParams.pageSize" :total="total"
+        @change="getList" />
     </el-card>
 
     <!-- 新增/编辑对话框 -->
@@ -162,6 +156,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { useTableHeight } from '@/composables/useTableHeight'
+import TablePagination from '@/components/TablePagination.vue'
 import { useTableSeq } from '@/composables/useTableSeq'
 import {} from '@/utils/dateFormat'
 import { listenerApi, type ListenerQuery, type ListenerRequest, type ProcessListener } from '@/api/workflow/process-listener'

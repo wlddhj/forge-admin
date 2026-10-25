@@ -463,34 +463,19 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
+.mobile-search-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 
-  .search-card {
-    margin-bottom: 15px;
+  .title {
+    font-size: 16px;
+    font-weight: 500;
   }
 
-  .table-card {
-    .el-pagination {
-      margin-top: 15px;
-      justify-content: flex-end;
-    }
-  }
-
-  .mobile-search-actions {
+  .actions {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    .title {
-      font-size: 16px;
-      font-weight: 500;
-    }
-
-    .actions {
-      display: flex;
-      gap: 8px;
-    }
+    gap: 8px;
   }
 }
 </style>

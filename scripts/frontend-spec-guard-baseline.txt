@@ -1,27 +1,2 @@
-src/views/ai/agent-team/index.vue: R4
-src/views/ai/agent/config/index.vue: R4
-src/views/ai/agent/todo/index.vue: R5
-src/views/ai/conversation/index.vue: R4
-src/views/ai/conversation/index.vue: R5
-src/views/ai/document/index.vue: R5
-src/views/ai/model/index.vue: R4
-src/views/ai/model/index.vue: R5
-src/views/ai/sql-whitelist/index.vue: R5
-src/views/screen/data-source/index.vue: R2
-src/views/screen/data-source/index.vue: R5
-src/views/screen/index/index.vue: R2
-src/views/screen/index/index.vue: R5
-src/views/screen/sql-whitelist/index.vue: R4
-src/views/screen/sql-whitelist/index.vue: R5
-src/views/system/app-user/index.vue: R5
-src/views/system/dept/index.vue: R3
-src/views/system/key-sequence/index.vue: R5
-src/views/system/oauth2-client/index.vue: R4
-src/views/system/oauth2-client/index.vue: R5
-src/views/system/online-user/index.vue: R4
-src/views/system/print/index.vue: R4
-src/views/system/print/index.vue: R5
-src/views/system/tenant-package/index.vue: R5
-src/views/system/tenant/index.vue: R5
-src/views/workflow/expression/index.vue: R4
-src/views/workflow/listener/index.vue: R4
+# 存量豁免已全部消化(2026-10-25 spec-debt-cleanup):27 处清零
+# 新增违规不再豁免;确需豁免的页面在模板加 spec-guard-disable-r4 注释并写明理由

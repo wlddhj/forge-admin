@@ -25,6 +25,7 @@
         </template>
       </vxe-toolbar>
       <vxe-table
+        id="screenDataSourceTable"
         ref="tableRef" :data="tableData" :loading="loading" :height="tableHeight"
         :row-config="{ isCurrent: true, isHover: true }" border="none" stripe show-overflow="tooltip"
       >
@@ -115,9 +116,3 @@ onMounted(() => {
   getList()
 })
 </script>
-
-<style scoped>
-.app-container { padding: 0; }
-.search-card { margin-bottom: 15px; }
-.table-card .TablePagination { margin-top: 15px; }
-</style>

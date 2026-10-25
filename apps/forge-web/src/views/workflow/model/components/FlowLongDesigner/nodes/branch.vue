@@ -3,26 +3,26 @@
     <div class="branch-box-wrap">
       <div class="branch-box">
         <el-button class="add-branch" type="success" plain round @click="addTerm">添加条件</el-button>
-        <div v-for="(item, index) in nodeConfig.conditionNodes" :key="index" class="col-box">
+        <div v-for="(item, idx) in nodeConfig.conditionNodes" :key="idx" class="col-box">
           <div class="condition-node">
             <div class="condition-node-box">
-              <div class="auto-judge" @click="show(index)">
-                <div v-if="index != 0" class="sort-left" @click.stop="arrTransfer(index, -1)">
+              <div class="auto-judge" @click="show(idx)">
+                <div v-if="idx != 0" class="sort-left" @click.stop="arrTransfer(idx, -1)">
                   <el-icon><ArrowLeft /></el-icon>
                 </div>
                 <div class="title">
                   <span class="node-title">{{ item.nodeName }}</span>
                   <span class="priority-title">优先级{{ item.priorityLevel }}</span>
-                  <el-icon class="close" @click.stop="delTerm(index)"><Close /></el-icon>
+                  <el-icon class="close" @click.stop="delTerm(idx)"><Close /></el-icon>
                 </div>
                 <div class="content">
-                  <span v-if="toText(nodeConfig, index)">{{ toText(nodeConfig, index) }}</span>
+                  <span v-if="toText(nodeConfig, idx)">{{ toText(nodeConfig, idx) }}</span>
                   <span v-else class="placeholder">请设置条件</span>
                 </div>
                 <div
-                  v-if="index != nodeConfig.conditionNodes!.length - 1"
+                  v-if="idx != nodeConfig.conditionNodes!.length - 1"
                   class="sort-right"
-                  @click.stop="arrTransfer(index)"
+                  @click.stop="arrTransfer(idx)"
                 >
                   <el-icon><ArrowRight /></el-icon>
                 </div>
@@ -31,10 +31,10 @@
             </div>
           </div>
           <slot v-if="item.childNode" :node="item"></slot>
-          <div v-if="index == 0" class="top-left-cover-line"></div>
-          <div v-if="index == 0" class="bottom-left-cover-line"></div>
-          <div v-if="index == nodeConfig.conditionNodes!.length - 1" class="top-right-cover-line"></div>
-          <div v-if="index == nodeConfig.conditionNodes!.length - 1" class="bottom-right-cover-line"></div>
+          <div v-if="idx == 0" class="top-left-cover-line"></div>
+          <div v-if="idx == 0" class="bottom-left-cover-line"></div>
+          <div v-if="idx == nodeConfig.conditionNodes!.length - 1" class="top-right-cover-line"></div>
+          <div v-if="idx == nodeConfig.conditionNodes!.length - 1" class="bottom-right-cover-line"></div>
         </div>
       </div>
       <add-node :model-value="nodeConfig.childNode ?? null" @update:model-value="nodeConfig.childNode = $event"></add-node>

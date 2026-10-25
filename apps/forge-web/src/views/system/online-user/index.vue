@@ -21,6 +21,7 @@
       </div>
 
       <!-- vxe-table 表格 -->
+      <!-- spec-guard-disable-r4: 在线会话实时全量加载(useTableSeq 前端截断),无需分页 -->
       <vxe-table
         id="sysOnlineUserTable"
         ref="tableRef"

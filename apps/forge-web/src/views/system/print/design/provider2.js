@@ -39,7 +39,7 @@ export const provider2 = function (options) {
               // const sum = groupData.rows.reduce((acc, row) => acc + row.count, 0);
               return '按人员分组'
             },
-            groupFieldsFormatter: function(type,options,data){ return ["name"] },
+            groupFieldsFormatter: function(_type, _options, _data){ return ["name"] },
           },
           columns: [
             [

@@ -26,6 +26,7 @@
         </template>
       </vxe-toolbar>
 
+      <!-- spec-guard-disable-r4: OAuth2 客户端为配置类小数据量,全量加载+前端截断展示,无需分页 -->
       <vxe-table
         id="sysOAuth2ClientTable"
         ref="tableRef"
@@ -321,9 +322,3 @@ const copySecret = () => {
 }
 </script>
 
-<style scoped lang="scss">
-.app-container {
-  padding: 0;
-  .search-card { margin-bottom: 15px; }
-}
-</style>

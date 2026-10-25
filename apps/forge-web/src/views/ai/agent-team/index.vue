@@ -14,6 +14,7 @@
         </template>
       </vxe-toolbar>
 
+      <!-- spec-guard-disable-r4: 团队配置为小数据量,API /ai/team/list 全量返回,无需分页 -->
       <vxe-table id="agentTeamTable" ref="tableRef" :data="tableData" :height="tableHeight" :loading="loading"
         :row-config="{ isHover: true }" stripe show-overflow="tooltip">
         <vxe-column type="seq" title="序号" width="60" />

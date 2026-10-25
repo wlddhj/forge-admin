@@ -20,13 +20,13 @@
         show-checkbox
         @check="handleTreeCheck"
       >
-        <template #default="{ data }">
+        <template #default="{ data: node }">
           <div class="menu-node">
-            <span class="menu-node-label">{{ data.menuName }}</span>
+            <span class="menu-node-label">{{ node.menuName }}</span>
             <!-- @click.stop 阻断冒泡到树节点 content，避免点击按钮时连带切换菜单的树勾选 -->
-            <div v-if="buttonsMap.get(data.id)?.length" class="menu-node-buttons" @click.stop>
+            <div v-if="buttonsMap.get(node.id)?.length" class="menu-node-buttons" @click.stop>
               <el-checkbox
-                v-for="btn in buttonsMap.get(data.id)"
+                v-for="btn in buttonsMap.get(node.id)"
                 :key="btn.id"
                 :model-value="checkedButtonIds.has(btn.id)"
                 class="menu-node-button"

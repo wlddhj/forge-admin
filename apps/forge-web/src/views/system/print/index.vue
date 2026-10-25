@@ -71,16 +71,9 @@
         </vxe-column>
       </vxe-table>
 
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        style="margin-top: 15px; justify-content: flex-end; display: flex"
-        @size-change="getList"
-        @current-change="getList"
-      />
+      <TablePagination v-model:page-num="queryParams.pageNum"
+        v-model:page-size="queryParams.pageSize" :total="total"
+        @change="getList" />
     </el-card>
 
     <!-- 新增/编辑弹窗 -->
@@ -102,6 +95,7 @@ import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
 import PrintTemplateForm from './PrintTemplateForm.vue'
 import PrintView from '@/components/hiprint/print-view.vue'
+import TablePagination from '@/components/TablePagination.vue'
 
 defineOptions({ name: 'SysPrintTemplate' })
 
@@ -190,17 +184,3 @@ onMounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
-.app-container {
-  padding: 0;
-  .search-card {
-    margin-bottom: 15px;
-  }
-  .table-card {
-    .el-pagination {
-      margin-top: 15px;
-      justify-content: flex-end;
-    }
-  }
-}
-</style>

@@ -13,12 +13,9 @@
 
 <script>
 import { getCurrentInstance, ref } from 'vue'
-import { ElMessage } from 'element-plus'
 import { newHiprintPrintTemplate } from '@/utils/hiprint/template-helper'
-import { hiprint } from 'vue-plugin-hiprint'
 import { PrintTemplateApi } from '@/api/system/print-template'
-import { cloneDeep, set, transform } from 'lodash-es'
-import { isArray, isObject } from 'min-dash'
+import { cloneDeep } from 'lodash-es'
 
 export default {
   name: 'PrintView',

@@ -52,12 +52,12 @@ function check(file) {
   if (hasVxeTable && !/id="\w+Table"/.test(src)) {
     problems.push(`R2 vxe-table 缺少 id="xxxTable" 唯一标识`)
   }
-  // R3: 有 vxe-table 须有序号列
-  if (hasVxeTable && !/type="seq"/.test(src)) {
+  // R3: 有 vxe-table 须有序号列(树形页层级缩进与序号语义冲突,豁免——与 R4 同策略)
+  const isTreePage = /tree-config/.test(src)
+  if (hasVxeTable && !isTreePage && !/type="seq"/.test(src)) {
     problems.push(`R3 缺少序号列(vxe-column type="seq" + seq-method)`)
   }
   // R4: 有 vxe-table 且无"不分页"声明时须 TablePagination(树形页等无分页页可能无——以注释豁免)
-  const isTreePage = /tree-config/.test(src)
   if (hasVxeTable && !isTreePage && !/TablePagination/.test(src) && !/spec-guard-disable-r4/.test(src)) {
     problems.push(`R4 未使用 TablePagination(无分页页请加注释 spec-guard-disable-r4 豁免)`)
   }

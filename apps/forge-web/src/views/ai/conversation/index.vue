@@ -84,15 +84,9 @@
         </vxe-column>
       </vxe-table>
 
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="getList"
-        @current-change="getList"
-      />
+      <TablePagination v-model:page-num="queryParams.pageNum"
+        v-model:page-size="queryParams.pageSize" :total="total"
+        @change="getList" />
     </el-card>
 
     <!-- 消息详情抽屉 -->
@@ -124,6 +118,7 @@ import { formatDateTime } from '@/utils/dateFormat'
 import { getConversationList, deleteConversation, getConversationMessages } from '@/api/ai/chat'
 import { getModelList, AI_MODEL_TYPE_TEXT } from '@/api/ai/model'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
+import TablePagination from '@/components/TablePagination.vue'
 import type { ConversationResponse, MessageResponse } from '@/api/ai/chat'
 import type { ModelConfigResponse } from '@/api/ai/model'
 
@@ -209,21 +204,6 @@ const handleBatchDelete = () => {
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
-
-  .search-card {
-    margin-bottom: 15px;
-  }
-
-  .table-card {
-    .el-pagination {
-      margin-top: 15px;
-      justify-content: flex-end;
-    }
-  }
-}
-
 .message-list {
   padding: 0 20px;
 

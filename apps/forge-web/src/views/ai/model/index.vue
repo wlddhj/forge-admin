@@ -36,6 +36,7 @@
         </template>
       </vxe-toolbar>
 
+      <!-- spec-guard-disable-r4: 模型配置为小数据量,API /ai/model/list 全量返回,无需分页 -->
       <vxe-table
         id="aiModelTable"
         ref="tableRef"
@@ -191,8 +192,3 @@ const handleRefreshAll = async () => {
 }
 </script>
 
-<style scoped lang="scss">
-.app-container {
-  padding: 0;
-}
-</style>

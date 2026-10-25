@@ -257,19 +257,15 @@ const formatFileSize = (size: number) => {
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
-
-  .content-box,
-  .summary-box {
-    padding: 15px;
-    background: #f5f7fa;
-    border-radius: 8px;
-    line-height: 1.8;
-    max-height: 400px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
+.content-box,
+.summary-box {
+  padding: 15px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  line-height: 1.8;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

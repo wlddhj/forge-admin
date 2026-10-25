@@ -116,9 +116,3 @@ onMounted(() => {
   getList()
 })
 </script>
-
-<style scoped lang="scss">
-.app-container {
-  padding: 0;
-}
-</style>

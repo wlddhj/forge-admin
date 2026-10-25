@@ -14,6 +14,7 @@
         </template>
       </vxe-toolbar>
 
+      <!-- spec-guard-disable-r4: Agent 运行参数配置为小数据量全量加载,无需分页 -->
       <vxe-table id="agentConfigTable" ref="tableRef" :data="tableData" :height="tableHeight" :loading="loading"
         :row-config="{ isHover: true }" stripe show-overflow="tooltip">
         <vxe-column type="seq" title="序号" width="60" />

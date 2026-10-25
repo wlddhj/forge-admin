@@ -276,19 +276,9 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
-
-  .search-card {
-    margin-bottom: 15px;
-  }
-
-  .table-card {
-    .pagination-container {
-      margin-top: 15px;
-      display: flex;
-      justify-content: flex-end;
-    }
-  }
+.pagination-container {
+  margin-top: 15px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

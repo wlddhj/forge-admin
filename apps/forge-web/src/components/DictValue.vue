@@ -25,7 +25,8 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  separator: ','
+  separator: ',',
+  value: undefined
 })
 
 const { getDictLabel, getTagType, getCssClass } = useDict(props.dictType)

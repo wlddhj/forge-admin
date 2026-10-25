@@ -521,26 +521,16 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
+.form-tip {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-top: 4px;
+  line-height: 1.5;
+}
 
-  .search-card {
-    margin-bottom: 15px;
-  }
-
-  .form-tip {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    margin-top: 4px;
-    line-height: 1.5;
-  }
-
-  .table-card {
-    .pagination-container {
-      margin-top: 15px;
-      display: flex;
-      justify-content: flex-end;
-    }
-  }
+.pagination-container {
+  margin-top: 15px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

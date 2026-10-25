@@ -145,14 +145,10 @@ const todoType = (s: string): 'primary' | 'success' | 'warning' | 'info' | 'dang
 </script>
 
 <style scoped lang="scss">
-.app-container {
-  padding: 0;
-
-  .todo-content {
-    white-space: pre-wrap;
-    word-break: break-all;
-    font-size: 12px;
-  }
+.todo-content {
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 12px;
 }
 
 :deep(.todo-review-detail) {
