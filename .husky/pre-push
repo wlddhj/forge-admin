@@ -12,4 +12,6 @@ echo "[pre-push] vue-tsc..."
 npx vue-tsc --noEmit >/dev/null 2>&1 || { echo "[pre-push] 类型检查失败,推送被阻断"; exit 1; }
 echo "[pre-push] eslint..."
 pnpm lint >/dev/null 2>&1 || { echo "[pre-push] lint 失败,推送被阻断"; exit 1; }
+echo "[pre-push] spec-guard..."
+node ../../scripts/frontend-spec-guard.mjs || { echo "[pre-push] 前端规范扫描失败,推送被阻断"; exit 1; }
 echo "[pre-push] 前端检查全部通过"

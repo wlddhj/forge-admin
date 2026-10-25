@@ -16,6 +16,7 @@ pipeline {
                     CI=true npx vitest run --reporter=basic
                     npx vue-tsc --noEmit
                     pnpm lint
+                    node ../../scripts/frontend-spec-guard.mjs
                     pnpm build
                 '''
             }

@@ -53,6 +53,19 @@ mvn test -pl forge-module-system/forge-module-system-biz  # 运行指定模块�
 mvn test -Dtest=ClassName -pl <module>         # 运行单个测试类
 ```
 
+## 开发规范(强制约束)
+
+写对应层代码前**必读** `docs-base/development/` 下对应规范,视为强制约束而非建议:
+
+| 规范文档 | 何时必读 |
+|---------|---------|
+| `frontend-development-specification.md` | 任何 `apps/forge-web` 页面/组件/API 文件改动(表格/弹窗/样式/字典/日期格式全约定) |
+| `backend-development-specification.md` | 后端接口设计与实现 |
+| `database-design-specification.md` | 建表/改表/字典数据 SQL |
+| `module-development.md` | 新模块端到端流程 |
+
+机器强制:`scripts/frontend-spec-guard.mjs` 扫描列表页规范条款(存量豁免清单 `frontend-spec-guard-baseline.txt`,增量严查),已挂 pre-push 与 Jenkinsfile;后端由 ArchUnit 15 条规则守护。
+
 ## 后端架构
 
 ### 多模块结构
