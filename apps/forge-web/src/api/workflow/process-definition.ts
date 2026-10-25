@@ -14,7 +14,7 @@ export const processDefinitionApi = {
   getXml: (id: string) =>
     request.get<string>(`/workflow/process-definition/${id}/json`).then(res => res.data), // FlowLong 使用 JSON 格式，别名保持兼容
   getDiagram: (id: string) =>
-    request.getBlob(`/workflow/process-definition/${id}/diagram`),
+    request.getBlob(`/workflow/process-definition/${id}/diagram`, { responseType: 'blob' }),
   getUserTaskNodes: (id: string) =>
     request.get<UserTaskNode[]>(`/workflow/process-definition/${id}/user-tasks`).then(res => res.data),
   suspend: (id: string) =>

@@ -14,7 +14,7 @@ export const processInstanceApi = {
   cancel: (id: string) =>
     request.delete(`/workflow/instance/${id}`).then(res => res.data),
   getDiagram: (id: string) =>
-    request.getBlob(`/workflow/instance/${id}/diagram`),
+    request.getBlob(`/workflow/instance/${id}/diagram`, { responseType: 'blob' }),
   getComments: (id: string) =>
     request.get<ApprovalComment[]>(`/workflow/instance/${id}/comments`).then(res => res.data),
   getVariables: (id: string) =>
