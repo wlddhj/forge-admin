@@ -100,9 +100,20 @@ public class WorkflowReminderJob implements Job {
 
         int sentCount = 0;
 
+        boolean workingTimeNow = isWorkingTime(properties);
+
         for (FlwTask task : remindTasks) {
             // 只处理有 remindTime 的任务（非超时任务）
             if (task.getRemindTime() != null && !isExpired(task)) {
+                // 工作时间/工作日限制：非工作时段不发提醒，remindTime 顺延到下一工作时段起点
+                if (!workingTimeNow) {
+                    FlwTask update = new FlwTask();
+                    update.setId(task.getId());
+                    update.setRemindTime(nextWorkingTimeStart(properties));
+                    taskService.updateTaskById(update,
+                            com.forge.modules.workflow.framework.FlowCreatorFactory.system("提醒调度"));
+                    continue;
+                }
                 try {
                     if (sendReminder(task, taskService, flowLongEngine, notificationService, properties)) {
                         sentCount++;
@@ -114,6 +125,64 @@ public class WorkflowReminderJob implements Job {
         }
 
         log.info("提醒检查完成: 检查任务数={}, 发送提醒数={}", remindTasks.size(), sentCount);
+    }
+
+    /**
+     * 当前是否处于配置的工作时段（workTime "8:00-18:00"、workDays "1,2,3,4,5"）。
+     * 任一配置为空视为不限制该维度。
+     */
+    private boolean isWorkingTime(com.forge.modules.workflow.config.FlowLongSchedulerProperties properties) {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        String workDays = properties.getWorkDays();
+        if (workDays != null && !workDays.isBlank()) {
+            int dayOfWeek = now.getDayOfWeek().getValue(); // 1=周一 ... 7=周日
+            boolean inDays = java.util.Arrays.stream(workDays.split(","))
+                    .map(String::trim).filter(d -> d.matches("\\d"))
+                    .anyMatch(d -> Integer.parseInt(d) == dayOfWeek);
+            if (!inDays) {
+                return false;
+            }
+        }
+        String workTime = properties.getWorkTime();
+        if (workTime != null && workTime.matches("\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2}")) {
+            String[] parts = workTime.split("-");
+            java.time.LocalTime time = now.toLocalTime();
+            java.time.LocalTime start = java.time.LocalTime.parse(
+                    String.format("%02d:%s", Integer.parseInt(parts[0].split(":")[0]), parts[0].split(":")[1]));
+            java.time.LocalTime end = java.time.LocalTime.parse(
+                    String.format("%02d:%s", Integer.parseInt(parts[1].split(":")[0]), parts[1].split(":")[1]));
+            return !time.isBefore(start) && time.isBefore(end);
+        }
+        return true;
+    }
+
+    /**
+     * 下一工作时段起点（明天或当天的工作开始时刻；未配置时 1 小时后重试）
+     */
+    private java.util.Date nextWorkingTimeStart(com.forge.modules.workflow.config.FlowLongSchedulerProperties properties) {
+        String workTime = properties.getWorkTime();
+        java.time.LocalDateTime next = java.time.LocalDateTime.now().plusHours(1);
+        if (workTime != null && workTime.matches("\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2}")) {
+            String[] parts = workTime.split(":");
+            java.time.LocalTime start = java.time.LocalTime.of(Integer.parseInt(parts[0]), Integer.parseInt(parts[1].split("-")[0]));
+            java.time.LocalDateTime candidate = java.time.LocalDateTime.now().toLocalDate().atTime(start);
+            if (!candidate.isAfter(java.time.LocalDateTime.now())) {
+                candidate = candidate.plusDays(1);
+            }
+            // 跳过非工作日
+            String workDays = properties.getWorkDays();
+            if (workDays != null && !workDays.isBlank()) {
+                java.util.Set<Integer> days = java.util.Arrays.stream(workDays.split(","))
+                        .map(String::trim).filter(d -> d.matches("\\d"))
+                        .map(Integer::parseInt).collect(java.util.stream.Collectors.toSet());
+                int guard = 0;
+                while (!days.contains(candidate.getDayOfWeek().getValue()) && guard++ < 7) {
+                    candidate = candidate.plusDays(1);
+                }
+            }
+            next = candidate;
+        }
+        return java.util.Date.from(next.atZone(java.time.ZoneId.systemDefault()).toInstant());
     }
 
     /**

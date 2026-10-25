@@ -219,6 +219,10 @@ public class WfTaskServiceImpl implements WfTaskService {
         final Map<Long, FlwHisInstance> hisInstanceMap = new HashMap<>();
         final Map<Long, FlwProcess> processMap = new HashMap<>();
         final Map<Long, String> userNameMap = new HashMap<>();
+        // his 转换专用（已办/抄送）
+        final Map<Long, WfApprovalComment> latestCommentByTask = new HashMap<>();
+        final Map<Long, List<FlwHisTask>> hisTasksByInstance = new HashMap<>();
+        final Map<Long, List<FlwTask>> activeByParentTask = new HashMap<>();
     }
 
     @SuppressWarnings("unchecked")
@@ -261,6 +265,146 @@ public class WfTaskServiceImpl implements WfTaskService {
             ctx.userNameMap.putAll(identityService.getUserNames(userIds));
         }
         return ctx;
+    }
+
+    /**
+     * 已办/抄送列表批量预取：实例/流程/发起人 + 意见(按任务取最新) + 实例任务序(算下一节点) + 拿回后继
+     */
+    private BatchContext preloadHisBatch(List<FlwHisTask> hisTasks) {
+        BatchContext ctx = new BatchContext();
+        if (hisTasks == null || hisTasks.isEmpty()) return ctx;
+
+        // 1. 批量实例/流程/发起人（与活动侧同一套填充逻辑）
+        fillInstanceProcessUser(ctx, hisTasks.stream().map(FlwHisTask::getInstanceId).collect(Collectors.toSet()));
+
+        // 2. 实例内全部历史任务（升序）→ 下一节点名与意见任务分组共用
+        Set<Long> instanceIds = ctx.hisInstanceMap.keySet();
+        if (!instanceIds.isEmpty()) {
+            LambdaQueryWrapper<FlwHisTask> hisWrapper = new LambdaQueryWrapper<>();
+            hisWrapper.in(FlwHisTask::getInstanceId, instanceIds).orderByAsc(FlwHisTask::getCreateTime);
+            hisTaskMapper.selectList(hisWrapper).forEach(t ->
+                    ctx.hisTasksByInstance.computeIfAbsent(t.getInstanceId(), k -> new ArrayList<>()).add(t));
+        }
+
+        // 3. 意见：按任务 ID 分组，升序遍历后写覆盖 → 保留每任务最新一条
+        if (!instanceIds.isEmpty()) {
+            LambdaQueryWrapper<WfApprovalComment> commentWrapper = new LambdaQueryWrapper<>();
+            commentWrapper.in(WfApprovalComment::getProcessInstanceId, instanceIds)
+                    .orderByAsc(WfApprovalComment::getCreateTime);
+            for (WfApprovalComment comment : approvalCommentMapper.selectList(commentWrapper)) {
+                if (comment.getTaskId() != null) {
+                    ctx.latestCommentByTask.put(comment.getTaskId(), comment);
+                }
+            }
+        }
+
+        // 4. 拿回后继：一次查全部 parentTaskId 命中的活动任务 + 运行中实例集合
+        Set<Long> hisTaskIds = hisTasks.stream().map(FlwHisTask::getId).collect(Collectors.toSet());
+        if (!hisTaskIds.isEmpty()) {
+            LambdaQueryWrapper<FlwTask> activeWrapper = new LambdaQueryWrapper<>();
+            activeWrapper.in(FlwTask::getParentTaskId, hisTaskIds);
+            taskMapper.selectList(activeWrapper).forEach(t ->
+                    ctx.activeByParentTask.computeIfAbsent(t.getParentTaskId(), k -> new ArrayList<>()).add(t));
+            Set<Long> runningIds = hisTasks.stream().map(FlwHisTask::getInstanceId)
+                    .filter(Objects::nonNull).collect(Collectors.toSet());
+            if (!runningIds.isEmpty()) {
+                LambdaQueryWrapper<FlwInstance> runningWrapper = new LambdaQueryWrapper<>();
+                runningWrapper.in(FlwInstance::getId, runningIds);
+                instanceMapper.selectList(runningWrapper).forEach(i -> ctx.instanceMap.put(i.getId(), i));
+            }
+        }
+        return ctx;
+    }
+
+    /** 实例/流程/发起人批量填充（活动与历史侧共用） */
+    private void fillInstanceProcessUser(BatchContext ctx, Set<Long> instanceIds) {
+        if (instanceIds.isEmpty()) return;
+        Set<Long> processIds = new HashSet<>();
+        Set<Long> userIds = new HashSet<>();
+        List<FlwHisInstance> hisInstances = hisInstanceMapper.selectBatchIds(instanceIds);
+        hisInstances.forEach(i -> {
+            ctx.hisInstanceMap.put(i.getId(), i);
+            if (i.getProcessId() != null) processIds.add(i.getProcessId());
+            if (StrUtil.isNotBlank(i.getCreateId())) {
+                try { userIds.add(Long.parseLong(i.getCreateId())); } catch (NumberFormatException ignored) {}
+            }
+        });
+        processIds.forEach(pid -> {
+            FlwProcess process = processService.getProcessById(pid);
+            if (process != null) ctx.processMap.put(pid, process);
+        });
+        if (!userIds.isEmpty()) {
+            ctx.userNameMap.putAll(identityService.getUserNames(userIds));
+        }
+    }
+
+    /**
+     * 已办/抄送转换（批量上下文版：零逐行查询）
+     */
+    private TaskResponse convertHisTaskToResponseWithProcess(FlwHisTask hisTask, BatchContext ctx) {
+        TaskResponse response = convertHisTaskToResponse(hisTask);
+
+        FlwHisInstance hisInstance = ctx.hisInstanceMap.get(hisTask.getInstanceId());
+        if (hisInstance != null) {
+            response.setProcessInstanceId(String.valueOf(hisInstance.getId()));
+            FlwProcess process = ctx.processMap.get(hisInstance.getProcessId());
+            if (process != null) {
+                response.setProcessDefinitionId(String.valueOf(process.getId()));
+                response.setProcessDefinitionName(process.getProcessName());
+                response.setProcessDefinitionKey(process.getProcessKey());
+            }
+            if (StrUtil.isNotBlank(hisInstance.getCreateId())) {
+                response.setStartUserId(hisInstance.getCreateId());
+                try {
+                    Long startUserId = Long.parseLong(hisInstance.getCreateId());
+                    response.setStartUserName(ctx.userNameMap.getOrDefault(startUserId, hisInstance.getCreateBy()));
+                } catch (NumberFormatException e) {
+                    response.setStartUserName(hisInstance.getCreateBy());
+                }
+            }
+            response.setStartTime(hisInstance.getCreateTime());
+            response.setProcessNo(hisInstance.getInstanceNo());
+        }
+
+        // 审批意见（预取 Map，每任务最新一条）
+        WfApprovalComment approvalComment = ctx.latestCommentByTask.get(hisTask.getId());
+        if (approvalComment != null) {
+            response.setActionType(approvalComment.getActionType());
+            response.setCommentText(approvalComment.getCommentText());
+            if (approvalComment.getCreateTime() != null) {
+                response.setEndTime(Date.from(approvalComment.getCreateTime()
+                        .atZone(java.time.ZoneId.systemDefault()).toInstant()));
+            }
+        }
+
+        response.setWithdrawn(
+                hisTask.getTaskType().equals(TaskType.withdraw.getValue())
+                || hisTask.getTaskType().equals(TaskType.saveAsDraft.getValue())
+                || ApprovalActionTypeEnum.WITHDRAW.getCode().equals(response.getActionType())
+        );
+
+        // 下一节点名：实例任务升序列表中找 createTime 晚于本任务 finishTime 的第一条
+        if (hisTask.getFinishTime() != null) {
+            List<FlwHisTask> sequence = ctx.hisTasksByInstance.getOrDefault(hisTask.getInstanceId(), Collections.emptyList());
+            for (FlwHisTask candidate : sequence) {
+                if (candidate.getCreateTime() != null && candidate.getCreateTime().after(hisTask.getFinishTime())) {
+                    response.setNextActivityName(candidate.getTaskName());
+                    break;
+                }
+            }
+        }
+
+        // 拿回标记：实例运行中且后继待人审批任务存在
+        if (isHumanApprovalTask(hisTask.getTaskType()) && ctx.instanceMap.containsKey(hisTask.getInstanceId())) {
+            List<FlwTask> successors = ctx.activeByParentTask.getOrDefault(hisTask.getId(), Collections.emptyList());
+            response.setCanReclaim(successors.stream().anyMatch(this::isHumanApprovalTaskByType));
+        }
+
+        return response;
+    }
+
+    private boolean isHumanApprovalTaskByType(FlwTask task) {
+        return isHumanApprovalTask(task.getTaskType());
     }
 
     /**
@@ -347,8 +491,9 @@ public class WfTaskServiceImpl implements WfTaskService {
         Page<FlwHisTask> taskPage = hisTaskMapper.selectPage(pageParam, taskWrapper);
 
         // 4. 转换为响应对象，补充流程信息
+        BatchContext hisCtx = preloadHisBatch(taskPage.getRecords());
         List<TaskResponse> records = taskPage.getRecords().stream()
-                .map(this::convertHisTaskToResponseWithProcess)
+                .map(t -> convertHisTaskToResponseWithProcess(t, hisCtx))
                 .collect(Collectors.toList());
 
         Page<TaskResponse> resultPage = new Page<>();
@@ -1077,8 +1222,9 @@ public class WfTaskServiceImpl implements WfTaskService {
         Page<FlwHisTask> taskPage = hisTaskMapper.selectPage(pageParam, taskWrapper);
 
         // 转换为响应对象，补充流程信息
+        BatchContext hisCtx = preloadHisBatch(taskPage.getRecords());
         List<TaskResponse> records = taskPage.getRecords().stream()
-                .map(this::convertHisTaskToResponseWithProcess)
+                .map(t -> convertHisTaskToResponseWithProcess(t, hisCtx))
                 .collect(Collectors.toList());
 
         Page<TaskResponse> resultPage = new Page<>();
@@ -1116,8 +1262,9 @@ public class WfTaskServiceImpl implements WfTaskService {
         List<FlwHisTask> ccTasks = hisTaskMapper.selectList(taskWrapper);
 
         // 转换为响应对象
+        BatchContext ccCtx = preloadHisBatch(ccTasks);
         return ccTasks.stream()
-                .map(this::convertHisTaskToResponseWithProcess)
+                .map(t -> convertHisTaskToResponseWithProcess(t, ccCtx))
                 .collect(Collectors.toList());
     }
 
@@ -1284,83 +1431,4 @@ public class WfTaskServiceImpl implements WfTaskService {
     /**
      * 转换历史任务响应（包含流程信息）
      */
-    private TaskResponse convertHisTaskToResponseWithProcess(FlwHisTask hisTask) {
-        TaskResponse response = convertHisTaskToResponse(hisTask);
-
-        // 补充流程实例信息
-        FlwHisInstance hisInstance = hisInstanceMapper.selectById(hisTask.getInstanceId());
-        if (hisInstance != null) {
-            response.setProcessInstanceId(String.valueOf(hisInstance.getId()));
-
-            // 补充流程定义信息
-            FlwProcess process = processService.getProcessById(hisInstance.getProcessId());
-            if (process != null) {
-                response.setProcessDefinitionId(String.valueOf(process.getId()));
-                response.setProcessDefinitionName(process.getProcessName());
-                response.setProcessDefinitionKey(process.getProcessKey());
-            }
-
-            // 发起人信息
-            if (StrUtil.isNotBlank(hisInstance.getCreateId())) {
-                response.setStartUserId(hisInstance.getCreateId());
-                try {
-                    Long startUserId = Long.parseLong(hisInstance.getCreateId());
-                    response.setStartUserName(identityService.getUserName(startUserId));
-                } catch (NumberFormatException e) {
-                    response.setStartUserName(hisInstance.getCreateBy());
-                }
-            }
-
-            response.setStartTime(hisInstance.getCreateTime());
-
-            // 流程编号
-            response.setProcessNo(hisInstance.getInstanceNo());
-
-        }
-
-        // 补充审批意见信息：动作、审批意见、审批时间
-        LambdaQueryWrapper<WfApprovalComment> commentWrapper = new LambdaQueryWrapper<>();
-        commentWrapper.eq(WfApprovalComment::getTaskId, hisTask.getId());
-        commentWrapper.orderByDesc(WfApprovalComment::getCreateTime);
-        commentWrapper.last("LIMIT 1");
-        WfApprovalComment approvalComment = approvalCommentMapper.selectOne(commentWrapper);
-        if (approvalComment != null) {
-            response.setActionType(approvalComment.getActionType());
-            response.setCommentText(approvalComment.getCommentText());
-            // 审批时间取审批意见表的创建时间
-            if (approvalComment.getCreateTime() != null) {
-                response.setEndTime(Date.from(approvalComment.getCreateTime()
-                        .atZone(java.time.ZoneId.systemDefault()).toInstant()));
-            }
-        }
-
-        response.setWithdrawn(
-                hisTask.getTaskType().equals(TaskType.withdraw.getValue())
-                ||hisTask.getTaskType().equals(TaskType.saveAsDraft.getValue())
-                || ApprovalActionTypeEnum.WITHDRAW.getCode().equals(response.getActionType())
-        );
-
-        // 补充下一节点名称：查找当前任务完成后，下一个创建的任务
-        if (hisTask.getFinishTime() != null) {
-            LambdaQueryWrapper<FlwHisTask> nextTaskWrapper = new LambdaQueryWrapper<>();
-            nextTaskWrapper.eq(FlwHisTask::getInstanceId, hisTask.getInstanceId());
-            nextTaskWrapper.gt(FlwHisTask::getCreateTime, hisTask.getFinishTime());
-            nextTaskWrapper.orderByAsc(FlwHisTask::getCreateTime);
-            nextTaskWrapper.last("LIMIT 1");
-            FlwHisTask nextTask = hisTaskMapper.selectOne(nextTaskWrapper);
-            if (nextTask != null) {
-                response.setNextActivityName(nextTask.getTaskName());
-            }
-        }
-
-        // 拿回标记：实例运行中且存在以后继待人审批任务（与引擎 reclaim 校验同源）
-        if (isHumanApprovalTask(hisTask.getTaskType()) && instanceMapper.selectById(hisTask.getInstanceId()) != null) {
-            LambdaQueryWrapper<FlwTask> nextActiveWrapper = new LambdaQueryWrapper<>();
-            nextActiveWrapper.eq(FlwTask::getParentTaskId, hisTask.getId());
-            List<FlwTask> nextActiveTasks = taskMapper.selectList(nextActiveWrapper);
-            response.setCanReclaim(nextActiveTasks.stream().anyMatch(t -> isHumanApprovalTask(t.getTaskType())));
-        }
-
-        return response;
-    }
 }

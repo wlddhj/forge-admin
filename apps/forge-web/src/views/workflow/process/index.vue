@@ -344,7 +344,7 @@ const queryParams = reactive({
 // 序号计算
 const pageNumRef = computed(() => queryParams.pageNum)
 const pageSizeRef = computed(() => queryParams.pageSize)
-const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef }) as any
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
 
 // 计算激活的搜索条件数量
 const activeConditionsCount = computed(() => {
@@ -488,7 +488,7 @@ const startForm = reactive({
   businessKey: '',
   comment: '',
   formRule: [] as any[],
-  formOption: { submitBtn: false, resetBtn: false } as any,
+  formOption: { submitBtn: false, resetBtn: false } as Record<string, unknown>,
   startSelectTasks: [] as UserTaskNode[], // 发起人自选节点
   approveSelectTasks: [] as UserTaskNode[], // 审批人自选节点
   selectedUsers: {} as Record<string, number[]>, // { taskDefKey: [userId1, userId2] }

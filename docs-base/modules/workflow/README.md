@@ -1,7 +1,7 @@
 # 工作流模块文档
 
 > 适用模块: `forge-module-workflow`
-> 基于引擎: FlowLong 7.0.1
+> 基于引擎: FlowLong 1.2.5（flowlong-spring-boot-starter，Boot3 兼容排除传递依赖）
 
 ---
 

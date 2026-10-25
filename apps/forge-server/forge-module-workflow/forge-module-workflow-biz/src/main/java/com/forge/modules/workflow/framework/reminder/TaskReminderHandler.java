@@ -34,15 +34,26 @@ public class TaskReminderHandler implements TaskReminder {
 
     private final NotificationService notificationService;
     private final FlowLongEngine flowLongEngine;
+    private final org.springframework.mail.javamail.JavaMailSender mailSender;
+    private final com.forge.modules.workflow.config.FlowLongSchedulerProperties schedulerProperties;
+    private final com.forge.modules.system.mapper.SysUserMapper sysUserMapper;
 
     /**
      * 默认下次提醒间隔（小时）
      */
     private static final int DEFAULT_REMIND_INTERVAL_HOURS = 24;
 
-    public TaskReminderHandler(NotificationService notificationService, FlowLongEngine flowLongEngine) {
+    public TaskReminderHandler(NotificationService notificationService,
+                              FlowLongEngine flowLongEngine,
+                              org.springframework.beans.factory.ObjectProvider<org.springframework.mail.javamail.JavaMailSender> mailSenderProvider,
+                              com.forge.modules.workflow.config.FlowLongSchedulerProperties schedulerProperties,
+                              com.forge.modules.system.mapper.SysUserMapper sysUserMapper) {
         this.notificationService = notificationService;
         this.flowLongEngine = flowLongEngine;
+        // SMTP 未配置时 JavaMailSender 自动配置不生效，此处拿到 null 并在发送侧跳过
+        this.mailSender = mailSenderProvider.getIfAvailable();
+        this.schedulerProperties = schedulerProperties;
+        this.sysUserMapper = sysUserMapper;
     }
 
     /**
@@ -121,10 +132,40 @@ public class TaskReminderHandler implements TaskReminder {
     /**
      * 发送邮件提醒（可选）
      */
+    private java.util.List<String> lookupEmails(Set<Long> userIds) {
+        try {
+            return sysUserMapper.selectBatchIds(userIds).stream()
+                    .map(u -> u.getEmail())
+                    .filter(e -> e != null && e.contains("@"))
+                    .distinct()
+                    .collect(java.util.stream.Collectors.toList());
+        } catch (Exception e) {
+            log.warn("查询参与者邮箱失败，跳过邮件提醒", e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
     private void sendEmailReminder(FlwTask task, Set<Long> userIds) {
-        // TODO: 集成邮件服务
-        // 根据配置决定是否发送邮件
-        log.debug("邮件提醒准备发送: taskId={}, recipients={}", task.getId(), userIds);
+        if (!schedulerProperties.isEmailEnabled() || mailSender == null || userIds.isEmpty()) {
+            return;
+        }
+        // 收件人须为真实邮箱：userId → sys_user.email（空邮箱跳过）
+        java.util.List<String> emails = lookupEmails(userIds);
+        if (emails.isEmpty()) {
+            log.debug("任务 {} 参与者均未配置邮箱，跳过邮件提醒", task.getId());
+            return;
+        }
+        try {
+            org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
+            message.setFrom(schedulerProperties.getEmailFrom());
+            message.setTo(emails.toArray(String[]::new));
+            message.setSubject("【待办提醒】" + task.getTaskName());
+            message.setText("您有一个待办任务需要处理：" + task.getTaskName() + "（任务ID: " + task.getId() + "），请及时登录系统处理。");
+            mailSender.send(message);
+            log.info("邮件提醒已发送: taskId={}, recipients={}", task.getId(), userIds.size());
+        } catch (Exception e) {
+            log.error("邮件提醒发送失败: taskId={}", task.getId(), e);
+        }
     }
 
     /**

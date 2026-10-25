@@ -133,7 +133,7 @@ const queryParams = reactive<TaskQuery>({
 
 const pageNumRef = computed(() => queryParams.pageNum)
 const pageSizeRef = computed(() => queryParams.pageSize)
-const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef }) as any
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
 
 // 关联工具栏与表格
 onMounted(() => {

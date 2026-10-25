@@ -77,6 +77,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
     private final FlowLongDiagramGenerator diagramGenerator;
     private final FlowLongIdentityService identityService;
     private final WfApprovalCommentMapper approvalCommentMapper;
+    private final com.forge.modules.workflow.mapper.WfInstanceQueryMapper instanceQueryMapper;
     private final SysAttachmentService sysAttachmentService;
     private final WfProcessExtMapper processExtMapper;
     private final ProcessNoGenerator processNoGenerator;
@@ -1010,52 +1011,92 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
      * 数据量超过 5w 时建议改为 SQL UNION ALL + DB 端分页。
      */
     private Page<ProcessInstanceResponse> queryAllInstances(ProcessInstanceQueryRequest request, Long startUserId) {
-        // 子查询请求:分页设大,一次性取全量
-        ProcessInstanceQueryRequest allRequest = new ProcessInstanceQueryRequest();
-        allRequest.setPageNum(1);
-        allRequest.setPageSize(Integer.MAX_VALUE);
-        allRequest.setProcessDefinitionId(request.getProcessDefinitionId());
-        allRequest.setProcessName(request.getProcessName());
-        allRequest.setProcessDefinitionName(request.getProcessDefinitionName());
-        allRequest.setStartUserName(request.getStartUserName());
-        allRequest.setBusinessKey(request.getBusinessKey());
-        allRequest.setPriority(request.getPriority());
-        allRequest.setSortByPriority(request.getSortByPriority());
-
-        // 1) 查运行中实例(flw_instance, state=0)
-        Page<ProcessInstanceResponse> runningPage = queryRunningInstances(allRequest, startUserId);
-        // 2) 查所有已结束实例(flw_his_instance, state>0;含 finished/terminated)
-        Page<ProcessInstanceResponse> hisPage = queryFinishedInstances(allRequest, startUserId, "all");
-
-        // 合并
-        List<ProcessInstanceResponse> all = new ArrayList<>(runningPage.getRecords().size() + hisPage.getRecords().size());
-        all.addAll(runningPage.getRecords());
-        all.addAll(hisPage.getRecords());
-
-        // 排序: 按优先级 / startTime 倒序
-        if (Boolean.TRUE.equals(request.getSortByPriority())) {
-            all.sort((a, b) -> {
-                int p = Integer.compare(
-                        b.getPriority() == null ? 0 : b.getPriority(),
-                        a.getPriority() == null ? 0 : a.getPriority());
-                if (p != 0) return p;
-                return compareStartTimeDesc(a, b);
-            });
-        } else {
-            all.sort((a, b) -> compareStartTimeDesc(a, b));
+        // SQL 分页（UNION ALL 两侧条件下推），替代原"全量捞取+内存排序+内存分页"
+        Long processDefinitionId = null;
+        if (StrUtil.isNotBlank(request.getProcessDefinitionId())) {
+            try {
+                processDefinitionId = Long.parseLong(request.getProcessDefinitionId());
+            } catch (NumberFormatException ignored) {
+            }
         }
+        String nameLike = buildProcessNameLike(request);
 
-        // 内存分页
-        int total = all.size();
-        int fromIndex = (int) ((request.getPageNum() - 1) * request.getPageSize());
-        int toIndex = Math.min(fromIndex + request.getPageSize(), total);
-        List<ProcessInstanceResponse> pageRecords = fromIndex >= total
-                ? Collections.emptyList()
-                : new ArrayList<>(all.subList(fromIndex, toIndex));
+        Page<Map<String, Object>> pageParam = new Page<>(request.getPageNum(), request.getPageSize());
+        List<Map<String, Object>> rows = instanceQueryMapper.selectUnionPage(pageParam,
+                startUserId == null ? null : String.valueOf(startUserId),
+                processDefinitionId,
+                nameLike,
+                StrUtil.blankToDefault(request.getBusinessKey(), null),
+                request.getPriority(),
+                Boolean.TRUE.equals(request.getSortByPriority()));
 
-        Page<ProcessInstanceResponse> result = new Page<>(request.getPageNum(), request.getPageSize(), total);
-        result.setRecords(pageRecords);
+        List<ProcessInstanceResponse> records = rows.stream()
+                .map(this::convertUnionRowToResponse)
+                .collect(Collectors.toList());
+
+        Page<ProcessInstanceResponse> result = new Page<>(request.getPageNum(), request.getPageSize(), pageParam.getTotal());
+        result.setRecords(records);
         return result;
+    }
+
+    /**
+     * UNION 行 → 响应对象（列名小写；时间戳由 H2/MySQL 驱动按类型返回 java.sql.Timestamp）
+     */
+    private ProcessInstanceResponse convertUnionRowToResponse(Map<String, Object> row) {
+        ProcessInstanceResponse response = new ProcessInstanceResponse();
+        response.setId(String.valueOf(row.get("id")));
+        Long processId = row.get("process_id") == null ? null : Long.parseLong(String.valueOf(row.get("process_id")));
+        if (processId != null) {
+            response.setProcessDefinitionId(String.valueOf(processId));
+            FlwProcess process = processService.getProcessById(processId);
+            if (process != null) {
+                response.setProcessDefinitionName(process.getProcessName());
+                response.setProcessDefinitionKey(process.getProcessKey());
+            }
+        }
+        Object createTime = row.get("create_time");
+        if (createTime instanceof java.sql.Timestamp ts) {
+            response.setStartTime(ts.toLocalDateTime());
+        }
+        Object endTime = row.get("end_time");
+        if (endTime instanceof java.sql.Timestamp ts) {
+            response.setEndTime(ts.toLocalDateTime());
+        }
+        response.setProcessNo((String) row.get("instance_no"));
+        response.setCurrentActivityName((String) row.get("current_node_name"));
+        String createId = (String) row.get("create_id");
+        if (StrUtil.isNotBlank(createId)) {
+            response.setStartUserId(createId);
+            try {
+                response.setStartUserName(identityService.getUserName(Long.parseLong(createId)));
+            } catch (NumberFormatException e) {
+                response.setStartUserName((String) row.get("create_by"));
+            }
+        }
+        response.setBusinessKey((String) row.get("business_key"));
+        Object priorityVal = row.get("priority");
+        if (priorityVal != null) {
+            response.setPriority(Integer.parseInt(String.valueOf(priorityVal)));
+        }
+        Integer state = row.get("instance_state") == null ? null
+                : Integer.parseInt(String.valueOf(row.get("instance_state")));
+        // 运行中实例补充当前处理人/候选人（与旧版两侧转换行为对齐）
+        if (state == null || state == 0) {
+            response.setCurrentActivityName((String) row.get("current_node_name"));
+            try {
+                fillCurrentAssigneeInfo(response, Long.parseLong(String.valueOf(row.get("id"))));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        // 历史侧状态映射（0=运行中）；终止类状态（2/3/4/5/7）映射 deleteReason 文案
+        if (state != null && state > 0) {
+            if (state == 2) response.setDeleteReason("审批拒绝");
+            else if (state == 3) response.setDeleteReason("撤销审批");
+            else if (state == 4) response.setDeleteReason("超时结束");
+            else if (state == 5) response.setDeleteReason("强制终止");
+            else if (state == 7) response.setDeleteReason("自动拒绝");
+        }
+        return response;
     }
 
     private int compareStartTimeDesc(ProcessInstanceResponse a, ProcessInstanceResponse b) {

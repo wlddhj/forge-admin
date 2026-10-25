@@ -2,6 +2,12 @@ server:
   port: ${SERVER_PORT:8181}
 
 spring:
+  # 邮件提醒 SMTP（flowlong.scheduler.email-enabled=true 时生效）
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
   application:
     name: ${PROJECT_NAME:forge-admin}
 
@@ -64,6 +70,12 @@ flowlong:
     lock-timeout-seconds: 30                # 锁超时时间（秒）
     max-reminder-count: 3                   # 最大提醒次数
     reminder-interval-hours: 24             # 提醒间隔（小时）
+    urge-interval-minutes: 30               # 手动催办节流窗口（分钟）
+    email-enabled: ${FLOWLONG_EMAIL_ENABLED:false}   # 邮件提醒渠道开关（需配置 spring.mail）
+    email-from: ${FLOWLONG_EMAIL_FROM:no-reply@forge-admin.local}
+    work-time: "8:00-18:00"                # 提醒工作时段（空=不限）
+    work-days: "1,2,3,4,5"                 # 提醒工作日（空=不限）
+
 
 forge:
   info:

@@ -67,6 +67,16 @@ public class FlowLongSchedulerProperties {
     private int reminderIntervalHours = 24;
 
     /**
+     * 是否启用邮件提醒渠道（SMTP 未配置时保持 false，发送侧自动跳过）
+     */
+    private boolean emailEnabled = false;
+
+    /**
+     * 邮件发件人地址
+     */
+    private String emailFrom = "no-reply@forge-admin.local";
+
+    /**
      * 手动催办节流窗口（分钟）
      * 同一任务两次催办之间的最小间隔，窗口内重复催办返回业务错误
      */

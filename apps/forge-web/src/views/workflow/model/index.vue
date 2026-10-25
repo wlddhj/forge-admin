@@ -315,7 +315,7 @@ const queryParams = reactive({
 // 序号计算
 const pageNumRef = computed(() => queryParams.pageNum)
 const pageSizeRef = computed(() => queryParams.pageSize)
-const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef }) as any
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
 
 // 分类列表
 const categoryList = ref<WfCategory[]>([])

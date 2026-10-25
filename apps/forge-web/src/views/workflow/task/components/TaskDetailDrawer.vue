@@ -435,7 +435,7 @@ const diagramDialogVisible = ref(false)
 // 表单相关
 const formCreateRef = ref<any>(null)
 const formRule = ref<any[]>([])
-const formOption = ref({ submitBtn: false, resetBtn: false } as any)
+const formOption = ref<Record<string, unknown>>({ submitBtn: false, resetBtn: false })
 const formData = ref<Record<string, any>>({})
 const formReady = ref(false)
 
