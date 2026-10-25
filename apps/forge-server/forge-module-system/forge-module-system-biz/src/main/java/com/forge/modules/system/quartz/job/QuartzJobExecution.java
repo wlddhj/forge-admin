@@ -5,6 +5,7 @@ import com.forge.modules.system.quartz.service.JobLogService;
 import com.forge.modules.system.quartz.service.JobNotifyService;
 import com.forge.modules.system.entity.SysJob;
 import com.forge.modules.system.service.SysJobService;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
 import org.springframework.context.ApplicationContext;
@@ -34,6 +35,9 @@ public class QuartzJobExecution implements Job {
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
+        // Quartz 反射实例化本类(非 Spring 代理,@TenantIgnore AOP 不生效),手动设置:
+        // 定时任务无 HTTP 租户上下文,JobLog 写入与业务任务(全局扫描语义)均按跨租户执行
+        TenantContextHolder.setIgnore(true);
         SysJob job = null;
         long startTime = System.currentTimeMillis();
         boolean success = false;
@@ -93,6 +97,8 @@ public class QuartzJobExecution implements Job {
                 }
             } catch (Exception e) {
                 log.error("记录任务执行日志失败", e);
+            } finally {
+                TenantContextHolder.setIgnore(null);
             }
         }
     }
@@ -153,10 +159,14 @@ public class QuartzJobExecution implements Job {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
             Future<?> future = executor.submit(() -> {
+                // 超时子线程不继承主线程 ThreadLocal,重新声明跨租户
+                TenantContextHolder.setIgnore(true);
                 try {
                     executeInvokeTarget(applicationContext, job);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
+                } finally {
+                    TenantContextHolder.setIgnore(null);
                 }
             });
             future.get(timeoutSeconds, TimeUnit.SECONDS);

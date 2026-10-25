@@ -968,3 +968,13 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- 完成
 SELECT '数据库初始化完成!' AS message;
+
+-- 9) 路径A全量租户化(2026-10-25):补齐遗漏的 5 张表
+ALTER TABLE `sys_social_user`       ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_social_user`       DROP INDEX `uk_source_openid`, ADD UNIQUE INDEX `uk_tenant_source_openid` (`tenant_id`, `source`, `open_id`);
+ALTER TABLE `sys_key_sequence`      ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_key_sequence`      DROP INDEX `uk_key_category`, ADD UNIQUE INDEX `uk_tenant_key_category` (`tenant_id`, `key_category`);
+ALTER TABLE `oauth2_registered_client` ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `oauth2_authorization`  ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `oauth2_authorization_consent` ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+-- client_id 保持全局唯一(OAuth2 协议标识);key_sequence 联合唯一实现跨租户独立发号

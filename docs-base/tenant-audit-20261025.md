@@ -1,6 +1,7 @@
 # 全库租户一致性审计报告
 
 > 审计日期:2026-10-25 | 审计范围:sql/ 下全部 5 个建库脚本共 63 张表 | 方法:DDL 列解析 × application.yml ignore-tables 比对
+> **【2026-10-25 路径 A 已落地】见文末「六、治理落地记录」——真实缺口为 16 表(本报告 29 表口径含审计方法盲区),已全部补列,多租户模式验证可用。**
 
 ## 一、结论(Executive Summary)
 
@@ -61,3 +62,25 @@ grep -l "CREATE TABLE" sql/init*.sql
 ```
 
 相关任务:ai-tenant-audit(2026-10-24,AI 模块治理先例,方法与升级脚本模板可复用)。
+
+## 六、治理落地记录（2026-10-25 路径 A：全量租户化，任务 tenant-full-rollout）
+
+### 口径修正
+本报告第三节「29 张问题表」中 **13 张实际已由 init.sql 尾部「多租户支持」段的 ALTER 覆盖**（sys_user 系/日志系/app_user）——审计方法只解析 CREATE TABLE 块，漏算了文件尾部升级段。**真实缺口 16 张**：
+
+- init.sql 5 张：sys_social_user、sys_key_sequence、oauth2_registered_client、oauth2_authorization、oauth2_authorization_consent
+- init-screen.sql 4 张：sys_screen、sys_screen_data_source、sys_screen_sql_whitelist、sys_screen_role
+- init-workflow.sql 7 张：wf_category、wf_form、wf_process_ext、wf_process_expression、wf_process_listener、wf_approval_comment、wf_ai_approval_record
+
+### 落地内容（sql/upgrade-20261025-tenant-full.sql）
+- 16 表补 `tenant_id BIGINT NOT NULL DEFAULT 1` + idx_tenant；存量数据全部归属默认租户 1
+- 唯一键调整 6 处：key_sequence/social_user/screen/screen_data_source/screen_sql_whitelist/wf_category 改 `(tenant_id, ...)` 联合唯一（跨租户独立发号/允许共用微信应用/租户内唯一）；oauth2_registered_client 的 client_id 保持全局唯一（OAuth2 协议标识）
+- 代码适配 5 处（多租户启动实测暴露）：SysUserSuffixBackfillRunner @TenantIgnore；QuartzJobExecution 手动 setIgnore（Quartz 反射实例化 AOP 不生效，含超时子线程）；SupervisorTeamGraph/ConversationalAssistantGraph 工具并行子线程与 AiAgentRunServiceImpl resume 异步入口的租户上下文快照传递（ThreadLocal 不继承子线程）
+
+### 验证结论（TENANT_ENABLE=true 真机）
+启动零报错；租户 990 测试账号登录成功（tenantCode 解析 + sys_user 租户注入查询）；伪造 X-Tenant-Id 越权被 TenantSecurityWebFilter 403；发号器同 key_category 双租户两行并存独立递增；数据隔离矩阵通过。
+
+### 已知限制（后续迭代）
+1. oauth2_authorization/consent 由 Spring Authorization Server JdbcTemplate 直写（不走 MP 拦截器），INSERT 不含 tenant_id → DEFAULT 1 兜底，授权流量全归默认租户；按租户视图需定制 JdbcOAuth2AuthorizationService
+2. AgentJobTask 定时任务在 Quartz ignore 上下文执行，产出的 run 归属 DEFAULT 1；按任务行 tenant_id 恢复上下文属二期
+3. 列表页按租户筛选/租户列展示未做（管理台界面仍以当前租户上下文过滤，跨租户管理仅平台超管 TenantSwitcher）

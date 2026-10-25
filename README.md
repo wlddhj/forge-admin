@@ -409,6 +409,21 @@ pnpm dev:mp-weixin
 - 默认账号：`admin` / `password`（启用多租户时登录页需输入租户标识，默认 `default`）
 - OAuth2 使用文档：[docs-base/guide/oauth2-guide.md](docs-base/guide/oauth2-guide.md)
 
+### 启用多租户（SaaS 模式）
+
+全库已租户化（2026-10-25 路径 A 治理，见 [docs-base/tenant-audit-20261025.md](docs-base/tenant-audit-20261025.md)）：
+
+```bash
+# 1. 存量库执行升级脚本（16 表补 tenant_id + 唯一键调整；全新建库跑最新 init*.sql 则跳过）
+mysql -u root -p forge_admin < sql/upgrade-20261025-tenant-full.sql
+
+# 2. 环境变量开启多租户并重启
+TENANT_ENABLE=true
+```
+
+- 登录页输入租户标识（默认租户 `default`）；平台超管（admin）可通过顶栏租户切换器跨租户代管
+- 已知限制与后续迭代见审计报告「六、治理落地记录」（OAuth2 授权记录归属默认租户、Agent 定时任务租户归属二期）
+
 ## 开发命令
 
 ### 前端（在 `apps/forge-web` 目录下）

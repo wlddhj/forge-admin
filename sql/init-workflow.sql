@@ -570,5 +570,18 @@ INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dic
 
 SET FOREIGN_KEY_CHECKS = 1;
 
+-- ========================================
+-- 多租户支持（路径A全量租户化,2026-10-25;flw_ 引擎表框架自带租户列不在此列）
+-- ========================================
+ALTER TABLE `wf_category`            ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `wf_category`            DROP INDEX `uk_category_code`, ADD UNIQUE INDEX `uk_tenant_category_code` (`tenant_id`, `category_code`);
+ALTER TABLE `wf_form`                ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `wf_process_ext`         ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `wf_process_expression`  ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `wf_process_listener`    ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `wf_approval_comment`    ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `wf_ai_approval_record`  ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+-- 存量数据归属默认租户 1
+
 -- 完成
 SELECT '工作流模块初始化完成！' AS message;

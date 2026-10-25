@@ -196,3 +196,15 @@ SET FOREIGN_KEY_CHECKS = 1;
 --   3. 首次进入大屏编辑器（apps/forge-screen）需启动该 SPA
 --   4. 在「SQL 白名单」中维护可查询的表/列，确保 SQL 数据源安全
 -- ========================================
+
+-- ========================================
+-- 多租户支持（路径A全量租户化,2026-10-25）
+-- ========================================
+ALTER TABLE `sys_screen`              ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_screen`              DROP INDEX `uk_screen_code`, ADD UNIQUE INDEX `uk_tenant_screen_code` (`tenant_id`, `code`);
+ALTER TABLE `sys_screen_data_source`  ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_screen_data_source`  DROP INDEX `uk_screen_ds_code`, ADD UNIQUE INDEX `uk_tenant_screen_ds_code` (`tenant_id`, `code`);
+ALTER TABLE `sys_screen_sql_whitelist` ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+ALTER TABLE `sys_screen_sql_whitelist` DROP INDEX `uk_whitelist_table`, ADD UNIQUE INDEX `uk_tenant_whitelist_table` (`tenant_id`, `schema_name`, `table_name`);
+ALTER TABLE `sys_screen_role`         ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+-- 渲染走登录态 API,code 租户内唯一;存量数据归属默认租户 1

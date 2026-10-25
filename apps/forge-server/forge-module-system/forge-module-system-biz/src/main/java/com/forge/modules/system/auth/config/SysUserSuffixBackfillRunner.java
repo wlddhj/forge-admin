@@ -1,6 +1,7 @@
 package com.forge.modules.system.auth.config;
 
 import com.forge.common.utils.CryptoUtils;
+import com.forge.framework.tenant.core.aop.TenantIgnore;
 import com.forge.modules.system.entity.SysUser;
 import com.forge.modules.system.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,8 @@ public class SysUserSuffixBackfillRunner implements ApplicationRunner {
     private final SysUserMapper sysUserMapper;
     private final CryptoUtils cryptoUtils;
 
+    // 启动期无租户上下文;回填是跨全部租户的运维性数据修正,显式忽略租户拦截
+    @TenantIgnore
     @Override
     public void run(ApplicationArguments args) {
         long total = sysUserMapper.selectCount(null);
