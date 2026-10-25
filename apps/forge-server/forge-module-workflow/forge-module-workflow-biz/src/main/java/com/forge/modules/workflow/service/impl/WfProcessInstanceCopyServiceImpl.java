@@ -4,7 +4,6 @@ import cn.hutool.core.util.StrUtil;
 import com.aizuda.bpm.engine.FlowLongEngine;
 import com.aizuda.bpm.engine.QueryService;
 import com.aizuda.bpm.engine.core.FlowCreator;
-import com.aizuda.bpm.engine.core.enums.TaskType;
 import com.aizuda.bpm.engine.entity.*;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisTaskActorMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -117,7 +116,7 @@ public class WfProcessInstanceCopyServiceImpl implements WfProcessInstanceCopySe
 
         // 锚点：优先当前活动审批任务，无则回退发起任务
         FlwTask anchor = queryService.getTasksByInstanceId(instanceId).stream()
-                .filter(t -> TaskType.approval.eq(t.getTaskType()))
+                .filter(t -> WfTaskServiceImpl.isHumanApprovalTask(t.getTaskType()))
                 .findFirst()
                 .orElse(null);
         if (anchor == null) {

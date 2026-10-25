@@ -722,7 +722,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         }
 
         List<FlwTask> approvalTasks = queryService.getTasksByInstanceId(instanceId).stream()
-                .filter(t -> TaskType.approval.eq(t.getTaskType()))
+                .filter(t -> isHumanApprovalTask(t.getTaskType()))
                 .toList();
         if (approvalTasks.isEmpty()) {
             throw new BusinessException(400, "当前无待审批任务，无需催办");
@@ -807,6 +807,19 @@ public class WfTaskServiceImpl implements WfTaskService {
         saveApprovalComment(task, operatorUserId, urgerName,
                 ApprovalActionTypeEnum.URGE.getCode(),
                 StrUtil.isNotBlank(comment) ? "催办：" + comment : "催办任务「" + task.getTaskName() + "」");
+    }
+
+    /**
+     * 是否需要人处理的审批任务（催办目标/抄送锚点共用判定）
+     * 覆盖：审批(1)、条件审批(3，设计器条件审批节点独立使用时引擎按审批处理)、
+     * 转办(10)、委派(11)——转办/委派后任务行 taskType 会被引擎改写但仍是待人审批；
+     * 排除：发起人待重新提交(major)、抄送(cc，仅存历史表)、定时器/触发器/子流程等待、暂存
+     */
+    public static boolean isHumanApprovalTask(Integer taskType) {
+        return TaskType.approval.eq(taskType)
+                || TaskType.conditionNode.eq(taskType)
+                || TaskType.transfer.eq(taskType)
+                || TaskType.delegate.eq(taskType);
     }
 
     private Long readLastUrgeTime(FlwTask task) {

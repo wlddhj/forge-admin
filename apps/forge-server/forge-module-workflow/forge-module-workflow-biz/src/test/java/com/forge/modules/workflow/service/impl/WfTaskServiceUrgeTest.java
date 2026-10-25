@@ -144,6 +144,47 @@ class WfTaskServiceUrgeTest {
     }
 
     @Test
+    @DisplayName("转办/条件审批类型的任务同样可催办")
+    void urge_shouldUrgeTransferredAndConditionTasks() {
+        FlwInstance instance = runningInstance();
+        when(queryService.getInstance(INSTANCE_ID)).thenReturn(instance);
+        FlwProcess process = new FlwProcess();
+        process.setId(10L);
+        process.setProcessName("请假流程");
+        when(processService.getProcessById(10L)).thenReturn(process);
+        when(identityService.getUserName(1L)).thenReturn("发起人");
+
+        FlwTask transferred = new FlwTask();
+        transferred.setId(1001L);
+        transferred.setInstanceId(INSTANCE_ID);
+        transferred.setTaskKey("node_2");
+        transferred.setTaskName("审核人");
+        transferred.setTaskType(TaskType.transfer.getValue());
+        transferred.setCreateTime(new java.util.Date());
+        FlwTask condition = new FlwTask();
+        condition.setId(1002L);
+        condition.setInstanceId(INSTANCE_ID);
+        condition.setTaskKey("node_3");
+        condition.setTaskName("条件审批");
+        condition.setTaskType(TaskType.conditionNode.getValue());
+        condition.setCreateTime(new java.util.Date());
+        when(queryService.getTasksByInstanceId(INSTANCE_ID)).thenReturn(List.of(transferred, condition));
+        when(queryService.getTaskActorsByTaskId(1001L)).thenReturn(List.of());
+        when(queryService.getTaskActorsByTaskId(1002L)).thenReturn(List.of());
+
+        try (var securityMock = mockStatic(SecurityHelper.class);
+             var userContextMock = mockStatic(UserContext.class)) {
+            securityMock.when(SecurityHelper::getCurrentUserId).thenReturn(1L);
+            userContextMock.when(() -> UserContext.get()).thenReturn(null);
+
+            // 无参与者仅校验不误报"无待审批任务"：两个任务均通过催办目标过滤并写节流标记
+            service.urgeInstance(String.valueOf(INSTANCE_ID), null);
+        }
+
+        verify(taskService, times(2)).updateTaskById(any(), any());
+    }
+
+    @Test
     @DisplayName("节流窗口内重复催办被拒绝且不发送通知")
     void urge_shouldThrottleWithinInterval() {
         // 10 分钟前催办过，窗口 30 分钟
