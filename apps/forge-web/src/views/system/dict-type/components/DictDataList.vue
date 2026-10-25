@@ -63,6 +63,7 @@
       </template>
     </vxe-toolbar>
 
+    <!-- spec-guard-disable-r4: 字典数据为单类型下小数据量,一次性全量拉取(pageSize 9999)行内编辑,无需分页 -->
     <!-- 可编辑表格 -->
     <vxe-table
       id="sysDictDataTable"

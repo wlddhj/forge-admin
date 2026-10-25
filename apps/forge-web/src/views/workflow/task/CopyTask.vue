@@ -52,15 +52,9 @@
         </vxe-column>
       </vxe-table>
 
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="getList"
-        @current-change="getList"
-      />
+      <TablePagination v-model:page-num="queryParams.pageNum"
+        v-model:page-size="queryParams.pageSize" :total="total"
+        @change="getList" />
     </el-card>
   </div>
 </template>

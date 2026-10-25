@@ -23,7 +23,7 @@ function collectVueFiles(dir, acc = []) {
     const full = join(dir, name)
     if (statSync(full).isDirectory()) {
       collectVueFiles(full, acc)
-    } else if (name === 'index.vue') {
+    } else if (name.endsWith('.vue')) {
       acc.push(full)
     }
   }
@@ -34,7 +34,7 @@ function changedFiles(base) {
   const root = join(webRoot, '..', '..')
   const out = execSync(`git diff --name-only ${base}...HEAD`, { cwd: root, encoding: 'utf-8' })
   return out.split('\n')
-    .filter(f => f.startsWith('apps/forge-web/src/views/') && f.endsWith('index.vue'))
+    .filter(f => f.startsWith('apps/forge-web/src/views/') && f.endsWith('.vue'))
     .map(f => join(root, f))
 }
 
