@@ -106,6 +106,7 @@ class WfTaskServiceSignAndClaimTest {
     @DisplayName("并行加签保持任务原参与方式（或签不强转会签）")
     void parallelSign_shouldKeepOriginalPerformType() {
         orSignTask();
+        when(queryService.getTasksByInstanceIdAndTaskKey(INSTANCE_ID, "node_1")).thenReturn(List.of());
         when(identityService.getUserName(9L)).thenReturn("用户9");
         when(identityService.getUserName(1L)).thenReturn("操作人");
 
@@ -116,6 +117,29 @@ class WfTaskServiceSignAndClaimTest {
 
         verify(taskService).addTaskActor(eq(TASK_ID), eq(PerformType.orSign), anyList(), any());
         verify(flowLongEngine, never()).executeAppendNodeModel(anyLong(), any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("并行加签所选用户已是参与人时明确报错")
+    void parallelSign_shouldRejectDuplicateActor() {
+        FlwTask task = orSignTask();
+        when(queryService.getTasksByInstanceIdAndTaskKey(INSTANCE_ID, "node_1")).thenReturn(List.of(task));
+        FlwTaskActor existing = new FlwTaskActor();
+        existing.setTaskId(TASK_ID);
+        existing.setActorId("9");
+        existing.setActorName("用户9");
+        existing.setActorType(ActorType.user.getValue());
+        when(queryService.getTaskActorsByTaskId(TASK_ID)).thenReturn(List.of(existing));
+        when(identityService.getUserName(1L)).thenReturn("操作人");
+
+        try (var securityMock = mockStatic(SecurityHelper.class)) {
+            securityMock.when(SecurityHelper::getCurrentUserId).thenReturn(1L);
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> service.signCreateTask(String.valueOf(TASK_ID), signRequest("parallel")));
+            assertEquals(400, ex.getCode());
+            assertTrue(ex.getMessage().contains("已是当前任务参与人"));
+        }
+        verify(taskService, never()).addTaskActor(anyLong(), any(), anyList(), any());
     }
 
     @Test

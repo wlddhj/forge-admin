@@ -564,7 +564,19 @@ public class WfTaskServiceImpl implements WfTaskService {
             }
             case "parallel" -> {
                 typeLabel = "并行加签";
-                List<FlwTaskActor> taskActors = request.getUserIds().stream()
+                // 引擎对已存在的 actorId 静默跳过：全量重复时明确报错，避免"记录有了人没多"
+                List<FlwTask> nodeTasks = queryService.getTasksByInstanceIdAndTaskKey(task.getInstanceId(), task.getTaskKey());
+                Set<String> existingActorIds = nodeTasks.stream()
+                        .flatMap(t -> queryService.getTaskActorsByTaskId(t.getId()).stream())
+                        .map(FlwTaskActor::getActorId)
+                        .collect(Collectors.toSet());
+                List<String> newUserIds = request.getUserIds().stream()
+                        .filter(userId -> !existingActorIds.contains(userId))
+                        .toList();
+                if (newUserIds.isEmpty()) {
+                    throw new BusinessException(400, "所选用户已是当前任务参与人，无需重复加签");
+                }
+                List<FlwTaskActor> taskActors = newUserIds.stream()
                         .map(userIdStr -> createTaskActor(Long.parseLong(userIdStr)))
                         .toList();
                 // 传任务原参与方式：或签任务加人仍为或签，不强转会签
