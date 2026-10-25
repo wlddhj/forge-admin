@@ -332,4 +332,47 @@ class WfTaskServiceSignAndClaimTest {
             assertEquals(400, ex.getCode());
         }
     }
+
+    @Test
+    @DisplayName("受理人以实际参与人为准：转办任务显示转办接收人而非任务创建人")
+    void assignee_shouldFollowActualActor() {
+        FlwTask task = orSignTask();
+        task.setCreateId("1");
+        task.setCreateBy("超级管理员");
+        FlwTaskActor transferee = new FlwTaskActor();
+        transferee.setTaskId(TASK_ID);
+        transferee.setActorId("2");
+        transferee.setActorName("用户01");
+        transferee.setActorType(ActorType.user.getValue());
+        when(queryService.getTaskActorsByTaskId(TASK_ID)).thenReturn(List.of(transferee));
+
+        TaskResponse response = service.getTaskById(String.valueOf(TASK_ID));
+
+        assertEquals("2", response.getAssignee());
+        assertEquals("用户01", response.getAssigneeName());
+        assertNull(response.getCandidate());
+    }
+
+    @Test
+    @DisplayName("并行加签后多参与人：受理人回退为待认领并展示全部参与者")
+    void assignee_shouldShowCandidatesWhenMultipleActors() {
+        orSignTask();
+        FlwTaskActor actorA = new FlwTaskActor();
+        actorA.setTaskId(TASK_ID);
+        actorA.setActorId("2");
+        actorA.setActorName("用户01");
+        actorA.setActorType(ActorType.user.getValue());
+        FlwTaskActor actorB = new FlwTaskActor();
+        actorB.setTaskId(TASK_ID);
+        actorB.setActorId("9");
+        actorB.setActorName("用户9");
+        actorB.setActorType(ActorType.user.getValue());
+        when(queryService.getTaskActorsByTaskId(TASK_ID)).thenReturn(List.of(actorA, actorB));
+
+        TaskResponse response = service.getTaskById(String.valueOf(TASK_ID));
+
+        assertTrue(response.getCandidate());
+        assertEquals(List.of("用户01", "用户9"), response.getCandidateUsers());
+        assertEquals("用户01", response.getAssigneeName());
+    }
 }

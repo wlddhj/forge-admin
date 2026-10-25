@@ -1036,11 +1036,29 @@ public class WfTaskServiceImpl implements WfTaskService {
         response.setTaskDefinitionKey(task.getTaskKey());
         response.setProcessInstanceId(String.valueOf(task.getInstanceId()));
 
-        if (task.getCreateId() != null) {
-            try {
+        // 受理人以实际参与者为准（转办/并行加签不更新任务创建人字段，
+        // 直接读 create_by 会显示转办前的处理人）；多参与人时回退为待认领+名单展示
+        List<FlwTaskActor> actors = queryService.getTaskActorsByTaskId(task.getId());
+        List<FlwTaskActor> userActors = actors.stream()
+                .filter(a -> ActorType.user.eq(a.getActorType()))
+                .toList();
+        if (userActors.size() == 1) {
+            response.setAssignee(userActors.get(0).getActorId());
+            response.setAssigneeName(userActors.get(0).getActorName());
+        } else {
+            // 多用户参与（或签/并行加签后）或角色部门候选池：待认领 + 参与者名单
+            response.setCandidate(true);
+            response.setCandidateUsers(actors.stream()
+                    .map(FlwTaskActor::getActorName)
+                    .distinct()
+                    .collect(Collectors.toList()));
+            if (!userActors.isEmpty()) {
+                response.setAssignee(userActors.get(0).getActorId());
+                response.setAssigneeName(userActors.get(0).getActorName());
+            } else if (task.getCreateId() != null) {
                 response.setAssignee(task.getCreateId());
-                response.setAssigneeName(identityService.getUserName(Long.parseLong(task.getCreateId())));
-            } catch (NumberFormatException ignored) {}
+                response.setAssigneeName(task.getCreateBy());
+            }
         }
 
         response.setCreateTime(task.getCreateTime());
