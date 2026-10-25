@@ -125,10 +125,11 @@ public class WfTaskServiceImpl implements WfTaskService {
                 .map(FlwTaskActor::getTaskId)
                 .collect(Collectors.toSet());
 
-        // 4. 转换为响应对象，补充流程信息
+        // 4. 批量预取实例/流程/发起人（去 N+1：每页 3 次批量替代逐行 3N 次）
+        BatchContext ctx = preloadBatch(taskPage.getRecords(), false);
         List<TaskResponse> records = taskPage.getRecords().stream()
                 .map(task -> {
-                    TaskResponse response = convertTaskToResponseWithProcess(task);
+                    TaskResponse response = convertTaskToResponseWithProcess(task, ctx);
                     response.setClaimedFromGroup(claimedFromGroupTaskIds.contains(task.getId()));
                     return response;
                 })
@@ -189,9 +190,10 @@ public class WfTaskServiceImpl implements WfTaskService {
         Page<FlwTask> pageParam = new Page<>(request.getPageNum(), request.getPageSize());
         Page<FlwTask> taskPage = taskMapper.selectPage(pageParam, taskWrapper);
 
+        BatchContext claimCtx = preloadBatch(taskPage.getRecords(), false);
         List<TaskResponse> records = taskPage.getRecords().stream()
                 .map(task -> {
-                    TaskResponse response = convertTaskToResponseWithProcess(task);
+                    TaskResponse response = convertTaskToResponseWithProcess(task, claimCtx);
                     response.setCandidate(true);
                     response.setCandidateUsers(actorsByTask.getOrDefault(task.getId(), Collections.emptyList()).stream()
                             .map(FlwTaskActor::getActorName)
@@ -207,6 +209,87 @@ public class WfTaskServiceImpl implements WfTaskService {
         resultPage.setTotal(taskPage.getTotal());
         resultPage.setRecords(records);
         return resultPage;
+    }
+
+    /**
+     * 批量预取上下文：一次查询实例/流程/发起人名，替代转换链逐行查询
+     */
+    private static class BatchContext {
+        final Map<Long, FlwInstance> instanceMap = new HashMap<>();
+        final Map<Long, FlwHisInstance> hisInstanceMap = new HashMap<>();
+        final Map<Long, FlwProcess> processMap = new HashMap<>();
+        final Map<Long, String> userNameMap = new HashMap<>();
+    }
+
+    @SuppressWarnings("unchecked")
+    private BatchContext preloadBatch(List<? extends FlwTask> tasks, boolean his) {
+        BatchContext ctx = new BatchContext();
+        if (tasks == null || tasks.isEmpty()) return ctx;
+
+        Set<Long> instanceIds = tasks.stream().map(FlwTask::getInstanceId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> processIds = new HashSet<>();
+        Set<Long> userIds = new HashSet<>();
+
+        if (!instanceIds.isEmpty()) {
+            if (his) {
+                List<FlwHisInstance> instances = hisInstanceMapper.selectBatchIds(instanceIds);
+                instances.forEach(i -> {
+                    ctx.hisInstanceMap.put(i.getId(), i);
+                    if (i.getProcessId() != null) processIds.add(i.getProcessId());
+                    if (i.getCreateId() != null) {
+                        try { userIds.add(Long.parseLong(i.getCreateId())); } catch (NumberFormatException ignored) {}
+                    }
+                });
+            } else {
+                List<FlwInstance> instances = instanceMapper.selectBatchIds(instanceIds);
+                instances.forEach(i -> {
+                    ctx.instanceMap.put(i.getId(), i);
+                    if (i.getProcessId() != null) processIds.add(i.getProcessId());
+                    if (i.getCreateId() != null) {
+                        try { userIds.add(Long.parseLong(i.getCreateId())); } catch (NumberFormatException ignored) {}
+                    }
+                });
+            }
+        }
+        if (!processIds.isEmpty()) {
+            processIds.forEach(pid -> {
+                FlwProcess process = processService.getProcessById(pid);
+                if (process != null) ctx.processMap.put(pid, process);
+            });
+        }
+        if (!userIds.isEmpty()) {
+            ctx.userNameMap.putAll(identityService.getUserNames(userIds));
+        }
+        return ctx;
+    }
+
+    /**
+     * 转换任务响应（使用批量预取上下文，无逐行查询）
+     */
+    private TaskResponse convertTaskToResponseWithProcess(FlwTask task, BatchContext ctx) {
+        TaskResponse response = convertTaskToResponse(task);
+        FlwInstance instance = ctx.instanceMap.get(task.getInstanceId());
+        if (instance != null) {
+            response.setProcessInstanceId(String.valueOf(instance.getId()));
+            FlwProcess process = ctx.processMap.get(instance.getProcessId());
+            if (process != null) {
+                response.setProcessDefinitionId(String.valueOf(process.getId()));
+                response.setProcessDefinitionName(process.getProcessName());
+                response.setProcessDefinitionKey(process.getProcessKey());
+            }
+            if (StrUtil.isNotBlank(instance.getCreateId())) {
+                response.setStartUserId(instance.getCreateId());
+                try {
+                    Long startUserId = Long.parseLong(instance.getCreateId());
+                    response.setStartUserName(ctx.userNameMap.getOrDefault(startUserId, instance.getCreateBy()));
+                } catch (NumberFormatException e) {
+                    response.setStartUserName(instance.getCreateBy());
+                }
+            }
+            response.setStartTime(instance.getCreateTime());
+            response.setProcessNo(instance.getInstanceNo());
+        }
+        return response;
     }
 
     private Page<TaskResponse> emptyPage(TaskQueryRequest request) {

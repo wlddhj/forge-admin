@@ -124,10 +124,10 @@ public class TaskNotificationListener {
                 sendTaskTimeoutNotification(task, taskActors);
                 break;
             case autoComplete:
-                sendTaskAutoCompletedNotification(task);
+                sendTaskAutoCompletedNotification(task, taskActors);
                 break;
             case autoReject:
-                sendTaskAutoRejectedNotification(task);
+                sendTaskAutoRejectedNotification(task, taskActors);
                 break;
             default:
                 log.debug("未处理的通知事件类型: {}", eventType);
@@ -219,19 +219,19 @@ public class TaskNotificationListener {
     /**
      * 发送自动完成通知
      */
-    private void sendTaskAutoCompletedNotification(FlwTask task) {
+    private void sendTaskAutoCompletedNotification(FlwTask task, List<FlwTaskActor> taskActors) {
         String title = "任务自动完成";
         String content = String.format("任务「%s」因超时已自动通过。", task.getTaskName());
-        log.info("自动完成通知: taskId={}, content={}", task.getId(), content);
+        sendNotificationToActors(task, resolveEventActors(task, taskActors), title, content);
     }
 
     /**
      * 发送自动驳回通知
      */
-    private void sendTaskAutoRejectedNotification(FlwTask task) {
+    private void sendTaskAutoRejectedNotification(FlwTask task, List<FlwTaskActor> taskActors) {
         String title = "任务自动驳回";
         String content = String.format("任务「%s」因超时已自动驳回。", task.getTaskName());
-        log.info("自动驳回通知: taskId={}, content={}", task.getId(), content);
+        sendNotificationToActors(task, resolveEventActors(task, taskActors), title, content);
     }
 
     /**

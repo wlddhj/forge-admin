@@ -27,7 +27,7 @@ import java.util.function.Supplier;
  *
  * 合并多个 TaskListener 的功能：
  * 1. EventTaskListener - 发布 FlowLong TaskEvent
- * 2. BpmTaskCandidateListener - 候选人自动分配
+ * 2. ~~BpmTaskCandidateListener~~ - 已于迭代三移除（候选人计算统一走 ForgeTaskActorProvider）
  * 3. TaskNotificationListener - 通知推送
  * 4. AiApprovalExecutor - AI智能审批（发布事件，事务提交后异步执行）
  *
@@ -37,19 +37,16 @@ import java.util.function.Supplier;
 @Component("taskListener")
 public class CompositeTaskListener extends EventTaskListener {
 
-    private final BpmTaskCandidateListener candidateListener;
     private final TaskNotificationListener notificationListener;
     private final AiApprovalExecutor aiApprovalExecutor;
     private final FlowLongEngine flowLongEngine;
     private final ApplicationEventPublisher eventPublisher;
 
     public CompositeTaskListener(ApplicationEventPublisher eventPublisher,
-                                  BpmTaskCandidateListener candidateListener,
                                   TaskNotificationListener notificationListener,
                                   AiApprovalExecutor aiApprovalExecutor,
                                   FlowLongEngine flowLongEngine) {
         super(eventPublisher);
-        this.candidateListener = candidateListener;
         this.notificationListener = notificationListener;
         this.aiApprovalExecutor = aiApprovalExecutor;
         this.flowLongEngine = flowLongEngine;
@@ -77,12 +74,6 @@ public class CompositeTaskListener extends EventTaskListener {
             setRemindTime(task, nodeModel, flowLongEngine.taskService());
         }
 
-        // 3. 调用候选人监听器处理候选人分配
-        try {
-            candidateListener.notify(eventType, supplier, taskActors, nodeModel, flowCreator);
-        } catch (Exception e) {
-            log.error("候选人监听器处理失败: taskId={}, error={}", task.getId(), e.getMessage(), e);
-        }
 
         // 4. 调用通知监听器发送通知
         try {

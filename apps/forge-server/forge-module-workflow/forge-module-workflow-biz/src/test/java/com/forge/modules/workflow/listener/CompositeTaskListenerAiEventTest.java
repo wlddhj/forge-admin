@@ -28,7 +28,6 @@ class CompositeTaskListenerAiEventTest {
     private CompositeTaskListener newListener(ApplicationEventPublisher publisher,
                                               AiApprovalExecutor aiApprovalExecutor) {
         return new CompositeTaskListener(publisher,
-                mock(BpmTaskCandidateListener.class),
                 mock(TaskNotificationListener.class),
                 aiApprovalExecutor,
                 mock(FlowLongEngine.class));

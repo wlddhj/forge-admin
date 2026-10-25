@@ -304,23 +304,7 @@ CREATE TABLE `wf_process_expression` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='流程表达式';
 
 -- 14. 流程监听器管理
-DROP TABLE IF EXISTS `wf_process_listener`;
-CREATE TABLE `wf_process_listener` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '编号',
-    `name` VARCHAR(128) NOT NULL COMMENT '监听器名称',
-    `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态(0:停用 1:启用)',
-    `type` VARCHAR(32) NOT NULL COMMENT '监听类型(execution/task)',
-    `event` VARCHAR(32) NOT NULL COMMENT '监听事件',
-    `value_type` VARCHAR(32) NOT NULL COMMENT '值类型(class/delegateExpression/expression)',
-    `value` VARCHAR(512) NOT NULL COMMENT '值',
-    `remark` VARCHAR(512) DEFAULT NULL COMMENT '备注',
-    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `create_by` BIGINT DEFAULT NULL COMMENT '创建人',
-    `update_by` BIGINT DEFAULT NULL COMMENT '更新人',
-    `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '删除标记',
-    PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='流程监听器';
+-- 监听器管理已于迭代三下线
 
 -- 15. AI审批记录表
 DROP TABLE IF EXISTS `wf_ai_approval_record`;
@@ -370,22 +354,7 @@ INSERT INTO `wf_process_expression` (`name`, `status`, `expression`, `remark`) V
 -- delegateExpression: 直接引用 Spring 容器中的 Bean
 -- class: 通过全限定类名实例化(需实现 FlowLong 对应 Listener 接口)
 -- expression: 通过 SpEL 表达式计算,需配合 TaskTriggerHandler 使用
-INSERT INTO `wf_process_listener` (`name`, `status`, `type`, `event`, `value_type`, `value`, `remark`) VALUES
--- delegateExpression 引用内置 Bean
-('系统任务复合监听器',         1, 'task',     'create',     'delegateExpression',  'taskListener',     '系统内置 CompositeTaskListener,负责候选人分配+通知+AI审批+提醒时间'),
-('系统任务复合监听器-完成',    1, 'task',     'complete',   'delegateExpression',  'taskListener',     '框架按事件类型路由,完成/驳回/转办走同一 Bean'),
-('系统任务复合监听器-分配',    1, 'task',     'assignment', 'delegateExpression',  'taskListener',     '转办/委派时复用同一监听器'),
-('系统任务复合监听器-删除',    1, 'task',     'delete',     'delegateExpression',  'taskListener',     '任务撤回或作废时复用同一监听器'),
-('系统实例事件监听器',         1, 'execution','start',      'delegateExpression',  'instanceListener', '系统内置 InstanceEventListener,发布 WorkflowInstanceEvent 供业务订阅'),
-('系统实例事件监听器-结束',    1, 'execution','end',        'delegateExpression',  'instanceListener', '流程结束归档时复用同一监听器'),
--- class 引用项目内真实类
-('任务创建通知',               1, 'task',     'create',     'class',               'com.forge.modules.workflow.listener.TaskNotificationListener', 'WebSocket 推送待办给候选人'),
-('任务完成通知',               1, 'task',     'complete',   'class',               'com.forge.modules.workflow.listener.TaskNotificationListener', '完成时通知发起人'),
-('任务转办通知',               1, 'task',     'assignment', 'class',               'com.forge.modules.workflow.listener.TaskNotificationListener', '转办/委派时通知新处理人'),
-('任务候选人自动分配',         1, 'task',     'create',     'class',               'com.forge.modules.workflow.listener.BpmTaskCandidateListener', '从节点 extendConfig.candidateStrategy 解析策略码并计算候选人'),
--- expression 触发器示例
-('任务创建-高优先级触发',      1, 'task',     'create',     'expression',          '${task.priority > 5}', '仅高优先级任务触发,优先级从流程变量读取'),
-('流程结束-有业务Key触发',     1, 'execution','end',        'expression',          '${instance.businessKey != null}', '有业务Key的实例才触发后续处理');
+-- 种子数据已移除
 
 -- ========================================
 -- Part 3: 工作流模块菜单
@@ -502,15 +471,7 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 (223, '表达式编辑', 220, '', '', NULL, '', 3, 2, 'workflow:expression:edit', 1, 1, 0, 0),
 (224, '表达式删除', 220, '', '', NULL, '', 4, 2, 'workflow:expression:delete', 1, 1, 0, 0);
 
--- 监听器管理菜单（sort_order=11）
-INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(230, '监听器管理', 100, '/workflow/listener', '/views/workflow/listener/index', NULL, 'Bell', 11, 1, 'workflow:listener:list', 1, 1, 0, 0);
-
-INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(231, '监听器查询', 230, '', '', NULL, '', 1, 2, 'workflow:listener:query', 1, 1, 0, 0),
-(232, '监听器新增', 230, '', '', NULL, '', 2, 2, 'workflow:listener:add', 1, 1, 0, 0),
-(233, '监听器编辑', 230, '', '', NULL, '', 3, 2, 'workflow:listener:edit', 1, 1, 0, 0),
-(234, '监听器删除', 230, '', '', NULL, '', 4, 2, 'workflow:listener:delete', 1, 1, 0, 0);
+-- 监听器管理已于迭代三下线
 
 -- ========================================
 -- Part 4: 角色授权（超级管理员拥有所有工作流菜单）
@@ -586,10 +547,28 @@ ALTER TABLE `wf_category`            DROP INDEX `uk_category_code`, ADD UNIQUE I
 ALTER TABLE `wf_form`                ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
 ALTER TABLE `wf_process_ext`         ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
 ALTER TABLE `wf_process_expression`  ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
-ALTER TABLE `wf_process_listener`    ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
+-- 监听器表已删除
 ALTER TABLE `wf_approval_comment`    ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
 ALTER TABLE `wf_ai_approval_record`  ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID', ADD INDEX `idx_tenant` (`tenant_id`);
 -- 存量数据归属默认租户 1
 
 -- 完成
 SELECT '工作流模块初始化完成！' AS message;
+
+-- ========================================
+-- 工作流事件审计表（迭代三新增）
+-- ========================================
+CREATE TABLE IF NOT EXISTS `wf_event_audit` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `event_type` VARCHAR(50) NOT NULL COMMENT '事件类型',
+    `instance_id` BIGINT DEFAULT NULL COMMENT '流程实例ID',
+    `task_id` BIGINT DEFAULT NULL COMMENT '任务ID',
+    `task_name` VARCHAR(255) DEFAULT NULL COMMENT '任务名称',
+    `operator_id` VARCHAR(64) DEFAULT NULL COMMENT '操作人ID',
+    `operator_name` VARCHAR(100) DEFAULT NULL COMMENT '操作人名称',
+    `summary` VARCHAR(1000) DEFAULT NULL COMMENT '事件摘要',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发生时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_instance_id` (`instance_id`),
+    KEY `idx_event_type` (`event_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工作流事件审计';
