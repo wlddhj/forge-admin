@@ -39,39 +39,43 @@
       </el-row>
 
       <el-divider content-position="left">团队成员（专家）</el-divider>
-      <el-table :data="formData.members" size="small" border>
-        <el-table-column label="专家 Agent" width="220">
-          <template #default="{ row, $index }">
+      <!-- spec-guard-disable-r4: 表单内嵌成员编辑表,数据为表单状态非接口分页数据,无需分页 -->
+      <vxe-table id="teamMembersTable" :data="formData.members" :max-height="360"
+        border="none" stripe show-overflow="tooltip"
+        :row-config="{ isHover: true }" :column-config="{ resizable: true }">
+        <vxe-column type="seq" title="序号" width="56" />
+        <vxe-column title="专家 Agent" width="220">
+          <template #default="{ row, rowIndex }">
             <el-select v-model="row.agentId" placeholder="选择 Agent" filterable>
               <el-option v-for="opt in agentOptions" :key="opt.value" :value="opt.value" :label="opt.label"
-                :disabled="isAgentTaken(opt.value, $index)" />
+                :disabled="isAgentTaken(opt.value, rowIndex)" />
             </el-select>
           </template>
-        </el-table-column>
-        <el-table-column label="职责描述（注入 Supervisor）" min-width="180">
+        </vxe-column>
+        <vxe-column title="职责描述（注入 Supervisor）" min-width="180">
           <template #default="{ row }">
             <el-input v-model="row.memberRole" placeholder="如：负责订单数据 SQL 查询与统计" />
           </template>
-        </el-table-column>
-        <el-table-column label="工具白名单（空=全部）" width="230">
+        </vxe-column>
+        <vxe-column title="工具白名单（空=全部）" width="230">
           <template #default="{ row }">
             <el-select v-model="row.allowedTools" multiple clearable placeholder="全部工具">
               <el-option v-for="t in AGENT_TOOLS" :key="t.value" :value="t.value" :label="t.label" />
             </el-select>
           </template>
-        </el-table-column>
-        <el-table-column label="步数上限" width="120">
+        </vxe-column>
+        <vxe-column title="步数上限" width="130">
           <template #default="{ row }">
             <el-input-number :min="1" :max="50" :model-value="row.maxSteps ?? undefined"
               placeholder="默认" @update:model-value="(v: number | undefined) => (row.maxSteps = v ?? null)" />
           </template>
-        </el-table-column>
-        <el-table-column label="操作" width="70" fixed="right">
-          <template #default="{ $index }">
-            <el-button type="danger" link size="small" @click="removeMember($index)">删除</el-button>
+        </vxe-column>
+        <vxe-column title="操作" width="70" fixed="right">
+          <template #default="{ rowIndex }">
+            <el-button type="danger" link size="small" @click="removeMember(rowIndex)">删除</el-button>
           </template>
-        </el-table-column>
-      </el-table>
+        </vxe-column>
+      </vxe-table>
       <el-button type="primary" plain size="small" style="margin-top: 8px" @click="addMember">+ 添加成员</el-button>
     </el-form>
     <template #footer>

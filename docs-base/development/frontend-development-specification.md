@@ -17,7 +17,7 @@
 - **一个文件一个职责**：`index.vue` 只负责"搜索 + 列表 + 编排"，弹窗/抽屉的内部实现一律独立成文件
 - **复杂弹窗禁止内联**：表单弹窗、详情抽屉、导入/分配等业务弹窗必须抽为独立 Vue 文件
 - **封装边界清晰**：弹窗组件自包含（表单数据、校验、加载、提交全在弹窗内），父组件只控制开关与传参
-- **表格组件统一**：列表一律使用 vxe-table（不是 el-table），配 `useTableHeight` / `useTableSeq` / `vxe-toolbar`
+- **表格组件统一**：列表一律使用 vxe-table（不是 el-table），配 `useTableHeight` / `useTableSeq` / `vxe-toolbar`；**行内编辑表格也用 vxe-table**（编辑组件嵌 `vxe-column` 的 `#default` slot）。边界（2026-10-25 用户确认）：弹窗/抽屉/详情页内嵌的只读展示、动态列预览、勾选类辅助表格允许 el-table
 - **分页组件统一**：使用 `<TablePagination>`（不是 el-pagination），默认 `pageSize: 20`
 - **枚举走数据字典**：下拉选项、状态标签全部通过 `useDict` + `DICT_TYPE` + `<dict-value>` 渲染，禁止硬编码
 

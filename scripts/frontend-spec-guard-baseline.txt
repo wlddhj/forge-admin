@@ -1,8 +1,8 @@
 # 存量豁免记录
 # 2026-10-25 spec-debt-cleanup:列表页 27 处存量全部消化清零
-# 2026-10-25 扫描范围扩至 views 全部 .vue 后新增暴露的存量(弹窗/抽屉/详情页内嵌辅助表格用 el-table,
-#   非列表页主表格——是否统一转 vxe-table 属规范语义待议,先冻结增量严查;DictDataList 已转注释豁免):
-src/views/ai/agent-team/components/TeamForm.vue: R1
+# 2026-10-25 扫描范围扩至 views 全部 .vue 后暴露的存量(弹窗/抽屉/详情页内嵌辅助表格用 el-table,
+#   非列表页主表格——用户已确认边界:只读展示/动态预览/勾选类辅助表格允许 el-table;
+#   TeamForm 可编辑成员表已转 vxe-table,DictDataList 已转注释豁免):
 src/views/screen/data-source/editor.vue: R1
 src/views/system/user/components/UserAssignRoleDrawer.vue: R1
 src/views/workflow/instance/InstanceDetail.vue: R1
