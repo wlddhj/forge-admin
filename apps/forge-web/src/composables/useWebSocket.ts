@@ -87,8 +87,8 @@ export function useWebSocket() {
   const handleNotification = (notification: WsNotification) => {
     // 页面级消费者先分发（如对话页实时刷新审批气泡）
     dispatch(notification)
-    // 纯页面态类型不进通知中心（AGENT_RUN_STATUS 仅为对话页实时状态）
-    if (notification.type === 'AGENT_RUN_STATUS') {
+    // 纯页面态类型不进通知中心（AGENT_RUN_STATUS/AGENT_RUN_EVENT 仅为对话页实时状态与过程帧）
+    if (notification.type === 'AGENT_RUN_STATUS' || notification.type === 'AGENT_RUN_EVENT') {
       return
     }
     notifications.value.unshift(notification)

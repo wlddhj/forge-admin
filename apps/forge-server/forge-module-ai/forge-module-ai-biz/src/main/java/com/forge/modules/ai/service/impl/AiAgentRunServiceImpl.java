@@ -34,6 +34,7 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
     private final AgentGraphRunner graphRunner;
     private final com.forge.framework.web.websocket.NotificationService notificationService;
     private final com.forge.modules.ai.service.AiChatService aiChatService;
+    private final com.forge.modules.ai.agent.kernel.AgentRunEventBridge agentRunEventBridge;
 
     @Override
     public Map<String, Object> pageRuns(Long agentId, String status, String triggerType, Long conversationId,
@@ -152,12 +153,19 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
         Long runId = run.getId();
         // 实时推送"审批已通过、恢复执行中"（对话页秒级感知，替代轮询发现；前端不弹通知中心）
         notifyApprovalResumed(runUserId, run.getId(), approved);
+        // 恢复执行的事件流经 WebSocket 实时回传对话页（AGENT_RUN_EVENT），
+        // 替代旧空消费器——否则恢复期间（首跳聚合决策+工具+专家轮次）前端全程静默数十秒
+        com.forge.modules.ai.agent.kernel.AgentRunEventBridge.Emitter eventEmitter =
+                agentRunEventBridge.bridge(runUserId, runId);
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
-                AiAgentRun finished = graphRunner.resume(todo, approved, event -> { });
+                AiAgentRun finished = graphRunner.resume(todo, approved, eventEmitter::accept);
                 notifyRunFinished(runUserId, finished);
             } catch (Exception e) {
                 log.error("待办恢复执行失败 runId={}: {}", runId, e.getMessage(), e);
+                eventEmitter.error(e);
+            } finally {
+                eventEmitter.close();
             }
         });
         return run;

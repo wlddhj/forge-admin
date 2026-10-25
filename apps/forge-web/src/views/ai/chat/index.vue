@@ -256,6 +256,13 @@ const unsubscribeNotification = onNotification(async (notification) => {
       reply.approvalNotice = notification.content || '人工已审核通过，Agent 正在继续执行…'
       scrollToBottom()
     }
+  } else if (notification.type === 'AGENT_RUN_EVENT') {
+    // 恢复执行的过程帧（审批通过后 resume 事件经 WebSocket 回传），与 SSE 流同渲染
+    if (reply.status === 'WAITING') reply.status = 'RUNNING'
+    try {
+      const frame = JSON.parse(notification.content || '') as AgentEventFrame
+      if (frame?.event) applyAgentFrame(reply, frame)
+    } catch { /* 帧解析失败忽略，完成推送/轮询兜底终态 */ }
   } else if (notification.type === 'AGENT_RUN') {
     // 完成推送先于轮询命中：直接拉一次 run 回填终态
     try {
@@ -333,6 +340,24 @@ const applyRunResult = (reply: AgentSessionItem, run: { status: string; finalAns
     reply.approvalNotice = '人工已审核通过，Agent 正在继续执行…'
     scrollToBottom()
   }
+}
+
+/** 单帧应用（SSE 流与 WebSocket 恢复事件共用）：入时间线 + 终态/增量/中断分支 */
+const applyAgentFrame = (reply: AgentSessionItem, frame: AgentEventFrame) => {
+  reply.frames.push(frame)
+  if (frame.event === 'FINAL') {
+    reply.answer = String(frame.data?.answer ?? '')
+    reply.status = 'DONE'
+  } else if (frame.event === 'CONTENT') {
+    reply.answer = (reply.answer || '') + String(frame.data?.delta ?? '')
+  } else if (frame.event === 'APPROVAL_REQUIRED') {
+    reply.status = 'WAITING'
+    pollRunResult(reply, Number(frame.data?.runId))
+  } else if (frame.event === 'ERROR') {
+    reply.status = 'FAILED'
+    if (frame.data?.message) ElMessage.error(String(frame.data.message))
+  }
+  scrollToBottom()
 }
 
 /** 按 runId 找到对话中的对应气泡（审批中断帧携带 runId） */
@@ -489,20 +514,7 @@ const handleAgentSend = async () => {
       images
     },
     (frame) => {
-      reply.frames.push(frame)
-      if (frame.event === 'FINAL') {
-        reply.answer = String(frame.data?.answer ?? '')
-        reply.status = 'DONE'
-      } else if (frame.event === 'CONTENT') {
-        reply.answer = (reply.answer || '') + String(frame.data?.delta ?? '')
-      } else if (frame.event === 'APPROVAL_REQUIRED') {
-        reply.status = 'WAITING'
-        pollRunResult(reply, Number(frame.data?.runId))
-      } else if (frame.event === 'ERROR') {
-        reply.status = 'FAILED'
-        if (frame.data?.message) ElMessage.error(String(frame.data.message))
-      }
-      scrollToBottom()
+      applyAgentFrame(reply, frame)
     },
     (message) => {
       reply.status = 'FAILED'
