@@ -182,7 +182,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useWebSocket } from '@/composables/useWebSocket'
@@ -659,6 +659,11 @@ const scrollToBottom = () => {
     }
   })
 }
+
+// keep-alive 缓存的页面切回本 tab 时，DOM 重新插入导致滚动位置被重置，需重新滚到底部
+onActivated(() => {
+  scrollToBottom()
+})
 
 watch(selectedModelId, () => {
   loadConversations()
