@@ -1,6 +1,8 @@
 package com.forge.modules.ai.agent.tools;
 
 import com.forge.common.exception.BusinessException;
+import com.forge.modules.ai.config.AiMetrics;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -16,7 +18,7 @@ import java.util.stream.Collectors;
 public class ToolRegistry {
 
     private final Map<String, AgentTool> tools;
-    private final com.forge.modules.ai.config.AiMetrics aiMetrics;
+    private final AiMetrics aiMetrics;
 
     /** 测试便捷构造(无指标) */
     public ToolRegistry(List<AgentTool> toolList) {
@@ -24,8 +26,8 @@ public class ToolRegistry {
     }
 
     // 双构造器并存时 Spring 无法自动选定,显式标注注入构造器
-    @org.springframework.beans.factory.annotation.Autowired
-    public ToolRegistry(List<AgentTool> toolList, com.forge.modules.ai.config.AiMetrics aiMetrics) {
+    @Autowired
+    public ToolRegistry(List<AgentTool> toolList, AiMetrics aiMetrics) {
         this.tools = toolList.stream()
                 .collect(Collectors.toMap(AgentTool::name, Function.identity()));
         this.aiMetrics = aiMetrics;
