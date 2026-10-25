@@ -13,13 +13,16 @@ export interface UseTableHeightOptions {
   extraOffset?: number
   /** 是否预留分页高度 */
   hasPagination?: boolean
+  /** 标准模板之外需额外扣除高度的区块选择器（如汇总卡），随 resize 动态实测 */
+  extraSelectors?: string[]
 }
 
 export function useTableHeight(options: UseTableHeightOptions = {}) {
   const {
     searchCardSelector = '.search-card',
     extraOffset = 0,
-    hasPagination = true
+    hasPagination = true,
+    extraSelectors = []
   } = options
 
   const tableHeight = ref<number>(400)
@@ -63,6 +66,10 @@ export function useTableHeight(options: UseTableHeightOptions = {}) {
     // 卡片内边距 (el-card__body padding)
     const cardPadding = 5
 
+    // 非标准区块高度（页面特有区块，如汇总卡）
+    const extraBlocksHeight = extraSelectors.reduce(
+      (sum, selector) => sum + getElementHeight(selector), 0)
+
     // 计算表格高度
     const height = viewportHeight
         - headerHeight
@@ -72,6 +79,7 @@ export function useTableHeight(options: UseTableHeightOptions = {}) {
         - toolbarHeight
         - paginationHeight
         - cardPadding
+        - extraBlocksHeight
         - extraOffset
 
     // 确保最小高度
