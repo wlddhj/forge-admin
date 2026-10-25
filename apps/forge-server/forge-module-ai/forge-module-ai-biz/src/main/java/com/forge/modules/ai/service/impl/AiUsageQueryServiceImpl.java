@@ -62,13 +62,15 @@ public class AiUsageQueryServiceImpl implements AiUsageQueryService {
     private LambdaQueryWrapper<AiApiUsage> buildWrapper(Long userId, Long modelId,
                                                         String startDate, String endDate) {
         LambdaQueryWrapper<AiApiUsage> wrapper = new LambdaQueryWrapper<>();
+        // 先换算可空边界再入条件:MP 的 .ge(condition, col, val) 中 val 表达式无条件立即求值,
+        // 日期为空时 parseDate 返回 null 再链式调用会 NPE(condition=false 拦不住求值)
+        // 实体 usageDate 为 LocalDateTime(历史类型),日期边界换算为当日起止时刻
+        LocalDateTime startTime = parseDate(startDate) == null ? null : parseDate(startDate).atStartOfDay();
+        LocalDateTime endTime = parseDate(endDate) == null ? null : parseDate(endDate).atTime(LocalTime.MAX);
         wrapper.eq(userId != null, AiApiUsage::getUserId, userId)
                 .eq(modelId != null, AiApiUsage::getModelId, modelId)
-                // 实体 usageDate 为 LocalDateTime(历史类型),日期边界换算为当日起止时刻
-                .ge(startDate != null && !startDate.isBlank(), AiApiUsage::getUsageDate,
-                        parseDate(startDate).atStartOfDay())
-                .le(endDate != null && !endDate.isBlank(), AiApiUsage::getUsageDate,
-                        parseDate(endDate).atTime(LocalTime.MAX));
+                .ge(startTime != null, AiApiUsage::getUsageDate, startTime)
+                .le(endTime != null, AiApiUsage::getUsageDate, endTime);
         return wrapper;
     }
 
