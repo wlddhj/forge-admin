@@ -1,132 +1,230 @@
 <template>
   <div class="app-container">
-    <!-- 汇总卡片 -->
-    <el-row :gutter="12" class="summary-row">
-      <el-col :span="5">
-        <el-card shadow="never"><div class="summary-label">总请求</div><div class="summary-value">{{ summary.totalRequest }}</div></el-card>
-      </el-col>
-      <el-col :span="5">
-        <el-card shadow="never"><div class="summary-label">成功率</div><div class="summary-value">{{ successRate }}%</div></el-card>
-      </el-col>
-      <el-col :span="5">
-        <el-card shadow="never"><div class="summary-label">总 Token</div><div class="summary-value">{{ summary.totalTokens }}</div></el-card>
-      </el-col>
-      <el-col :span="5">
-        <el-card shadow="never"><div class="summary-label">平均时延</div><div class="summary-value">{{ summary.avgResponseMs }}ms</div></el-card>
-      </el-col>
-      <el-col :span="4">
-        <el-card shadow="never"><div class="summary-label">失败次数</div><div class="summary-value danger">{{ summary.failureCount }}</div></el-card>
-      </el-col>
-    </el-row>
+    <!-- 汇总卡(本页特有业务区块) -->
+    <el-card shadow="never" class="summary-card">
+      <el-row :gutter="12">
+        <el-col :span="5"><div class="summary-label">总请求</div><div class="summary-value">{{ summary.totalRequest }}</div></el-col>
+        <el-col :span="5"><div class="summary-label">成功率</div><div class="summary-value">{{ successRate }}%</div></el-col>
+        <el-col :span="5"><div class="summary-label">总 Token</div><div class="summary-value">{{ summary.totalTokens }}</div></el-col>
+        <el-col :span="5"><div class="summary-label">平均时延</div><div class="summary-value">{{ summary.avgResponseMs }}ms</div></el-col>
+        <el-col :span="4"><div class="summary-label">失败次数</div><div class="summary-value danger">{{ summary.failureCount }}</div></el-col>
+      </el-row>
+    </el-card>
 
-    <!-- 筛选 -->
-    <el-form inline @submit.prevent>
-      <el-form-item label="日期">
-        <el-date-picker
-          v-model="dateRange"
-          type="daterange"
-          value-format="YYYY-MM-DD"
-          start-placeholder="开始"
-          end-placeholder="结束"
-          style="width: 240px"
-        />
-      </el-form-item>
-      <el-form-item label="模型">
-        <el-select v-model="queryModelId" placeholder="全部模型" clearable style="width: 180px">
-          <el-option v-for="m in modelList" :key="m.id" :label="m.modelName" :value="m.id" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="用户ID">
-        <el-input-number v-model="queryUserId" :min="1" placeholder="用户ID" clearable controls-position="right" style="width: 140px" />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="load">查询</el-button>
-        <el-button @click="reset">重置</el-button>
-      </el-form-item>
-    </el-form>
+    <!-- 1. 搜索栏(桌面端表单 + 移动端按钮) -->
+    <el-card shadow="never" class="search-card">
+      <el-form v-if="!isMobile" :model="queryParams" inline @submit.prevent>
+        <el-form-item label="日期">
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width: 240px"
+          />
+        </el-form-item>
+        <el-form-item label="模型">
+          <el-select v-model="queryParams.modelId" placeholder="全部模型" clearable style="width: 180px">
+            <el-option v-for="m in modelList" :key="m.id" :label="m.modelName" :value="m.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="用户ID">
+          <el-input-number v-model="queryParams.userId" :min="1" controls-position="right" style="width: 140px" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleQuery">搜索</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+      <div v-else class="mobile-search-actions">
+        <span class="title">用量统计</span>
+        <div class="actions">
+          <MobileSearchButton :badge-count="activeConditionsCount" @click="searchDrawerVisible = true" />
+        </div>
+      </div>
+    </el-card>
 
-    <!-- 明细表 -->
-    <el-table v-loading="loading" :data="rows" border>
-      <el-table-column prop="usageDate" label="日期" width="110" />
-      <el-table-column prop="userId" label="用户ID" width="90" />
-      <el-table-column label="模型" min-width="140">
-        <template #default="{ row }">{{ modelName(row.modelId) }}</template>
-      </el-table-column>
-      <el-table-column prop="requestCount" label="请求数" width="90" align="right" />
-      <el-table-column prop="successCount" label="成功" width="80" align="right" />
-      <el-table-column prop="failureCount" label="失败" width="80" align="right" />
-      <el-table-column label="Token入/出" width="150" align="right">
-        <template #default="{ row }">{{ row.totalInputTokens }} / {{ row.totalOutputTokens }}</template>
-      </el-table-column>
-      <el-table-column prop="avgResponseTime" label="均时延(ms)" width="110" align="right" />
-    </el-table>
-    <TablePagination v-model:page-num="query.pageNum" v-model:page-size="query.pageSize" :total="total" @change="load" />
+    <!-- 2. 移动端搜索抽屉 -->
+    <MobileSearchDrawer v-model="searchDrawerVisible" :form-data="queryParams"
+      @search="handleSearchFromDrawer" @reset="handleResetFromDrawer">
+      <template #form-items>
+        <el-form-item label="日期" style="width: 100%">
+          <el-date-picker v-model="dateRange" type="daterange" range-separator="至"
+            start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="模型" style="width: 100%">
+          <el-select v-model="queryParams.modelId" placeholder="全部模型" clearable style="width: 100%">
+            <el-option v-for="m in modelList" :key="m.id" :label="m.modelName" :value="m.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="用户ID" style="width: 100%">
+          <el-input-number v-model="queryParams.userId" :min="1" controls-position="right" style="width: 100%" />
+        </el-form-item>
+      </template>
+    </MobileSearchDrawer>
+
+    <!-- 3. 数据表格 -->
+    <el-card shadow="never" class="table-card">
+      <vxe-toolbar v-if="!isMobile" ref="toolbarRef" custom>
+        <template #tools>
+          <vxe-button circle icon="vxe-icon-refresh" style="margin-right: 10px" @click="handleQuery" />
+        </template>
+      </vxe-toolbar>
+
+      <vxe-table
+        id="aiUsageTable"
+        ref="tableRef"
+        :custom-config="{ mode: 'modal' }"
+        :data="tableData"
+        :height="tableHeight"
+        :loading="loading"
+        :row-config="{ isCurrent: true, isHover: true }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        show-header-overflow="tooltip"
+      >
+        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" :seq-method="seqMethod" />
+        <vxe-column field="usageDate" title="日期" width="110" />
+        <vxe-column field="userId" title="用户ID" width="90" />
+        <vxe-column title="模型" min-width="140">
+          <template #default="{ row }">{{ modelName(row.modelId) }}</template>
+        </vxe-column>
+        <vxe-column field="requestCount" title="请求数" width="90" align="right" />
+        <vxe-column field="successCount" title="成功" width="80" align="right" />
+        <vxe-column field="failureCount" title="失败" width="80" align="right" />
+        <vxe-column title="Token入/出" width="150" align="right">
+          <template #default="{ row }">{{ row.totalInputTokens }} / {{ row.totalOutputTokens }}</template>
+        </vxe-column>
+        <vxe-column field="avgResponseTime" title="均时延(ms)" width="110" align="right" />
+      </vxe-table>
+
+      <TablePagination v-model:page-num="queryParams.pageNum"
+        v-model:page-size="queryParams.pageSize" :total="total"
+        @change="getList" />
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { usageApi } from '@/api/ai/usage'
 import type { ApiUsageRow, ApiUsageSummary } from '@/api/ai/usage'
 import { modelApi } from '@/api/ai/model'
 import type { ModelConfigResponse } from '@/api/ai/model'
+import { useResponsive } from '@/composables/useResponsive'
+import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
+import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
+import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import TablePagination from '@/components/TablePagination.vue'
 
 defineOptions({ name: 'AiUsage' })
 
+const { isMobile } = useResponsive()
+const { tableHeight } = useTableHeight()
+
+const tableRef = ref<VxeTableInstance | null>(null)
+const toolbarRef = ref<VxeToolbarInstance | null>(null)
+
+const pageNumRef = computed(() => queryParams.pageNum)
+const pageSizeRef = computed(() => queryParams.pageSize)
+const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef })
+
+// 查询参数(日期范围走独立 dateRange + watch 同步,规范 9.4;用量为日粒度,日期格式即可)
+const queryParams = reactive({
+  pageNum: 1,
+  pageSize: 20,
+  userId: undefined as number | undefined,
+  modelId: undefined as number | undefined,
+  startDate: '',
+  endDate: ''
+})
+
+function defaultRange(): [string, string] {
+  const fmt = (d: Date) => d.toISOString().slice(0, 10)
+  return [fmt(new Date(Date.now() - 6 * 86400000)), fmt(new Date())]
+}
+
+const dateRange = ref<[string, string] | null>(defaultRange())
+
+watch(dateRange, val => {
+  if (val && val.length === 2) {
+    queryParams.startDate = val[0]
+    queryParams.endDate = val[1]
+  } else {
+    queryParams.startDate = ''
+    queryParams.endDate = ''
+  }
+})
+
+// 表格数据
 const loading = ref(false)
-const rows = ref<ApiUsageRow[]>([])
+const tableData = ref<ApiUsageRow[]>([])
 const total = ref(0)
 const summary = ref<ApiUsageSummary>({ totalRequest: 0, successCount: 0, failureCount: 0, totalTokens: 0, avgResponseMs: 0 })
 const modelList = ref<ModelConfigResponse[]>([])
 
-const dateRange = ref<[string, string] | null>(defaultRange())
-const queryUserId = ref<number | undefined>(undefined)
-const queryModelId = ref<number | undefined>(undefined)
-const query = reactive({ pageNum: 1, pageSize: 10 })
-
-/** 默认近 7 天 */
-function defaultRange(): [string, string] {
-  const fmt = (d: Date) => d.toISOString().slice(0, 10)
-  const end = new Date()
-  const start = new Date(Date.now() - 6 * 86400000)
-  return [fmt(start), fmt(end)]
-}
+// 移动端
+const searchDrawerVisible = ref(false)
+const activeConditionsCount = computed(() => {
+  let count = 0
+  if (queryParams.userId) count++
+  if (queryParams.modelId) count++
+  if (queryParams.startDate) count++
+  return count
+})
 
 const successRate = computed(() => {
-  const total = summary.value.totalRequest
-  return total > 0 ? Math.round((summary.value.successCount / total) * 1000) / 10 : 0
+  const t = summary.value.totalRequest
+  return t > 0 ? Math.round((summary.value.successCount / t) * 1000) / 10 : 0
 })
 
 function modelName(modelId: number): string {
   return modelList.value.find(m => m.id === modelId)?.modelName || `模型#${modelId}`
 }
 
-async function load() {
+const getList = async () => {
   loading.value = true
   try {
-    const params = {
-      ...query,
-      userId: queryUserId.value || undefined,
-      modelId: queryModelId.value || undefined,
-      startDate: dateRange.value?.[0],
-      endDate: dateRange.value?.[1]
-    }
-    const [page, sum] = await Promise.all([usageApi.page(params), usageApi.summary(params)])
-    rows.value = page.list || []
+    const [page, sum] = await Promise.all([
+      usageApi.page(queryParams),
+      usageApi.summary(queryParams)
+    ])
+    tableData.value = page.list || []
     total.value = page.total || 0
     summary.value = sum
+  } catch (error) {
+    console.error('获取用量数据失败:', error)
   } finally {
     loading.value = false
   }
 }
 
-function reset() {
+const handleQuery = () => {
+  queryParams.pageNum = 1
+  getList()
+}
+
+const handleReset = () => {
   dateRange.value = defaultRange()
-  queryUserId.value = undefined
-  queryModelId.value = undefined
-  query.pageNum = 1
-  load()
+  queryParams.userId = undefined
+  queryParams.modelId = undefined
+  handleQuery()
+}
+
+const handleSearchFromDrawer = () => {
+  handleQuery()
+  searchDrawerVisible.value = false
+}
+
+const handleResetFromDrawer = () => {
+  handleReset()
+  searchDrawerVisible.value = false
 }
 
 onMounted(async () => {
@@ -136,24 +234,31 @@ onMounted(async () => {
   } catch {
     modelList.value = []
   }
-  load()
+  getList()
+  if (tableRef.value && toolbarRef.value) {
+    tableRef.value.connect(toolbarRef.value)
+  }
 })
 </script>
 
-<style scoped>
-.summary-row {
-  margin-bottom: 12px;
+<style scoped lang="scss">
+// 本页特有:汇总卡业务样式(布局类由全局 table-page.scss 提供)
+.summary-card {
+  margin-bottom: 5px;
 }
+
 .summary-label {
   color: var(--el-text-color-secondary);
   font-size: 12px;
 }
+
 .summary-value {
   font-size: 20px;
   font-weight: 600;
   margin-top: 4px;
-}
-.summary-value.danger {
-  color: var(--el-color-danger);
+
+  &.danger {
+    color: var(--el-color-danger);
+  }
 }
 </style>
