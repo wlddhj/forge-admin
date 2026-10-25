@@ -17,7 +17,10 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 public class XssFilterAutoConfiguration {
 
     @Bean
-    public FilterRegistrationBean<XssFilter> xssFilterRegistration(RequestMappingHandlerMapping handlerMapping) {
+    // actuator 引入后容器存在两个 HandlerMapping(WebMvc 主映射 + controllerEndpoint 映射),显式指定主映射
+    public FilterRegistrationBean<XssFilter> xssFilterRegistration(
+            @org.springframework.beans.factory.annotation.Qualifier("requestMappingHandlerMapping")
+            RequestMappingHandlerMapping handlerMapping) {
         XssFilter xssFilter = new XssFilter();
         xssFilter.setHandlerMapping(handlerMapping);
 
