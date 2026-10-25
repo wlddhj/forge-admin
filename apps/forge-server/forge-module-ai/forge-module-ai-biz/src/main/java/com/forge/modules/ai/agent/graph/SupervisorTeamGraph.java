@@ -942,7 +942,13 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                 int callSeq = ctx.nextSeq();
                 ctx.emit(AgentEvents.Type.TOOL_CALL, NODE_EXPERT_TOOLS, toolName, Map.of(
                         "seq", callSeq, "args", args, "agentCode", agentCode, "agentName", agentName));
+                // 子线程不继承 ThreadLocal 租户上下文，工具执行(SqlTenantRewriter 等)依赖它——提交前快照传递
+                Long tenantSnapshot = com.forge.framework.tenant.core.context.TenantContextHolder.getTenantId();
                 futures.add(CompletableFuture.runAsync(() -> {
+                    if (tenantSnapshot != null) {
+                        com.forge.framework.tenant.core.context.TenantContextHolder.setTenantId(tenantSnapshot);
+                    }
+                    try {
                     long toolStart = System.currentTimeMillis();
                     Map<String, Object> record = new LinkedHashMap<>();
                     record.put("tool", toolName);
@@ -978,6 +984,11 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                     }
                     synchronized (newHistory) {
                         newHistory.add(record);
+                    }
+                    } finally {
+                        if (tenantSnapshot != null) {
+                            com.forge.framework.tenant.core.context.TenantContextHolder.clear();
+                        }
                     }
                 }, agentExecutor));
             }

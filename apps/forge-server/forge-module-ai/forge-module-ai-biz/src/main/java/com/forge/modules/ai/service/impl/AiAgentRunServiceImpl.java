@@ -157,7 +157,12 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
         // 替代旧空消费器——否则恢复期间（首跳聚合决策+工具+专家轮次）前端全程静默数十秒
         com.forge.modules.ai.agent.kernel.AgentRunEventBridge.Emitter eventEmitter =
                 agentRunEventBridge.bridge(runUserId, runId);
+        // 异步线程不继承 ThreadLocal 租户上下文，图执行中的落库(checkpoint/step)依赖它——提交前快照传递
+        Long tenantSnapshot = com.forge.framework.tenant.core.context.TenantContextHolder.getTenantId();
         java.util.concurrent.CompletableFuture.runAsync(() -> {
+            if (tenantSnapshot != null) {
+                com.forge.framework.tenant.core.context.TenantContextHolder.setTenantId(tenantSnapshot);
+            }
             try {
                 AiAgentRun finished = graphRunner.resume(todo, approved, eventEmitter::accept);
                 notifyRunFinished(runUserId, finished);
@@ -166,6 +171,9 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
                 eventEmitter.error(e);
             } finally {
                 eventEmitter.close();
+                if (tenantSnapshot != null) {
+                    com.forge.framework.tenant.core.context.TenantContextHolder.clear();
+                }
             }
         });
         return run;
