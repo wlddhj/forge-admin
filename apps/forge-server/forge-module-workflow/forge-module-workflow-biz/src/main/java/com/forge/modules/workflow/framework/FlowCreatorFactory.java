@@ -29,6 +29,16 @@ public final class FlowCreatorFactory {
     }
 
     /**
+     * 按事件快照重建创建者（AI 审批等异步链路：保留原操作人身份，ID 缺失时按系统创建者处理）
+     */
+    public static FlowCreator restore(String createId, String createBy) {
+        if (createId == null || createId.isBlank()) {
+            return system(createBy != null ? createBy : "系统");
+        }
+        return new FlowCreator(createId, createBy).tenantId(currentTenantId());
+    }
+
+    /**
      * 当前租户 ID（字符串）：无上下文（单租户模式、Job 线程）时回落 '1'，与 sys 表 tenant_id DEFAULT 1 约定对齐
      */
     public static String currentTenantId() {

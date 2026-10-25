@@ -456,7 +456,8 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
 (113, '实例查询', 112, '', '', NULL, '', 1, 2, 'workflow:instance:query', 1, 1, 0, 0),
 (114, '发起流程', 112, '', '', NULL, '', 2, 2, 'workflow:instance:start', 1, 1, 0, 0),
-(115, '取消流程', 112, '', '', NULL, '', 3, 2, 'workflow:instance:cancel', 1, 1, 0, 0);
+(115, '取消流程', 112, '', '', NULL, '', 3, 2, 'workflow:instance:cancel', 1, 1, 0, 0),
+(241, '流程催办', 112, '', '', NULL, '', 4, 2, 'workflow:instance:urge', 1, 1, 0, 0);
 
 -- 实例详情（hidden）
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
@@ -513,7 +514,7 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 (1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 105), (1, 106), (1, 124),
 (1, 107), (1, 108), (1, 109), (1, 110), (1, 111),
-(1, 112), (1, 113), (1, 114), (1, 115), (1, 125),
+(1, 112), (1, 113), (1, 114), (1, 115), (1, 125), (1, 241),
 (1, 116), (1, 117), (1, 118), (1, 119), (1, 120), (1, 121), (1, 122), (1, 126),
 (1, 123), (1, 240),
 (1, 200), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205),
@@ -541,7 +542,8 @@ INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dic
 (2209, 'wf_action_type', '认领',   'claim',        9,  1, 'primary'),
 (2210, 'wf_action_type', '取消',   'cancel',       10, 1, 'danger'),
 (2211, 'wf_action_type', '加签',   'sign_create',  11, 1, 'primary'),
-(2212, 'wf_action_type', '减签',   'sign_delete',  12, 1, 'primary');
+(2212, 'wf_action_type', '减签',   'sign_delete',  12, 1, 'primary'),
+(2213, 'wf_action_type', '催办',   'urge',         13, 1, 'danger');
 
 -- 流程实例状态
 INSERT INTO `sys_dict_type` (`id`, `dict_name`, `dict_type`, `status`, `is_system`, `remark`) VALUES

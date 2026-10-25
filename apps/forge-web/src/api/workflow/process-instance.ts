@@ -20,5 +20,9 @@ export const processInstanceApi = {
   getVariables: (id: string) =>
     request.get<Record<string, any>>(`/workflow/instance/${id}/variables`).then(res => res.data),
   getApprovalDetail: (id: string) =>
-    request.get<ApprovalDetail>(`/workflow/instance/${id}/approval-detail`).then(res => res.data)
+    request.get<ApprovalDetail>(`/workflow/instance/${id}/approval-detail`).then(res => res.data),
+  urge: (id: string, data?: { comment?: string }) =>
+    request.post(`/workflow/instance/${id}/urge`, data || {}),
+  copy: (id: string, data: { copyUserIds: number[]; reason?: string }) =>
+    request.post(`/workflow/instance/${id}/copy`, data)
 }

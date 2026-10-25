@@ -4,10 +4,15 @@ import cn.hutool.core.util.StrUtil;
 import com.aizuda.bpm.engine.*;
 import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.core.FlowLongEngineImpl;
+import com.aizuda.bpm.engine.core.enums.ActorType;
+import com.aizuda.bpm.engine.core.enums.AgentType;
 import com.aizuda.bpm.engine.core.enums.PerformType;
 import com.aizuda.bpm.engine.core.enums.TaskState;
 import com.aizuda.bpm.engine.core.enums.TaskType;
 import com.aizuda.bpm.engine.entity.*;
+import com.aizuda.bpm.engine.model.ModelHelper;
+import com.aizuda.bpm.engine.model.NodeAssignee;
+import com.aizuda.bpm.engine.model.NodeModel;
 import com.aizuda.bpm.mybatisplus.mapper.FlwInstanceMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisInstanceMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisTaskActorMapper;
@@ -18,8 +23,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
+import com.forge.common.utils.UserContext;
+import com.forge.framework.web.websocket.NotificationMessage;
+import com.forge.framework.web.websocket.NotificationService;
 import com.forge.modules.system.entity.SysAttachment;
 import com.forge.modules.system.service.SysAttachmentService;
+import com.forge.modules.workflow.config.FlowLongSchedulerProperties;
 import com.forge.modules.workflow.dto.task.*;
 import com.forge.modules.workflow.entity.WfApprovalComment;
 import com.forge.modules.workflow.framework.ApprovalActionTypeEnum;
@@ -61,6 +70,9 @@ public class WfTaskServiceImpl implements WfTaskService {
     private final FlwHisInstanceMapper hisInstanceMapper;
     private final FlowLongEngine flowLongEngine;
     private final SysAttachmentService sysAttachmentService;
+    private final NotificationService notificationService;
+    private final FlowLongSchedulerProperties schedulerProperties;
+    private final ObjectMapper objectMapper;
 
     private static final String COMMENT_ATTACHMENT_BIZ_TYPE = "wf_comment";
 
@@ -107,9 +119,19 @@ public class WfTaskServiceImpl implements WfTaskService {
         Page<FlwTask> pageParam = new Page<>(request.getPageNum(), request.getPageSize());
         Page<FlwTask> taskPage = taskMapper.selectPage(pageParam, taskWrapper);
 
+        // 本人从候选组（角色/部门）签收的任务标记，供前端展示“取消签收”
+        Set<Long> claimedFromGroupTaskIds = taskActors.stream()
+                .filter(a -> AgentType.claimRole.eq(a.getAgentType()) || AgentType.claimDepartment.eq(a.getAgentType()))
+                .map(FlwTaskActor::getTaskId)
+                .collect(Collectors.toSet());
+
         // 4. 转换为响应对象，补充流程信息
         List<TaskResponse> records = taskPage.getRecords().stream()
-                .map(task -> convertTaskToResponseWithProcess(task))
+                .map(task -> {
+                    TaskResponse response = convertTaskToResponseWithProcess(task);
+                    response.setClaimedFromGroup(claimedFromGroupTaskIds.contains(task.getId()));
+                    return response;
+                })
                 .collect(Collectors.toList());
 
         Page<TaskResponse> resultPage = new Page<>();
@@ -127,13 +149,65 @@ public class WfTaskServiceImpl implements WfTaskService {
             throw new BusinessException(401, "未获取到当前用户信息");
         }
 
-        // TODO: 实现可签收任务查询
+        // 用户经角色/部门候选池可见的任务：actor 记录的角色/部门 ID ∈ 用户隶属集
+        Set<String> groupIds = new HashSet<>();
+        identityService.getRoleIdsByUserId(currentUserId).forEach(groupIds::add);
+        Long deptId = identityService.getUserDeptId(currentUserId);
+        if (deptId != null) {
+            groupIds.add(String.valueOf(deptId));
+        }
+        if (groupIds.isEmpty()) {
+            return emptyPage(request);
+        }
+
+        LambdaQueryWrapper<FlwTaskActor> actorWrapper = new LambdaQueryWrapper<>();
+        actorWrapper.in(FlwTaskActor::getActorId, groupIds);
+        actorWrapper.in(FlwTaskActor::getActorType, List.of(ActorType.role.getValue(), ActorType.department.getValue()));
+        List<FlwTaskActor> groupActors = taskActorMapper.selectList(actorWrapper);
+        if (groupActors.isEmpty()) {
+            return emptyPage(request);
+        }
+
+        Map<Long, List<FlwTaskActor>> actorsByTask = groupActors.stream()
+                .collect(Collectors.groupingBy(FlwTaskActor::getTaskId));
+
+        LambdaQueryWrapper<FlwTask> taskWrapper = new LambdaQueryWrapper<>();
+        taskWrapper.in(FlwTask::getId, actorsByTask.keySet());
+        if (StrUtil.isNotBlank(request.getName())) {
+            taskWrapper.like(FlwTask::getTaskName, request.getName());
+        }
+        taskWrapper.orderByDesc(FlwTask::getCreateTime);
+
+        Page<FlwTask> pageParam = new Page<>(request.getPageNum(), request.getPageSize());
+        Page<FlwTask> taskPage = taskMapper.selectPage(pageParam, taskWrapper);
+
+        List<TaskResponse> records = taskPage.getRecords().stream()
+                .map(task -> {
+                    TaskResponse response = convertTaskToResponseWithProcess(task);
+                    response.setCandidate(true);
+                    response.setCandidateUsers(actorsByTask.getOrDefault(task.getId(), Collections.emptyList()).stream()
+                            .map(FlwTaskActor::getActorName)
+                            .distinct()
+                            .collect(Collectors.toList()));
+                    return response;
+                })
+                .collect(Collectors.toList());
+
         Page<TaskResponse> resultPage = new Page<>();
-        resultPage.setCurrent(request.getPageNum());
-        resultPage.setSize(request.getPageSize());
-        resultPage.setTotal(0);
-        resultPage.setRecords(Collections.emptyList());
+        resultPage.setCurrent(taskPage.getCurrent());
+        resultPage.setSize(taskPage.getSize());
+        resultPage.setTotal(taskPage.getTotal());
+        resultPage.setRecords(records);
         return resultPage;
+    }
+
+    private Page<TaskResponse> emptyPage(TaskQueryRequest request) {
+        Page<TaskResponse> emptyPage = new Page<>();
+        emptyPage.setCurrent(request.getPageNum());
+        emptyPage.setSize(request.getPageSize());
+        emptyPage.setTotal(0);
+        emptyPage.setRecords(Collections.emptyList());
+        return emptyPage;
     }
 
     @Override
@@ -229,9 +303,56 @@ public class WfTaskServiceImpl implements WfTaskService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void unclaimTask(String taskId) {
-        // TODO: 实现取消签收
-        log.info("取消签收成功：taskId={}", taskId);
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new BusinessException(401, "未获取到当前用户信息");
+        }
+        Long id = parseTaskId(taskId);
+        FlwTask task = queryService.getTask(id);
+        if (task == null) {
+            throw new BusinessException(404, "任务不存在或已完成");
+        }
+
+        // 定位本人从候选组签收的痕迹（签收后 agentType=认领角色/认领部门，agentId=原组ID）
+        FlwTaskActor claimed = queryService.getTaskActorsByTaskId(id).stream()
+                .filter(a -> String.valueOf(currentUserId).equals(a.getActorId()))
+                .filter(a -> AgentType.claimRole.eq(a.getAgentType()) || AgentType.claimDepartment.eq(a.getAgentType()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(400, "该任务不是您从候选组签收的，无法取消签收"));
+
+        taskService.changeTaskActor(id, restoreGroupActor(task, claimed));
+        log.info("取消签收成功：taskId={}, userId={}, restoredGroup={}", taskId, currentUserId, claimed.getAgentId());
+    }
+
+    /**
+     * 由认领痕迹（ext 快照 + agentId）还原原候选组参与者
+     */
+    private FlwTaskActor restoreGroupActor(FlwTask task, FlwTaskActor claimed) {
+        FlwTaskActor restored = new FlwTaskActor();
+        restored.setTaskId(task.getId());
+        restored.setInstanceId(task.getInstanceId());
+        restored.setTenantId(FlowCreatorFactory.currentTenantId());
+        restored.setActorId(claimed.getAgentId());
+        // ext 缺失时按认领方式推导组类型：认领角色→角色，认领部门→部门
+        restored.setActorType(AgentType.claimDepartment.eq(claimed.getAgentType())
+                ? ActorType.department.getValue() : ActorType.role.getValue());
+        restored.setActorName(claimed.getActorName());
+        if (StrUtil.isNotBlank(claimed.getExt())) {
+            try {
+                Map<String, Object> ext = objectMapper.readValue(claimed.getExt(), Map.class);
+                if (ext.get("actorType") instanceof Number actorType) {
+                    restored.setActorType(actorType.intValue());
+                }
+                if (ext.get("actorName") instanceof String actorName) {
+                    restored.setActorName(actorName);
+                }
+            } catch (Exception e) {
+                log.warn("解析认领痕迹ext失败，使用认领记录字段还原: taskId={}", task.getId());
+            }
+        }
+        return restored;
     }
 
 
@@ -417,20 +538,62 @@ public class WfTaskServiceImpl implements WfTaskService {
         FlwTask task = validateTask(id);
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
-        List<FlwTaskActor> taskActors = request.getUserIds().stream()
-                .map(userIdStr -> {
-                    Long userId = Long.parseLong(userIdStr);
-                    return createTaskActor(userId);
-                })
-                .toList();
+        String userNames = request.getUserIds().stream()
+                .map(userIdStr -> identityService.getUserName(Long.parseLong(userIdStr)))
+                .collect(Collectors.joining(", "));
 
-        PerformType performType = PerformType.countersign; // 默认会签
-        taskService.addTaskActor(id, performType, taskActors, flowCreator);
+        String typeLabel;
+        switch (request.getType()) {
+            case "before" -> {
+                typeLabel = "前加签";
+                flowLongEngine.executeAppendNodeModel(id, buildAppendNode(request, currentUserId),
+                        flowCreator, null, true);
+            }
+            case "after" -> {
+                typeLabel = "后加签";
+                flowLongEngine.executeAppendNodeModel(id, buildAppendNode(request, currentUserId),
+                        flowCreator, null, false);
+            }
+            case "parallel" -> {
+                typeLabel = "并行加签";
+                List<FlwTaskActor> taskActors = request.getUserIds().stream()
+                        .map(userIdStr -> createTaskActor(Long.parseLong(userIdStr)))
+                        .toList();
+                // 传任务原参与方式：或签任务加人仍为或签，不强转会签
+                PerformType originalPerformType = task.getPerformType() == null
+                        ? PerformType.countersign : PerformType.get(task.getPerformType());
+                taskService.addTaskActor(id, originalPerformType, taskActors, flowCreator);
+            }
+            default -> throw new BusinessException(400, "不支持的加签类型：" + request.getType());
+        }
 
+        String commentText = typeLabel + "，人员：" + userNames
+                + (StrUtil.isNotBlank(request.getReason()) ? "，原因：" + request.getReason() : "");
         saveApprovalComment(task, currentUserId, identityService.getUserName(currentUserId),
-                ApprovalActionTypeEnum.SIGN_CREATE.getCode(),
-                "加签操作，类型：" + request.getType() + "，原因：" + request.getReason());
+                ApprovalActionTypeEnum.SIGN_CREATE.getCode(), commentText);
         log.info("任务加签成功：taskId={}, type={}, userIds={}", taskId, request.getType(), request.getUserIds());
+    }
+
+    /**
+     * 构造加签临时节点（NodeState.temp 由引擎置位，仅写入实例模型快照）
+     */
+    private NodeModel buildAppendNode(TaskSignCreateRequest request, Long operatorUserId) {
+        int examineMode = request.getExamineMode() == null || request.getExamineMode() < 1 || request.getExamineMode() > 3
+                ? 2 : request.getExamineMode();
+        NodeModel nodeModel = new NodeModel();
+        nodeModel.setNodeKey(ModelHelper.generateNodeKey());
+        nodeModel.setNodeName("加签-" + identityService.getUserName(operatorUserId));
+        nodeModel.setType(TaskType.approval.getValue());
+        nodeModel.setExamineMode(examineMode);
+        nodeModel.setNodeAssigneeList(request.getUserIds().stream()
+                .map(userIdStr -> {
+                    NodeAssignee assignee = new NodeAssignee();
+                    assignee.setId(userIdStr);
+                    assignee.setName(identityService.getUserName(Long.parseLong(userIdStr)));
+                    return assignee;
+                })
+                .toList());
+        return nodeModel;
     }
 
     @Override
@@ -441,12 +604,14 @@ public class WfTaskServiceImpl implements WfTaskService {
         FlwTask task = validateTask(id);
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
-        taskService.removeTaskActor(id, Collections.singletonList(request.getChildTaskId()), flowCreator);
+        taskService.removeTaskActor(id, Collections.singletonList(request.getActorId()), flowCreator);
 
+        String actorName = identityService.getUserName(Long.parseLong(request.getActorId()));
+        String commentText = "减签人员：" + actorName
+                + (StrUtil.isNotBlank(request.getReason()) ? "，原因：" + request.getReason() : "");
         saveApprovalComment(task, currentUserId, identityService.getUserName(currentUserId),
-                ApprovalActionTypeEnum.SIGN_DELETE.getCode(),
-                "减签操作，原因：" + request.getReason());
-        log.info("任务减签成功：taskId={}, childTaskId={}", taskId, request.getChildTaskId());
+                ApprovalActionTypeEnum.SIGN_DELETE.getCode(), commentText);
+        log.info("任务减签成功：taskId={}, actorId={}", taskId, request.getActorId());
     }
 
     @Override
@@ -508,8 +673,171 @@ public class WfTaskServiceImpl implements WfTaskService {
 
     @Override
     public List<Map<String, String>> getChildTasks(String parentTaskId) {
-        // TODO: 实现获取子任务列表
-        return Collections.emptyList();
+        Long id = parseTaskId(parentTaskId);
+        FlwTask task = queryService.getTask(id);
+        if (task == null) {
+            return Collections.emptyList();
+        }
+        // 当前节点同 taskKey 的全部活动任务（会签/票签每人一条）及其用户参与者，供减签选择
+        List<FlwTask> nodeTasks = queryService.getTasksByInstanceIdAndTaskKey(task.getInstanceId(), task.getTaskKey());
+        List<Map<String, String>> result = new ArrayList<>();
+        for (FlwTask nodeTask : nodeTasks) {
+            for (FlwTaskActor actor : queryService.getTaskActorsByTaskId(nodeTask.getId())) {
+                if (!ActorType.user.eq(actor.getActorType())) {
+                    continue;
+                }
+                Map<String, String> item = new HashMap<>();
+                item.put("taskId", String.valueOf(nodeTask.getId()));
+                item.put("actorId", actor.getActorId());
+                item.put("actorName", actor.getActorName());
+                item.put("performType", nodeTask.getPerformType() == null ? null : String.valueOf(nodeTask.getPerformType()));
+                result.add(item);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void urgeInstance(String processInstanceId, String comment) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new BusinessException(401, "未获取到当前用户信息");
+        }
+        Long instanceId;
+        try {
+            instanceId = Long.parseLong(processInstanceId);
+        } catch (NumberFormatException e) {
+            throw new BusinessException(400, "流程实例ID格式错误");
+        }
+
+        FlwInstance instance = queryService.getInstance(instanceId);
+        if (instance == null) {
+            throw new BusinessException(400, "流程已结束，无法催办");
+        }
+
+        boolean isInitiator = String.valueOf(currentUserId).equals(instance.getCreateId());
+        if (!isInitiator && !hasWorkflowAdminRole()) {
+            throw new BusinessException(403, "只有流程发起人或工作流管理员才能催办");
+        }
+
+        List<FlwTask> approvalTasks = queryService.getTasksByInstanceId(instanceId).stream()
+                .filter(t -> TaskType.approval.eq(t.getTaskType()))
+                .toList();
+        if (approvalTasks.isEmpty()) {
+            throw new BusinessException(400, "当前无待审批任务，无需催办");
+        }
+
+        FlwProcess process = processService.getProcessById(instance.getProcessId());
+        String processName = process != null ? process.getProcessName() : instance.getCurrentNodeName();
+        String urgerName = identityService.getUserName(currentUserId);
+        long now = System.currentTimeMillis();
+        long throttleMillis = Math.max(1, schedulerProperties.getUrgeIntervalMinutes()) * 60_000L;
+
+        int urged = 0;
+        long earliestRetryMillis = Long.MAX_VALUE;
+        for (FlwTask task : approvalTasks) {
+            Long lastUrgeTime = readLastUrgeTime(task);
+            if (lastUrgeTime != null && now - lastUrgeTime < throttleMillis) {
+                earliestRetryMillis = Math.min(earliestRetryMillis, throttleMillis - (now - lastUrgeTime));
+                continue;
+            }
+            urgeSingleTask(task, processName, urgerName, comment, now, currentUserId);
+            urged++;
+        }
+
+        if (urged == 0) {
+            long retryMinutes = Math.max(1, (earliestRetryMillis + 60_000 - 1) / 60_000);
+            throw new BusinessException(400, "催办过于频繁，请约 " + retryMinutes + " 分钟后再试");
+        }
+        log.info("流程催办完成: instanceId={}, operator={}, urged={}/{}, comment={}",
+                instanceId, currentUserId, urged, approvalTasks.size(), comment);
+    }
+
+    /**
+     * 催办单个任务：写节流标记 + 通知处理人 + 审批意见留痕
+     */
+    private void urgeSingleTask(FlwTask task, String processName, String urgerName,
+                                String comment, long now, Long operatorUserId) {
+        // 节流标记写任务变量（不影响流程变量，仅任务列 variable）
+        FlwTask update = new FlwTask();
+        update.setId(task.getId());
+        Map<String, Object> variableMap = task.variableMap();
+        if (variableMap == null) {
+            variableMap = new HashMap<>();
+        }
+        variableMap.put("lastUrgeTime", now);
+        try {
+            update.setVariable(objectMapper.writeValueAsString(variableMap));
+        } catch (Exception e) {
+            log.warn("序列化催办标记失败，跳过节流写入: taskId={}", task.getId());
+        }
+        taskService.updateTaskById(update, FlowCreatorFactory.system("催办"));
+
+        // 通知该任务全部用户参与者
+        long waitingMinutes = task.getCreateTime() == null ? 0
+                : Math.max(1, (now - task.getCreateTime().getTime()) / 60_000);
+        String title = "【催办】待办任务处理提醒";
+        String content = StrUtil.format("{} 催办流程「{}」，任务「{}」已等待约 {} 分钟，请及时处理。",
+                urgerName, processName, task.getTaskName(), waitingMinutes);
+        if (StrUtil.isNotBlank(comment)) {
+            content = content + " 催办留言：" + comment;
+        }
+        List<FlwTaskActor> actors = queryService.getTaskActorsByTaskId(task.getId());
+        Set<Long> actorUserIds = actors.stream()
+                .filter(a -> ActorType.user.eq(a.getActorType()))
+                .map(a -> {
+                    try {
+                        return Long.parseLong(a.getActorId());
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        for (Long userId : actorUserIds) {
+            try {
+                notificationService.sendToUser(userId, NotificationMessage.workflow(title, content, task.getId()));
+            } catch (Exception e) {
+                log.warn("催办通知发送失败: taskId={}, userId={}", task.getId(), userId, e);
+            }
+        }
+
+        // 审批意见留痕（挂在催办的任务上）
+        saveApprovalComment(task, operatorUserId, urgerName,
+                ApprovalActionTypeEnum.URGE.getCode(),
+                StrUtil.isNotBlank(comment) ? "催办：" + comment : "催办任务「" + task.getTaskName() + "」");
+    }
+
+    private Long readLastUrgeTime(FlwTask task) {
+        Map<String, Object> variableMap = task.variableMap();
+        if (variableMap == null) {
+            return null;
+        }
+        Object value = variableMap.get("lastUrgeTime");
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String str && str.matches("\\d+")) {
+            return Long.parseLong(str);
+        }
+        return null;
+    }
+
+    private boolean hasWorkflowAdminRole() {
+        UserContext context = UserContext.get();
+        if (context == null) {
+            return false;
+        }
+        if (context.isAdmin()) {
+            return true;
+        }
+        if (context.getRoles() == null) {
+            return false;
+        }
+        return context.getRoles().stream()
+                .map(role -> role.getRoleCode() == null ? "" : role.getRoleCode().toLowerCase())
+                .anyMatch(code -> "admin".equals(code) || "workflow_admin".equals(code));
     }
 
     @Override

@@ -135,6 +135,18 @@ public class WfAiApprovalServiceImpl implements WfAiApprovalService {
         return null;
     }
 
+    @Override
+    public AiApprovalResult buildFallbackResult(AiApprovalConfig config,
+                                                AiApprovalResult.AiStatus status,
+                                                String reason) {
+        AiApprovalResult result = new AiApprovalResult();
+        result.setStatus(status);
+        result.setDecision(Decision.MANUAL);
+        result.setReasoning(reason);
+        applyFallback(result, config);
+        return result;
+    }
+
     // ========== 私有方法 ==========
 
     private String buildSystemPrompt() {

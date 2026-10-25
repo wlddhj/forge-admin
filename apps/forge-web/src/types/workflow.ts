@@ -140,6 +140,8 @@ export interface TaskInfo {
   endTime: string | null
   candidate?: boolean
   candidateUsers?: string[]
+  /** 当前用户是否从候选组（角色/部门）签收（待办行展示“取消签收”入口） */
+  claimedFromGroup?: boolean
   actionType?: string
   commentText?: string
   nextActivityName?: string
@@ -224,8 +226,8 @@ export interface ApprovalNode {
   activityId: string
   activityName: string
   activityType: string
-  status: number  // 1=进行中 2=已完成
-  startTime: string
+  status: number  // 0=未到达 1=进行中 2=已完成
+  startTime: string | null
   endTime: string | null
   tasks: ApprovalTask[]
   candidateUsers?: string[]
@@ -236,7 +238,9 @@ export interface ApprovalTask {
   userId: number
   userName: string
   status: number  // 1=进行中 2=已完成
+  /** 审批动作（wf_action_type 字典值），未产生意见时为空 */
+  actionType?: string
   comment: string
-  createTime: string
+  createTime: string | null
   endTime: string | null
 }

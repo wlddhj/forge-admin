@@ -1,11 +1,16 @@
 package com.forge.modules.workflow.listener;
 
+import cn.hutool.core.util.StrUtil;
 import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.core.enums.ActorType;
 import com.aizuda.bpm.engine.core.enums.TaskEventType;
+import com.aizuda.bpm.engine.entity.FlwInstance;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.aizuda.bpm.engine.model.NodeModel;
+import com.aizuda.bpm.mybatisplus.mapper.FlwHisTaskActorMapper;
+import com.aizuda.bpm.mybatisplus.mapper.FlwInstanceMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.forge.framework.web.websocket.NotificationMessage;
 import com.forge.framework.web.websocket.NotificationService;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
@@ -27,14 +32,15 @@ import java.util.stream.Collectors;
  *
  * 支持的事件类型：
  * - create: 发送新任务通知
- * - complete: 任务完成通知
- * - reject: 驳回通知
+ * - complete: 任务完成通知（通知发起人）
+ * - reject: 驳回通知（通知发起人）
  * - transfer: 转办通知
  * - delegate: 委派通知
- * - withdraw: 撤回通知
+ * - delegateResolve: 委派归还通知（通知原委托人）
+ * - withdraw: 撤回通知（通知被撤回任务的原处理人）
  * - timeout: 超时提醒
- * - autoComplete: 自动完成通知
- * - autoReject: 自动驳回通知
+ * - autoComplete: 自动完成通知（通知任务参与者）
+ * - autoReject: 自动驳回通知（通知任务参与者）
  *
  * @author forge-admin
  */
@@ -45,13 +51,19 @@ public class TaskNotificationListener {
     private final NotificationService notificationService;
     private final FlowLongIdentityService identityService;
     private final ApplicationEventPublisher eventPublisher;
+    private final FlwInstanceMapper instanceMapper;
+    private final FlwHisTaskActorMapper hisTaskActorMapper;
 
     public TaskNotificationListener(NotificationService notificationService,
                                      FlowLongIdentityService identityService,
-                                     ApplicationEventPublisher eventPublisher) {
+                                     ApplicationEventPublisher eventPublisher,
+                                     FlwInstanceMapper instanceMapper,
+                                     FlwHisTaskActorMapper hisTaskActorMapper) {
         this.notificationService = notificationService;
         this.identityService = identityService;
         this.eventPublisher = eventPublisher;
+        this.instanceMapper = instanceMapper;
+        this.hisTaskActorMapper = hisTaskActorMapper;
     }
 
     /**
@@ -103,10 +115,10 @@ public class TaskNotificationListener {
                 sendTaskDelegatedNotification(task, taskActors);
                 break;
             case delegateResolve:
-                sendTaskDelegatedResolvedNotification(task, flowCreator);
+                sendTaskDelegatedResolvedNotification(task, taskActors, flowCreator);
                 break;
             case withdraw:
-                sendTaskWithdrawnNotification(task, flowCreator);
+                sendTaskWithdrawnNotification(task, taskActors, flowCreator);
                 break;
             case timeout:
                 sendTaskTimeoutNotification(task, taskActors);
@@ -136,31 +148,21 @@ public class TaskNotificationListener {
      */
     private void sendTaskCompletedNotification(FlwTask task, FlowCreator flowCreator) {
         String title = "任务已完成";
-        String content = String.format("任务「%s」已被 %s 完成审批。",
+        String content = String.format("您的流程任务「%s」已被 %s 完成审批。",
                 task.getTaskName(),
                 flowCreator != null ? flowCreator.getCreateBy() : "系统");
-        // 发送给发起人（如果与处理人不同）
-        if (flowCreator != null) {
-            try {
-                Long operatorId = Long.parseLong(flowCreator.getCreateId());
-                NotificationMessage message = NotificationMessage.workflow(title, content, task.getId());
-                notificationService.sendToUser(operatorId, message);
-            } catch (NumberFormatException e) {
-                log.warn("无法解析操作者ID: {}", flowCreator.getCreateId());
-            }
-        }
+        notifyInitiator(task, title, content);
     }
 
     /**
-     * 发送驳回通知（给发起人或上一节点处理人）
+     * 发送驳回通知（给发起人）
      */
     private void sendTaskRejectedNotification(FlwTask task, FlowCreator flowCreator) {
-        String title = "任务被驳回";
-        String content = String.format("任务「%s」已被 %s 驳回，请重新处理。",
+        String title = "流程被驳回";
+        String content = String.format("您的流程任务「%s」已被 %s 驳回，请处理后重新提交。",
                 task.getTaskName(),
                 flowCreator != null ? flowCreator.getCreateBy() : "系统");
-        // 需要通知被驳回节点的处理人（这里简化处理，实际需要从流程历史获取）
-        log.info("驳回通知: taskId={}, content={}", task.getId(), content);
+        notifyInitiator(task, title, content);
     }
 
     /**
@@ -184,24 +186,25 @@ public class TaskNotificationListener {
     /**
      * 发送委派解决通知（归还给原处理人）
      */
-    private void sendTaskDelegatedResolvedNotification(FlwTask task, FlowCreator flowCreator) {
+    private void sendTaskDelegatedResolvedNotification(FlwTask task, List<FlwTaskActor> taskActors, FlowCreator flowCreator) {
         String title = "委派任务已处理";
-        String content = String.format("委派任务「%s」已由 %s 处理完成，请继续审批。",
+        String content = String.format("委派任务「%s」已由 %s 处理完成并归还给您，请继续审批。",
                 task.getTaskName(),
                 flowCreator != null ? flowCreator.getCreateBy() : "代理人");
-        // 通知原处理人
-        log.info("委派解决通知: taskId={}, content={}", task.getId(), content);
+        // 委派归还后任务参与者已还原为原委托人
+        sendNotificationToActors(task, resolveEventActors(task, taskActors), title, content);
     }
 
     /**
-     * 发送撤回通知
+     * 发送撤回通知（给被撤回任务的原处理人）
      */
-    private void sendTaskWithdrawnNotification(FlwTask task, FlowCreator flowCreator) {
+    private void sendTaskWithdrawnNotification(FlwTask task, List<FlwTaskActor> taskActors, FlowCreator flowCreator) {
         String title = "任务已撤回";
-        String content = String.format("任务「%s」已被发起人撤回。", task.getTaskName());
-        // 通知当前处理人
-        log.info("撤回通知: taskId={}, operator={}", task.getId(),
-                flowCreator != null ? flowCreator.getCreateBy() : "unknown");
+        String content = String.format("任务「%s」已被 %s 撤回，该任务从您的待办中移除。",
+                task.getTaskName(),
+                flowCreator != null ? flowCreator.getCreateBy() : "系统");
+        // 撤回事件引擎传参 taskActors=null：查历史参与者通知原处理人
+        sendNotificationToActors(task, resolveEventActors(task, taskActors), title, content);
     }
 
     /**
@@ -229,6 +232,37 @@ public class TaskNotificationListener {
         String title = "任务自动驳回";
         String content = String.format("任务「%s」因超时已自动驳回。", task.getTaskName());
         log.info("自动驳回通知: taskId={}, content={}", task.getId(), content);
+    }
+
+    /**
+     * 通知流程发起人（实例不存在或发起人不可解析时跳过）
+     */
+    private void notifyInitiator(FlwTask task, String title, String content) {
+        try {
+            FlwInstance instance = instanceMapper.selectById(task.getInstanceId());
+            if (instance == null || StrUtil.isBlank(instance.getCreateId())) {
+                return;
+            }
+            Long initiatorId = Long.parseLong(instance.getCreateId());
+            notificationService.sendToUser(initiatorId, NotificationMessage.workflow(title, content, task.getId()));
+        } catch (NumberFormatException e) {
+            log.warn("发起人ID不可解析，跳过通知: instanceId={}", task.getInstanceId());
+        } catch (Exception e) {
+            log.error("发送发起人通知失败: taskId={}", task.getId(), e);
+        }
+    }
+
+    /**
+     * 事件参与者：优先用引擎传参，缺失时回退查询历史参与者（撤回等场景引擎传 null）
+     */
+    private List<FlwTaskActor> resolveEventActors(FlwTask task, List<FlwTaskActor> taskActors) {
+        if (taskActors != null && !taskActors.isEmpty()) {
+            return taskActors;
+        }
+        LambdaQueryWrapper<com.aizuda.bpm.engine.entity.FlwHisTaskActor> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(com.aizuda.bpm.engine.entity.FlwHisTaskActor::getTaskId, task.getId());
+        List<com.aizuda.bpm.engine.entity.FlwHisTaskActor> hisActors = hisTaskActorMapper.selectList(wrapper);
+        return hisActors.stream().map(hisActor -> (FlwTaskActor) hisActor).collect(Collectors.toList());
     }
 
     /**

@@ -2,6 +2,21 @@ import request from '@/utils/request'
 import type { PageResult } from '@/utils/request'
 import type { TaskInfo, TaskQuery, TaskApproveRequest, TaskDelegateRequest, TaskTransferRequest, TaskReturnRequest } from '@/types/workflow'
 
+export interface TaskSignCreateRequest {
+  /** before 前加签 / after 后加签 / parallel 并行加签 */
+  type: 'before' | 'after' | 'parallel'
+  userIds: string[]
+  /** 多人审批方式（仅 before/after 生效）：1 依次 / 2 会签（默认）/ 3 或签 */
+  examineMode?: number
+  reason?: string
+}
+
+export interface TaskSignDeleteRequest {
+  /** 被减签的用户ID */
+  actorId: string
+  reason?: string
+}
+
 export const taskApi = {
   todo: (params: TaskQuery) =>
     request.get<PageResult<TaskInfo>>('/workflow/task/todo', { params }).then(res => res.data),
@@ -19,8 +34,6 @@ export const taskApi = {
     request.post(`/workflow/task/${id}/claim`),
   unclaim: (id: string) =>
     request.post(`/workflow/task/${id}/unclaim`),
-  complete: (id: string, data: TaskApproveRequest) =>
-    request.post(`/workflow/task/${id}/complete`, data),
   approve: (id: string, data: TaskApproveRequest) =>
     request.post(`/workflow/task/${id}/approve`, data),
   reject: (id: string, data: TaskApproveRequest) =>
@@ -33,9 +46,9 @@ export const taskApi = {
     request.post(`/workflow/task/${id}/return`, data),
   getReturnNodes: (id: string) =>
     request.get(`/workflow/task/${id}/return-nodes`).then(res => res.data),
-  signCreate: (id: string, data: { type: string; userIds: string[]; reason?: string }) =>
+  signCreate: (id: string, data: TaskSignCreateRequest) =>
     request.post(`/workflow/task/${id}/sign-create`, data),
-  signDelete: (id: string, data: { childTaskId: string; reason?: string }) =>
+  signDelete: (id: string, data: TaskSignDeleteRequest) =>
     request.post(`/workflow/task/${id}/sign-delete`, data),
   copy: (id: string, data: { copyUserIds: number[]; reason?: string }) =>
     request.post(`/workflow/task/${id}/copy`, data),

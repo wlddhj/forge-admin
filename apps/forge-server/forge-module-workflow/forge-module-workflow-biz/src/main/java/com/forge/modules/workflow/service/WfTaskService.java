@@ -161,4 +161,12 @@ public interface WfTaskService {
      * @return 抄送列表
      */
     List<TaskResponse> getCcTasksByInstanceId(String processInstanceId);
+
+    /**
+     * 催办流程实例（发起人/管理员对当前全部活动审批任务发送催办通知）
+     *
+     * @param processInstanceId 流程实例ID
+     * @param comment 催办留言
+     */
+    void urgeInstance(String processInstanceId, String comment);
 }

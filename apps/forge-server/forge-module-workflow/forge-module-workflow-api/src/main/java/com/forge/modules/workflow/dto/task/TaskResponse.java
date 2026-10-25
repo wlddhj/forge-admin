@@ -125,6 +125,11 @@ public class TaskResponse {
     private Boolean candidate;
 
     /**
+     * 当前用户是否从候选组（角色/部门）签收（待办行展示“取消签收”入口）
+     */
+    private Boolean claimedFromGroup;
+
+    /**
      * 候选人名称列表
      */
     private List<String> candidateUsers;

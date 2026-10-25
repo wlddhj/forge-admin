@@ -31,6 +31,7 @@ import com.forge.modules.workflow.framework.ApprovalActionTypeEnum;
 import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import com.forge.modules.workflow.framework.diagram.FlowLongDiagramGenerator;
+import com.forge.modules.workflow.framework.timeline.ApprovalTimelineBuilder;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisInstanceMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisTaskMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwInstanceMapper;
@@ -38,7 +39,6 @@ import com.aizuda.bpm.mybatisplus.mapper.FlwTaskActorMapper;
 import com.forge.modules.workflow.mapper.WfApprovalCommentMapper;
 import com.forge.modules.workflow.mapper.WfProcessExtMapper;
 import com.forge.modules.workflow.service.ProcessNoGenerator;
-import com.forge.modules.workflow.service.WfProcessInstanceCopyService;
 import com.forge.modules.workflow.service.WfProcessInstanceService;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
@@ -79,7 +79,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
     private final SysAttachmentService sysAttachmentService;
     private final WfProcessExtMapper processExtMapper;
     private final ProcessNoGenerator processNoGenerator;
-    private final WfProcessInstanceCopyService copyService;
+    private final ApprovalTimelineBuilder approvalTimelineBuilder;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -416,19 +416,9 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
                 "用户主动取消流程"
         );
 
-        // 终止流程实例
+        // 终止流程实例（自动抄送统一由 WfAutoCopyEventHandler 在终态事件提交后处理）
         FlowCreator flowCreator = createFlowCreator(currentUserId);
         runtimeService.terminate(id, flowCreator);
-
-        // 自动抄送
-        try {
-            FlwProcess process = processService.getProcessById(instance.getProcessId());
-            if (process != null) {
-                copyService.autoCopyOnProcessEnd(String.valueOf(id), String.valueOf(process.getId()), "流程取消自动抄送");
-            }
-        } catch (Exception e) {
-            log.warn("流程取消自动抄送异常：instanceId={}", id, e);
-        }
 
         log.info("流程实例已取消：instanceId={}, operator={}", id, currentUserId);
     }
@@ -619,7 +609,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         List<FlwTask> activeTasks = instance != null ? queryService.getTasksByInstanceId(id) : Collections.emptyList();
 
         // 构建审批节点时间线
-        buildApprovalNodes(detail, hisTasks, activeTasks);
+        buildApprovalNodes(detail, id, processId, hisTasks, activeTasks);
 
         return detail;
     }
@@ -915,11 +905,11 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
     }
 
     /**
-     * 构建审批节点时间线
+     * 构建审批节点时间线（委托 ApprovalTimelineBuilder：模型线性化 + 任务/意见归组）
      */
-    private void buildApprovalNodes(ApprovalDetailResponse detail, List<FlwHisTask> hisTasks, List<FlwTask> activeTasks) {
-        // TODO: 实现审批节点时间线构建
-        detail.setNodes(Collections.emptyList());
+    private void buildApprovalNodes(ApprovalDetailResponse detail, Long instanceId, Long processId,
+                                    List<FlwHisTask> hisTasks, List<FlwTask> activeTasks) {
+        detail.setNodes(approvalTimelineBuilder.build(instanceId, processId, hisTasks, activeTasks));
     }
 
     /**

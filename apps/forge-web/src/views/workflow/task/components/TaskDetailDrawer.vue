@@ -151,6 +151,20 @@
             <el-icon><DocumentCopy /></el-icon>
             抄送
           </el-button>
+          <el-button
+            v-permission="'workflow:task:complete'"
+            :loading="actionLoading"
+            @click="signCreateDialogVisible = true"
+          >
+            加签
+          </el-button>
+          <el-button
+            v-permission="'workflow:task:complete'"
+            :loading="actionLoading"
+            @click="signDeleteDialogVisible = true"
+          >
+            减签
+          </el-button>
         </div>
       </el-card>
 
@@ -349,6 +363,20 @@
         <el-button type="primary" :loading="actionLoading" @click="handleCopyConfirm">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 加签对话框 -->
+    <SignCreateDialog
+      v-model="signCreateDialogVisible"
+      :task-id="taskId"
+      @success="getTaskDetail"
+    />
+
+    <!-- 减签对话框 -->
+    <SignDeleteDialog
+      v-model="signDeleteDialogVisible"
+      :task-id="taskId"
+      @success="getTaskDetail"
+    />
   </el-drawer>
 </template>
 
@@ -366,6 +394,8 @@ import type { User } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { decodeFieldsDisabled } from '@/utils/formCreate'
 import FlowDiagramDialog from '@/views/workflow/process/components/FlowDiagramDialog.vue'
+import SignCreateDialog from './SignCreateDialog.vue'
+import SignDeleteDialog from './SignDeleteDialog.vue'
 import { useResponsive } from '@/composables/useResponsive'
 import { DICT_TYPE } from '@/constants/dict'
 
@@ -433,6 +463,10 @@ const userOptions = ref<User[]>([])
 const copyDialogVisible = ref(false)
 const copyUserIds = ref<number[]>([])
 const copyReason = ref('')
+
+// 加签/减签
+const signCreateDialogVisible = ref(false)
+const signDeleteDialogVisible = ref(false)
 
 // 打开抽屉
 const open = async (id: string) => {

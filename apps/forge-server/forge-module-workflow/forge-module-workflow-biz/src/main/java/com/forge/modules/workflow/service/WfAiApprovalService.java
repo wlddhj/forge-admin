@@ -45,4 +45,17 @@ public interface WfAiApprovalService {
      * @return AI审批配置，如不存在返回null
      */
     AiApprovalConfig parseAiConfig(Map<String, Object> extendConfig);
+
+    /**
+     * 构造非成功状态的审批结果并按配置降级
+     * 供异步执行链路在调用超时/中断时生成统一的降级决策
+     *
+     * @param config AI审批配置
+     * @param status 执行状态（TIMEOUT/ERROR 等）
+     * @param reason 失败原因说明
+     * @return 已应用回退策略的审批结果
+     */
+    AiApprovalResult buildFallbackResult(AiApprovalConfig config,
+                                         AiApprovalResult.AiStatus status,
+                                         String reason);
 }

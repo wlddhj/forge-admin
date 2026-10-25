@@ -67,6 +67,12 @@ public class FlowLongSchedulerProperties {
     private int reminderIntervalHours = 24;
 
     /**
+     * 手动催办节流窗口（分钟）
+     * 同一任务两次催办之间的最小间隔，窗口内重复催办返回业务错误
+     */
+    private int urgeIntervalMinutes = 30;
+
+    /**
      * 工作时间配置
      * 格式：8:00-18:00，只在工作时间发送提醒
      */

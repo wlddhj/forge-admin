@@ -21,7 +21,8 @@ public enum ApprovalActionTypeEnum {
     CLAIM("claim", "认领"),
     CANCEL("cancel", "取消"),
     SIGN_CREATE("sign_create", "加签"),
-    SIGN_DELETE("sign_delete", "减签");
+    SIGN_DELETE("sign_delete", "减签"),
+    URGE("urge", "催办");
 
     private final String code;
     private final String description;

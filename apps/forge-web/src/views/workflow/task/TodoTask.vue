@@ -3,6 +3,12 @@
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card">
       <el-form :model="queryParams" inline>
+        <el-form-item label="任务范围">
+          <el-radio-group v-model="source" @change="handleSourceChange">
+            <el-radio-button value="todo">我的待办</el-radio-button>
+            <el-radio-button value="claimable">抢办池</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
         <el-form-item label="任务名称">
           <el-input v-model="queryParams.name" placeholder="请输入任务名称" clearable />
         </el-form-item>
@@ -65,10 +71,25 @@
             {{ formatDateTime(row.createTime) }}
           </template>
         </vxe-column>
-        <vxe-column title="操作" width="160" fixed="right">
+        <vxe-column title="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="row.candidate" type="warning" link size="small" @click.stop="handleClaim(row)">认领</el-button>
-            <el-button type="primary" link size="small" @click.stop="handleProcess(row)">处理</el-button>
+            <template v-if="source === 'claimable'">
+              <el-button type="warning" link size="small" @click.stop="handleClaim(row)">认领</el-button>
+            </template>
+            <template v-else>
+              <el-button v-if="row.candidate" type="warning" link size="small" @click.stop="handleClaim(row)">认领</el-button>
+              <el-button
+                v-if="row.claimedFromGroup"
+                v-permission="'workflow:task:claim'"
+                type="info"
+                link
+                size="small"
+                @click.stop="handleUnclaim(row)"
+              >
+                取消签收
+              </el-button>
+              <el-button type="primary" link size="small" @click.stop="handleProcess(row)">处理</el-button>
+            </template>
           </template>
         </vxe-column>
       </vxe-table>
@@ -112,6 +133,8 @@ const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 const loading = ref(false)
 const tableData = ref<TaskInfo[]>([])
 const total = ref(0)
+// 数据源：todo 我的待办 / claimable 抢办池（角色/部门候选组）
+const source = ref<'todo' | 'claimable'>('todo')
 
 const queryParams = reactive<TaskQuery>({
   name: '',
@@ -135,12 +158,18 @@ onMounted(() => {
 const getList = async () => {
   loading.value = true
   try {
-    const res = await taskApi.todo(queryParams)
+    const res = source.value === 'claimable' ? await taskApi.claimable(queryParams) : await taskApi.todo(queryParams)
     tableData.value = res.list
     total.value = res.total
   } finally {
     loading.value = false
   }
+}
+
+// 切换数据源
+const handleSourceChange = () => {
+  queryParams.pageNum = 1
+  getList()
 }
 
 // 搜索
@@ -167,6 +196,17 @@ const handleClaim = async (row: TaskInfo) => {
   try {
     await taskApi.claim(row.id)
     ElMessage.success('认领成功')
+    getList()
+  } catch {
+    // handled by request util
+  }
+}
+
+// 取消签收（还原为候选组）
+const handleUnclaim = async (row: TaskInfo) => {
+  try {
+    await taskApi.unclaim(row.id)
+    ElMessage.success('已取消签收，任务归还候选组')
     getList()
   } catch {
     // handled by request util

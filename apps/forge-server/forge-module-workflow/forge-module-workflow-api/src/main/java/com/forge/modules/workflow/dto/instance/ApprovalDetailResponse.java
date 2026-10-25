@@ -44,6 +44,8 @@ public class ApprovalDetailResponse {
         private Long userId;
         private String userName;
         private Integer status;
+        /** 审批动作（wf_action_type 字典值：approve/reject/...），未产生意见时为空 */
+        private String actionType;
         private String comment;
         private LocalDateTime createTime;
         private LocalDateTime endTime;

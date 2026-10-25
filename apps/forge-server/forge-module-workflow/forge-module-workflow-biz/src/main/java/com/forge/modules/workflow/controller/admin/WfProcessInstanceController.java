@@ -6,10 +6,14 @@ import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.workflow.dto.comment.ApprovalCommentResponse;
 import com.forge.modules.workflow.dto.instance.ApprovalDetailResponse;
+import com.forge.modules.workflow.dto.instance.InstanceCopyRequest;
+import com.forge.modules.workflow.dto.instance.InstanceUrgeRequest;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceQueryRequest;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceResponse;
 import com.forge.modules.workflow.dto.instance.ProcessStartRequest;
+import com.forge.modules.workflow.service.WfProcessInstanceCopyService;
 import com.forge.modules.workflow.service.WfProcessInstanceService;
+import com.forge.modules.workflow.service.WfTaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -36,6 +40,8 @@ import java.util.Map;
 public class WfProcessInstanceController {
 
     private final WfProcessInstanceService wfProcessInstanceService;
+    private final WfProcessInstanceCopyService wfProcessInstanceCopyService;
+    private final WfTaskService wfTaskService;
 
     @Operation(summary = "分页查询流程实例")
     @GetMapping("/list")
@@ -81,6 +87,24 @@ public class WfProcessInstanceController {
     @OperationLog(title = "流程实例管理", businessType = OperationLog.BusinessType.DELETE)
     public Result<Void> cancel(@PathVariable String id) {
         wfProcessInstanceService.cancelProcess(id);
+        return Result.success();
+    }
+
+    @Operation(summary = "手动抄送流程实例（发起人/管理员）")
+    @PostMapping("/{id}/copy")
+    @PreAuthorize("hasAuthority('workflow:instance:query')")
+    @OperationLog(title = "流程实例管理", businessType = OperationLog.BusinessType.INSERT)
+    public Result<Void> copyInstance(@PathVariable String id, @Valid @RequestBody InstanceCopyRequest request) {
+        wfProcessInstanceCopyService.manualCopy(id, request.getCopyUserIds(), request.getReason());
+        return Result.success();
+    }
+
+    @Operation(summary = "催办流程实例（发起人/管理员，催全部活动审批任务）")
+    @PostMapping("/{id}/urge")
+    @PreAuthorize("hasAuthority('workflow:instance:urge')")
+    @OperationLog(title = "流程实例管理", businessType = OperationLog.BusinessType.OTHER)
+    public Result<Void> urgeInstance(@PathVariable String id, @RequestBody(required = false) InstanceUrgeRequest request) {
+        wfTaskService.urgeInstance(id, request == null ? null : request.getComment());
         return Result.success();
     }
 

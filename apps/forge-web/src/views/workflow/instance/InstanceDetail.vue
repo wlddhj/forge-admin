@@ -15,9 +15,29 @@
           <template #header>
             <div class="card-header">
               <span>实例信息</span>
-              <el-button type="primary" size="small" @click="diagramDialogVisible = true">
-                查看流程图
-              </el-button>
+              <div>
+                <el-button
+                  v-if="!instance?.endTime"
+                  v-permission="'workflow:instance:urge'"
+                  type="warning"
+                  size="small"
+                  :loading="urging"
+                  @click="handleUrge"
+                >
+                  催办
+                </el-button>
+                <el-button
+                  v-if="!instance?.endTime"
+                  v-permission="'workflow:instance:query'"
+                  size="small"
+                  @click="copyDialogVisible = true"
+                >
+                  抄送
+                </el-button>
+                <el-button type="primary" size="small" @click="diagramDialogVisible = true">
+                  查看流程图
+                </el-button>
+              </div>
             </div>
           </template>
           <el-descriptions :column="isMobile ? 1 : 2" size="small" border>
@@ -69,6 +89,12 @@
           />
         </el-card>
 
+        <!-- 审批进度时间线 -->
+        <el-card v-if="approvalNodes.length" shadow="never" class="timeline-card">
+          <template #header>审批进度</template>
+          <ApprovalTimeline :nodes="approvalNodes" />
+        </el-card>
+
         <!-- 审批记录 -->
         <el-card shadow="never" class="timeline-card">
           <template #header>审批记录</template>
@@ -113,13 +139,19 @@
       v-model="diagramDialogVisible"
       :process-instance-id="instanceId"
     />
+
+    <!-- 手动抄送弹窗 -->
+    <InstanceCopyDialog
+      v-model="copyDialogVisible"
+      :instance-id="instanceId"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Paperclip } from '@element-plus/icons-vue'
 import { processInstanceApi } from '@/api/workflow/process-instance'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
@@ -128,6 +160,8 @@ import type { ProcessInstance, ApprovalNode, ApprovalComment } from '@/types/wor
 import { formatDateTime } from '@/utils/dateFormat'
 import { decodeFieldsDisabled } from '@/utils/formCreate'
 import FlowDiagramDialog from '@/views/workflow/process/components/FlowDiagramDialog.vue'
+import ApprovalTimeline from './components/ApprovalTimeline.vue'
+import InstanceCopyDialog from './components/InstanceCopyDialog.vue'
 import { useResponsive } from '@/composables/useResponsive'
 import { DICT_TYPE } from '@/constants/dict'
 
@@ -140,6 +174,32 @@ const instance = ref<ProcessInstance | null>(null)
 const approvalNodes = ref<ApprovalNode[]>([])
 const comments = ref<ApprovalComment[]>([])
 const diagramDialogVisible = ref(false)
+const copyDialogVisible = ref(false)
+const urging = ref(false)
+
+// 催办当前全部活动审批任务
+const handleUrge = async () => {
+  let comment = ''
+  try {
+    const { value } = await ElMessageBox.prompt('将通知当前所有审批任务的处理人', '催办', {
+      confirmButtonText: '催办',
+      cancelButtonText: '取消',
+      inputPlaceholder: '催办留言（选填）',
+      inputType: 'textarea',
+      inputValue: ''
+    })
+    comment = value || ''
+  } catch {
+    return
+  }
+  urging.value = true
+  try {
+    await processInstanceApi.urge(instanceId, comment ? { comment } : undefined)
+    ElMessage.success('催办成功，已通知当前审批人')
+  } finally {
+    urging.value = false
+  }
+}
 
 const instanceId = route.query.id as string
 
