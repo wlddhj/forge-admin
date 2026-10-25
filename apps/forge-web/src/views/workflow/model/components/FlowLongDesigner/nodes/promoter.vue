@@ -10,7 +10,7 @@
       </div>
     </div>
     <add-node :model-value="nodeConfig.childNode ?? null" @update:model-value="nodeConfig.childNode = $event"></add-node>
-    <el-drawer v-model="drawer" title="发起人" destroy-on-close append-to-body :size="500">
+    <el-drawer v-model="drawer" class="wf-node-drawer" title="发起人" destroy-on-close append-to-body :size="500">
       <template #header>
         <div class="node-wrap-drawer__title">
           <label v-if="!isEditTitle" @click="editTitle">

@@ -15,7 +15,7 @@
         <span>{{ nodeConfig.type == 30 ? '流程到此自动通过' : '流程到此自动拒绝' }}</span>
       </div>
     </div>
-    <el-drawer v-model="drawer" :title="nodeConfig.type == 30 ? '自动通过设置' : '自动拒绝设置'" destroy-on-close append-to-body :size="420">
+    <el-drawer v-model="drawer" class="wf-node-drawer" :title="nodeConfig.type == 30 ? '自动通过设置' : '自动拒绝设置'" destroy-on-close append-to-body :size="420">
       <template #header>
         <div class="node-wrap-drawer__title">
           <label v-if="!isEditTitle" @click="editTitle">

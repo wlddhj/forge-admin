@@ -83,6 +83,23 @@ defineExpose({
 </script>
 
 <style lang="scss">
+/* 节点配置抽屉：底部保存/取消按钮固定，表单内容区独立滚动
+ * el-drawer__body 默认整段滚动，el-footer 会随内容滚出视口；
+ * 改为 body 定高 flex 列布局，container 撑满（min-height:0 允许收缩），
+ * el-main 内部滚动，el-footer 自然钉在抽屉底部 */
+.wf-node-drawer.el-drawer {
+  .el-drawer__body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .el-drawer__body > .el-container {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
 .sc-workflow-design {
   width: 100%;
 }
