@@ -34,6 +34,16 @@
                 >
                   抄送
                 </el-button>
+                <el-button
+                  v-if="instance?.deleteReason"
+                  v-permission="'workflow:instance:resume'"
+                  type="success"
+                  size="small"
+                  :loading="resuming"
+                  @click="handleResume"
+                >
+                  唤醒
+                </el-button>
                 <el-button type="primary" size="small" @click="diagramDialogVisible = true">
                   查看流程图
                 </el-button>
@@ -176,6 +186,22 @@ const comments = ref<ApprovalComment[]>([])
 const diagramDialogVisible = ref(false)
 const copyDialogVisible = ref(false)
 const urging = ref(false)
+
+// 唤醒已结束实例（被驳回/终止/撤销/超时结束的可唤醒）
+const resuming = ref(false)
+const handleResume = async () => {
+  try {
+    await ElMessageBox.confirm('确定唤醒该流程？流程将恢复到上次中断的节点继续办理', '提示', { type: 'warning' })
+    resuming.value = true
+    await processInstanceApi.resume(instanceId)
+    ElMessage.success('唤醒成功')
+    getInstanceDetail()
+  } catch {
+    // 用户取消或后端错误
+  } finally {
+    resuming.value = false
+  }
+}
 
 // 催办当前全部活动审批任务
 const handleUrge = async () => {

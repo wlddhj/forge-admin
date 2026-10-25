@@ -17,6 +17,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
+import com.forge.common.utils.UserContext;
 import com.forge.modules.system.entity.SysAttachment;
 import com.forge.modules.system.service.SysAttachmentService;
 import com.forge.modules.workflow.dto.comment.ApprovalCommentResponse;
@@ -132,6 +133,9 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             throw new BusinessException(404, "流程定义不存在");
         }
 
+        // 发起范围校验（0 全员 / 1 指定人员 / 2 均不可发起；工作流管理员豁免）
+        checkStartScope(process, processId, currentUserId);
+
         // 处理发起人自选审批人
         Map<String, String[]> startUserSelectActors = request.getStartUserSelectActors();
         Set<String> dynamicAssigneeNodeKeys = new HashSet<>();
@@ -218,6 +222,8 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         List<NodeModel> allNodes = getAllChildNodes(rootNode);
 
         Set<String> nodeKeys = new HashSet<>();
+        // 路由/驳回策略的跳转目标（nodeKey, 目标key），循环后统一校验存在性
+        List<String[]> jumpTargets = new ArrayList<>();
         for (NodeModel node : allNodes) {
             // 检查节点KEY重复
             if (!nodeKeys.add(node.getNodeKey())) {
@@ -324,6 +330,106 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
                     throw new BusinessException(400, "触发器任务节点「" + node.getNodeName() + "」未配置 childNode（执行后无下游节点）");
                 }
             }
+
+            // ===== 迭代二新增节点校验 =====
+
+            // 并行分支：至少 2 个分支
+            if (node.parallelNode()) {
+                List<com.aizuda.bpm.engine.model.ConditionNode> parallelNodes = node.getParallelNodes();
+                if (parallelNodes == null || parallelNodes.size() < 2) {
+                    throw new BusinessException(400, "并行分支「" + node.getNodeName() + "」至少需要 2 个分支");
+                }
+            }
+
+            // 包容分支：至少 1 条无条件兜底分支（引擎 defaultConditionNode 取第一个空条件分支，缺失时全不满足会异常）
+            if (node.inclusiveNode()) {
+                List<com.aizuda.bpm.engine.model.ConditionNode> inclusiveNodes = node.getInclusiveNodes();
+                if (inclusiveNodes == null || inclusiveNodes.isEmpty()) {
+                    throw new BusinessException(400, "包容分支「" + node.getNodeName() + "」未配置分支");
+                }
+                boolean hasDefault = inclusiveNodes.stream()
+                        .anyMatch(cn -> cn.getConditionList() == null || cn.getConditionList().isEmpty());
+                if (!hasDefault) {
+                    throw new BusinessException(400, "包容分支「" + node.getNodeName() + "」缺少无条件兜底分支（请保留一条不设条件的分支）");
+                }
+            }
+
+            // 路由分支：nodeKey 必须为 route:目标 格式；容器有后续节点时各分支必须设条件（引擎约束）
+            if (node.routeNode()) {
+                for (com.aizuda.bpm.engine.model.ConditionNode rn : node.getRouteNodes()) {
+                    if (rn.getNodeKey() == null || !rn.getNodeKey().startsWith("route:")) {
+                        throw new BusinessException(400, "路由分支「" + rn.getNodeName() + "」未设置跳转目标节点");
+                    }
+                    if (node.getChildNode() != null
+                            && (rn.getConditionList() == null || rn.getConditionList().isEmpty())) {
+                        throw new BusinessException(400, "路由分支「" + rn.getNodeName()
+                                + "」未设置条件（路由节点存在后续节点时各路由分支必须设置条件）");
+                    }
+                    jumpTargets.add(new String[]{node.getNodeName(), rn.getNodeKey().substring("route:".length())});
+                }
+            }
+
+            // 子流程：callProcess 格式 "id:name" 且目标流程存在
+            if (node.callProcessNode()) {
+                String callProcess = node.getCallProcess();
+                String processIdPart = callProcess.contains(":") ? callProcess.substring(0, callProcess.indexOf(':')) : callProcess;
+                FlwProcess called;
+                try {
+                    called = processService.getProcessById(Long.parseLong(processIdPart));
+                } catch (NumberFormatException e) {
+                    called = null;
+                }
+                if (called == null) {
+                    throw new BusinessException(400, "子流程节点「" + node.getNodeName() + "」选择的子流程不存在（可能已删除或停用）");
+                }
+            }
+
+            // 定时器：extendConfig.time 格式（数值:单位 或 HH:mm:ss）
+            if (TaskType.timer.eq(node.getType())) {
+                Map<String, Object> extendConfig = node.getExtendConfig();
+                Object time = extendConfig == null ? null : extendConfig.get("time");
+                if (time == null || !(time.toString().matches("\\d+:[dhm]") || time.toString().matches("\\d{2}:\\d{2}:\\d{2}"))) {
+                    throw new BusinessException(400, "定时器节点「" + node.getNodeName() + "」等待时间配置非法（应为 数值:d/h/m 或 HH:mm:ss）");
+                }
+            }
+
+            // 票签：权重配置完整性（指定成员时若有任一人配置权重则全部需配置且合计>0）
+            if ((TaskType.approval.eq(node.getType()) || TaskType.conditionNode.eq(node.getType()))
+                    && Objects.equals(4, node.getExamineMode())
+                    && NodeSetType.specifyMembers.eq(node.getSetType())
+                    && node.getNodeAssigneeList() != null && !node.getNodeAssigneeList().isEmpty()) {
+                boolean anyWeight = node.getNodeAssigneeList().stream().anyMatch(a -> a.getWeight() != null);
+                if (anyWeight) {
+                    boolean allWeight = node.getNodeAssigneeList().stream().allMatch(a -> a.getWeight() != null && a.getWeight() > 0);
+                    int total = node.getNodeAssigneeList().stream().mapToInt(a -> a.getWeight() == null ? 0 : a.getWeight()).sum();
+                    if (!allWeight || total <= 0) {
+                        throw new BusinessException(400, "票签节点「" + node.getNodeName() + "」权重需全部配置且合计大于 0");
+                    }
+                }
+            }
+
+            // 驳回策略：取值合法；策略 3 需配置目标节点
+            if (node.getRejectStrategy() != null) {
+                Integer strategy = node.getRejectStrategy();
+                if (strategy < 1 || strategy > 3) {
+                    throw new BusinessException(400, "审批节点「" + node.getNodeName() + "」驳回策略取值非法：" + strategy);
+                }
+                if (strategy == 3) {
+                    Map<String, Object> extendConfig = node.getExtendConfig();
+                    Object target = extendConfig == null ? null : extendConfig.get("rejectTargetKey");
+                    if (target == null || target.toString().isEmpty()) {
+                        throw new BusinessException(400, "审批节点「" + node.getNodeName() + "」驳回策略为指定节点时未选择目标节点");
+                    }
+                    jumpTargets.add(new String[]{node.getNodeName(), target.toString()});
+                }
+            }
+        }
+
+        // 跳转目标存在性统一校验（路由目标 / 驳回指定节点）
+        for (String[] jump : jumpTargets) {
+            if (!nodeKeys.contains(jump[1])) {
+                throw new BusinessException(400, "节点「" + jump[0] + "」的跳转目标节点不存在：" + jump[1]);
+            }
         }
     }
 
@@ -375,6 +481,16 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             }
             collectNodes(node.getChildNode(), nodes);
         }
+        // 处理路由分支（路由分支子链不执行，但参与节点收集以便 KEY 查重与目标校验）
+        else if (node.routeNode()) {
+            List<com.aizuda.bpm.engine.model.ConditionNode> routeNodes = node.getRouteNodes();
+            if (routeNodes != null) {
+                for (com.aizuda.bpm.engine.model.ConditionNode rn : routeNodes) {
+                    collectNodes(rn.getChildNode(), nodes);
+                }
+            }
+            collectNodes(node.getChildNode(), nodes);
+        }
         // 普通节点
         else {
             collectNodes(node.getChildNode(), nodes);
@@ -421,6 +537,90 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         runtimeService.terminate(id, flowCreator);
 
         log.info("流程实例已取消：instanceId={}, operator={}", id, currentUserId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void resumeInstance(String processInstanceId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new BusinessException(401, "未获取到当前用户信息");
+        }
+        Long id = parseInstanceId(processInstanceId);
+
+        if (queryService.getInstance(id) != null) {
+            throw new BusinessException(400, "流程运行中，无需唤醒");
+        }
+        FlwHisInstance hisInstance = queryService.getHistInstance(id);
+        if (hisInstance == null) {
+            throw new BusinessException(404, "流程实例不存在");
+        }
+
+        // 仅可唤醒被驳回/撤销/超时/终止/自动拒绝结束的实例（通过结束的流程唤醒无意义）
+        Integer state = hisInstance.getInstanceState();
+        boolean resumable = InstanceState.reject.eq(state) || InstanceState.revoke.eq(state)
+                || InstanceState.timeout.eq(state) || InstanceState.terminate.eq(state)
+                || InstanceState.autoReject.eq(state);
+        if (!resumable) {
+            throw new BusinessException(400, "当前实例状态不可唤醒");
+        }
+
+        // 仅发起人或工作流管理员可唤醒
+        if (!String.valueOf(currentUserId).equals(hisInstance.getCreateId()) && !hasWorkflowAdminRole()) {
+            throw new BusinessException(403, "只有流程发起人或工作流管理员才能唤醒");
+        }
+
+        FlowCreator flowCreator = createFlowCreator(currentUserId);
+        flowLongEngine.executeResumeTask(id, flowCreator, null);
+
+        saveApprovalComment(id, null, "resume", "唤醒", currentUserId,
+                identityService.getUserName(currentUserId),
+                ApprovalActionTypeEnum.RESUME.getCode(), "唤醒流程实例，从上次中断节点继续");
+        log.info("流程实例已唤醒：instanceId={}, operator={}", id, currentUserId);
+    }
+
+    private boolean hasWorkflowAdminRole() {
+        UserContext context = UserContext.get();
+        if (context == null) {
+            return false;
+        }
+        if (context.isAdmin()) {
+            return true;
+        }
+        if (context.getRoles() == null) {
+            return false;
+        }
+        return context.getRoles().stream()
+                .map(role -> role.getRoleCode() == null ? "" : role.getRoleCode().toLowerCase())
+                .anyMatch(code -> "admin".equals(code) || "workflow_admin".equals(code));
+    }
+
+    /**
+     * 发起范围校验（0 全员 / 1 指定人员 / 2 均不可发起；工作流管理员豁免）
+     */
+    void checkStartScope(FlwProcess process, Long processId, Long currentUserId) {
+        if (process.getUseScope() == null || process.getUseScope() <= 0 || hasWorkflowAdminRole()) {
+            return;
+        }
+        if (process.getUseScope() == 2) {
+            throw new BusinessException(403, "该流程已设置为不可发起，请联系管理员");
+        }
+        WfProcessExt processExt = getProcessExtByProcessId(processId);
+        boolean allowed = false;
+        if (processExt != null && StrUtil.isNotBlank(processExt.getUseScopeUsers())) {
+            try {
+                // TypeReference 统一反序列化为 Long——裸 List.class 会得到 Integer，
+                // 与 currentUserId(Long) 的 contains 比较恒为 false 导致名单内用户也被拒
+                List<Long> scopeUsers = objectMapper.readValue(processExt.getUseScopeUsers(),
+                        new com.fasterxml.jackson.core.type.TypeReference<List<Long>>() {});
+                allowed = scopeUsers != null && scopeUsers.contains(currentUserId);
+            } catch (Exception e) {
+                log.warn("解析发起范围名单失败，按无权限处理: processId={}", processId, e);
+            }
+        }
+        if (!allowed) {
+            throw new BusinessException(403, "您没有该流程的发起权限");
+        }
     }
 
     @Override
@@ -866,15 +1066,20 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
     }
 
     /**
-     * 保存审批意见
+     * 保存审批意见（实例级动作 taskId 传 null 时回退挂到发起任务，task_id 列非空）
      */
     private void saveApprovalComment(Long processInstanceId, Long taskId,
                                       String taskDefKey, String taskName,
                                       Long userId, String userName,
                                       String actionType, String commentText) {
+        Long effectiveTaskId = taskId;
+        if (effectiveTaskId == null) {
+            FlwHisTask startTask = queryService.getStartTaskByInstanceId(processInstanceId);
+            effectiveTaskId = startTask != null ? startTask.getId() : 0L;
+        }
         WfApprovalComment comment = new WfApprovalComment();
         comment.setProcessInstanceId(processInstanceId);
-        comment.setTaskId(taskId);
+        comment.setTaskId(effectiveTaskId);
         comment.setTaskDefKey(taskDefKey);
         comment.setTaskName(taskName);
         comment.setUserId(userId);

@@ -57,6 +57,13 @@ public interface WfProcessInstanceService {
     void cancelProcess(String processInstanceId);
 
     /**
+     * 唤醒流程实例（发起人将被驳回/终止/撤销/超时结束的实例恢复到可办理状态）
+     *
+     * @param processInstanceId 流程实例ID
+     */
+    void resumeInstance(String processInstanceId);
+
+    /**
      * 获取流程实例的高亮流程图
      *
      * @param processInstanceId 流程实例ID

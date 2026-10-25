@@ -159,6 +159,8 @@ public class WfModelServiceImpl implements WfModelService {
         ext.setFormId(request.getFormId());
         ext.setAutoCopyStrategy(request.getAutoCopyStrategy());
         ext.setAutoCopyParam(request.getAutoCopyParam());
+        ext.setUseScope(request.getUseScope() == null ? 0 : request.getUseScope());
+        ext.setUseScopeUsers(request.getUseScopeUsers());
         ext.setMetaInfo(metaInfoNode.toString());
         ext.setCreateBy(currentUserId);
         ext.setCreateByName(userName);
@@ -205,6 +207,10 @@ public class WfModelServiceImpl implements WfModelService {
             if (request.getAutoCopyParam() != null) {
                 ext.setAutoCopyParam(request.getAutoCopyParam());
             }
+            if (request.getUseScope() != null) {
+                ext.setUseScope(request.getUseScope());
+            }
+            ext.setUseScopeUsers(request.getUseScopeUsers());
             ext.setUpdateTime(LocalDateTime.now());
             processExtMapper.updateById(ext);
             log.info("更新已部署模型扩展信息：id={}, name={}, formId={}", ext.getId(), ext.getProcessName(), ext.getFormId());
@@ -220,6 +226,8 @@ public class WfModelServiceImpl implements WfModelService {
         ext.setFormId(request.getFormId());
         ext.setAutoCopyStrategy(request.getAutoCopyStrategy());
         ext.setAutoCopyParam(request.getAutoCopyParam());
+        ext.setUseScope(request.getUseScope() == null ? 0 : request.getUseScope());
+        ext.setUseScopeUsers(request.getUseScopeUsers());
         ext.setUpdateTime(LocalDateTime.now());
 
         // 构建 metaInfo
@@ -282,6 +290,7 @@ public class WfModelServiceImpl implements WfModelService {
             process.setProcessName(ext.getProcessName());
             process.setProcessType(ext.getFormType() != null ? String.valueOf(ext.getFormType()) : null);
             process.setRemark(ext.getDescription());
+            process.setUseScope(ext.getUseScope() == null ? 0 : ext.getUseScope());
         });
 
         // 获取部署后的流程定义
@@ -356,6 +365,8 @@ public class WfModelServiceImpl implements WfModelService {
         response.setFormId(ext.getFormId());
         response.setAutoCopyStrategy(ext.getAutoCopyStrategy());
         response.setAutoCopyParam(ext.getAutoCopyParam());
+        response.setUseScope(ext.getUseScope());
+        response.setUseScopeUsers(ext.getUseScopeUsers());
         response.setCreateTime(ext.getCreateTime());
         response.setLastUpdateTime(ext.getUpdateTime());
 

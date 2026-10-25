@@ -18,6 +18,10 @@ export interface WfModel {
   formId: number | null
   autoCopyStrategy: number | null
   autoCopyParam: string | null
+  /** 发起范围 0全员 1指定人员 2均不可发起 */
+  useScope: number | null
+  /** 发起范围人员名单JSON（用户ID数组） */
+  useScopeUsers: string | null
   /** @deprecated 使用 modelJson */
   bpmnXml: string | null
   /** FlowLong 流程模型 JSON */
@@ -42,6 +46,8 @@ export interface ModelRequest {
   formId?: number
   autoCopyStrategy?: number
   autoCopyParam?: string
+  useScope?: number
+  useScopeUsers?: string
   metaInfo?: string
   /** @deprecated 使用 modelJson */
   bpmnXml?: string

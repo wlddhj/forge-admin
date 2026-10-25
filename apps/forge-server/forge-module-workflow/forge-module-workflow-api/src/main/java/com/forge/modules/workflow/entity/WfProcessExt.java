@@ -65,6 +65,17 @@ public class WfProcessExt {
      */
     private String autoCopyParam;
 
+
+    /**
+     * 发起范围 0全员 1指定人员 2均不可发起
+     */
+    private Integer useScope;
+
+    /**
+     * 发起范围人员名单JSON（用户ID数组），use_scope=1 时生效
+     */
+    private String useScopeUsers;
+
     /**
      * FlowLong 流程模型 JSON 内容
      */

@@ -1,0 +1,385 @@
+<!--
+  包容分支容器（FlowLong TaskType.inclusiveBranch = 9）
+
+  满足条件的分支全部执行（可与条件分支区分：条件分支只走第一条满足的）。
+  建议保留一条无条件分支作为兜底（全不满足时引擎走第一个空条件分支）。
+-->
+<template>
+  <div class="branch-wrap">
+    <div class="branch-box-wrap">
+      <div class="branch-box">
+        <el-button class="add-branch" type="success" plain round @click="addTerm">添加分支</el-button>
+        <div v-for="(item, idx) in nodeConfig.inclusiveNodes" :key="idx" class="col-box">
+          <div class="condition-node">
+            <div class="condition-node-box">
+              <div class="auto-judge" @click="show(idx)">
+                <div v-if="idx != 0" class="sort-left" @click.stop="arrTransfer(idx, -1)">
+                  <el-icon><ArrowLeft /></el-icon>
+                </div>
+                <div class="title">
+                  <span class="node-title">{{ item.nodeName }}</span>
+                  <el-icon class="close" @click.stop="delTerm(idx)"><Close /></el-icon>
+                </div>
+                <div class="content">
+                  <span v-if="toText(nodeConfig, idx)">{{ toText(nodeConfig, idx) }}</span>
+                  <span v-else class="placeholder">请设置条件（留空为兜底分支）</span>
+                </div>
+                <div
+                  v-if="idx != nodeConfig.inclusiveNodes!.length - 1"
+                  class="sort-right"
+                  @click.stop="arrTransfer(idx)"
+                >
+                  <el-icon><ArrowRight /></el-icon>
+                </div>
+              </div>
+              <add-node :model-value="item.childNode ?? null" @update:model-value="item.childNode = $event"></add-node>
+            </div>
+          </div>
+          <slot v-if="item.childNode" :node="item"></slot>
+          <div v-if="idx == 0" class="top-left-cover-line"></div>
+          <div v-if="idx == 0" class="bottom-left-cover-line"></div>
+          <div v-if="idx == nodeConfig.inclusiveNodes!.length - 1" class="top-right-cover-line"></div>
+          <div v-if="idx == nodeConfig.inclusiveNodes!.length - 1" class="bottom-right-cover-line"></div>
+        </div>
+      </div>
+      <add-node :model-value="nodeConfig.childNode ?? null" @update:model-value="nodeConfig.childNode = $event"></add-node>
+    </div>
+    <el-drawer v-model="drawer" title="分支设置" destroy-on-close append-to-body :size="600">
+      <template #header>
+        <div class="node-wrap-drawer__title">
+          <label v-if="!isEditTitle" @click="editTitle">
+            {{ form.nodeName }}
+            <el-icon class="node-wrap-drawer__title-edit"><Edit /></el-icon>
+          </label>
+          <el-input
+            v-if="isEditTitle"
+            ref="nodeTitleRef"
+            v-model="form.nodeName"
+            clearable
+            @blur="saveTitle"
+            @keyup.enter="saveTitle"
+          ></el-input>
+        </div>
+      </template>
+      <el-container>
+        <el-main style="padding: 0 20px 20px 20px">
+          <div class="top-tips">满足以下条件时进入当前分支（多个分支同时满足时同时进入）</div>
+          <template v-for="(conditionGroup, conditionGroupIdx) in form.conditionList" :key="conditionGroupIdx">
+            <div v-if="conditionGroupIdx != 0" class="or-branch-link-tip">或满足</div>
+            <div class="condition-group-editor">
+              <div class="header">
+                <span>条件组 {{ conditionGroupIdx + 1 }}</span>
+                <el-icon class="branch-delete-icon" @click="deleteConditionGroup(conditionGroupIdx)"><Delete /></el-icon>
+              </div>
+
+              <div class="main-content">
+                <div class="condition-content-box cell-box">
+                  <div>描述</div>
+                  <div>条件字段</div>
+                  <div>运算符</div>
+                  <div>值</div>
+                </div>
+                <div v-for="(condition, idx) in conditionGroup" :key="idx" class="condition-content">
+                  <div class="condition-relation">
+                    <span>{{ idx == 0 ? '当' : '且' }}</span>
+                    <el-icon class="branch-delete-icon" @click="deleteConditionList(conditionGroup, idx)"><Delete /></el-icon>
+                  </div>
+                  <div class="condition-content">
+                    <div class="condition-content-box">
+                      <el-input v-model="condition.label" placeholder="描述" />
+                      <el-input v-model="condition.field" placeholder="条件字段" />
+                      <el-select v-model="condition.operator" placeholder="运算符">
+                        <el-option label="等于" value="=="></el-option>
+                        <el-option label="不等于" value="!="></el-option>
+                        <el-option label="大于" value=">"></el-option>
+                        <el-option label="大于等于" value=">="></el-option>
+                        <el-option label="小于" value="<"></el-option>
+                        <el-option label="小于等于" value="<="></el-option>
+                        <el-option label="包含" value="include"></el-option>
+                        <el-option label="不包含" value="notinclude"></el-option>
+                      </el-select>
+                      <el-input v-model="condition.value" placeholder="值" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="sub-content">
+                <el-button link type="primary" icon="Plus" @click="addConditionList(conditionGroup)">添加条件</el-button>
+              </div>
+            </div>
+          </template>
+          <el-button style="width: 100%" type="info" icon="Plus" text bg @click="addConditionGroup">
+            添加条件组
+          </el-button>
+          <el-alert
+            style="margin-top: 12px"
+            title="条件留空的分支为兜底分支：所有条件分支都不满足时进入。建议保留且仅保留一条兜底分支。"
+            type="info"
+            :closable="false"
+          />
+        </el-main>
+        <el-footer>
+          <el-button type="primary" @click="save">保存</el-button>
+          <el-button @click="drawer = false">取消</el-button>
+        </el-footer>
+      </el-container>
+    </el-drawer>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, watch, nextTick } from 'vue'
+import { ArrowLeft, ArrowRight, Close, Edit, Delete } from '@element-plus/icons-vue'
+import addNode from './addNode.vue'
+import type { FlowlongNodeModel, FlowlongConditionNode, FlowlongCondition } from '@/composables/useFlowLongDataTransform'
+
+const props = defineProps<{
+  modelValue: FlowlongNodeModel
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: FlowlongNodeModel | null): void
+}>()
+
+const nodeConfig = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
+const drawer = ref(false)
+const isEditTitle = ref(false)
+const nodeTitleRef = ref<HTMLInputElement | null>(null)
+const index = ref(0)
+const form = ref<FlowlongConditionNode>({} as FlowlongConditionNode)
+
+watch(
+  () => props.modelValue,
+  (val) => {
+    if (val) {
+      nodeConfig.value = val
+    }
+  },
+  { immediate: true }
+)
+
+const show = (idx: number) => {
+  index.value = idx
+  form.value = JSON.parse(JSON.stringify(nodeConfig.value.inclusiveNodes![idx]))
+  if (!form.value.conditionList) {
+    form.value.conditionList = []
+  }
+  drawer.value = true
+}
+
+const editTitle = () => {
+  isEditTitle.value = true
+  nextTick(() => {
+    nodeTitleRef.value?.focus()
+  })
+}
+
+const saveTitle = () => {
+  isEditTitle.value = false
+}
+
+const save = () => {
+  nodeConfig.value.inclusiveNodes![index.value] = form.value
+  emit('update:modelValue', nodeConfig.value)
+  drawer.value = false
+}
+
+const getNodeKey = () => {
+  return 'flk' + Date.now() + Math.random().toString(36).slice(2, 6)
+}
+
+const addTerm = () => {
+  const len = nodeConfig.value.inclusiveNodes!.length + 1
+  nodeConfig.value.inclusiveNodes!.push({
+    nodeName: '分支' + len,
+    nodeKey: getNodeKey(),
+    type: 3,
+    priorityLevel: len,
+    conditionMode: 1,
+    conditionList: [],
+    childNode: undefined
+  })
+  emit('update:modelValue', nodeConfig.value)
+}
+
+const delTerm = (idx: number) => {
+  nodeConfig.value.inclusiveNodes!.splice(idx, 1)
+  if (nodeConfig.value.inclusiveNodes!.length == 1) {
+    if (nodeConfig.value.childNode) {
+      if (nodeConfig.value.inclusiveNodes![0].childNode) {
+        reData(nodeConfig.value.inclusiveNodes![0].childNode!, nodeConfig.value.childNode)
+      } else {
+        nodeConfig.value.inclusiveNodes![0].childNode = nodeConfig.value.childNode
+      }
+    }
+    emit('update:modelValue', nodeConfig.value.inclusiveNodes![0].childNode || null)
+  } else {
+    emit('update:modelValue', nodeConfig.value)
+  }
+}
+
+const reData = (data: FlowlongConditionNode | FlowlongNodeModel, addData: FlowlongNodeModel | undefined) => {
+  if (!data.childNode) {
+    data.childNode = addData
+  } else {
+    reData(data.childNode!, addData)
+  }
+}
+
+const arrTransfer = (idx: number, type: number = 1) => {
+  nodeConfig.value.inclusiveNodes![idx] = nodeConfig.value.inclusiveNodes!.splice(
+    idx + type,
+    1,
+    nodeConfig.value.inclusiveNodes![idx]
+  )[0]
+  nodeConfig.value.inclusiveNodes!.map((item, i) => {
+    item.priorityLevel = i + 1
+  })
+  emit('update:modelValue', nodeConfig.value)
+}
+
+const addConditionList = (conditionList: FlowlongCondition[]) => {
+  conditionList.push({
+    label: '',
+    field: '',
+    operator: '=',
+    value: ''
+  })
+}
+
+const deleteConditionList = (conditionList: FlowlongCondition[], idx: number) => {
+  conditionList.splice(idx, 1)
+}
+
+const addConditionGroup = () => {
+  form.value.conditionList!.push([])
+  addConditionList(form.value.conditionList![form.value.conditionList!.length - 1])
+}
+
+const deleteConditionGroup = (idx: number) => {
+  form.value.conditionList!.splice(idx, 1)
+}
+
+const toText = (nodeConfig: FlowlongNodeModel, idx: number): string | false => {
+  const { conditionList } = nodeConfig.inclusiveNodes![idx]
+  if (conditionList && conditionList.length == 1) {
+    const text = conditionList
+      .map((conditionGroup) => conditionGroup.map((item) => `${item.label}${item.operator}${item.value}`).join(' 和 '))
+      .join(' 或 ')
+    return text
+  } else if (conditionList && conditionList.length > 1) {
+    return conditionList.length + '个条件，或满足'
+  } else {
+    return '兜底分支（无条件时进入）'
+  }
+}
+</script>
+
+<style scoped lang="scss">
+.top-tips {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  color: #646a73;
+}
+
+.or-branch-link-tip {
+  margin: 10px 0;
+  color: #646a73;
+}
+
+.condition-group-editor {
+  user-select: none;
+  border-radius: 4px;
+  border: 1px solid #e4e5e7;
+  position: relative;
+  margin-bottom: 16px;
+
+  .branch-delete-icon {
+    font-size: 18px;
+    cursor: pointer;
+    color: #909399;
+    &:hover {
+      color: #f56c6c;
+    }
+  }
+
+  .header {
+    background-color: #f4f6f8;
+    padding: 0 12px;
+    font-size: 14px;
+    color: #171e31;
+    height: 36px;
+    display: flex;
+    align-items: center;
+
+    span {
+      flex: 1;
+    }
+  }
+
+  .main-content {
+    padding: 0 12px;
+
+    .condition-relation {
+      color: #9ca2a9;
+      display: flex;
+      align-items: center;
+      height: 36px;
+      justify-content: space-between;
+      padding: 0 2px;
+    }
+
+    .condition-content-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      div {
+        width: 100%;
+        min-width: 120px;
+      }
+
+      div:not(:first-child) {
+        margin-left: 16px;
+      }
+    }
+
+    .cell-box {
+      div {
+        padding: 16px 0;
+        width: 100%;
+        min-width: 120px;
+        color: #909399;
+        font-size: 14px;
+        font-weight: 600;
+        text-align: center;
+      }
+    }
+
+    .condition-content {
+      display: flex;
+      flex-direction: column;
+
+      :deep(.el-input__wrapper) {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+      }
+
+      .content {
+        flex: 1;
+        padding: 0 0 4px 0;
+        display: flex;
+        align-items: center;
+        min-height: 31.6px;
+        flex-wrap: wrap;
+      }
+    }
+  }
+
+  .sub-content {
+    padding: 12px;
+  }
+}
+</style>

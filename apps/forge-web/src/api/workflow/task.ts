@@ -58,6 +58,8 @@ export const taskApi = {
     request.post(`/workflow/task/${id}/copy`, data),
   withdraw: (id: string) =>
     request.post(`/workflow/task/${id}/withdraw`),
+  reclaim: (id: string) =>
+    request.post(`/workflow/task/${id}/reclaim`),
   getChildTasks: (id: string) =>
     request.get(`/workflow/task/${id}/child-tasks`).then(res => res.data)
 }

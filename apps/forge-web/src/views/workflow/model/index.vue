@@ -198,6 +198,26 @@
             />
           </el-select>
         </el-form-item>
+        <el-divider content-position="left">发起范围</el-divider>
+        <el-form-item label="可发起人员">
+          <el-radio-group v-model="formData.useScope">
+            <el-radio :value="0">全员可发起</el-radio>
+            <el-radio :value="1">指定人员</el-radio>
+            <el-radio :value="2">均不可发起</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="formData.useScope === 1" label="指定发起人员">
+          <el-select
+            v-model="useScopeUserIds"
+            multiple
+            filterable
+            clearable
+            placeholder="请选择可发起该流程的用户"
+            style="width: 100%"
+          >
+            <el-option v-for="item in userList" :key="item.id" :label="item.nickname" :value="item.id" />
+          </el-select>
+        </el-form-item>
         <el-divider content-position="left">自动抄送</el-divider>
         <el-form-item label="抄送策略">
           <el-select v-model="formData.autoCopyStrategy" placeholder="不自动抄送" clearable style="width: 100%">
@@ -328,6 +348,9 @@ const formRef = ref<FormInstance>()
 const isEditDialog = ref(false)
 const dialogTitle = computed(() => isEditDialog.value ? '编辑模型' : '新增模型')
 
+// 发起范围指定人员（多选，提交时序列化为 JSON 数组存 useScopeUsers）
+const useScopeUserIds = ref<number[]>([])
+
 const formData = reactive({
   id: undefined as string | undefined,
   name: '',
@@ -338,6 +361,7 @@ const formData = reactive({
   formId: undefined as number | undefined,
   autoCopyStrategy: undefined as number | undefined,
   autoCopyParam: undefined as string | undefined,
+  useScope: 0,
 })
 
 const formRules: FormRules = {
@@ -418,6 +442,8 @@ const handleAdd = () => {
   formData.formId = undefined
   formData.autoCopyStrategy = undefined
   formData.autoCopyParam = undefined
+  formData.useScope = 0
+  useScopeUserIds.value = []
   dialogVisible.value = true
 }
 
@@ -434,6 +460,12 @@ const handleEdit = (row: WfModel) => {
   formData.formId = row.formId || undefined
   formData.autoCopyStrategy = row.autoCopyStrategy || undefined
   formData.autoCopyParam = row.autoCopyParam || undefined
+  formData.useScope = row.useScope ?? 0
+  try {
+    useScopeUserIds.value = row.useScopeUsers ? JSON.parse(row.useScopeUsers) : []
+  } catch {
+    useScopeUserIds.value = []
+  }
   dialogVisible.value = true
 }
 
@@ -470,6 +502,10 @@ const handleSubmit = async () => {
         formId: formData.formId,
         autoCopyStrategy: formData.autoCopyStrategy,
         autoCopyParam: formData.autoCopyParam,
+        useScope: formData.useScope,
+        useScopeUsers: formData.useScope === 1 && useScopeUserIds.value.length > 0
+          ? JSON.stringify(useScopeUserIds.value)
+          : undefined,
         metaInfo: Object.keys(metaInfo).length > 0 ? JSON.stringify(metaInfo) : undefined,
       })
       ElMessage.success('更新成功')
@@ -483,6 +519,10 @@ const handleSubmit = async () => {
         formId: formData.formId,
         autoCopyStrategy: formData.autoCopyStrategy,
         autoCopyParam: formData.autoCopyParam,
+        useScope: formData.useScope,
+        useScopeUsers: formData.useScope === 1 && useScopeUserIds.value.length > 0
+          ? JSON.stringify(useScopeUserIds.value)
+          : undefined,
         metaInfo: Object.keys(metaInfo).length > 0 ? JSON.stringify(metaInfo) : undefined,
       })
       ElMessage.success('新增成功')

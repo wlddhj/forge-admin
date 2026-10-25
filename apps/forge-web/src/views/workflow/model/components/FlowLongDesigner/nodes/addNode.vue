@@ -27,6 +27,34 @@
               <el-icon style="color: #9b59b6" @click="addType(7)"><Lightning /></el-icon>
               <p>触发器任务</p>
             </li>
+            <li>
+              <el-icon style="color: #13c2c2" @click="addType(8)"><Operation /></el-icon>
+              <p>并行分支</p>
+            </li>
+            <li>
+              <el-icon style="color: #722ed1" @click="addType(9)"><Switch /></el-icon>
+              <p>包容分支</p>
+            </li>
+            <li>
+              <el-icon style="color: #2f54eb" @click="addType(5)"><Connection /></el-icon>
+              <p>子流程</p>
+            </li>
+            <li>
+              <el-icon style="color: #fa8c16" @click="addType(6)"><Clock /></el-icon>
+              <p>定时器</p>
+            </li>
+            <li>
+              <el-icon style="color: #52c41a" @click="addType(30)"><CircleCheck /></el-icon>
+              <p>自动通过</p>
+            </li>
+            <li>
+              <el-icon style="color: #f5222d" @click="addType(31)"><CircleClose /></el-icon>
+              <p>自动拒绝</p>
+            </li>
+            <li>
+              <el-icon style="color: #faad14" @click="addType(23)"><Guide /></el-icon>
+              <p>路由分支</p>
+            </li>
           </ul>
         </div>
       </el-popover>
@@ -35,8 +63,11 @@
 </template>
 
 <script setup lang="ts">
-import { UserFilled, Promotion, Share, Filter, Lightning } from '@element-plus/icons-vue'
-import type { FlowlongNodeModel } from '@/composables/useFlowLongDataTransform'
+import {
+  UserFilled, Promotion, Share, Filter, Lightning,
+  Operation, Switch, Connection, Clock, CircleCheck, CircleClose, Guide
+} from '@element-plus/icons-vue'
+import type { FlowlongNodeModel, FlowlongConditionNode } from '@/composables/useFlowLongDataTransform'
 
 const props = defineProps<{
   modelValue: FlowlongNodeModel | null
@@ -46,9 +77,21 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: FlowlongNodeModel): void
 }>()
 
+// 随机后缀防止同毫秒连点撞 key（引擎以 nodeKey 寻址）
 const getNodeKey = () => {
-  return 'flk' + Date.now()
+  return 'flk' + Date.now() + Math.random().toString(36).slice(2, 6)
 }
+
+const newBranchItems = (count: number): FlowlongConditionNode[] =>
+  Array.from({ length: count }, (_, i) => ({
+    nodeName: `分支${i + 1}`,
+    nodeKey: getNodeKey(),
+    type: 3,
+    priorityLevel: i + 1,
+    conditionMode: 1,
+    conditionList: [] as never[][],
+    childNode: undefined
+  }))
 
 const addType = (type: number) => {
   let node = {} as FlowlongNodeModel
@@ -84,26 +127,7 @@ const addType = (type: number) => {
       nodeName: '条件路由',
       nodeKey: getNodeKey(),
       type: 4,
-      conditionNodes: [
-        {
-          nodeName: '条件1',
-          nodeKey: getNodeKey(),
-          type: 3,
-          priorityLevel: 1,
-          conditionMode: 1,
-          conditionList: [],
-          childNode: undefined
-        },
-        {
-          nodeName: '条件2',
-          nodeKey: getNodeKey(),
-          type: 3,
-          priorityLevel: 2,
-          conditionMode: 1,
-          conditionList: [],
-          childNode: undefined
-        }
-      ],
+      conditionNodes: newBranchItems(2),
       childNode: props.modelValue || undefined
     }
   } else if (type == 3) {
@@ -127,6 +151,61 @@ const addType = (type: number) => {
       triggerType: 'expression',
       triggerExpression: '${true}',
       continueOnError: false,
+      childNode: props.modelValue || undefined
+    }
+  } else if (type == 8) {
+    // 并行分支：全部分支同时执行
+    node = {
+      nodeName: '并行分支',
+      nodeKey: getNodeKey(),
+      type: 8,
+      parallelNodes: newBranchItems(2),
+      childNode: props.modelValue || undefined
+    }
+  } else if (type == 9) {
+    // 包容分支：满足条件的分支全部执行（建议配置一条无条件兜底分支）
+    node = {
+      nodeName: '包容分支',
+      nodeKey: getNodeKey(),
+      type: 9,
+      inclusiveNodes: newBranchItems(2),
+      childNode: props.modelValue || undefined
+    }
+  } else if (type == 5) {
+    // 子流程：进入节点时自动发起指定流程，结束后回主流程
+    node = {
+      nodeName: '子流程',
+      nodeKey: getNodeKey(),
+      type: 5,
+      callProcess: '',
+      childNode: props.modelValue || undefined
+    }
+  } else if (type == 6) {
+    // 定时器：等待指定时长后自动继续
+    node = {
+      nodeName: '定时器',
+      nodeKey: getNodeKey(),
+      type: 6,
+      timerMode: 'duration',
+      timerValue: 1,
+      timerUnit: 'h',
+      childNode: props.modelValue || undefined
+    }
+  } else if (type == 30 || type == 31) {
+    // 自动通过/拒绝：仅可在分支内使用且无后续节点（引擎约束）
+    node = {
+      nodeName: type == 30 ? '自动通过' : '自动拒绝',
+      nodeKey: getNodeKey(),
+      type,
+      childNode: props.modelValue || undefined
+    }
+  } else if (type == 23) {
+    // 路由分支：按条件跳转到指定节点
+    node = {
+      nodeName: '路由分支',
+      nodeKey: getNodeKey(),
+      type: 23,
+      routeNodes: newBranchItems(1),
       childNode: props.modelValue || undefined
     }
   }

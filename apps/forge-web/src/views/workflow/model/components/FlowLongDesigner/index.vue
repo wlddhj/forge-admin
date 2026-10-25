@@ -74,6 +74,9 @@ provide('select', (type: number, data: any[]) => {
   })
 })
 
+// 提供模型根引用给子组件（路由分支目标、驳回策略指定节点的下拉数据源）
+provide('designerRoot', nodeConfig)
+
 defineExpose({
   nodeConfig
 })

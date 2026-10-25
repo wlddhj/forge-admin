@@ -398,11 +398,52 @@ public class WfTaskServiceImpl implements WfTaskService {
 
         saveApprovalComment(task, currentUserId, userName, ApprovalActionTypeEnum.REJECT.getCode(), request.getComment(), request.getAttachmentIds());
 
-        // 驳回任务
+        // 驳回任务：节点未配置驳回策略时维持既有行为（直接终止）；
+        // 配置后交引擎按策略分派（1 回发起人 / 2 上一节点 / 3 指定节点，目标取 extendConfig.rejectTargetKey）
         FlowCreator flowCreator = createFlowCreator(currentUserId);
-//        taskService.rejectTask(task, flowCreator, request.getVariables());
-        flowLongEngine.executeRejectTask(task, null, flowCreator, request.getVariables(), true);
-        log.info("任务审批驳回：taskId={}, userId={}", taskId, currentUserId);
+        Integer rejectStrategy = readRejectStrategy(task);
+        if (rejectStrategy == null) {
+            flowLongEngine.executeRejectTask(task, null, flowCreator, request.getVariables(), true);
+        } else if (rejectStrategy == 3) {
+            String targetKey = readRejectTargetKey(task);
+            if (targetKey == null || targetKey.isEmpty()) {
+                throw new BusinessException(400, "节点驳回策略为指定节点但未配置目标，请联系流程管理员");
+            }
+            flowLongEngine.executeRejectTask(task, targetKey, flowCreator, request.getVariables(), false);
+        } else {
+            flowLongEngine.executeRejectTask(task, null, flowCreator, request.getVariables(), false);
+        }
+        log.info("任务审批驳回：taskId={}, userId={}, rejectStrategy={}", taskId, currentUserId, rejectStrategy);
+    }
+
+    /**
+     * 读取任务所在节点的驳回策略（实例级模型快照）
+     */
+    private Integer readRejectStrategy(FlwTask task) {
+        try {
+            com.aizuda.bpm.engine.model.NodeModel nodeModel = taskService.getTaskModel(task.getId());
+            return nodeModel == null ? null : nodeModel.getRejectStrategy();
+        } catch (Exception e) {
+            log.warn("读取节点驳回策略失败，按默认终止处理: taskId={}", task.getId(), e);
+            return null;
+        }
+    }
+
+    /**
+     * 读取策略 3 的目标节点 key（封装层语义，存节点 extendConfig.rejectTargetKey）
+     */
+    private String readRejectTargetKey(FlwTask task) {
+        try {
+            com.aizuda.bpm.engine.model.NodeModel nodeModel = taskService.getTaskModel(task.getId());
+            if (nodeModel == null || nodeModel.getExtendConfig() == null) {
+                return null;
+            }
+            Object target = nodeModel.getExtendConfig().get("rejectTargetKey");
+            return target == null ? null : target.toString();
+        } catch (Exception e) {
+            log.warn("读取驳回目标节点失败: taskId={}", task.getId(), e);
+            return null;
+        }
     }
 
     @Override
@@ -874,6 +915,40 @@ public class WfTaskServiceImpl implements WfTaskService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void reclaimTask(String taskId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new BusinessException(401, "未获取到当前用户信息");
+        }
+        Long id = parseTaskId(taskId);
+        FlwHisTask hisTask = hisTaskMapper.selectById(id);
+        if (hisTask == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+
+        // 仅该历史任务的办理人可拿回
+        LambdaQueryWrapper<FlwHisTaskActor> actorWrapper = new LambdaQueryWrapper<>();
+        actorWrapper.eq(FlwHisTaskActor::getTaskId, id);
+        actorWrapper.eq(FlwHisTaskActor::getActorId, String.valueOf(currentUserId));
+        if (hisTaskActorMapper.selectCount(actorWrapper) == 0) {
+            throw new BusinessException(403, "只有该任务的办理人才能拿回");
+        }
+
+        FlowCreator flowCreator = createFlowCreator(currentUserId);
+        try {
+            taskService.reclaimTask(id, flowCreator, null);
+        } catch (com.aizuda.bpm.engine.exception.FlowLongException e) {
+            log.info("拿回被引擎拒绝: taskId={}, reason={}", taskId, e.getMessage());
+            throw new BusinessException(400, "下一节点已办理或当前任务不可拿回");
+        }
+
+        saveApprovalComment(hisTask, currentUserId, identityService.getUserName(currentUserId),
+                ApprovalActionTypeEnum.RECLAIM.getCode(), "拿回任务「" + hisTask.getTaskName() + "」");
+        log.info("任务拿回成功：taskId={}, userId={}", taskId, currentUserId);
+    }
+
+    @Override
     public Page<TaskResponse> getCcTasks(TaskQueryRequest request) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         if (currentUserId == null) {
@@ -1193,6 +1268,14 @@ public class WfTaskServiceImpl implements WfTaskService {
             if (nextTask != null) {
                 response.setNextActivityName(nextTask.getTaskName());
             }
+        }
+
+        // 拿回标记：实例运行中且存在以后继待人审批任务（与引擎 reclaim 校验同源）
+        if (isHumanApprovalTask(hisTask.getTaskType()) && instanceMapper.selectById(hisTask.getInstanceId()) != null) {
+            LambdaQueryWrapper<FlwTask> nextActiveWrapper = new LambdaQueryWrapper<>();
+            nextActiveWrapper.eq(FlwTask::getParentTaskId, hisTask.getId());
+            List<FlwTask> nextActiveTasks = taskMapper.selectList(nextActiveWrapper);
+            response.setCanReclaim(nextActiveTasks.stream().anyMatch(t -> isHumanApprovalTask(t.getTaskType())));
         }
 
         return response;

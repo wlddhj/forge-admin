@@ -22,7 +22,9 @@ public enum ApprovalActionTypeEnum {
     CANCEL("cancel", "取消"),
     SIGN_CREATE("sign_create", "加签"),
     SIGN_DELETE("sign_delete", "减签"),
-    URGE("urge", "催办");
+    URGE("urge", "催办"),
+    RECLAIM("reclaim", "拿回"),
+    RESUME("resume", "唤醒");
 
     private final String code;
     private final String description;

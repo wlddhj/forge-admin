@@ -103,6 +103,16 @@
             >
               取消
             </el-button>
+            <el-button
+              v-if="row.endTime && row.deleteReason"
+              v-permission="'workflow:instance:resume'"
+              type="success"
+              link
+              size="small"
+              @click.stop="handleResume(row)"
+            >
+              唤醒
+            </el-button>
           </template>
         </vxe-column>
       </vxe-table>
@@ -193,6 +203,22 @@ const handleReset = () => {
 // 查看详情
 const handleDetail = (row: ProcessInstance) => {
   router.push({ path: '/workflow/instance/detail', query: { id: row.id } })
+}
+
+// 唤醒流程实例
+const handleResume = async (row: ProcessInstance) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定唤醒流程 "${row.processDefinitionName}"？流程将恢复到上次中断的节点继续办理`,
+      '提示',
+      { type: 'warning' }
+    )
+    await processInstanceApi.resume(row.id)
+    ElMessage.success('唤醒成功')
+    getList()
+  } catch {
+    // 用户取消或后端错误
+  }
 }
 
 // 取消流程实例

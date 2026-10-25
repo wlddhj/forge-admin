@@ -178,6 +178,15 @@ public class WfTaskController {
         return Result.success(wfTaskService.getChildTasks(taskId));
     }
 
+    @Operation(summary = "拿回任务（下一节点未办理时）")
+    @PostMapping("/{taskId}/reclaim")
+    @PreAuthorize("hasAuthority('workflow:task:reclaim')")
+    @OperationLog(title = "任务管理", businessType = OperationLog.BusinessType.OTHER)
+    public Result<Void> reclaim(@PathVariable String taskId) {
+        wfTaskService.reclaimTask(taskId);
+        return Result.success();
+    }
+
     @Operation(summary = "查询抄送列表")
     @GetMapping("/cc")
     @PreAuthorize("hasAuthority('workflow:task:list')")

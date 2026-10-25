@@ -108,6 +108,15 @@ public class WfProcessInstanceController {
         return Result.success();
     }
 
+    @Operation(summary = "唤醒流程实例（发起人/管理员，恢复已结束实例）")
+    @PostMapping("/{id}/resume")
+    @PreAuthorize("hasAuthority('workflow:instance:resume')")
+    @OperationLog(title = "流程实例管理", businessType = OperationLog.BusinessType.OTHER)
+    public Result<Void> resumeInstance(@PathVariable String id) {
+        wfProcessInstanceService.resumeInstance(id);
+        return Result.success();
+    }
+
     @Operation(summary = "获取流程实例高亮流程图")
     @GetMapping("/{id}/diagram")
     @PreAuthorize("hasAuthority('workflow:instance:query')")

@@ -24,5 +24,7 @@ export const processInstanceApi = {
   urge: (id: string, data?: { comment?: string }) =>
     request.post(`/workflow/instance/${id}/urge`, data || {}),
   copy: (id: string, data: { copyUserIds: number[]; reason?: string }) =>
-    request.post(`/workflow/instance/${id}/copy`, data)
+    request.post(`/workflow/instance/${id}/copy`, data),
+  resume: (id: string) =>
+    request.post(`/workflow/instance/${id}/resume`)
 }

@@ -39,12 +39,18 @@ export interface ProcessDefinition {
   categoryName: string
   deploymentId: string
   suspensionState: number  // 1=active, 2=suspended
+  /** 流程状态 0不可用 1可用 2历史版本 */
+  processState?: number
   description: string
   formKey: string
   formType: number | null
   formId: number | null
   autoCopyStrategy: number | null
   autoCopyParam: string | null
+  /** 发起范围 0全员 1指定人员 2均不可发起 */
+  useScope: number | null
+  /** 发起范围人员名单JSON（用户ID数组） */
+  useScopeUsers: string | null
   resourceName: string
   diagramResourceName: string
   createTime: string
@@ -146,6 +152,8 @@ export interface TaskInfo {
   commentText?: string
   nextActivityName?: string
   withdrawn?: boolean
+  /** 是否可拿回（已办任务：下一节点待人审批任务尚未办理） */
+  canReclaim?: boolean
 }
 
 export interface TaskQuery {

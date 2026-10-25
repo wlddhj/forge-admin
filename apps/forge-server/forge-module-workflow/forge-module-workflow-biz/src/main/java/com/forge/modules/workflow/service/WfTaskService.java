@@ -169,4 +169,11 @@ public interface WfTaskService {
      * @param comment 催办留言
      */
     void urgeInstance(String processInstanceId, String comment);
+
+    /**
+     * 拿回任务（下一节点尚未办理时，上一提交人拿回重新处理）
+     *
+     * @param taskId 历史任务ID
+     */
+    void reclaimTask(String taskId);
 }

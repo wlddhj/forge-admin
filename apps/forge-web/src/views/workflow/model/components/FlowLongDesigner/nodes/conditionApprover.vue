@@ -163,8 +163,46 @@
                 <p style="width: 100%"><el-radio :value="1">按顺序依次审批</el-radio></p>
                 <p style="width: 100%"><el-radio :value="2">会签 (可同时审批，每个人必须审批通过)</el-radio></p>
                 <p style="width: 100%"><el-radio :value="3">或签 (有一人审批通过即可)</el-radio></p>
+                <p style="width: 100%"><el-radio :value="4">票签 (按权重投票，已投权重达标即通过)</el-radio></p>
               </el-radio-group>
             </el-form-item>
+            <template v-if="form.examineMode === 4">
+              <el-form-item label="通过权重门槛">
+                <el-input-number v-model="form.passWeight" :min="1" :max="99" />
+                %（所有参与者权重合计按 100 计）
+              </el-form-item>
+              <el-form-item v-if="form.setType == 1 && (form.nodeAssigneeList?.length || 0) > 0" label="参与人权重（合计应为 100）">
+                <div class="weight-list">
+                  <div v-for="assignee in form.nodeAssigneeList" :key="assignee.id" class="weight-item">
+                    <span class="weight-name">{{ assignee.name }}</span>
+                    <el-input-number v-model="assignee.weight" :min="1" :max="100" size="small" />
+                  </div>
+                </div>
+                <el-button size="small" style="margin-top: 8px" @click="averageWeights">平均分配权重</el-button>
+              </el-form-item>
+            </template>
+            <el-divider></el-divider>
+            <el-form-item label="驳回策略">
+              <el-radio-group v-model="rejectStrategyValue">
+                <p style="width: 100%"><el-radio :value="0">默认（驳回后流程终止）</el-radio></p>
+                <p style="width: 100%"><el-radio :value="1">退回发起人重新提交</el-radio></p>
+                <p style="width: 100%"><el-radio :value="2">退回上一审批节点</el-radio></p>
+                <p style="width: 100%"><el-radio :value="3">退回指定节点</el-radio></p>
+              </el-radio-group>
+            </el-form-item>
+            <template v-if="rejectStrategyValue !== 0">
+              <el-form-item label="重新提交后从哪继续">
+                <el-radio-group v-model="form.rejectStart">
+                  <el-radio :value="1">从被驳回的节点继续往下</el-radio>
+                  <el-radio :value="2">从被驳回节点的上一节点重新审批</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item v-if="rejectStrategyValue === 3" label="指定退回节点">
+                <el-select v-model="form.rejectTargetKey" filterable placeholder="选择退回目标节点" style="width: 100%">
+                  <el-option v-for="opt in rejectTargetOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+                </el-select>
+              </el-form-item>
+            </template>
           </el-form>
         </el-main>
         <el-footer>
@@ -177,9 +215,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, inject, computed } from 'vue'
+import { ref, watch, nextTick, inject, computed, type Ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { Filter, Close, Edit, Delete } from '@element-plus/icons-vue'
 import addNode from './addNode.vue'
+import { useNodeKeyOptions } from '@/composables/useNodeKeyOptions'
 import type {
   FlowlongNodeModel,
   FlowlongNodeAssignee
@@ -194,6 +234,28 @@ const emit = defineEmits<{
 }>()
 
 const select = inject<(type: number, data: FlowlongNodeAssignee[]) => void>('select')
+const designerRoot = inject<Ref<FlowlongNodeModel | null> | null>('designerRoot', null)
+const { collect } = useNodeKeyOptions()
+
+// 驳回策略编辑值：0=未配置（默认终止），1/2/3 对应引擎策略
+const rejectStrategyValue = ref(0)
+const rejectTargetOptions = computed(() =>
+  collect(designerRoot?.value ?? null, nodeConfig.value.nodeKey)
+    .filter(opt => opt.type === 1 || opt.type === 3)
+)
+
+watch(rejectStrategyValue, (val) => {
+  if (val === 0) {
+    form.value.rejectStrategy = undefined
+    form.value.rejectStart = undefined
+    form.value.rejectTargetKey = undefined
+  } else {
+    form.value.rejectStrategy = val
+    if (form.value.rejectStart === undefined) {
+      form.value.rejectStart = 1
+    }
+  }
+})
 
 const nodeConfig = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 const drawer = ref(false)
@@ -224,6 +286,11 @@ const show = () => {
   if (form.value.examineMode === undefined) {
     form.value.examineMode = 1
   }
+  // 驳回策略编辑值回填（未配置=0）
+  rejectStrategyValue.value = form.value.rejectStrategy ?? 0
+  if (form.value.examineMode === 4 && form.value.passWeight === undefined) {
+    form.value.passWeight = 50
+  }
   drawer.value = true
 }
 
@@ -248,8 +315,26 @@ const save = () => {
       form.value.conditionList = undefined
     }
   }
+  if (rejectStrategyValue.value === 3 && !form.value.rejectTargetKey) {
+    ElMessage.warning('驳回策略为"退回指定节点"时必须选择目标节点')
+    return
+  }
+  if (rejectStrategyValue.value === 0) {
+    form.value.rejectStrategy = undefined
+    form.value.rejectStart = undefined
+    form.value.rejectTargetKey = undefined
+  }
   emit('update:modelValue', form.value)
   drawer.value = false
+}
+
+// 票签权重平均分配（100/n，余数补到第一人）
+const averageWeights = () => {
+  const list = form.value.nodeAssigneeList || []
+  if (!list.length) return
+  const base = Math.floor(100 / list.length)
+  list.forEach(a => { a.weight = base })
+  list[0].weight = 100 - base * (list.length - 1)
 }
 
 const delNode = () => {
@@ -310,7 +395,28 @@ const assigneeSummary = computed(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+.weight-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .weight-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 8px;
+    background: #f5f7fa;
+    border-radius: 4px;
+
+    .weight-name {
+      font-size: 13px;
+      color: #606266;
+    }
+  }
+}
+
 .condition-group-editor {
   user-select: none;
   border-radius: 4px;

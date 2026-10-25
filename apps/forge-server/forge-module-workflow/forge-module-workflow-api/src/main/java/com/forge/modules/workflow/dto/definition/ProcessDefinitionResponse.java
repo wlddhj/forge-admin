@@ -82,6 +82,12 @@ public class ProcessDefinitionResponse {
      */
     private String autoCopyParam;
 
+    /** 发起范围 0全员 1指定人员 2均不可发起 */
+    private Integer useScope;
+
+    /** 发起范围人员名单JSON（用户ID数组） */
+    private String useScopeUsers;
+
     /**
      * 资源名称
      */

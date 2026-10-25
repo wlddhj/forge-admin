@@ -150,6 +150,11 @@ public class TaskResponse {
     private String nextActivityName;
 
     /**
+     * 是否可拿回（已办任务：下一节点待人审批任务尚未办理）
+     */
+    private Boolean canReclaim;
+
+    /**
      * 是否已被撤回（已办任务）
      */
     private Boolean withdrawn;

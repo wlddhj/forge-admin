@@ -238,6 +238,8 @@ CREATE TABLE `wf_process_ext` (
     `form_id` BIGINT COMMENT '关联表单ID',
     `auto_copy_strategy` INT COMMENT '自动抄送策略',
     `auto_copy_param` VARCHAR(512) COMMENT '自动抄送参数',
+    `use_scope` INT COMMENT '发起范围 0全员 1指定人员 2均不可发起',
+    `use_scope_users` VARCHAR(2000) COMMENT '发起范围人员名单JSON(用户ID数组),use_scope=1时生效',
     `model_json` LONGTEXT COMMENT 'FlowLong流程模型JSON内容',
     `meta_info` TEXT COMMENT '元信息JSON（存储表单配置等扩展信息）',
     `create_by` BIGINT COMMENT '创建人ID',
@@ -457,7 +459,8 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 (113, '实例查询', 112, '', '', NULL, '', 1, 2, 'workflow:instance:query', 1, 1, 0, 0),
 (114, '发起流程', 112, '', '', NULL, '', 2, 2, 'workflow:instance:start', 1, 1, 0, 0),
 (115, '取消流程', 112, '', '', NULL, '', 3, 2, 'workflow:instance:cancel', 1, 1, 0, 0),
-(241, '流程催办', 112, '', '', NULL, '', 4, 2, 'workflow:instance:urge', 1, 1, 0, 0);
+(241, '流程催办', 112, '', '', NULL, '', 4, 2, 'workflow:instance:urge', 1, 1, 0, 0),
+(243, '实例唤醒', 112, '', '', NULL, '', 5, 2, 'workflow:instance:resume', 1, 1, 0, 0);
 
 -- 实例详情（hidden）
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
@@ -474,7 +477,8 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 (119, '任务完成', 116, '', '', NULL, '', 3, 2, 'workflow:task:complete', 1, 1, 0, 0),
 (120, '任务委派', 116, '', '', NULL, '', 4, 2, 'workflow:task:delegate', 1, 1, 0, 0),
 (121, '任务转办', 116, '', '', NULL, '', 5, 2, 'workflow:task:transfer', 1, 1, 0, 0),
-(122, '任务退回', 116, '', '', NULL, '', 6, 2, 'workflow:task:return', 1, 1, 0, 0);
+(122, '任务退回', 116, '', '', NULL, '', 6, 2, 'workflow:task:return', 1, 1, 0, 0),
+(242, '任务拿回', 116, '', '', NULL, '', 7, 2, 'workflow:task:reclaim', 1, 1, 0, 0);
 
 -- 任务详情（hidden）
 INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
@@ -514,8 +518,8 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 (1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 105), (1, 106), (1, 124),
 (1, 107), (1, 108), (1, 109), (1, 110), (1, 111),
-(1, 112), (1, 113), (1, 114), (1, 115), (1, 125), (1, 241),
-(1, 116), (1, 117), (1, 118), (1, 119), (1, 120), (1, 121), (1, 122), (1, 126),
+(1, 112), (1, 113), (1, 114), (1, 115), (1, 125), (1, 241), (1, 243),
+(1, 116), (1, 117), (1, 118), (1, 119), (1, 120), (1, 121), (1, 122), (1, 242), (1, 126),
 (1, 123), (1, 240),
 (1, 200), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205),
 (1, 210), (1, 211), (1, 212), (1, 213), (1, 214), (1, 215), (1, 216),
@@ -543,7 +547,9 @@ INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dic
 (2210, 'wf_action_type', '取消',   'cancel',       10, 1, 'danger'),
 (2211, 'wf_action_type', '加签',   'sign_create',  11, 1, 'primary'),
 (2212, 'wf_action_type', '减签',   'sign_delete',  12, 1, 'primary'),
-(2213, 'wf_action_type', '催办',   'urge',         13, 1, 'danger');
+(2213, 'wf_action_type', '催办',   'urge',         13, 1, 'danger'),
+(2214, 'wf_action_type', '拿回',   'reclaim',      14, 1, 'warning'),
+(2215, 'wf_action_type', '唤醒',   'resume',       15, 1, 'primary');
 
 -- 流程实例状态
 INSERT INTO `sys_dict_type` (`id`, `dict_name`, `dict_type`, `status`, `is_system`, `remark`) VALUES

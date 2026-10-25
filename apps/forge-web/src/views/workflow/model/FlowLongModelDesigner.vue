@@ -122,6 +122,16 @@ const fixNodeTypes = (node: any): any => {
     })
   }
 
+  // 并行/包容/路由分支（迭代二新增容器，结构同条件分支）
+  const branchArrays = [node.parallelNodes, node.inclusiveNodes, node.routeNodes]
+  branchArrays.forEach((list: any[]) => {
+    list?.forEach((cn: any) => {
+      if (cn.childNode) {
+        fixNodeTypes(cn.childNode)
+      }
+    })
+  })
+
   return node
 }
 

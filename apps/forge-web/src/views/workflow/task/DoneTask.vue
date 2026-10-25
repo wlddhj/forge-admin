@@ -65,10 +65,20 @@
         <vxe-column v-if="!isMobile" field="endTime" title="审批时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.endTime) }}</template>
         </vxe-column>
-        <vxe-column title="操作" width="140" fixed="right">
+        <vxe-column title="操作" width="190" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click.stop="handleView(row)">查看</el-button>
             <el-button v-if="!row.withdrawn" type="warning" link size="small" @click.stop="handleWithdraw(row)">撤回</el-button>
+            <el-button
+              v-if="row.canReclaim"
+              v-permission="'workflow:task:reclaim'"
+              type="warning"
+              link
+              size="small"
+              @click.stop="handleReclaim(row)"
+            >
+              拿回
+            </el-button>
           </template>
         </vxe-column>
       </vxe-table>
@@ -161,6 +171,22 @@ const handleReset = () => {
 // 查看任务详情
 const handleView = (row: TaskInfo) => {
   drawerRef.value?.open(row.id)
+}
+
+// 拿回任务（下一节点尚未办理时）
+const handleReclaim = async (row: TaskInfo) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定拿回任务"${row.name}"？下一节点的待办将被撤销，任务回到您的待办中`,
+      '提示',
+      { type: 'warning' }
+    )
+    await taskApi.reclaim(row.id)
+    ElMessage.success('拿回成功，任务已回到您的待办')
+    getList()
+  } catch {
+    // 用户取消或后端错误
+  }
 }
 
 // 撤回任务
