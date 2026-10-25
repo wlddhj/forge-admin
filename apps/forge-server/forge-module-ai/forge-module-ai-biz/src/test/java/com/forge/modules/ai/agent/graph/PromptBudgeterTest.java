@@ -144,6 +144,36 @@ class PromptBudgeterTest {
         assertFalse(rendered.contains("未列出"));
     }
 
+    @Test
+    void 列名注入_探查失败降级为仅表名() {
+        String rendered = budgeter.renderTables("会话统计",
+                List.of(table("ai_chat_conversation", "会话表")),
+                t -> List.of("id", "title", "create_time", "update_time", "deleted"));
+        assertTrue(rendered.contains("- ai_chat_conversation（会话表）: id, title, create_time, update_time, deleted"));
+
+        // 探查失败（空列）→ 仅表名，不输出冒号段
+        String degraded = budgeter.renderTables("会话统计",
+                List.of(table("ai_chat_conversation", "会话表")), t -> List.of());
+        assertTrue(degraded.contains("ai_chat_conversation"));
+        assertFalse(degraded.contains(": id"));
+
+        // 无 provider（旧行为）等价降级
+        String legacy = budgeter.renderTables("会话统计",
+                List.of(table("ai_chat_conversation", "会话表")));
+        assertEquals(degraded, legacy);
+    }
+
+    @Test
+    void 单表列数超上限截断标注() {
+        AgentProperties.Prompt p = properties.getPrompt();
+        p.setTableColumnsPerTable(3);
+        String rendered = budgeter.renderTables("会话统计",
+                List.of(table("t", null)),
+                t -> List.of("a", "b", "c", "d", "e"));
+        assertTrue(rendered.contains("a, b, c 等 5 列"));
+        assertFalse(rendered.contains(", d"));
+    }
+
     // ========== 记忆 ==========
 
     @Test

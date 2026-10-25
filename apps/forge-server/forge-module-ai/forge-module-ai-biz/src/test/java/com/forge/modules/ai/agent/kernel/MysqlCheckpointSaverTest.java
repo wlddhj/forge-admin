@@ -1,6 +1,5 @@
 package com.forge.modules.ai.agent.kernel;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forge.modules.ai.entity.AiAgentCheckpoint;
 import com.forge.modules.ai.mapper.AiAgentCheckpointMapper;
 import org.bsc.langgraph4j.RunnableConfig;
@@ -30,7 +29,6 @@ import static org.mockito.Mockito.when;
 class MysqlCheckpointSaverTest {
 
     private AiAgentCheckpointMapper mapper;
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private RunnableConfig config;
 
     @BeforeEach
@@ -42,7 +40,7 @@ class MysqlCheckpointSaverTest {
 
     @Test
     void 默认间隔逐检查点upsert落库() {
-        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, objectMapper, 1L);
+        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, 1L);
         saver.insertedCheckpoint(config, new LinkedList<>(), checkpoint("c1"));
         saver.insertedCheckpoint(config, new LinkedList<>(), checkpoint("c2"));
         // upsert 单语句替代 selectOne+update 两跳
@@ -52,7 +50,7 @@ class MysqlCheckpointSaverTest {
 
     @Test
     void 间隔节流_跳过中间检查点_flush强制落最新() {
-        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, objectMapper, 1L, 2, false);
+        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, 1L, 2, false);
         saver.insertedCheckpoint(config, new LinkedList<>(), checkpoint("c1"));
         saver.insertedCheckpoint(config, new LinkedList<>(), checkpoint("c2"));
         saver.insertedCheckpoint(config, new LinkedList<>(), checkpoint("c3"));
@@ -67,7 +65,7 @@ class MysqlCheckpointSaverTest {
 
     @Test
     void release后flush不再落库() {
-        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, objectMapper, 1L);
+        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, 1L);
         saver.insertedCheckpoint(config, new LinkedList<>(), checkpoint("c1"));
         saver.releaseCheckpoints(config, new LinkedList<>(), null);
         saver.flush(config);
@@ -78,7 +76,7 @@ class MysqlCheckpointSaverTest {
     @Test
     void keepOnRelease的release不删行() {
         when(mapper.delete(any())).thenReturn(1);
-        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, objectMapper, 1L, 1, true);
+        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, 1L, 1, true);
         saver.releaseCheckpoints(config, new LinkedList<>(), null);
         verify(mapper, never()).delete(any());
     }
@@ -92,7 +90,7 @@ class MysqlCheckpointSaverTest {
             entity.setState("{\"expertDone\":true,\"report\":{\"agent\":\"sql 专家\"}}");
             return entity;
         });
-        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, objectMapper, 1L);
+        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, 1L);
 
         saver.markDone("t", Map.of("expertDone", true, "report", Map.of("agent", "sql 专家")));
         verify(mapper).upsert(any(AiAgentCheckpoint.class));
@@ -106,10 +104,32 @@ class MysqlCheckpointSaverTest {
     void 无标记返回empty_线程存在性判定() {
         when(mapper.selectOne(any())).thenReturn(null);
         when(mapper.selectCount(any())).thenReturn(0L, 3L);
-        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, objectMapper, 1L);
+        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, 1L);
         assertTrue(saver.loadDone("t").isEmpty());
         assertFalse(saver.hasAnyCheckpoint("t"));
         assertTrue(saver.hasAnyCheckpoint("t"));
+    }
+
+    @Test
+    void 状态Long经落库往返保持数值类型() {
+        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(mapper, 1L);
+        Checkpoint checkpoint = Checkpoint.builder()
+                .id("c1").nodeId("expert_decide").nextNodeId("expert_approval")
+                .state(Map.of("subDispatch", Map.of("agentId", 21L, "maxSteps", 4)))
+                .build();
+        saver.insertedCheckpoint(config, new LinkedList<>(), checkpoint);
+
+        ArgumentCaptor<AiAgentCheckpoint> captor = ArgumentCaptor.forClass(AiAgentCheckpoint.class);
+        verify(mapper).upsert(captor.capture());
+        // 不被全局 LongSerializer 写成字符串（"agentId":"21" 会导致恢复后 instanceof Number 失败）
+        assertTrue(captor.getValue().getState().contains("\"agentId\":21"),
+                captor.getValue().getState());
+
+        when(mapper.selectList(any())).thenReturn(List.of(captor.getValue()));
+        Checkpoint loaded = saver.loadCheckpoints(config).getFirst();
+        Object agentId = ((Map<?, ?>) loaded.getState().get("subDispatch")).get("agentId");
+        assertTrue(agentId instanceof Number, "agentId 往返后应为数值,实际: " + agentId.getClass());
+        assertEquals(21L, ((Number) agentId).longValue());
     }
 
     // ========== 工具 ==========

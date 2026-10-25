@@ -42,6 +42,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
     private final DecisionJsonParser decisionJsonParser;
     private final MultimodalSupport multimodalSupport;
     private final com.forge.modules.ai.agent.tools.TableSchemaInspector tableSchemaInspector;
+    private final com.forge.modules.ai.agent.tools.TableColumnSchemaCache tableColumnSchemaCache;
     private final PromptBudgeter promptBudgeter;
     private final com.forge.modules.ai.client.NativeToolCalling nativeToolCalling;
     private final java.util.concurrent.Executor agentExecutor;
@@ -52,6 +53,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                                         DecisionJsonParser decisionJsonParser,
                                         MultimodalSupport multimodalSupport,
                                         com.forge.modules.ai.agent.tools.TableSchemaInspector tableSchemaInspector,
+                                        com.forge.modules.ai.agent.tools.TableColumnSchemaCache tableColumnSchemaCache,
                                         PromptBudgeter promptBudgeter,
                                         com.forge.modules.ai.client.NativeToolCalling nativeToolCalling,
                                         @org.springframework.beans.factory.annotation.Qualifier("agentExecutor")
@@ -62,6 +64,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         this.decisionJsonParser = decisionJsonParser;
         this.multimodalSupport = multimodalSupport;
         this.tableSchemaInspector = tableSchemaInspector;
+        this.tableColumnSchemaCache = tableColumnSchemaCache;
         this.promptBudgeter = promptBudgeter;
         this.nativeToolCalling = nativeToolCalling;
         this.agentExecutor = agentExecutor;
@@ -246,9 +249,9 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         sb.append(ctx.getAgentConfig().getSystemPrompt()).append('\n');
         String tables = promptBudgeter.renderTables(
                 state.value(AgentGraphState.INPUT).map(String::valueOf).orElse(""),
-                tableSchemaInspector.enabledTables());
+                tableSchemaInspector.enabledTables(), tableColumnSchemaCache::columnsOf);
         if (!tables.isBlank()) {
-            sb.append("数据库可用表（编写 SQL 必须使用以下真实表名，禁止臆造）：\n").append(tables).append('\n');
+            sb.append("数据库可用表（编写 SQL 必须使用以下真实表名与列名，禁止臆造）：\n").append(tables).append('\n');
         }
         String input = state.value(AgentGraphState.INPUT).map(String::valueOf).orElse("");
         String userTemplate = ctx.getAgentConfig().getUserPromptTemplate();
@@ -290,9 +293,9 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         sb.append("可用工具：\n").append(ctx.getToolRegistry().describeTools()).append('\n');
         String tables = promptBudgeter.renderTables(
                 state.value(AgentGraphState.INPUT).map(String::valueOf).orElse(""),
-                tableSchemaInspector.enabledTables());
+                tableSchemaInspector.enabledTables(), tableColumnSchemaCache::columnsOf);
         if (!tables.isBlank()) {
-            sb.append("数据库可用表（编写 SQL 必须使用以下真实表名，禁止臆造）：\n").append(tables).append('\n');
+            sb.append("数据库可用表（编写 SQL 必须使用以下真实表名与列名，禁止臆造）：\n").append(tables).append('\n');
         }
         String input = state.value(AgentGraphState.INPUT).map(String::valueOf).orElse("");
         String userTemplate = ctx.getAgentConfig().getUserPromptTemplate();
@@ -440,6 +443,14 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
             sb.append("工具执行记录：\n");
             for (Object h : history) {
                 sb.append("- ").append(h).append('\n');
+            }
+            // 步数耗尽强制收束：明确告知未执行的计划，避免总结声称"已修正但未执行"式的半成品收尾
+            int steps = state.value(AgentGraphState.STEPS).map(v -> (Integer) v).orElse(0);
+            int maxSteps = ctx.getAgentConfig().getMaxSteps() == null ? 8 : ctx.getAgentConfig().getMaxSteps();
+            if (steps >= maxSteps && "tool".equals(String.valueOf(decision.get("action")))) {
+                sb.append("（注：已达最大步数上限 ").append(maxSteps)
+                        .append("，上一步已规划的工具调用未能执行。请基于已有工具结果回答；")
+                        .append("若数据不足以完成用户请求，须明确说明哪些查询未能执行，给出可执行的后续方案。）\n");
             }
             sb.append("请基于以上信息给出完整、准确的最终回答。");
 

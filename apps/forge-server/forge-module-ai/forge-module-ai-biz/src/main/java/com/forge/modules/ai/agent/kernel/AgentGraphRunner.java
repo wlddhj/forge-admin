@@ -198,7 +198,7 @@ public class AgentGraphRunner {
                 run.getUserId() == null ? 0L : run.getUserId(),
                 runStepMapper, objectMapper, agentProperties.getStepBatchSize(), usageRecorder);
         // 团队图检查点按间隔节流（中断/终态 flush 兜底）；单 Agent 图逐节点落库
-        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(checkpointMapper, objectMapper, run.getId(),
+        MysqlCheckpointSaver saver = new MysqlCheckpointSaver(checkpointMapper, run.getId(),
                 team != null ? Math.max(1, agentProperties.getCheckpointIntervalTeam()) : 1, false);
         try {
             return doExecute(run, agentConfig, graphInput, sseEmitter, team, teamMembers, stepRecorder, saver);
@@ -226,7 +226,7 @@ public class AgentGraphRunner {
         ctx.setRunId(run.getId());
         ctx.setUserId(run.getUserId());
         ctx.setSubSaverFactory(threadKey -> new MysqlCheckpointSaver(
-                checkpointMapper, objectMapper, run.getId(), 1, true));
+                checkpointMapper, run.getId(), 1, true));
         if (team != null) {
             ctx.setTeam(team);
             ctx.setTeamMembers(teamMembers);

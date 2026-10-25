@@ -2,6 +2,7 @@ package com.forge.modules.ai.agent.graph;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.forge.common.exception.BusinessException;
 import com.forge.modules.ai.agent.AgentEvents;
 import com.forge.modules.ai.agent.AgentProperties;
 import com.forge.modules.ai.agent.kernel.AgentGraphRegistry;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -112,7 +114,10 @@ class SupervisorTeamParallelTest {
         MultimodalSupport multimodalSupport = new MultimodalSupport(llmClient, parser, agentProperties,
                 new com.forge.framework.localcache.LocalCaches(), com.forge.modules.ai.config.TestAiMetrics.noop());
         SupervisorTeamGraph teamGraph = new SupervisorTeamGraph(llmClient, objectMapper, parser,
-                multimodalSupport, tableSchemaInspector, promptBudgeter, nativeToolCalling,
+                multimodalSupport, tableSchemaInspector,
+                new com.forge.modules.ai.agent.tools.TableColumnSchemaCache(
+                        mock(javax.sql.DataSource.class), new com.forge.framework.localcache.LocalCaches()),
+                promptBudgeter, nativeToolCalling,
                 agentProperties, agentExecutor, new com.forge.modules.ai.config.AiModuleConfig());
         AgentGraphRegistry registry = new AgentGraphRegistry(List.of(teamGraph));
 
@@ -219,6 +224,37 @@ class SupervisorTeamParallelTest {
         // 专家 A 从检查点续跑：仅补 1 次决策（final）；专家 B 凭 EXPERT_DONE 标记跳过（决策次数不变）
         assertEquals(aDecidesBefore + 1, expertDecides.get("A").get());
         assertEquals(bDecidesBefore, expertDecides.get("B").get());
+    }
+
+    // ========== 场景 3：调度模型失败软着陆 ==========
+
+    @Test
+    void 二轮调度模型失败_有专家汇报时降级总结不失败() {
+        AtomicInteger supervisorCalls = new AtomicInteger();
+        lenient().when(llmClient.chatForDecision(any(), any(), any())).thenAnswer(inv -> {
+            ChatRequest request = inv.getArgument(0);
+            String content = request.getContent() == null ? "" : request.getContent();
+            if (content.contains("团队专家清单")) {
+                if (supervisorCalls.incrementAndGet() == 1) {
+                    return success("{\"action\":\"dispatch\",\"calls\":[{\"agent\":\"expertB\",\"task\":\"任务B\"}],\"thought\":\"go\"}");
+                }
+                throw new BusinessException("决策模型响应超时（45000ms），已尝试备用模型");
+            }
+            if (content.contains("你是expertB")) {
+                expertDecides.get("B").incrementAndGet();
+                return success("{\"action\":\"final\",\"answer\":\"专家B结论\"}");
+            }
+            return success("{\"action\":\"final\",\"answer\":\"unknown\"}");
+        });
+        lenient().when(llmClient.stream(any(), any())).thenReturn(Flux.empty());
+        lenient().when(llmClient.chat(any(), any())).thenReturn(success("降级总结回答"));
+
+        AiAgentRun run = runner.runTeamStream(team, null, 1L, "CONVERSATION", "分析数据", null, event -> {
+        });
+
+        assertEquals(AiAgentRun.STATUS_SUCCEEDED, run.getStatus());
+        assertEquals("降级总结回答", run.getFinalAnswer());
+        assertEquals(1, expertDecides.get("B").get(), "专家应已执行并产出汇报");
     }
 
     // ========== LLM 桩 ==========

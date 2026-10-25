@@ -13,11 +13,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * HTTP 抓取工具：仅允许访问配置白名单域名（SSRF 防护）
+ * HTTP 抓取工具：仅允许访问配置白名单域名（SSRF 防护）；白名单含 * 时放行全部域名（仅建议开发环境）
  */
 @Component
 @RequiredArgsConstructor
 public class HttpFetchTool implements AgentTool {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(HttpFetchTool.class);
+
+    /** 通配符放行全部域名的告警只打一次，避免逐请求刷日志 */
+    private final java.util.concurrent.atomic.AtomicBoolean allowAllWarned = new java.util.concurrent.atomic.AtomicBoolean();
 
     private final AgentProperties properties;
 
@@ -56,10 +61,7 @@ public class HttpFetchTool implements AgentTool {
             throw new BusinessException("仅允许 http/https 协议");
         }
         String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase();
-        boolean allowed = allowedHosts.stream()
-                .map(h -> h.toLowerCase().startsWith(".") ? h.toLowerCase() : "." + h.toLowerCase())
-                .anyMatch(suffix -> ("." + host).endsWith(suffix));
-        if (!allowed) {
+        if (!hostAllowed(host, allowedHosts)) {
             throw new BusinessException("目标域名不在白名单: " + host);
         }
 
@@ -88,6 +90,22 @@ public class HttpFetchTool implements AgentTool {
 
     /** 字节上限读取结果 */
     record CappedRead(String body, boolean truncated) {
+    }
+
+    /**
+     * 域名白名单判定：精确/后缀匹配（.suffix 或 suffix 均匹配其子域名）；含 * 时放行全部。
+     * 通配放行仅建议开发环境，启用时告警一次（SSRF 防护失效）。
+     */
+    boolean hostAllowed(String host, List<String> allowedHosts) {
+        if (allowedHosts.stream().anyMatch("*"::equals)) {
+            if (allowAllWarned.compareAndSet(false, true)) {
+                log.warn("HTTP 工具白名单配置了通配符 *，已放行全部域名（SSRF 防护失效），仅建议开发环境使用");
+            }
+            return true;
+        }
+        return allowedHosts.stream()
+                .map(h -> h.toLowerCase().startsWith(".") ? h.toLowerCase() : "." + h.toLowerCase())
+                .anyMatch(suffix -> ("." + host).endsWith(suffix));
     }
 
     /**

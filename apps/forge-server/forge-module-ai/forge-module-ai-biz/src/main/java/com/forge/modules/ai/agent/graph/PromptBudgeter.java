@@ -89,6 +89,15 @@ public class PromptBudgeter {
      * 命中表优先，不足 maxTables 时按表名补齐；超出部分标注省略数。
      */
     public String renderTables(String input, List<AiSqlWhitelist> tables) {
+        return renderTables(input, tables, null);
+    }
+
+    /**
+     * 同上，附带列名渲染：columnProvider 非空且返回非空列表时输出「表名（注释）: col1, col2, …」，
+     * 单表列数超 tableColumnsPerTable 时截断并标注；列缺失（探查失败/降级）时仅输出表名。
+     */
+    public String renderTables(String input, List<AiSqlWhitelist> tables,
+                               java.util.function.Function<String, List<String>> columnProvider) {
         if (tables == null || tables.isEmpty()) {
             return "";
         }
@@ -117,6 +126,15 @@ public class PromptBudgeter {
             sb.append("- ").append(table.getTableName());
             if (table.getTableComment() != null && !table.getTableComment().isBlank()) {
                 sb.append("（").append(table.getTableComment()).append("）");
+            }
+            List<String> columns = columnProvider == null ? List.of() : columnProvider.apply(table.getTableName());
+            if (!columns.isEmpty()) {
+                int cap = Math.max(1, p.getTableColumnsPerTable());
+                sb.append(": ").append(String.join(", ",
+                        columns.size() > cap ? columns.subList(0, cap) : columns));
+                if (columns.size() > cap) {
+                    sb.append(" 等 ").append(columns.size()).append(" 列");
+                }
             }
             sb.append('\n');
         }

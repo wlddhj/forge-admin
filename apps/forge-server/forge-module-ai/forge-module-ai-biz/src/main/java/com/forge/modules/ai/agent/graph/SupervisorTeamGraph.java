@@ -73,6 +73,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
     private final DecisionJsonParser decisionJsonParser;
     private final MultimodalSupport multimodalSupport;
     private final com.forge.modules.ai.agent.tools.TableSchemaInspector tableSchemaInspector;
+    private final com.forge.modules.ai.agent.tools.TableColumnSchemaCache tableColumnSchemaCache;
     private final PromptBudgeter promptBudgeter;
     private final NativeToolCalling nativeToolCalling;
     private final com.forge.modules.ai.agent.AgentProperties agentProperties;
@@ -84,6 +85,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                                DecisionJsonParser decisionJsonParser,
                                MultimodalSupport multimodalSupport,
                                com.forge.modules.ai.agent.tools.TableSchemaInspector tableSchemaInspector,
+                               com.forge.modules.ai.agent.tools.TableColumnSchemaCache tableColumnSchemaCache,
                                PromptBudgeter promptBudgeter,
                                NativeToolCalling nativeToolCalling,
                                com.forge.modules.ai.agent.AgentProperties agentProperties,
@@ -94,6 +96,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
         this.decisionJsonParser = decisionJsonParser;
         this.multimodalSupport = multimodalSupport;
         this.tableSchemaInspector = tableSchemaInspector;
+        this.tableColumnSchemaCache = tableColumnSchemaCache;
         this.promptBudgeter = promptBudgeter;
         this.nativeToolCalling = nativeToolCalling;
         this.agentProperties = agentProperties;
@@ -174,7 +177,26 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
             if (index.isEmpty()) {
                 throw new BusinessException("团队没有可用成员（成员引用的 Agent 均不存在或未启用）");
             }
-            Map<String, Object> decision = decideSupervisor(ctx, state, model, index, 0);
+            Map<String, Object> decision;
+            try {
+                decision = decideSupervisor(ctx, state, model, index, 0);
+            } catch (RuntimeException e) {
+                // 已有专家汇报时软着陆：降级走总结节点基于汇报作答，避免调度模型一次失败拖死整 run
+                List<?> reports = state.value(AgentGraphState.AGENT_REPORTS)
+                        .map(v -> (List<?>) v).orElse(List.of());
+                if (reports.isEmpty()) {
+                    throw e;
+                }
+                ctx.emit(AgentEvents.Type.STEP_END, NODE_SUPERVISOR, "调度决策", Map.of(
+                        "seq", seq, "status", "SKIPPED",
+                        "output", "调度模型调用失败，基于已收集的专家汇报降级总结: "
+                                + decisionJsonParser.truncate(String.valueOf(e.getMessage()))));
+                Map<String, Object> fallback = new LinkedHashMap<>();
+                fallback.put("action", "final");
+                return Map.of(
+                        AgentGraphState.DECISION, fallback,
+                        AgentGraphState.STEPS, rounds + 1);
+            }
             ChatResponse last = (ChatResponse) decision.remove("__response");
             ctx.emit(AgentEvents.Type.STEP_END, NODE_SUPERVISOR, "调度决策", Map.of(
                     "seq", seq, "status", "SUCCESS",
@@ -495,7 +517,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
         // 构建子图
         StateGraph<AgentGraphState> subGraph = buildExpertSubgraph(ctx);
         MysqlCheckpointSaver saver = ctx.subSaver(threadKey);
-        int maxSteps = dispatch.get("maxSteps") instanceof Number n ? n.intValue() : 8;
+        int maxSteps = asInt(dispatch.get("maxSteps"), 8);
         CompiledGraph<AgentGraphState> app = subGraph.compile(CompileConfig.builder()
                 .checkpointSaver(saver)
                 .recursionLimit(maxSteps * 3)
@@ -566,8 +588,8 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                             .map(v -> (Map<?, ?>) v).orElse(Map.of());
                     int expertSteps = state.value(AgentGraphState.EXPERT_STEPS).map(v -> (Integer) v).orElse(0);
                     int limit = state.value(SUB_DISPATCH)
-                            .map(v -> (Map<?, ?>) v).map(d -> d.get("maxSteps"))
-                            .filter(Objects::nonNull).map(v -> ((Number) v).intValue()).orElse(8);
+                            .map(v -> (Map<?, ?>) v).map(d -> asInt(d.get("maxSteps"), 8))
+                            .orElse(8);
                     boolean approved = "APPROVED".equals(state.value(AgentGraphState.EXPERT_APPROVAL)
                             .map(String::valueOf).orElse(""));
                     if (!"tool".equals(decision.get("action")) || expertSteps > limit
@@ -613,11 +635,11 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
             String agentCode = str(dispatch, "agentCode");
             String agentName = str(dispatch, "agentName", agentCode);
             List<String> allowedTools = allowedToolsOf(state);
-            int limit = dispatch.get("maxSteps") instanceof Number n ? n.intValue() : 8;
+            int limit = asInt(dispatch.get("maxSteps"), 8);
             int expertSteps = state.value(AgentGraphState.EXPERT_STEPS).map(v -> (Integer) v).orElse(0);
 
-            AiAgentConfig agent = ctx.getRunCache().agent(
-                    dispatch.get("agentId") instanceof Number n ? n.longValue() : -1L);
+            // agentId 容错：存量检查点经全局 ObjectMapper LongSerializer 往返后为字符串形态
+            AiAgentConfig agent = ctx.getRunCache().agent(asLong(dispatch.get("agentId")));
             // 降级路径：专家不可用或达步数上限，不调用模型直接产出汇报性结论
             String degraded = degradedReason(ctx, agent, limit, expertSteps);
             if (degraded != null) {
@@ -658,6 +680,22 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
             return "（达到该专家步数上限，提前结束）";
         }
         return null;
+    }
+
+    /** 检查点往返数值容错：兼容存量字符串形态（全局 ObjectMapper LongSerializer 曾把 Long 写成字符串） */
+    static Long asLong(Object value) {
+        if (value instanceof Number n) {
+            return n.longValue();
+        }
+        if (value instanceof String s && s.matches("-?\\d+")) {
+            return Long.valueOf(s);
+        }
+        return null;
+    }
+
+    static int asInt(Object value, int defaultValue) {
+        Long parsed = asLong(value);
+        return parsed == null ? defaultValue : parsed.intValue();
     }
 
     private Map<String, Object> decideExpert(AgentGraphContext ctx, AgentGraphState state, AiAgentConfig agent,
@@ -742,9 +780,9 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
         sb.append(agent.getSystemPrompt()).append('\n');
         sb.append("可用工具：\n").append(ctx.getToolRegistry().describeTools(allowedTools)).append('\n');
         String tables = promptBudgeter.renderTables(task,
-                tableSchemaInspector.enabledTables());
+                tableSchemaInspector.enabledTables(), tableColumnSchemaCache::columnsOf);
         if (!tables.isBlank()) {
-            sb.append("数据库可用表（编写 SQL 必须使用以下真实表名，禁止臆造）：\n").append(tables).append('\n');
+            sb.append("数据库可用表（编写 SQL 必须使用以下真实表名与列名，禁止臆造）：\n").append(tables).append('\n');
         }
         String userTemplate = agent.getUserPromptTemplate();
         sb.append(userTemplate == null || userTemplate.isBlank() ? task
@@ -769,9 +807,10 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                                                 String task, List<String> allowedTools) {
         StringBuilder sb = new StringBuilder();
         sb.append(agent.getSystemPrompt()).append('\n');
-        String tables = promptBudgeter.renderTables(task, tableSchemaInspector.enabledTables());
+        String tables = promptBudgeter.renderTables(task, tableSchemaInspector.enabledTables(),
+                tableColumnSchemaCache::columnsOf);
         if (!tables.isBlank()) {
-            sb.append("数据库可用表（编写 SQL 必须使用以下真实表名，禁止臆造）：\n").append(tables).append('\n');
+            sb.append("数据库可用表（编写 SQL 必须使用以下真实表名与列名，禁止臆造）：\n").append(tables).append('\n');
         }
         String userTemplate = agent.getUserPromptTemplate();
         sb.append(userTemplate == null || userTemplate.isBlank() ? task

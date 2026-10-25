@@ -80,6 +80,8 @@ forge:
         core: ${AI_AGENT_EXEC_CORE:8}                         # Agent 专用线程池
         max: ${AI_AGENT_EXEC_MAX:16}
         queue: ${AI_AGENT_EXEC_QUEUE:200}
+      allowed-hosts:
+        - "*"            # 放行全部，仅建议开发环境
   tenant:
     enable: ${TENANT_ENABLE:false}          # 关闭多租户时改为 false
     header: X-Tenant-Id
@@ -204,6 +206,7 @@ forge:
         - forge-server
         - jsonplaceholder.typicode.com
         - api.github.com
+        - www.npt-cn.com
       http-timeout-ms: 5000
       http-max-body-bytes: 1048576
       require-https: false

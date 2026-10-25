@@ -1,11 +1,13 @@
 package com.forge.modules.ai.agent.tools;
 
+import com.forge.modules.ai.agent.AgentProperties;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -55,5 +57,22 @@ class HttpFetchToolTest {
         HttpFetchTool.CappedRead read = HttpFetchTool.readCapped(in, 7);
         assertTrue(read.truncated());
         assertTrue(read.body().startsWith("你"));
+    }
+
+    @Test
+    void 通配符放行全部域名() {
+        HttpFetchTool tool = new HttpFetchTool(new AgentProperties());
+        assertTrue(tool.hostAllowed("anything.example.com", List.of("*")));
+        assertTrue(tool.hostAllowed("127.0.0.1", List.of("*")));
+    }
+
+    @Test
+    void 后缀匹配含子域名与裸域名() {
+        HttpFetchTool tool = new HttpFetchTool(new AgentProperties());
+        assertTrue(tool.hostAllowed("api.github.com", List.of("github.com")));
+        assertTrue(tool.hostAllowed("github.com", List.of("github.com")));
+        assertTrue(tool.hostAllowed("deep.api.github.com", List.of(".github.com")));
+        assertFalse(tool.hostAllowed("github.evil.com", List.of("github.com")), "子串不等于后缀匹配");
+        assertFalse(tool.hostAllowed("example.com", List.of("github.com")));
     }
 }

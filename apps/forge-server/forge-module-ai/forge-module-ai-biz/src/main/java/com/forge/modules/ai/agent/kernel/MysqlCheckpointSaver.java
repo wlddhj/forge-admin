@@ -23,11 +23,17 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class MysqlCheckpointSaver extends AbstractCheckpointSaver {
 
+    /**
+     * 状态专用 mapper：不能用 Spring 全局 ObjectMapper——其注册的 LongSerializer 为防前端 JS 精度丢失
+     * 会把 Long 写成字符串（agentId:1 → "agentId":"1"），检查点往返后类型改变，恢复时
+     * dispatch.get("agentId") instanceof Number 不成立导致专家配置取不到。此处必须类型稳定往返。
+     */
+    private static final ObjectMapper STATE_MAPPER = new ObjectMapper().findAndRegisterModules();
+
     /** 专家子图完成标记 checkpointId（loadCheckpoints 过滤，不参与框架恢复） */
     public static final String DONE_MARKER_ID = "expert-done";
 
     private final AiAgentCheckpointMapper checkpointMapper;
-    private final ObjectMapper objectMapper;
     private final long runId;
     private final int writeInterval;
     private final boolean keepOnRelease;
@@ -36,14 +42,13 @@ public class MysqlCheckpointSaver extends AbstractCheckpointSaver {
     private volatile Checkpoint lastCheckpoint;
     private volatile boolean released;
 
-    public MysqlCheckpointSaver(AiAgentCheckpointMapper checkpointMapper, ObjectMapper objectMapper, long runId) {
-        this(checkpointMapper, objectMapper, runId, 1, false);
+    public MysqlCheckpointSaver(AiAgentCheckpointMapper checkpointMapper, long runId) {
+        this(checkpointMapper, runId, 1, false);
     }
 
-    public MysqlCheckpointSaver(AiAgentCheckpointMapper checkpointMapper, ObjectMapper objectMapper,
+    public MysqlCheckpointSaver(AiAgentCheckpointMapper checkpointMapper,
                                 long runId, int writeInterval, boolean keepOnRelease) {
         this.checkpointMapper = checkpointMapper;
-        this.objectMapper = objectMapper;
         this.runId = runId;
         this.writeInterval = Math.max(1, writeInterval);
         this.keepOnRelease = keepOnRelease;
@@ -218,8 +223,8 @@ public class MysqlCheckpointSaver extends AbstractCheckpointSaver {
 
     private Map<String, Object> fromJson(String json) {
         try {
-            return objectMapper.readValue(json,
-                    objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class));
+            return STATE_MAPPER.readValue(json,
+                    STATE_MAPPER.getTypeFactory().constructMapType(Map.class, String.class, Object.class));
         } catch (Exception e) {
             throw new IllegalStateException("checkpoint state 反序列化失败", e);
         }
@@ -227,7 +232,7 @@ public class MysqlCheckpointSaver extends AbstractCheckpointSaver {
 
     private String toJson(Map<String, Object> state) {
         try {
-            return objectMapper.writeValueAsString(state == null ? Map.of() : state);
+            return STATE_MAPPER.writeValueAsString(state == null ? Map.of() : state);
         } catch (Exception e) {
             throw new IllegalStateException("checkpoint state 序列化失败", e);
         }

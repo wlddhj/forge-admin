@@ -15,7 +15,7 @@ import java.util.List;
 public class AgentProperties {
 
     /**
-     * HTTP 工具允许访问的域名白名单（空=禁用 HTTP 工具）
+     * HTTP 工具允许访问的域名白名单（空=禁用 HTTP 工具；后缀匹配含子域名；含 * = 放行全部，仅建议开发环境）
      */
     private List<String> allowedHosts = List.of();
 
@@ -97,6 +97,8 @@ public class AgentProperties {
         private int reportsPerLimit = 1500;
         /** 注入提示词的表清单最大表数（按任务相关性优先） */
         private int maxTables = 15;
+        /** 单表注入提示词的列名上限（超出截断标注，防宽表撑爆预算） */
+        private int tableColumnsPerTable = 20;
         /** 多轮记忆段预算（字符） */
         private int memoryBudget = 3000;
         /** 多轮记忆回溯 run 数 */
