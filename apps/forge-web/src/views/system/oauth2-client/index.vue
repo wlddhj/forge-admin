@@ -148,7 +148,7 @@ import { oauth2ClientApi } from '@/api/oauth2-client'
 import type { OAuth2Client, ClientCreateRequest, ClientUpdateRequest } from '@/types/oauth2-client'
 import { Delete } from '@element-plus/icons-vue'
 
-const { tableHeight } = useTableHeight()
+const { tableHeight } = useTableHeight({ hasPagination: false })
 const tableRef = ref<VxeTableInstance | null>(null)
 const toolbarRef = ref<VxeToolbarInstance | null>(null)
 const loading = ref(false)

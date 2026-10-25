@@ -998,6 +998,7 @@ watch(dateRange, (val) => {
 - [ ] 添加工具栏 `<vxe-toolbar>` 并关联表格
 - [ ] 导入 `VxeTableInstance` / `VxeToolbarInstance` 类型
 - [ ] 导入并使用 `useTableHeight` / `useTableSeq`
+- [ ] **无分页页面必须 `useTableHeight({ hasPagination: false })`**（默认 true 会预留 52px 分页高度，页面无 TablePagination 时表格底部多出空白；spec-guard R6 机检：spec-guard-disable-r4 豁免页与 tree-config 树形页均须设置）
 - [ ] 添加 `@current-change` 处理移动端选中
 
 ### 11.3 树形表格附加项

@@ -61,6 +61,11 @@ function check(file) {
   if (hasVxeTable && !isTreePage && !/TablePagination/.test(src) && !/spec-guard-disable-r4/.test(src)) {
     problems.push(`R4 未使用 TablePagination(无分页页请加注释 spec-guard-disable-r4 豁免)`)
   }
+  // R6: 无分页页面(豁免注释/树形)用了 useTableHeight 时必须 hasPagination:false——默认 true 会预留 52px 分页高度,页面无分页组件时表格底部多出空白
+  const noPagination = isTreePage || /spec-guard-disable-r4/.test(src)
+  if (hasVxeTable && noPagination && /useTableHeight\(/.test(src) && !/hasPagination:\s*false/.test(src)) {
+    problems.push(`R6 无分页页须 useTableHeight({ hasPagination: false })(否则高度计算多预留 52px 分页空白)`)
+  }
   // R5: scoped 样式禁止重复布局类
   const scoped = src.match(/<style[^>]*scoped[^>]*>([\s\S]*?)<\/style>/)
   if (scoped && /\.(app-container|search-card|table-card)\s*\{/.test(scoped[1])) {
