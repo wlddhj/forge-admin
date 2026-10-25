@@ -226,9 +226,15 @@ class WfTaskServiceSignAndClaimTest {
     @Test
     @DisplayName("可签收查询：用户角色命中候选组并标记待认领")
     void claimable_shouldMatchGroupActors() {
-        try (var securityMock = mockStatic(SecurityHelper.class)) {
+        com.forge.common.utils.UserContext.DataScopeRoleInfo roleInfo = new com.forge.common.utils.UserContext.DataScopeRoleInfo();
+        roleInfo.setRoleId(30L);
+        com.forge.common.utils.UserContext userContext = new com.forge.common.utils.UserContext();
+        userContext.setRoles(List.of(roleInfo));
+
+        try (var securityMock = mockStatic(SecurityHelper.class);
+             var userContextMock = mockStatic(com.forge.common.utils.UserContext.class)) {
             securityMock.when(SecurityHelper::getCurrentUserId).thenReturn(7L);
-            when(identityService.getRoleIdsByUserId(7L)).thenReturn(List.of("30"));
+            userContextMock.when(() -> com.forge.common.utils.UserContext.get()).thenReturn(userContext);
             when(identityService.getUserDeptId(7L)).thenReturn(null);
 
             FlwTaskActor roleActor = new FlwTaskActor();

@@ -150,8 +150,16 @@ public class WfTaskServiceImpl implements WfTaskService {
         }
 
         // 用户经角色/部门候选池可见的任务：actor 记录的角色/部门 ID ∈ 用户隶属集
+        // 角色直接取 JWT 过滤器装载的 UserContext（免 DB 查询）；部门另查用户主表
         Set<String> groupIds = new HashSet<>();
-        identityService.getRoleIdsByUserId(currentUserId).forEach(groupIds::add);
+        UserContext context = UserContext.get();
+        if (context != null && context.getRoles() != null) {
+            context.getRoles().forEach(role -> {
+                if (role.getRoleId() != null) {
+                    groupIds.add(String.valueOf(role.getRoleId()));
+                }
+            });
+        }
         Long deptId = identityService.getUserDeptId(currentUserId);
         if (deptId != null) {
             groupIds.add(String.valueOf(deptId));
