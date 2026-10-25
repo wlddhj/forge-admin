@@ -40,21 +40,22 @@ public class AiUsageQueryServiceImpl implements AiUsageQueryService {
         result.put("failureCount", 0);
         result.put("totalTokens", 0);
         result.put("avgResponseMs", 0);
-        usageMapper.selectSummary(userId, modelId, parseDate(startDate), parseDate(endDate))
-                .ifPresent(row -> {
-                    result.put("totalRequest", row.getOrDefault("totalRequest", 0));
-                    result.put("successCount", row.getOrDefault("successCount", 0));
-                    result.put("failureCount", row.getOrDefault("failureCount", 0));
-                    result.put("totalTokens",
-                            ((Number) row.getOrDefault("totalInputTokens", 0)).longValue()
-                                    + ((Number) row.getOrDefault("totalOutputTokens", 0)).longValue());
-                    Object requests = row.get("totalRequest");
-                    Object avgRaw = row.get("avgResponseMs");
-                    long totalRequest = ((Number) requests).longValue();
-                    double avg = totalRequest > 0 && avgRaw instanceof Number n
-                            ? n.doubleValue() / totalRequest : 0;
-                    result.put("avgResponseMs", Math.round(avg));
-                });
+        Map<String, Object> row = usageMapper.selectSummary(userId, modelId,
+                parseDate(startDate), parseDate(endDate));
+        if (row != null) {
+            result.put("totalRequest", row.getOrDefault("totalRequest", 0));
+            result.put("successCount", row.getOrDefault("successCount", 0));
+            result.put("failureCount", row.getOrDefault("failureCount", 0));
+            result.put("totalTokens",
+                    ((Number) row.getOrDefault("totalInputTokens", 0)).longValue()
+                            + ((Number) row.getOrDefault("totalOutputTokens", 0)).longValue());
+            Object requests = row.get("totalRequest");
+            Object avgRaw = row.get("avgResponseMs");
+            long totalRequest = ((Number) requests).longValue();
+            double avg = totalRequest > 0 && avgRaw instanceof Number n
+                    ? n.doubleValue() / totalRequest : 0;
+            result.put("avgResponseMs", Math.round(avg));
+        }
         return result;
     }
 

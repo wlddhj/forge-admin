@@ -8,7 +8,6 @@ import org.apache.ibatis.annotations.Select;
 
 import java.time.LocalDate;
 import java.util.Map;
-import java.util.Optional;
 
 @Mapper
 public interface AiApiUsageMapper extends com.baomidou.mybatisplus.core.mapper.BaseMapper<AiApiUsage> {
@@ -38,7 +37,7 @@ public interface AiApiUsageMapper extends com.baomidou.mybatisplus.core.mapper.B
                         @Param("responseTimeMs") int responseTimeMs);
 
     /**
-     * 汇总统计:请求/成败/Token 合计与总响应时长(avg 由调用侧除以总数求得)
+     * 汇总统计:请求/成败/Token 合计与总响应时长(avg 由调用侧除以总数求得);返回 Map(MyBatis 不支持 Optional 结果映射)
      */
     @Select("<script>"
             + "SELECT COALESCE(SUM(request_count),0) AS totalRequest, "
@@ -54,7 +53,7 @@ public interface AiApiUsageMapper extends com.baomidou.mybatisplus.core.mapper.B
             + "<if test='startDate != null'>AND usage_date &gt;= #{startDate} </if>"
             + "<if test='endDate != null'>AND usage_date &lt;= #{endDate} </if>"
             + "</script>")
-    Optional<Map<String, Object>> selectSummary(@Param("userId") Long userId,
+    Map<String, Object> selectSummary(@Param("userId") Long userId,
                                                 @Param("modelId") Long modelId,
                                                 @Param("startDate") LocalDate startDate,
                                                 @Param("endDate") LocalDate endDate);

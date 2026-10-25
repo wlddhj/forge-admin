@@ -11,7 +11,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,14 +37,14 @@ class AiUsageQueryServiceTest {
     @Test
     void 汇总数值换算() {
         when(usageMapper.selectSummary(isNull(), isNull(), isNull(), isNull()))
-                .thenReturn(Optional.of(Map.of(
+                .thenReturn(Map.of(
                         "totalRequest", 10L,
                         "successCount", 8L,
                         "failureCount", 2L,
                         "totalInputTokens", 1000L,
                         "totalOutputTokens", 500L,
                         // avg_response_time 是日均值,加权总时长 = Σ(avg*requests) = 4500 → 450ms/次
-                        "avgResponseMs", 4500L)));
+                        "avgResponseMs", 4500L));
 
         Map<String, Object> summary = service.summary(null, null, null, null);
 
@@ -58,7 +57,7 @@ class AiUsageQueryServiceTest {
     @Test
     void 空数据全零不报错() {
         when(usageMapper.selectSummary(isNull(), isNull(), isNull(), isNull()))
-                .thenReturn(Optional.empty());
+                .thenReturn(null);
         Map<String, Object> summary = service.summary(null, null, null, null);
         assertEquals(0, summary.get("totalRequest"));
         assertEquals(0, summary.get("totalTokens"));
