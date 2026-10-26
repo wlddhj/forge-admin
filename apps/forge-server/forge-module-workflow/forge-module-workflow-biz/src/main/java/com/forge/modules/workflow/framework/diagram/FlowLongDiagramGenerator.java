@@ -34,6 +34,8 @@ public class FlowLongDiagramGenerator {
     private static final int START_END_RADIUS = 18;
     private static final int HORIZONTAL_GAP = 50;
     private static final int VERTICAL_GAP = 60;
+    /** 画布四周留白（兼作坐标归一化的左/上边界） */
+    private static final int MARGIN = 40;
 
     public FlowLongDiagramGenerator(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -82,14 +84,27 @@ public class FlowLongDiagramGenerator {
         // 递归遍历节点，计算位置
         traverseAndPosition(processModel.getNodeConfig(), 0, 0, nodePositions, connections, null, null);
 
+        // 坐标归一化：分支以网关为中心横向展开，网关靠左时分支 x 为负；
+        // SVG 无 viewBox，负坐标节点会被画布左缘裁掉——整体平移到留边距的非负区间
+        int minX = Integer.MAX_VALUE;
+        for (Point p : nodePositions.values()) {
+            minX = Math.min(minX, p.x);
+        }
+        if (minX < MARGIN) {
+            int shift = MARGIN - minX;
+            for (Point p : nodePositions.values()) {
+                p.x += shift;
+            }
+        }
+
         // 计算画布尺寸
         int maxX = 0, maxY = 0;
         for (Point p : nodePositions.values()) {
             maxX = Math.max(maxX, p.x + NODE_WIDTH);
             maxY = Math.max(maxY, p.y + NODE_HEIGHT);
         }
-        int canvasWidth = Math.max(maxX + 80, 400);
-        int canvasHeight = Math.max(maxY + 80, 300);
+        int canvasWidth = Math.max(maxX + MARGIN, 400);
+        int canvasHeight = Math.max(maxY + MARGIN, 300);
 
         StringBuilder svg = new StringBuilder();
         svg.append(String.format("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\">\n",
