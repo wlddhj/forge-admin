@@ -33,6 +33,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -68,6 +69,19 @@ public class WfModelServiceImpl implements WfModelService {
         }
         if (StrUtil.isNotBlank(request.getKey())) {
             wrapper.eq(WfProcessExt::getProcessKey, request.getKey());
+        }
+        if (StrUtil.isNotBlank(request.getCategory())) {
+            // 前端分类筛选传分类编码，转成 categoryId 再过滤
+            List<WfCategory> matched = categoryMapper.selectList(new LambdaQueryWrapper<WfCategory>()
+                    .eq(WfCategory::getCategoryCode, request.getCategory()));
+            if (matched.isEmpty()) {
+                Page<ModelResponse> emptyPage = new Page<>(request.getPageNum(), request.getPageSize());
+                emptyPage.setRecords(new ArrayList<>());
+                emptyPage.setTotal(0);
+                return emptyPage;
+            }
+            wrapper.in(WfProcessExt::getCategoryId,
+                    matched.stream().map(WfCategory::getId).collect(Collectors.toList()));
         }
         if (request.getCategoryId() != null) {
             wrapper.eq(WfProcessExt::getCategoryId, request.getCategoryId());

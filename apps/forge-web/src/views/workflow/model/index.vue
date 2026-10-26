@@ -101,8 +101,10 @@
         <!-- 模型标识（桌面端） -->
         <vxe-column v-if="!isMobile" field="key" title="模型标识" min-width="150" />
 
-        <!-- 分类 -->
-        <vxe-column v-if="!isMobile" field="category" title="分类" width="120" />
+        <!-- 分类（显示分类名，未分类显示 -） -->
+        <vxe-column v-if="!isMobile" title="分类" width="120">
+          <template #default="{ row }">{{ row.categoryName || '-' }}</template>
+        </vxe-column>
 
         <!-- 版本（桌面端） -->
         <vxe-column v-if="!isMobile" field="version" title="版本" width="80" align="center" />
