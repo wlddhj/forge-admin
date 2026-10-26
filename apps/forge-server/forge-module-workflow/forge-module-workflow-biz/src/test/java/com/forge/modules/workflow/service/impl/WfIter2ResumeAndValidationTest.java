@@ -61,7 +61,10 @@ class WfIter2ResumeAndValidationTest {
                 mock(RuntimeService.class), processService, queryService, mock(TaskService.class),
                 mock(FlwInstanceMapper.class), mock(FlwHisInstanceMapper.class), mock(FlwHisTaskMapper.class),
                 mock(FlwTaskActorMapper.class), mock(FlowLongDiagramGenerator.class),
-                mock(FlowLongIdentityService.class), mock(WfApprovalCommentMapper.class), mock(com.forge.modules.workflow.mapper.WfInstanceQueryMapper.class),
+                mock(FlowLongIdentityService.class), mock(WfApprovalCommentMapper.class),
+                mock(com.forge.modules.workflow.mapper.WfAiRouteRecordMapper.class),
+                mock(com.forge.modules.workflow.mapper.WfAiApprovalRecordMapper.class),
+                mock(com.forge.modules.workflow.mapper.WfInstanceQueryMapper.class),
                 mock(SysAttachmentService.class), processExtMapper,
                 mock(ProcessNoGenerator.class), mock(ApprovalTimelineBuilder.class), new ObjectMapper());
         ReflectionTestUtils.setField(service, "flowLongEngine", flowLongEngine);

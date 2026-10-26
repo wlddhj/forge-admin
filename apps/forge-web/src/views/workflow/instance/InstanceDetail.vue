@@ -105,6 +105,75 @@
           <ApprovalTimeline :nodes="approvalNodes" />
         </el-card>
 
+        <!-- AI 决策记录（分支路由 + 审批决策，两组皆空隐藏） -->
+        <el-card v-if="aiDecisions && (aiDecisions.routings.length || aiDecisions.approvals.length)" shadow="never" class="timeline-card">
+          <template #header>AI 决策记录</template>
+
+          <div v-if="aiDecisions.routings.length" class="ai-decision-block">
+            <div class="ai-decision-block__title">分支路由</div>
+            <el-table :data="aiDecisions.routings" size="small">
+              <el-table-column prop="createTime" label="时间" width="170">
+                <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+              </el-table-column>
+              <el-table-column label="网关" min-width="140">
+                <template #default="{ row }">
+                  {{ row.gatewayNodeName || row.gatewayNodeKey }}
+                  <el-tag size="small" type="info" style="margin-left: 4px">{{ row.gatewayTypeName }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="选中分支" min-width="140">
+                <template #default="{ row }">
+                  <template v-if="row.selectedBranchNames.length">
+                    <el-tag v-for="name in row.selectedBranchNames" :key="name" size="small" style="margin-right: 4px">
+                      {{ name }}
+                    </el-tag>
+                  </template>
+                  <span v-else style="color: #909399">未采纳（已降级）</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="confidence" label="置信度" width="90" align="center">
+                <template #default="{ row }">{{ row.confidence != null ? row.confidence : '-' }}</template>
+              </el-table-column>
+              <el-table-column label="状态" width="120" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="aiStatusTagType(row.status)" size="small">{{ aiStatusText(row.status) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="reasoning" label="AI 理由" min-width="200" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.reasoning || '-' }}</template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <div v-if="aiDecisions.approvals.length" class="ai-decision-block">
+            <div class="ai-decision-block__title">审批决策</div>
+            <el-table :data="aiDecisions.approvals" size="small">
+              <el-table-column prop="createTime" label="时间" width="170">
+                <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+              </el-table-column>
+              <el-table-column prop="taskName" label="审批节点" min-width="140" />
+              <el-table-column label="决策" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="row.decision === 'APPROVE' ? 'success' : row.decision === 'REJECT' ? 'danger' : 'info'" size="small">
+                    {{ row.decision === 'APPROVE' ? '通过' : row.decision === 'REJECT' ? '驳回' : '转人工' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="confidence" label="置信度" width="90" align="center">
+                <template #default="{ row }">{{ row.confidence != null ? row.confidence : '-' }}</template>
+              </el-table-column>
+              <el-table-column label="状态" width="120" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="aiStatusTagType(row.status)" size="small">{{ aiStatusText(row.status) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="reasoning" label="AI 理由" min-width="200" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.reasoning || '-' }}</template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </el-card>
+
         <!-- 审批记录 -->
         <el-card shadow="never" class="timeline-card">
           <template #header>审批记录</template>
@@ -166,7 +235,7 @@ import { Paperclip } from '@element-plus/icons-vue'
 import { processInstanceApi } from '@/api/workflow/process-instance'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
 import { formApi } from '@/api/workflow/form'
-import type { ProcessInstance, ApprovalNode, ApprovalComment } from '@/types/workflow'
+import type { ProcessInstance, ApprovalNode, ApprovalComment, AiDecisionRecords } from '@/types/workflow'
 import { formatDateTime } from '@/utils/dateFormat'
 import { decodeFieldsDisabled } from '@/utils/formCreate'
 import FlowDiagramDialog from '@/views/workflow/process/components/FlowDiagramDialog.vue'
@@ -183,6 +252,7 @@ const loading = ref(false)
 const instance = ref<ProcessInstance | null>(null)
 const approvalNodes = ref<ApprovalNode[]>([])
 const comments = ref<ApprovalComment[]>([])
+const aiDecisions = ref<AiDecisionRecords | null>(null)
 const diagramDialogVisible = ref(false)
 const copyDialogVisible = ref(false)
 const urging = ref(false)
@@ -201,6 +271,25 @@ const handleResume = async () => {
   } finally {
     resuming.value = false
   }
+}
+
+// AI 决策状态展示
+const aiStatusTagType = (status: string): 'success' | 'warning' | 'danger' | 'info' => {
+  if (status === 'SUCCESS') return 'success'
+  if (status === 'TIMEOUT' || status === 'ERROR') return 'danger'
+  if (status === 'FALLBACK' || status === 'LOW_CONFIDENCE' || status === 'FAILURE') return 'warning'
+  return 'info'
+}
+const aiStatusText = (status: string): string => {
+  const map: Record<string, string> = {
+    SUCCESS: '已采纳',
+    FALLBACK: '已降级',
+    LOW_CONFIDENCE: '低置信度',
+    TIMEOUT: '超时',
+    ERROR: '异常',
+    FAILURE: '失败'
+  }
+  return map[status] || status
 }
 
 // 催办当前全部活动审批任务
@@ -241,10 +330,11 @@ const getInstanceDetail = async () => {
   if (!instanceId) return
   loading.value = true
   try {
-    const [instanceData, detailData, commentsData] = await Promise.allSettled([
+    const [instanceData, detailData, commentsData, aiDecisionsData] = await Promise.allSettled([
       processInstanceApi.getById(instanceId),
       processInstanceApi.getApprovalDetail(instanceId),
-      processInstanceApi.getComments(instanceId)
+      processInstanceApi.getComments(instanceId),
+      processInstanceApi.getAiDecisions(instanceId)
     ])
 
     if (instanceData.status === 'fulfilled') {
@@ -298,6 +388,10 @@ const getInstanceDetail = async () => {
 
     if (commentsData.status === 'fulfilled') {
       comments.value = commentsData.value || []
+    }
+
+    if (aiDecisionsData.status === 'fulfilled') {
+      aiDecisions.value = aiDecisionsData.value || { routings: [], approvals: [] }
     }
   } catch (error) {
     console.error('获取实例详情失败:', error)
@@ -380,6 +474,19 @@ onMounted(() => {
     .info-section {
       max-width: 100%;
     }
+  }
+}
+
+.ai-decision-block {
+  &:not(:first-child) {
+    margin-top: 12px;
+  }
+
+  &__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #646a73;
+    margin-bottom: 8px;
   }
 }
 </style>

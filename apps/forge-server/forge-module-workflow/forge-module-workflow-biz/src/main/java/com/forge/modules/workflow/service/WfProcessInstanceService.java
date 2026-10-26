@@ -2,6 +2,7 @@ package com.forge.modules.workflow.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.modules.workflow.dto.comment.ApprovalCommentResponse;
+import com.forge.modules.workflow.dto.instance.AiDecisionResponse;
 import com.forge.modules.workflow.dto.instance.ApprovalDetailResponse;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceQueryRequest;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceResponse;
@@ -94,6 +95,14 @@ public interface WfProcessInstanceService {
      * @return 审批详情
      */
     ApprovalDetailResponse getApprovalDetail(String processInstanceId);
+
+    /**
+     * 获取实例 AI 决策记录（分支路由 + 审批决策两组，时间倒序）
+     *
+     * @param processInstanceId 流程实例ID
+     * @return AI 决策记录
+     */
+    AiDecisionResponse getAiDecisions(String processInstanceId);
 
     /**
      * 根据业务Key查询流程实例列表

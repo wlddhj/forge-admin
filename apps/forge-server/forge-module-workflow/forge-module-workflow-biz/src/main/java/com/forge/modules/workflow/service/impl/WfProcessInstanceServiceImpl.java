@@ -14,6 +14,7 @@ import com.aizuda.bpm.engine.model.NodeAssignee;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
@@ -22,10 +23,13 @@ import com.forge.modules.system.entity.SysAttachment;
 import com.forge.modules.system.service.SysAttachmentService;
 import com.forge.modules.workflow.dto.comment.ApprovalCommentResponse;
 import com.forge.modules.workflow.dto.comment.AttachmentBrief;
+import com.forge.modules.workflow.dto.instance.AiDecisionResponse;
 import com.forge.modules.workflow.dto.instance.ApprovalDetailResponse;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceQueryRequest;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceResponse;
 import com.forge.modules.workflow.dto.instance.ProcessStartRequest;
+import com.forge.modules.workflow.entity.WfAiApprovalRecord;
+import com.forge.modules.workflow.entity.WfAiRouteRecord;
 import com.forge.modules.workflow.entity.WfApprovalComment;
 import com.forge.modules.workflow.entity.WfProcessExt;
 import com.forge.modules.workflow.framework.ApprovalActionTypeEnum;
@@ -37,6 +41,8 @@ import com.aizuda.bpm.mybatisplus.mapper.FlwHisInstanceMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisTaskMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwInstanceMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwTaskActorMapper;
+import com.forge.modules.workflow.mapper.WfAiApprovalRecordMapper;
+import com.forge.modules.workflow.mapper.WfAiRouteRecordMapper;
 import com.forge.modules.workflow.mapper.WfApprovalCommentMapper;
 import com.forge.modules.workflow.mapper.WfProcessExtMapper;
 import com.forge.modules.workflow.service.ProcessNoGenerator;
@@ -77,6 +83,8 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
     private final FlowLongDiagramGenerator diagramGenerator;
     private final FlowLongIdentityService identityService;
     private final WfApprovalCommentMapper approvalCommentMapper;
+    private final WfAiRouteRecordMapper aiRouteRecordMapper;
+    private final WfAiApprovalRecordMapper aiApprovalRecordMapper;
     private final com.forge.modules.workflow.mapper.WfInstanceQueryMapper instanceQueryMapper;
     private final SysAttachmentService sysAttachmentService;
     private final WfProcessExtMapper processExtMapper;
@@ -706,6 +714,114 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
                 .collect(Collectors.toList());
         fillCommentAttachments(comments, responses);
         return responses;
+    }
+
+    @Override
+    public AiDecisionResponse getAiDecisions(String processInstanceId) {
+        Long id = parseInstanceId(processInstanceId);
+        AiDecisionResponse response = new AiDecisionResponse();
+        response.setRoutings(loadRoutingDecisions(id));
+        response.setApprovals(loadApprovalDecisions(id));
+        return response;
+    }
+
+    /**
+     * AI 路由决策记录：选中分支 nodeKey 解析为分支名（candidate_branches JSON）
+     */
+    private List<AiDecisionResponse.Routing> loadRoutingDecisions(Long instanceId) {
+        List<WfAiRouteRecord> records;
+        try {
+            records = aiRouteRecordMapper.selectList(new LambdaQueryWrapper<WfAiRouteRecord>()
+                    .eq(WfAiRouteRecord::getProcessInstanceId, instanceId)
+                    .orderByDesc(WfAiRouteRecord::getId));
+        } catch (Exception e) {
+            // 表缺失等环境差异不阻断接口（如 H2 测试库未建该表）
+            log.warn("查询AI路由决策记录失败: instanceId={}, error={}", instanceId, e.getMessage());
+            return Collections.emptyList();
+        }
+        return records.stream().map(record -> {
+            AiDecisionResponse.Routing dto = new AiDecisionResponse.Routing();
+            dto.setGatewayNodeKey(record.getGatewayNodeKey());
+            dto.setGatewayNodeName(record.getGatewayNodeName());
+            dto.setGatewayType(record.getGatewayType());
+            dto.setGatewayTypeName(gatewayTypeName(record.getGatewayType()));
+            dto.setConfidence(record.getConfidence());
+            dto.setReasoning(record.getReasoning());
+            dto.setRawResponse(record.getRawResponse());
+            dto.setStatus(record.getStatus());
+            dto.setCreateTime(record.getCreateTime());
+
+            List<String> selectedKeys = StrUtil.isBlank(record.getSelectedBranches())
+                    ? Collections.emptyList()
+                    : Arrays.asList(record.getSelectedBranches().split(","));
+            dto.setSelectedBranches(selectedKeys);
+            Map<String, String> branchNames = parseCandidateBranchNames(record.getCandidateBranches());
+            dto.setSelectedBranchNames(selectedKeys.stream()
+                    .map(key -> branchNames.getOrDefault(key, key))
+                    .collect(Collectors.toList()));
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * AI 审批决策记录（独立 try-catch：单组失败不影响另一组）
+     */
+    private List<AiDecisionResponse.Approval> loadApprovalDecisions(Long instanceId) {
+        List<WfAiApprovalRecord> records;
+        try {
+            records = aiApprovalRecordMapper.selectList(new LambdaQueryWrapper<WfAiApprovalRecord>()
+                    .eq(WfAiApprovalRecord::getProcessInstanceId, instanceId)
+                    .orderByDesc(WfAiApprovalRecord::getId));
+        } catch (Exception e) {
+            log.warn("查询AI审批决策记录失败: instanceId={}, error={}", instanceId, e.getMessage());
+            return Collections.emptyList();
+        }
+        return records.stream().map(record -> {
+            AiDecisionResponse.Approval dto = new AiDecisionResponse.Approval();
+            dto.setTaskId(record.getTaskId());
+            dto.setTaskName(record.getTaskName());
+            dto.setDecision(record.getDecision());
+            dto.setConfidence(record.getConfidence());
+            dto.setReasoning(record.getReasoning());
+            dto.setStatus(record.getStatus());
+            dto.setProvider(record.getProvider());
+            dto.setModelName(record.getModelName());
+            dto.setCreateTime(record.getCreateTime());
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * 解析候选分支 JSON（[{nodeKey,nodeName}]）为 nodeKey → nodeName 映射；解析失败返回空映射（调用方回退展示原 key）
+     */
+    private Map<String, String> parseCandidateBranchNames(String candidateBranches) {
+        if (StrUtil.isBlank(candidateBranches)) {
+            return Collections.emptyMap();
+        }
+        try {
+            List<Map<String, String>> candidates = objectMapper.readValue(candidateBranches,
+                    new TypeReference<List<Map<String, String>>>() {
+                    });
+            return candidates.stream().collect(Collectors.toMap(
+                    c -> c.getOrDefault("nodeKey", ""),
+                    c -> c.getOrDefault("nodeName", ""),
+                    (a, b) -> a));
+        } catch (Exception e) {
+            log.warn("解析候选分支JSON失败: {}", e.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
+    private String gatewayTypeName(Integer gatewayType) {
+        if (gatewayType == null) {
+            return "未知";
+        }
+        return switch (gatewayType) {
+            case 4 -> "条件网关";
+            case 9 -> "包容网关";
+            case 23 -> "路由网关";
+            default -> "未知";
+        };
     }
 
     /**

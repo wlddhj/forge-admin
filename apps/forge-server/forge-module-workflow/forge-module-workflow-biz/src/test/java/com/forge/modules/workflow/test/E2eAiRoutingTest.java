@@ -7,8 +7,10 @@ import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.entity.AiModelConfig;
 import com.forge.modules.ai.service.AiModelResolver;
+import com.forge.modules.workflow.dto.instance.AiDecisionResponse;
 import com.forge.modules.workflow.entity.WfAiRouteRecord;
 import com.forge.modules.workflow.mapper.WfAiRouteRecordMapper;
+import com.forge.modules.workflow.service.WfProcessInstanceService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +38,9 @@ class E2eAiRoutingTest extends WorkflowIntegrationTestBase {
 
     @Autowired
     private WfAiRouteRecordMapper routeRecordMapper;
+
+    @Autowired
+    private WfProcessInstanceService processInstanceService;
 
     @AfterEach
     void resetLlmStubs() {
@@ -219,6 +224,31 @@ class E2eAiRoutingTest extends WorkflowIntegrationTestBase {
                     "包容审批A".equals(task.getTaskName()) ? user(2L, "审批人乙") : user(3L, "审批人丙"), null);
         }
         assertEquals(InstanceState.complete.getValue(), queryService.getHistInstance(instanceId).getInstanceState());
+    }
+
+    @Test
+    @DisplayName("AI 决策查询接口：路由记录含解析后的分支名，审批组容错为空")
+    void aiDecisions_serviceReturnsResolvedBranchNames() {
+        Long processId = deploy(conditionModel("e2e_ai_api"));
+        stubLlmContent("{\"nodeKeys\": [\"ai_high\"], \"confidence\": 95, \"reasoning\": \"金额大\"}");
+
+        var instance = flowLongEngine.startInstanceById(processId, user(1L, "发起人甲"),
+                Map.of("amount", 50)).orElseThrow();
+
+        AiDecisionResponse decisions = processInstanceService.getAiDecisions(String.valueOf(instance.getId()));
+
+        // 路由组：SUCCESS 记录，选中分支名解析为候选里的 nodeName「高额」（而非裸 nodeKey）
+        assertEquals(1, decisions.getRoutings().size());
+        AiDecisionResponse.Routing routing = decisions.getRoutings().get(0);
+        assertEquals("SUCCESS", routing.getStatus());
+        assertEquals("条件网关", routing.getGatewayTypeName());
+        assertEquals(java.util.List.of("ai_high"), routing.getSelectedBranches());
+        assertEquals(java.util.List.of("高额"), routing.getSelectedBranchNames());
+        assertEquals(95, routing.getConfidence());
+
+        // 审批组：H2 未建 wf_ai_approval_record 表 → 容错为空列表不抛异常
+        assertNotNull(decisions.getApprovals());
+        assertTrue(decisions.getApprovals().isEmpty());
     }
 
     @Test

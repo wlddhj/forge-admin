@@ -209,6 +209,38 @@ export interface WorkflowCommentAttachment {
   fileUrl: string
 }
 
+// 实例 AI 决策记录（分支路由 + 审批决策）
+export interface AiDecisionRecords {
+  routings: AiRoutingDecision[]
+  approvals: AiApprovalDecision[]
+}
+
+export interface AiRoutingDecision {
+  gatewayNodeKey: string
+  gatewayNodeName: string
+  gatewayType: number
+  gatewayTypeName: string
+  selectedBranches: string[]
+  selectedBranchNames: string[]
+  confidence: number | null
+  reasoning: string | null
+  rawResponse: string | null
+  status: string // SUCCESS / FALLBACK / LOW_CONFIDENCE / TIMEOUT / ERROR
+  createTime: string
+}
+
+export interface AiApprovalDecision {
+  taskId: number
+  taskName: string
+  decision: string // APPROVE / REJECT / MANUAL
+  confidence: number | null
+  reasoning: string | null
+  status: string
+  provider: string | null
+  modelName: string | null
+  createTime: string
+}
+
 // 可退回节点
 export interface ReturnNode {
   taskDefKey: string

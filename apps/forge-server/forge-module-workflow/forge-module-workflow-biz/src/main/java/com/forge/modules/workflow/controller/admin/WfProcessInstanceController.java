@@ -5,6 +5,7 @@ import com.forge.framework.web.annotation.OperationLog;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.workflow.dto.comment.ApprovalCommentResponse;
+import com.forge.modules.workflow.dto.instance.AiDecisionResponse;
 import com.forge.modules.workflow.dto.instance.ApprovalDetailResponse;
 import com.forge.modules.workflow.dto.instance.InstanceCopyRequest;
 import com.forge.modules.workflow.dto.instance.InstanceUrgeRequest;
@@ -151,6 +152,13 @@ public class WfProcessInstanceController {
     @PreAuthorize("hasAuthority('workflow:instance:query')")
     public Result<ApprovalDetailResponse> getApprovalDetail(@PathVariable String id) {
         return Result.success(wfProcessInstanceService.getApprovalDetail(id));
+    }
+
+    @Operation(summary = "获取实例 AI 决策记录（分支路由 + 审批决策）")
+    @GetMapping("/{id}/ai-decisions")
+    @PreAuthorize("hasAuthority('workflow:instance:query')")
+    public Result<AiDecisionResponse> getAiDecisions(@PathVariable String id) {
+        return Result.success(wfProcessInstanceService.getAiDecisions(id));
     }
 
     @Operation(summary = "根据业务Key查询流程实例")

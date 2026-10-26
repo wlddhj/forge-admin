@@ -1,6 +1,6 @@
 import { request } from '@/utils/request'
 import type { PageResult } from '@/utils/request'
-import type { ProcessInstance, ProcessInstanceQuery, ProcessStartRequest, ApprovalComment, ApprovalDetail } from '@/types/workflow'
+import type { ProcessInstance, ProcessInstanceQuery, ProcessStartRequest, ApprovalComment, ApprovalDetail, AiDecisionRecords } from '@/types/workflow'
 
 export const processInstanceApi = {
   page: (params: ProcessInstanceQuery) =>
@@ -21,6 +21,8 @@ export const processInstanceApi = {
     request.get<Record<string, any>>(`/workflow/instance/${id}/variables`).then(res => res.data),
   getApprovalDetail: (id: string) =>
     request.get<ApprovalDetail>(`/workflow/instance/${id}/approval-detail`).then(res => res.data),
+  getAiDecisions: (id: string) =>
+    request.get<AiDecisionRecords>(`/workflow/instance/${id}/ai-decisions`).then(res => res.data),
   urge: (id: string, data?: { comment?: string }) =>
     request.post(`/workflow/instance/${id}/urge`, data || {}),
   copy: (id: string, data: { copyUserIds: number[]; reason?: string }) =>
