@@ -84,6 +84,20 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
         if (StrUtil.isNotBlank(request.getKey())) {
             wrapper.eq(FlwProcess::getProcessKey, request.getKey());
         }
+        if (request.getCategoryId() != null) {
+            // 分类存于 wf_process_ext：先按分类取已部署的 processId 集合再过滤
+            List<WfProcessExt> categoryExts = processExtMapper.selectList(new LambdaQueryWrapper<WfProcessExt>()
+                    .eq(WfProcessExt::getCategoryId, request.getCategoryId())
+                    .isNotNull(WfProcessExt::getProcessId));
+            if (categoryExts.isEmpty()) {
+                Page<ProcessDefinitionResponse> emptyPage = new Page<>(request.getPageNum(), request.getPageSize());
+                emptyPage.setRecords(new ArrayList<>());
+                emptyPage.setTotal(0);
+                return emptyPage;
+            }
+            wrapper.in(FlwProcess::getId, categoryExts.stream()
+                    .map(WfProcessExt::getProcessId).collect(Collectors.toList()));
+        }
 
         wrapper.orderByDesc(FlwProcess::getCreateTime);
 
