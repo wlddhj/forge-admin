@@ -300,6 +300,11 @@ ai:
 
 # 监控指标（等保最小暴露：仅健康检查与 Prometheus 抓取）
 management:
+  health:
+    mail:
+      # 未配置真实 SMTP 时，邮件健康检查连 localhost:587 必然失败并把 /actuator/health 拖成 DOWN
+      # 默认关闭（只关健康检查，不影响发信）；生产配好 spring.mail 后置 MAIL_HEALTH_ENABLED=true 恢复
+      enabled: ${MAIL_HEALTH_ENABLED:false}
   endpoints:
     web:
       exposure:
