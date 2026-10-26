@@ -225,6 +225,20 @@ defineExpose({
     display: inline-flex;
     align-items: center;
   }
+  /* 网关顶部按钮组（添加 + AI 路由 并排）：容器持有绝对定位，内部按钮还原为流式排列 */
+  .branch-box-actions {
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+  }
+  .branch-box-actions .add-branch {
+    position: static;
+    transform: none;
+  }
   .branch-wrap {
     display: inline-flex;
     width: 100%;

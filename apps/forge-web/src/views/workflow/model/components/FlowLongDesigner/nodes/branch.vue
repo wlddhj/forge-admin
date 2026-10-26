@@ -2,16 +2,18 @@
   <div class="branch-wrap">
     <div class="branch-box-wrap">
       <div class="branch-box">
-        <el-button class="add-branch" type="success" plain round @click="addTerm">添加条件</el-button>
-        <el-button
-          class="add-branch"
-          :type="nodeConfig.aiRouting ? 'warning' : 'info'"
-          plain
-          round
-          @click="aiDialogVisible = true"
-        >
-          AI 路由{{ nodeConfig.aiRouting ? '·已启用' : '' }}
-        </el-button>
+        <div class="branch-box-actions">
+          <el-button class="add-branch" type="success" plain round @click="addTerm">添加条件</el-button>
+          <el-button
+            class="add-branch"
+            :type="nodeConfig.aiRouting ? 'warning' : 'info'"
+            plain
+            round
+            @click="aiDialogVisible = true"
+          >
+            AI 路由{{ nodeConfig.aiRouting ? '·已启用' : '' }}
+          </el-button>
+        </div>
         <div v-for="(item, idx) in nodeConfig.conditionNodes" :key="idx" class="col-box">
           <div class="condition-node">
             <div class="condition-node-box">
