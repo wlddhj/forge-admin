@@ -75,6 +75,44 @@ class FlowLongDiagramGeneratorTest {
     }
 
     @Test
+    @DisplayName("合成结束节点：两条分支链尾汇聚到唯一\"结束\"，且不重复")
+    void gatewayDiagram_singleSynthesizedEndNode() {
+        String svg = generate(gatewayModel());
+
+        int endCount = svg.split(">结束<", -1).length - 1;
+        assertEquals(1, endCount, "应恰好合成一个结束节点");
+        assertTrue(svg.contains("结束"), "结束节点缺失");
+    }
+
+    @Test
+    @DisplayName("模型已显式含结束节点：不再合成重复结束")
+    void explicitEndNode_notDuplicated() {
+        String model = """
+                {"name":"显式结束","key":"t_explicit_end",
+                 "nodeConfig":{"nodeName":"发起人","nodeKey":"start","type":0,
+                   "childNode":{"nodeName":"审批","nodeKey":"ap1","type":1,"setType":1,"examineMode":3,
+                     "nodeAssigneeList":[{"id":"101","name":"张三"}],
+                     "childNode":{"nodeName":"结束","nodeKey":"end1","type":-1}}}}
+                """;
+        String svg = generate(model);
+
+        assertEquals(1, svg.split(">结束<", -1).length - 1, "显式结束存在时不应再合成");
+    }
+
+    @Test
+    @DisplayName("仅发起人节点的空流程：发起人 → 结束")
+    void startOnlyFlow_synthesizesEnd() {
+        String model = """
+                {"name":"空流程","key":"t_start_only",
+                 "nodeConfig":{"nodeName":"发起人","nodeKey":"start","type":0}}
+                """;
+        String svg = generate(model);
+
+        assertTrue(svg.contains("发起人"));
+        assertEquals(1, svg.split(">结束<", -1).length - 1, "空流程也应补结束节点");
+    }
+
+    @Test
     @DisplayName("多分支包容网关（3 分支）同样无负坐标")
     void inclusiveDiagram_noNegativeCoordinates() {
         String model = """

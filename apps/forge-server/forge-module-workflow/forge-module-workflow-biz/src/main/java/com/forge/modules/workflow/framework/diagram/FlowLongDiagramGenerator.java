@@ -97,11 +97,39 @@ public class FlowLongDiagramGenerator {
             }
         }
 
+        // 合成统一结束节点：所有链尾（无 childNode 且自身非分支容器/显式结束节点）汇聚到唯一"结束"
+        // 模型任一链尾已显式放置结束节点时不再合成，尊重建模者的画法
+        List<Point> terminalPoints = new ArrayList<>();
+        boolean hasExplicitEnd = false;
+        for (Map.Entry<String, Point> entry : nodePositions.entrySet()) {
+            NodeModel n = findNodeByKey(processModel.getNodeConfig(), entry.getKey());
+            if (n == null || n.getChildNode() != null || hasBranches(n)) {
+                continue;
+            }
+            if (TaskType.end.eq(n.getType())) {
+                hasExplicitEnd = true;
+                continue;
+            }
+            terminalPoints.add(entry.getValue());
+        }
+        Point endPoint = null;
+        if (!hasExplicitEnd && !terminalPoints.isEmpty()) {
+            int terminalMaxY = terminalPoints.stream().mapToInt(p -> p.y).max().orElse(0);
+            int minCx = terminalPoints.stream().mapToInt(p -> p.x + NODE_WIDTH / 2).min().orElse(0);
+            int maxCx = terminalPoints.stream().mapToInt(p -> p.x + NODE_WIDTH / 2).max().orElse(0);
+            endPoint = new Point((minCx + maxCx) / 2 - NODE_WIDTH / 2,
+                    terminalMaxY + NODE_HEIGHT + VERTICAL_GAP);
+        }
+
         // 计算画布尺寸
         int maxX = 0, maxY = 0;
         for (Point p : nodePositions.values()) {
             maxX = Math.max(maxX, p.x + NODE_WIDTH);
             maxY = Math.max(maxY, p.y + NODE_HEIGHT);
+        }
+        if (endPoint != null) {
+            maxX = Math.max(maxX, endPoint.x + NODE_WIDTH);
+            maxY = Math.max(maxY, endPoint.y + 2 * START_END_RADIUS + 10);
         }
         int canvasWidth = Math.max(maxX + MARGIN, 400);
         int canvasHeight = Math.max(maxY + MARGIN, 300);
@@ -130,6 +158,14 @@ public class FlowLongDiagramGenerator {
                 boolean isActive = activeNodes.contains(nodeKey);
                 drawNode(svg, node, pos.x, pos.y, isActive);
             }
+        }
+
+        // 最后绘制合成结束节点（连线先于节点，保持与主流程绘制顺序一致）
+        if (endPoint != null) {
+            for (Point terminal : terminalPoints) {
+                drawConnection(svg, terminal, endPoint, null, false);
+            }
+            drawEndNode(svg, endPoint.x, endPoint.y, "结束", "");
         }
 
         svg.append("</svg>");
