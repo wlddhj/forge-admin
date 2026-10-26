@@ -45,7 +45,7 @@ public class FlowLongDiagramGenerator {
     private static final String COLOR_START = "#1890ff";
     private static final String COLOR_APPROVAL = "#fa8c16";
     private static final String COLOR_CC = "#52c41a";
-    private static final String COLOR_END = "#909399";
+    private static final String COLOR_END = "#d7d9dd";
     private static final String COLOR_CONDITION = "#722ed1";
     private static final String COLOR_PARALLEL = "#13c2c2";
     private static final String COLOR_INCLUSIVE = "#eb2f96";
