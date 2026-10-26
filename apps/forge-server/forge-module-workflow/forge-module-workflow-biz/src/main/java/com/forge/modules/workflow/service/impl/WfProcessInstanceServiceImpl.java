@@ -276,6 +276,9 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
                 throw new BusinessException(400, "子流程节点「" + node.getNodeName() + "」未选择子流程");
             }
 
+            // AI 智能路由网关校验
+            checkAiRoutingGateway(node);
+
             // 条件审批节点（type=3）：复用审批人校验 + 校验条件列表
             if (TaskType.conditionNode.eq(node.getType())) {
                 // 审批人配置（与 type=1 一致）
@@ -431,6 +434,26 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             if (!nodeKeys.contains(jump[1])) {
                 throw new BusinessException(400, "节点「" + jump[0] + "」的跳转目标节点不存在：" + jump[1]);
             }
+        }
+    }
+
+    /**
+     * AI 智能路由网关校验：仅分支节点可启用；启用后必须保留无条件默认分支作为降级路径
+     * （AI 失败/超时/低置信度时引擎落回 SpEL 条件，均不中而无默认分支会抛 Not found executable ConditionNode）
+     */
+    void checkAiRoutingGateway(NodeModel node) {
+        if (node.getCallAi() == null) {
+            return;
+        }
+        if (!node.conditionNode() && !node.inclusiveNode() && !node.routeNode()) {
+            throw new BusinessException(400, "节点「" + node.getNodeName() + "」配置了AI路由，但仅分支节点支持AI路由");
+        }
+        List<com.aizuda.bpm.engine.model.ConditionNode> aiBranches = node.routeNode() ? node.getRouteNodes()
+                : node.inclusiveNode() ? node.getInclusiveNodes() : node.getConditionNodes();
+        boolean hasDefaultBranch = aiBranches != null && aiBranches.stream()
+                .anyMatch(b -> com.aizuda.bpm.engine.assist.ObjectUtils.isEmpty(b.getConditionList()));
+        if (!hasDefaultBranch) {
+            throw new BusinessException(400, "AI路由网关「" + node.getNodeName() + "」必须保留一个无条件默认分支作为降级路径");
         }
     }
 

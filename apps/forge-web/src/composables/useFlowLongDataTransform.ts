@@ -30,6 +30,16 @@ export interface FlowlongAiApprovalConfig {
   timeoutSeconds?: number // 超时时间（秒）
 }
 
+/**
+ * AI 智能路由配置（网关节点）
+ */
+export interface FlowlongAiRoutingConfig {
+  prompt?: string // 路由规则提示词
+  modelName?: string // 模型名称（留空走系统默认）
+  timeoutSeconds?: number // 决策超时（秒，5-60）
+  confidenceThreshold?: number // 置信度阈值（0-100）
+}
+
 // flowlong-designer 的节点类型（与 FlowLong TaskType 一致）
 export interface FlowlongNodeModel {
   nodeName: string
@@ -83,6 +93,10 @@ export interface FlowlongNodeModel {
   // AI 审批配置
   aiApproval?: boolean // 是否启用 AI 审批（开关）
   aiApprovalConfig?: FlowlongAiApprovalConfig // AI 审批详细配置
+  // AI 智能路由（type=4/9/23 网关；启用时落 callAi 标记 + extendConfig.aiRouting）
+  aiRouting?: boolean // 是否启用 AI 路由（开关）
+  aiRoutingConfig?: FlowlongAiRoutingConfig // AI 路由详细配置
+  callAi?: string // 引擎 AI 启用标记（后端透传字段，启用 AI 路由时为 '1'）
 }
 
 export interface FlowlongNodeAssignee {
@@ -258,6 +272,21 @@ export function useFlowLongDataTransform() {
     if (node.type === 9) result.inclusiveNodes = transformBranchListToBackend(node.inclusiveNodes)
     if (node.type === 23) result.routeNodes = transformBranchListToBackend(node.routeNodes)
 
+    // AI 智能路由：网关启用时落 callAi 标记 + extendConfig.aiRouting
+    //（aiRouting 配置不可为空对象——引擎部署时以 NON_EMPTY 序列化重写模型，空键会被整键剔除，
+    //  故空提示词注入默认文案、数值字段兜底默认值，保证至少一个非空字段落库）
+    if ((node.type === 4 || node.type === 9 || node.type === 23) && node.aiRouting) {
+      result.callAi = '1'
+      const gatewayExt: Record<string, any> = { ...(result.extendConfig || {}) }
+      gatewayExt.aiRouting = {
+        prompt: node.aiRoutingConfig?.prompt || '根据流程变量为当前单据选择最合适的分支',
+        modelName: node.aiRoutingConfig?.modelName || undefined,
+        timeoutSeconds: node.aiRoutingConfig?.timeoutSeconds ?? 15,
+        confidenceThreshold: node.aiRoutingConfig?.confidenceThreshold ?? 80
+      }
+      result.extendConfig = gatewayExt
+    }
+
     // 子流程（type=5）
     if (node.type === 5) {
       if (node.callProcess !== undefined) result.callProcess = node.callProcess
@@ -342,6 +371,12 @@ export function useFlowLongDataTransform() {
       if (node.extendConfig.aiApproval) {
         result.aiApproval = true
         result.aiApprovalConfig = node.extendConfig.aiApproval as FlowlongAiApprovalConfig
+      }
+
+      // AI 智能路由配置（条件/包容/路由网关，callAi 为引擎启用标记）
+      if (node.extendConfig.aiRouting && node.callAi) {
+        result.aiRouting = true
+        result.aiRoutingConfig = node.extendConfig.aiRouting as FlowlongAiRoutingConfig
       }
 
       // 条件审批（type=3）条件列表

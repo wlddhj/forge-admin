@@ -3,6 +3,15 @@
     <div class="branch-box-wrap">
       <div class="branch-box">
         <el-button class="add-branch" type="success" plain round @click="addTerm">添加条件</el-button>
+        <el-button
+          class="add-branch"
+          :type="nodeConfig.aiRouting ? 'warning' : 'info'"
+          plain
+          round
+          @click="aiDialogVisible = true"
+        >
+          AI 路由{{ nodeConfig.aiRouting ? '·已启用' : '' }}
+        </el-button>
         <div v-for="(item, idx) in nodeConfig.conditionNodes" :key="idx" class="col-box">
           <div class="condition-node">
             <div class="condition-node-box">
@@ -113,6 +122,7 @@
         </el-footer>
       </el-container>
     </el-drawer>
+    <ai-routing-dialog v-model="aiDialogVisible" :node="nodeConfig" @save="applyAiRouting" />
   </div>
 </template>
 
@@ -120,7 +130,8 @@
 import { ref, watch, nextTick } from 'vue'
 import { ArrowLeft, ArrowRight, Close, Edit, Delete } from '@element-plus/icons-vue'
 import addNode from './addNode.vue'
-import type { FlowlongNodeModel, FlowlongConditionNode, FlowlongCondition } from '@/composables/useFlowLongDataTransform'
+import aiRoutingDialog from './aiRoutingDialog.vue'
+import type { FlowlongNodeModel, FlowlongConditionNode, FlowlongCondition, FlowlongAiRoutingConfig } from '@/composables/useFlowLongDataTransform'
 
 const props = defineProps<{
   modelValue: FlowlongNodeModel
@@ -132,6 +143,12 @@ const emit = defineEmits<{
 
 const nodeConfig = ref<FlowlongNodeModel>({} as FlowlongNodeModel)
 const drawer = ref(false)
+const aiDialogVisible = ref(false)
+
+const applyAiRouting = (payload: { enabled: boolean; config?: FlowlongAiRoutingConfig }) => {
+  nodeConfig.value.aiRouting = payload.enabled
+  nodeConfig.value.aiRoutingConfig = payload.config
+}
 const isEditTitle = ref(false)
 const nodeTitleRef = ref<HTMLInputElement | null>(null)
 const index = ref(0)

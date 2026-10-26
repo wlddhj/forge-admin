@@ -181,6 +181,24 @@ CREATE TABLE IF NOT EXISTS wf_event_audit (
     create_time TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS wf_ai_route_record (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id BIGINT DEFAULT 1,
+    process_instance_id BIGINT NOT NULL,
+    gateway_node_key VARCHAR(100) NOT NULL,
+    gateway_node_name VARCHAR(200),
+    gateway_type INT,
+    candidate_branches TEXT,
+    selected_branches VARCHAR(500),
+    confidence INT,
+    reasoning TEXT,
+    raw_response TEXT,
+    status VARCHAR(20) NOT NULL,
+    provider VARCHAR(50),
+    model_name VARCHAR(100),
+    create_time TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS wf_process_ext (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     process_id BIGINT,
