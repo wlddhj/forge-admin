@@ -85,9 +85,19 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
             wrapper.eq(FlwProcess::getProcessKey, request.getKey());
         }
         if (request.getCategoryId() != null) {
-            // 分类存于 wf_process_ext：先按分类取已部署的 processId 集合再过滤
+            // 分类存于 wf_process_ext：分类编码为层级码，前缀命中所选分类及其子孙，再按 categoryId 集合取 processId 过滤
+            WfCategory selected = categoryMapper.selectById(request.getCategoryId());
+            if (selected == null) {
+                Page<ProcessDefinitionResponse> emptyPage = new Page<>(request.getPageNum(), request.getPageSize());
+                emptyPage.setRecords(new ArrayList<>());
+                emptyPage.setTotal(0);
+                return emptyPage;
+            }
+            List<WfCategory> subtree = categoryMapper.selectList(new LambdaQueryWrapper<WfCategory>()
+                    .likeRight(WfCategory::getCategoryCode, selected.getCategoryCode()));
             List<WfProcessExt> categoryExts = processExtMapper.selectList(new LambdaQueryWrapper<WfProcessExt>()
-                    .eq(WfProcessExt::getCategoryId, request.getCategoryId())
+                    .in(WfProcessExt::getCategoryId, subtree.stream()
+                            .map(WfCategory::getId).collect(Collectors.toList()))
                     .isNotNull(WfProcessExt::getProcessId));
             if (categoryExts.isEmpty()) {
                 Page<ProcessDefinitionResponse> emptyPage = new Page<>(request.getPageNum(), request.getPageSize());

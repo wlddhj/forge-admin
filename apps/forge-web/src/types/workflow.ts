@@ -20,7 +20,8 @@ export interface CategoryQuery {
 export interface CategoryRequest {
   id?: number
   categoryName: string
-  categoryCode: string
+  /** 自动生成（父编码+2位随机段），入参忽略 */
+  categoryCode?: string
   parentId?: number
   sortOrder?: number
   status?: number

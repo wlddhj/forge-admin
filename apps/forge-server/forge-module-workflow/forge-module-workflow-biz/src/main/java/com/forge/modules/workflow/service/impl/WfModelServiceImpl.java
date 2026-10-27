@@ -71,9 +71,9 @@ public class WfModelServiceImpl implements WfModelService {
             wrapper.eq(WfProcessExt::getProcessKey, request.getKey());
         }
         if (StrUtil.isNotBlank(request.getCategory())) {
-            // 前端分类筛选传分类编码，转成 categoryId 再过滤
+            // 前端分类筛选传分类编码（层级码），前缀命中该分类及其子孙，转成 categoryId 再过滤
             List<WfCategory> matched = categoryMapper.selectList(new LambdaQueryWrapper<WfCategory>()
-                    .eq(WfCategory::getCategoryCode, request.getCategory()));
+                    .likeRight(WfCategory::getCategoryCode, request.getCategory()));
             if (matched.isEmpty()) {
                 Page<ModelResponse> emptyPage = new Page<>(request.getPageNum(), request.getPageSize());
                 emptyPage.setRecords(new ArrayList<>());

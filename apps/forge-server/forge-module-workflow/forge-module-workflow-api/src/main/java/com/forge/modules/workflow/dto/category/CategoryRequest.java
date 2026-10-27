@@ -23,9 +23,8 @@ public class CategoryRequest {
     private String categoryName;
 
     /**
-     * 分类编码
+     * 分类编码（自动生成：父编码+2位随机段，入参忽略）
      */
-    @NotBlank(message = "分类编码不能为空")
     private String categoryCode;
 
     /**

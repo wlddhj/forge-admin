@@ -8,7 +8,7 @@
           <el-input v-model="queryParams.categoryName" placeholder="请输入分类名称" clearable />
         </el-form-item>
         <el-form-item label="分类编码">
-          <el-input v-model="queryParams.categoryCode" placeholder="请输入分类编码" clearable />
+          <el-input v-model="queryParams.categoryCode" placeholder="请输入编码前缀" clearable />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 120px">
@@ -41,7 +41,7 @@
           <el-input v-model="queryParams.categoryName" placeholder="请输入分类名称" clearable />
         </el-form-item>
         <el-form-item label="分类编码">
-          <el-input v-model="queryParams.categoryCode" placeholder="请输入分类编码" clearable />
+          <el-input v-model="queryParams.categoryCode" placeholder="请输入编码前缀" clearable />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 100%">
@@ -157,9 +157,6 @@
         <el-form-item label="分类名称" prop="categoryName">
           <el-input v-model="formData.categoryName" placeholder="请输入分类名称" />
         </el-form-item>
-        <el-form-item label="分类编码" prop="categoryCode">
-          <el-input v-model="formData.categoryCode" placeholder="请输入分类编码" />
-        </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="formData.sortOrder" :min="0" style="width: 100%" />
         </el-form-item>
@@ -171,6 +168,9 @@
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入备注" />
+        </el-form-item>
+        <el-form-item v-if="isEdit" label="分类编码">
+          <el-input :model-value="currentCode" disabled title="分类编码自动生成：父编码+2位随机段，可用于分类前缀模糊查询" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -236,15 +236,16 @@ const formData = reactive<CategoryRequest>({
   id: undefined,
   parentId: undefined,
   categoryName: '',
-  categoryCode: '',
   sortOrder: 0,
   status: 1,
   remark: ''
 })
 const formRules: FormRules = {
-  categoryName: [{ required: true, message: '请输入分类名称', trigger: 'blur' }],
-  categoryCode: [{ required: true, message: '请输入分类编码', trigger: 'blur' }]
+  categoryName: [{ required: true, message: '请输入分类名称', trigger: 'blur' }]
 }
+
+/** 编辑态只读展示的分类编码（自动生成，不参与提交） */
+const currentCode = ref('')
 
 /** 启用状态的分类树（父分类选择器数据源） */
 const categoryTree = ref<WfCategory[]>([])
@@ -329,7 +330,8 @@ const handleAdd = () => {
   cancelSelection()
   isEdit.value = false
   dialogTitle.value = '新增分类'
-  Object.assign(formData, { id: undefined, parentId: undefined, categoryName: '', categoryCode: '', sortOrder: 0, status: 1, remark: '' })
+  Object.assign(formData, { id: undefined, parentId: undefined, categoryName: '', sortOrder: 0, status: 1, remark: '' })
+  currentCode.value = ''
   dialogVisible.value = true
   getCategoryTreeData()
 }
@@ -338,7 +340,8 @@ const handleAddChild = (row: WfCategory) => {
   cancelSelection()
   isEdit.value = false
   dialogTitle.value = '新增子分类'
-  Object.assign(formData, { id: undefined, parentId: row.id, categoryName: '', categoryCode: '', sortOrder: 0, status: 1, remark: '' })
+  Object.assign(formData, { id: undefined, parentId: row.id, categoryName: '', sortOrder: 0, status: 1, remark: '' })
+  currentCode.value = ''
   dialogVisible.value = true
   getCategoryTreeData()
 }
@@ -351,11 +354,11 @@ const handleEdit = (row: WfCategory) => {
     id: row.id,
     parentId: row.parentId,
     categoryName: row.categoryName,
-    categoryCode: row.categoryCode,
     sortOrder: row.sortOrder,
     status: row.status,
     remark: row.remark
   })
+  currentCode.value = row.categoryCode
   dialogVisible.value = true
   getCategoryTreeData()
 }
