@@ -117,7 +117,8 @@
 
         <!-- 流程标识 -->
         <vxe-column v-if="!isMobile" field="key" title="流程标识" width="150" />
-
+        <!-- 分类 -->
+        <vxe-column v-if="!isMobile" field="categoryName" title="分类" width="120" />
         <!-- 版本（桌面端） -->
         <vxe-column v-if="!isMobile" field="version" title="版本" width="70" align="center" />
 
