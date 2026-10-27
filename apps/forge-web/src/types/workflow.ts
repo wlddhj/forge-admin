@@ -282,3 +282,37 @@ export interface ApprovalTask {
   createTime: string | null
   endTime: string | null
 }
+
+// 业务回调
+export interface BusinessCallback {
+  id: number
+  name: string
+  url: string
+  secret: string | null
+  events: string[]
+  processKey: string | null
+  includeVariables: number
+  enabled: number
+  timeoutMs: number
+  createTime: string
+  updateTime: string
+}
+
+export interface BusinessCallbackRecord {
+  id: number
+  callbackId: number
+  callbackName: string
+  eventType: string
+  processKey: string | null
+  businessKey: string | null
+  instanceId: number | null
+  taskId: number | null
+  nodeKey: string | null
+  payload: string | null
+  httpStatus: number | null
+  responseBody: string | null
+  status: string
+  retryCount: number
+  errorMsg: string | null
+  createTime: string
+}

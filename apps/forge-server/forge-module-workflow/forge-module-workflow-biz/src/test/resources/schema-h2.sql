@@ -181,6 +181,41 @@ CREATE TABLE IF NOT EXISTS wf_event_audit (
     create_time TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS wf_business_callback (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id BIGINT DEFAULT 1,
+    name VARCHAR(100) NOT NULL,
+    url VARCHAR(500) NOT NULL,
+    secret VARCHAR(100),
+    events VARCHAR(200) NOT NULL,
+    process_key VARCHAR(100),
+    include_variables TINYINT DEFAULT 0,
+    enabled TINYINT DEFAULT 1,
+    timeout_ms INT DEFAULT 5000,
+    create_time TIMESTAMP,
+    update_time TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS wf_callback_record (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id BIGINT DEFAULT 1,
+    callback_id BIGINT NOT NULL,
+    callback_name VARCHAR(100),
+    event_type VARCHAR(30) NOT NULL,
+    process_key VARCHAR(100),
+    business_key VARCHAR(100),
+    instance_id BIGINT,
+    task_id BIGINT,
+    node_key VARCHAR(100),
+    payload TEXT,
+    http_status INT,
+    response_body VARCHAR(2000),
+    status VARCHAR(10) NOT NULL,
+    retry_count INT DEFAULT 0,
+    error_msg VARCHAR(500),
+    create_time TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS wf_ai_route_record (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     tenant_id BIGINT DEFAULT 1,
