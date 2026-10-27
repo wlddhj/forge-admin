@@ -1,5 +1,21 @@
 <template>
   <div class="app-container">
+    <div :class="{ 'aside-tree-layout': !isMobile }">
+      <!-- 部门树（桌面端左侧，点击节点过滤） -->
+      <el-card v-if="!isMobile" shadow="never" class="aside-tree-card" :style="{ height: asideTreeHeight ? asideTreeHeight + 'px' : undefined }">
+        <el-tree
+          ref="deptTreeRef"
+          :data="deptTreeData"
+          :props="{ label: 'deptName', children: 'children' }"
+          node-key="id"
+          highlight-current
+          default-expand-all
+          :expand-on-click-node="false"
+          @node-click="handleDeptNodeClick"
+        />
+      </el-card>
+
+      <div :class="{ 'aside-main': !isMobile }">
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card">
       <!-- 桌面端搜索表单 -->
@@ -12,17 +28,6 @@
         </el-form-item>
         <el-form-item label="手机号">
           <el-input v-model="queryParams.phone" placeholder="请输入手机号后4位" clearable />
-        </el-form-item>
-        <el-form-item label="部门">
-          <el-tree-select
-            v-model="queryParams.deptId"
-            :data="deptTree"
-            :props="({ label: 'deptName', value: 'id' } as any)"
-            placeholder="请选择部门"
-            check-strictly
-            clearable
-            style="width: 160px"
-          />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 120px">
@@ -219,6 +224,8 @@
         @change="getList"
       />
     </el-card>
+      </div>
+    </div>
 
     <!-- 移动端底部操作栏 -->
     <MobileBottomActions
@@ -308,7 +315,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, h } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, h } from 'vue'
 import { ElMessage, ElMessageBox, ElInput, ElButton } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
@@ -409,6 +416,28 @@ const rules: FormRules = {
 
 // 部门树和角色列表
 const deptTree = ref<DeptTree[]>([])
+
+// 左侧部门树（含「全部」根节点）
+const deptTreeRef = ref()
+const deptTreeData = computed(() => [
+  { id: 0, deptName: '全部', children: deptTree.value }
+])
+
+/** 点击部门树节点过滤：全部(0)清空条件，否则按部门精确过滤 */
+const handleDeptNodeClick = (data: { id: number }) => {
+  queryParams.deptId = data.id === 0 ? undefined : data.id
+  queryParams.pageNum = 1
+  getList()
+}
+
+// 左侧部门树高度：铺满视口剩余区域（口径与 useTableHeight 对齐：header + tabs + 内容上下 padding）
+const asideTreeHeight = ref<number | undefined>(undefined)
+const calcAsideTreeHeight = () => {
+  const headerH = document.querySelector('.layout-header')?.getBoundingClientRect().height || 60
+  const tabsH = document.querySelector('.tabs-view')?.getBoundingClientRect().height || 0
+  asideTreeHeight.value = Math.max(window.innerHeight - headerH - tabsH - 40, 200)
+}
+
 const roleList = ref<Role[]>([])
 const positionList = ref<Position[]>([])
 
@@ -450,6 +479,19 @@ onMounted(() => {
   if (tableRef.value && toolbarRef.value) {
     tableRef.value.connect(toolbarRef.value)
   }
+  calcAsideTreeHeight()
+})
+
+// 窗口缩放时重算部门树高度
+let asideResizeTimer: ReturnType<typeof setTimeout> | null = null
+const handleAsideResize = () => {
+  if (asideResizeTimer) clearTimeout(asideResizeTimer)
+  asideResizeTimer = setTimeout(calcAsideTreeHeight, 100)
+}
+onMounted(() => window.addEventListener('resize', handleAsideResize))
+onUnmounted(() => {
+  window.removeEventListener('resize', handleAsideResize)
+  if (asideResizeTimer) clearTimeout(asideResizeTimer)
 })
 
 // 获取列表
@@ -479,6 +521,8 @@ const handleReset = () => {
   queryParams.phone = ''
   queryParams.status = undefined
   queryParams.deptId = undefined
+  // 桌面端部门树高亮还原到「全部」
+  deptTreeRef.value?.setCurrentKey(0)
   handleQuery()
 }
 
@@ -636,8 +680,9 @@ const cancelSelection = () => {
 // 初始化
 onMounted(async () => {
   getList()
-  // 获取部门树
+  // 获取部门树（左侧树初始高亮「全部」）
   deptTree.value = await getDeptTree()
+  nextTick(() => deptTreeRef.value?.setCurrentKey(0))
   // 获取角色列表
   roleList.value = await getAllRoles()
   // 获取岗位列表

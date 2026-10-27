@@ -1,8 +1,8 @@
 <template>
   <div class="app-container">
-    <div :class="{ 'category-layout': !isMobile }">
+    <div :class="{ 'aside-tree-layout': !isMobile }">
       <!-- 分类树（桌面端左侧，点击节点过滤） -->
-      <el-card v-if="!isMobile" shadow="never" class="category-tree-card" :style="{ height: asideTreeHeight ? asideTreeHeight + 'px' : undefined }">
+      <el-card v-if="!isMobile" shadow="never" class="aside-tree-card" :style="{ height: asideTreeHeight ? asideTreeHeight + 'px' : undefined }">
         <el-tree
           ref="categoryTreeRef"
           :data="categoryTreeData"
@@ -15,7 +15,7 @@
         />
       </el-card>
 
-      <div :class="{ 'category-main': !isMobile }">
+      <div :class="{ 'aside-main': !isMobile }">
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card">
       <!-- 桌面端搜索表单 -->

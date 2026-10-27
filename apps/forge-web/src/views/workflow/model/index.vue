@@ -1,8 +1,8 @@
 <template>
   <div class="app-container">
-    <div :class="{ 'category-layout': !isMobile }">
+    <div :class="{ 'aside-tree-layout': !isMobile }">
       <!-- 分类树（桌面端左侧，点击节点过滤） -->
-      <el-card v-if="!isMobile" shadow="never" class="category-tree-card" :style="{ height: asideTreeHeight ? asideTreeHeight + 'px' : undefined }">
+      <el-card v-if="!isMobile" shadow="never" class="aside-tree-card" :style="{ height: asideTreeHeight ? asideTreeHeight + 'px' : undefined }">
         <el-tree
           ref="categoryTreeRef"
           :data="categoryTreeData"
@@ -15,7 +15,7 @@
         />
       </el-card>
 
-      <div :class="{ 'category-main': !isMobile }">
+      <div :class="{ 'aside-main': !isMobile }">
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card">
       <!-- 桌面端搜索表单 -->
@@ -133,7 +133,7 @@
         </vxe-column>
 
         <!-- 桌面端操作列 -->
-        <vxe-column v-if="!isMobile" title="操作" width="240" fixed="right">
+        <vxe-column v-if="!isMobile" title="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click.stop="handleDesign(row)">设计</el-button>
             <el-button v-permission="'workflow:model:deploy'" type="success" link size="small" @click.stop="handleDeploy(row)">部署</el-button>

@@ -304,12 +304,12 @@
 
 // 列表页左树右表布局（桌面端）：左侧分类树卡片 + 右侧内容
 // 使用方：workflow/model、workflow/process 等；配合页面内 calcAsideTreeHeight 设定卡片高度
-.category-layout {
+.aside-tree-layout {
   display: flex;
   align-items: flex-start;
   gap: 12px;
 
-  .category-tree-card {
+  .aside-tree-card {
     width: 220px;
     flex-shrink: 0;
 
@@ -321,7 +321,7 @@
     }
   }
 
-  .category-main {
+  .aside-main {
     flex: 1;
     min-width: 0; // 允许内容列收缩，防止表格撑破
   }
