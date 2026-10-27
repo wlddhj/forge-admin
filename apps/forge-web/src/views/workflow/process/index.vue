@@ -1,5 +1,21 @@
 <template>
   <div class="app-container">
+    <div :class="{ 'process-layout': !isMobile }">
+      <!-- 分类树（桌面端左侧，点击节点过滤） -->
+      <el-card v-if="!isMobile" shadow="never" class="category-tree-card">
+        <el-tree
+          ref="categoryTreeRef"
+          :data="categoryTreeData"
+          :props="{ label: 'categoryName', children: 'children' }"
+          node-key="id"
+          highlight-current
+          default-expand-all
+          :expand-on-click-node="false"
+          @node-click="handleCategoryNodeClick"
+        />
+      </el-card>
+
+      <div :class="{ 'process-main': !isMobile }">
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card">
       <!-- 桌面端搜索表单 -->
@@ -9,19 +25,6 @@
         </el-form-item>
         <el-form-item label="流程标识">
           <el-input v-model="queryParams.key" placeholder="请输入流程标识" clearable />
-        </el-form-item>
-        <el-form-item label="分类">
-          <el-tree-select
-            v-model="queryParams.categoryId"
-            :data="categoryList"
-            :props="{ label: 'categoryName' }"
-            node-key="id"
-            placeholder="请选择分类"
-            clearable
-            check-strictly
-            filterable
-            style="width: 150px"
-          />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.processState" placeholder="请选择" clearable style="width: 120px">
@@ -115,9 +118,6 @@
         <!-- 流程标识 -->
         <vxe-column v-if="!isMobile" field="key" title="流程标识" width="150" />
 
-        <!-- 分类 -->
-        <vxe-column v-if="!isMobile" field="categoryName" title="分类" width="120" />
-
         <!-- 版本（桌面端） -->
         <vxe-column v-if="!isMobile" field="version" title="版本" width="70" align="center" />
 
@@ -184,6 +184,8 @@
         @change="getList"
       />
     </el-card>
+      </div>
+    </div>
 
     <!-- 移动端底部操作栏 -->
     <MobileBottomActions
@@ -298,7 +300,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, nextTick, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
@@ -336,6 +338,19 @@ const selectedRow = ref<ProcessDefinition | null>(null)
 
 // 分类列表
 const categoryList = ref<WfCategory[]>([])
+
+// 左侧分类树（含「全部」根节点）
+const categoryTreeRef = ref()
+const categoryTreeData = computed(() => [
+  { id: 0, categoryName: '全部', children: categoryList.value }
+])
+
+/** 点击分类树节点过滤：全部(0)清空条件，否则按分类（后端前缀命中子树） */
+const handleCategoryNodeClick = (data: { id: number }) => {
+  queryParams.categoryId = data.id === 0 ? undefined : data.id
+  queryParams.pageNum = 1
+  getList()
+}
 
 const queryParams = reactive({
   name: '',
@@ -377,6 +392,8 @@ onMounted(() => {
 const getCategoryList = async () => {
   try {
     categoryList.value = await categoryApi.listAll()
+    // 桌面端树初始高亮「全部」
+    nextTick(() => categoryTreeRef.value?.setCurrentKey(0))
   } catch (e) {
     // ignore
   }
@@ -404,6 +421,8 @@ const handleReset = () => {
   queryParams.key = ''
   queryParams.categoryId = undefined
   queryParams.processState = undefined
+  // 桌面端分类树高亮还原到「全部」
+  categoryTreeRef.value?.setCurrentKey(0)
   handleQuery()
 }
 
@@ -607,5 +626,24 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+// 桌面端：左侧分类树 + 右侧内容
+.process-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 
+  .category-tree-card {
+    width: 220px;
+    flex-shrink: 0;
+
+    :deep(.el-card__body) {
+      padding: 8px;
+    }
+  }
+
+  .process-main {
+    flex: 1;
+    min-width: 0; // 允许内容列收缩，防止表格撑破
+  }
+}
 </style>
