@@ -1,6 +1,7 @@
 package com.forge.modules.workflow.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.workflow.dto.callback.CallbackRecordResponse;
 import com.forge.modules.workflow.dto.callback.CallbackRequest;
@@ -37,11 +38,12 @@ public class WfBusinessCallbackController {
     @Operation(summary = "分页查询回调配置")
     @GetMapping
     @PreAuthorize("hasAuthority('workflow:callback:list')")
-    public Result<Page<CallbackResponse>> list(@RequestParam(defaultValue = "1") int pageNum,
-                                               @RequestParam(defaultValue = "20") int pageSize,
-                                               @RequestParam(required = false) String name,
-                                               @RequestParam(required = false) Integer enabled) {
-        return Result.success(callbackService.pageCallback(pageNum, pageSize, name, enabled));
+    public Result<PageResult<CallbackResponse>> list(@RequestParam(defaultValue = "1") int pageNum,
+                                                     @RequestParam(defaultValue = "20") int pageSize,
+                                                     @RequestParam(required = false) String name,
+                                                     @RequestParam(required = false) Integer enabled) {
+        Page<CallbackResponse> page = callbackService.pageCallback(pageNum, pageSize, name, enabled);
+        return Result.success(PageResult.of(page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize()));
     }
 
     @Operation(summary = "新增回调配置")
@@ -71,11 +73,12 @@ public class WfBusinessCallbackController {
     @Operation(summary = "分页查询投递记录")
     @GetMapping("/{id}/records")
     @PreAuthorize("hasAuthority('workflow:callback:query')")
-    public Result<Page<CallbackRecordResponse>> records(@PathVariable Long id,
-                                                        @RequestParam(defaultValue = "1") int pageNum,
-                                                        @RequestParam(defaultValue = "20") int pageSize,
-                                                        @RequestParam(required = false) String status) {
-        return Result.success(callbackService.pageRecords(pageNum, pageSize, id, status));
+    public Result<PageResult<CallbackRecordResponse>> records(@PathVariable Long id,
+                                                              @RequestParam(defaultValue = "1") int pageNum,
+                                                              @RequestParam(defaultValue = "20") int pageSize,
+                                                              @RequestParam(required = false) String status) {
+        Page<CallbackRecordResponse> page = callbackService.pageRecords(pageNum, pageSize, id, status);
+        return Result.success(PageResult.of(page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize()));
     }
 
     @Operation(summary = "重发失败的投递记录")
