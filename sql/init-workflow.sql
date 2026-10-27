@@ -62,6 +62,7 @@ CREATE TABLE `flw_instance` (
     PRIMARY KEY (`id`),
     INDEX `idx_instance_process_id` (`process_id`),
     CONSTRAINT `fk_instance_process_id` FOREIGN KEY (`process_id`) REFERENCES `flw_process` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+    `urgent` TINYINT DEFAULT 0 COMMENT '实例紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='流程实例表';
 
 -- 3. 历史流程实例表
@@ -89,6 +90,7 @@ CREATE TABLE `flw_his_instance` (
     PRIMARY KEY (`id`),
     INDEX `idx_his_instance_process_id` (`process_id`),
     CONSTRAINT `fk_his_instance_process_id` FOREIGN KEY (`process_id`) REFERENCES `flw_process` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+    `urgent` TINYINT DEFAULT 0 COMMENT '实例紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='历史流程实例表';
 
 -- 4. 任务表（活动）
@@ -118,6 +120,7 @@ CREATE TABLE `flw_task` (
     PRIMARY KEY (`id`),
     INDEX `idx_task_instance_id` (`instance_id`),
     CONSTRAINT `fk_task_instance_id` FOREIGN KEY (`instance_id`) REFERENCES `flw_instance` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+    `urgent` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '任务紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='任务表';
 
 -- 5. 历史任务表
@@ -151,6 +154,7 @@ CREATE TABLE `flw_his_task` (
     INDEX `idx_his_task_instance_id` (`instance_id`),
     INDEX `idx_his_task_parent_task_id` (`parent_task_id`),
     CONSTRAINT `fk_his_task_instance_id` FOREIGN KEY (`instance_id`) REFERENCES `flw_his_instance` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+    `urgent` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '任务紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='历史任务表';
 
 -- 6. 任务参与者表（活动）

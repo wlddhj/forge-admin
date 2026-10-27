@@ -19,7 +19,7 @@
         <hutool.version>5.8.25</hutool.version>
         <justauth.version>1.16.6</justauth.version>
         <spring-authorization-server.version>1.2.0</spring-authorization-server.version>
-        <flowlong.version>1.2.5</flowlong.version>
+        <flowlong.version>1.2.7</flowlong.version>
         <easyexcel.version>3.3.4</easyexcel.version>
         <jsqlparser.version>4.9</jsqlparser.version>
         <resilience4j.version>2.3.0</resilience4j.version>

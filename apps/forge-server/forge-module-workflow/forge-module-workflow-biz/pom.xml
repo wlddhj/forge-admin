@@ -55,9 +55,9 @@
             <groupId>com.aizuda</groupId>
             <artifactId>flowlong-spring-boot-starter</artifactId>
             <exclusions>
-                <!-- FlowLong 1.2.5 传递引入 mybatis-plus-boot-starter (Spring Boot 2 版本) 3.5.14
-                     与本项目的 mybatis-plus-spring-boot3-starter:3.5.17 冲突
-                     (3.5.14 autoconfigure 找不到 3.5.17 重构后的 MybatisSqlSessionFactoryBean) -->
+                <!-- FlowLong 1.2.7 传递 mybatis-plus-boot-starter 3.5.17：版本已对齐，
+                     但仍是 Spring Boot 2 线 artifact，Boot 3 下须继续排除（改用本项目
+                     的 mybatis-plus-spring-boot3-starter 统一装配） -->
                 <exclusion>
                     <groupId>com.baomidou</groupId>
                     <artifactId>mybatis-plus-boot-starter</artifactId>

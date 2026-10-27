@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS flw_instance (
     current_node_key VARCHAR(100) NOT NULL,
     expire_time TIMESTAMP NULL,
     last_update_by VARCHAR(50),
-    last_update_time TIMESTAMP NULL
+    last_update_time TIMESTAMP NULL,
+    urgent TINYINT DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS flw_his_instance (
@@ -59,7 +60,8 @@ CREATE TABLE IF NOT EXISTS flw_his_instance (
     last_update_time TIMESTAMP NULL,
     instance_state TINYINT NOT NULL DEFAULT 0,
     end_time TIMESTAMP NULL,
-    duration BIGINT
+    duration BIGINT,
+    urgent TINYINT DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS flw_task (
@@ -81,7 +83,8 @@ CREATE TABLE IF NOT EXISTS flw_task (
     expire_time TIMESTAMP NULL,
     remind_time TIMESTAMP NULL,
     remind_repeat TINYINT NOT NULL DEFAULT 0,
-    viewed TINYINT NOT NULL DEFAULT 0
+    viewed TINYINT NOT NULL DEFAULT 0,
+    urgent TINYINT DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS flw_his_task (
@@ -108,7 +111,8 @@ CREATE TABLE IF NOT EXISTS flw_his_task (
     viewed TINYINT NOT NULL DEFAULT 0,
     finish_time TIMESTAMP NULL,
     task_state TINYINT NOT NULL DEFAULT 0,
-    duration BIGINT
+    duration BIGINT,
+    urgent TINYINT DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS flw_task_actor (
