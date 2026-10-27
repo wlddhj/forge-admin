@@ -2,7 +2,7 @@
   <div class="app-container">
     <div :class="{ 'process-layout': !isMobile }">
       <!-- 分类树（桌面端左侧，点击节点过滤） -->
-      <el-card v-if="!isMobile" shadow="never" class="category-tree-card">
+      <el-card v-if="!isMobile" shadow="never" class="category-tree-card" :style="{ height: asideTreeHeight ? asideTreeHeight + 'px' : undefined }">
         <el-tree
           ref="categoryTreeRef"
           :data="categoryTreeData"
@@ -300,7 +300,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, nextTick, onMounted } from 'vue'
+import { reactive, ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
@@ -352,6 +352,14 @@ const handleCategoryNodeClick = (data: { id: number }) => {
   getList()
 }
 
+// 左侧分类树高度：铺满视口剩余区域（口径与 useTableHeight 对齐：header + tabs + 内容上下 padding）
+const asideTreeHeight = ref<number | undefined>(undefined)
+const calcAsideTreeHeight = () => {
+  const headerH = document.querySelector('.layout-header')?.getBoundingClientRect().height || 60
+  const tabsH = document.querySelector('.tabs-view')?.getBoundingClientRect().height || 0
+  asideTreeHeight.value = Math.max(window.innerHeight - headerH - tabsH - 40, 200)
+}
+
 const queryParams = reactive({
   name: '',
   key: '',
@@ -386,6 +394,19 @@ onMounted(() => {
   if (tableRef.value && toolbarRef.value) {
     tableRef.value.connect(toolbarRef.value)
   }
+  calcAsideTreeHeight()
+})
+
+// 窗口缩放时重算分类树高度
+let asideResizeTimer: ReturnType<typeof setTimeout> | null = null
+const handleAsideResize = () => {
+  if (asideResizeTimer) clearTimeout(asideResizeTimer)
+  asideResizeTimer = setTimeout(calcAsideTreeHeight, 100)
+}
+onMounted(() => window.addEventListener('resize', handleAsideResize))
+onUnmounted(() => {
+  window.removeEventListener('resize', handleAsideResize)
+  if (asideResizeTimer) clearTimeout(asideResizeTimer)
 })
 
 /** 加载分类列表 */
@@ -638,6 +659,9 @@ onMounted(() => {
 
     :deep(.el-card__body) {
       padding: 8px;
+      height: 100%;
+      box-sizing: border-box;
+      overflow: auto; // 树节点多时卡片内滚动
     }
   }
 
