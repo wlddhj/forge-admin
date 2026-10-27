@@ -93,7 +93,7 @@ class WfAiRoutingServiceImplTest {
         assertEquals(20, strParsed.getTimeoutSecondsOrDefault());
 
         // 空对象 → 默认值配置（默认值生效，非 null）
-        assertEquals(15, service.parseRoutingConfig(gatewayNode(new HashMap<>())).getTimeoutSecondsOrDefault());
+        assertEquals(30, service.parseRoutingConfig(gatewayNode(new HashMap<>())).getTimeoutSecondsOrDefault());
 
         // extendConfig 无 aiRouting 键 → null（未配置）
         NodeModel noKey = new NodeModel();
@@ -109,13 +109,13 @@ class WfAiRoutingServiceImplTest {
     @DisplayName("配置钳制：超时 5-60s，阈值 0-100")
     void configClamp() {
         AiRoutingConfig config = new AiRoutingConfig();
-        assertEquals(15, config.getTimeoutSecondsOrDefault());
+        assertEquals(30, config.getTimeoutSecondsOrDefault());
         config.setTimeoutSeconds(3);
-        assertEquals(15, config.getTimeoutSecondsOrDefault());
+        assertEquals(30, config.getTimeoutSecondsOrDefault());
         config.setTimeoutSeconds(90);
         assertEquals(60, config.getTimeoutSecondsOrDefault());
-        config.setTimeoutSeconds(30);
-        assertEquals(30, config.getTimeoutSecondsOrDefault());
+        config.setTimeoutSeconds(45);
+        assertEquals(45, config.getTimeoutSecondsOrDefault());
         config.setConfidenceThreshold(120);
         assertEquals(100, config.getConfidenceThresholdOrDefault());
     }

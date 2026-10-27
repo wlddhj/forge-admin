@@ -62,7 +62,7 @@ describe('useFlowLongDataTransform AI 智能路由', () => {
     const backend = transformDesignerToBackend(designer)
     const ext = backend.extendConfig as Record<string, any>
     expect(ext.aiRouting.prompt).toBeTruthy()
-    expect(ext.aiRouting.timeoutSeconds).toBe(15)
+    expect(ext.aiRouting.timeoutSeconds).toBe(30)
     expect(ext.aiRouting.confidenceThreshold).toBe(80)
   })
 

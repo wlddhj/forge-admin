@@ -67,7 +67,7 @@ const form = ref({
   enabled: false,
   prompt: '',
   modelName: '',
-  timeoutSeconds: 15,
+  timeoutSeconds: 30,
   confidenceThreshold: 80
 })
 
@@ -79,7 +79,7 @@ watch(
         enabled: !!props.node.aiRouting,
         prompt: props.node.aiRoutingConfig?.prompt ?? '',
         modelName: props.node.aiRoutingConfig?.modelName ?? '',
-        timeoutSeconds: props.node.aiRoutingConfig?.timeoutSeconds ?? 15,
+        timeoutSeconds: props.node.aiRoutingConfig?.timeoutSeconds ?? 30,
         confidenceThreshold: props.node.aiRoutingConfig?.confidenceThreshold ?? 80
       }
       drawer.value = true

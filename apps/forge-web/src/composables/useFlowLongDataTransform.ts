@@ -281,7 +281,7 @@ export function useFlowLongDataTransform() {
       gatewayExt.aiRouting = {
         prompt: node.aiRoutingConfig?.prompt || '根据流程变量为当前单据选择最合适的分支',
         modelName: node.aiRoutingConfig?.modelName || undefined,
-        timeoutSeconds: node.aiRoutingConfig?.timeoutSeconds ?? 15,
+        timeoutSeconds: node.aiRoutingConfig?.timeoutSeconds ?? 30,
         confidenceThreshold: node.aiRoutingConfig?.confidenceThreshold ?? 80
       }
       result.extendConfig = gatewayExt

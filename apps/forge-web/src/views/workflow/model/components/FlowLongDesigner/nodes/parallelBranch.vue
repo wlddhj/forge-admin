@@ -6,6 +6,16 @@
 -->
 <template>
   <div class="branch-wrap">
+    <!-- 引擎汇聚语义风险提示：子流程分支若最后完成，父实例会悬挂（非阻断，运行时审批顺序决定） -->
+    <el-alert
+      v-if="hasSubProcess"
+      class="subprocess-risk-tip"
+      type="warning"
+      :closable="false"
+      show-icon
+    >
+      并行分支内含子流程：请确保子流程分支<b>不要最后完成</b>（普通分支末任务全部完成后才触发汇聚，子流程返回不触发），否则父流程可能悬挂。建议子流程分支先审。
+    </el-alert>
     <div class="branch-box-wrap">
       <div class="branch-box">
         <el-button class="add-branch" type="success" plain round @click="addTerm">添加分支</el-button>
@@ -37,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 import addNode from './addNode.vue'
 import type { FlowlongNodeModel, FlowlongConditionNode } from '@/composables/useFlowLongDataTransform'
@@ -65,6 +75,17 @@ watch(
 const getNodeKey = () => {
   return 'flk' + Date.now() + Math.random().toString(36).slice(2, 6)
 }
+
+// 任一分支链（childNode 递归）含子流程节点(type=5)时提示引擎汇聚语义风险
+const hasSubProcess = computed(() => {
+  const chainHasSub = (node?: FlowlongNodeModel): boolean => {
+    for (let cur = node; cur; cur = cur.childNode) {
+      if (cur.type === 5) return true
+    }
+    return false
+  }
+  return (nodeConfig.value.parallelNodes || []).some((b) => chainHasSub(b.childNode))
+})
 
 const addTerm = () => {
   const len = nodeConfig.value.parallelNodes!.length + 1
@@ -105,3 +126,9 @@ const reData = (data: FlowlongConditionNode | FlowlongNodeModel, addData: Flowlo
   }
 }
 </script>
+
+<style scoped lang="scss">
+.subprocess-risk-tip {
+  margin-bottom: 12px;
+}
+</style>

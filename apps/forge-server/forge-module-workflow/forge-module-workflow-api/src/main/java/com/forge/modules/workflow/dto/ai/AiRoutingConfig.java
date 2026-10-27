@@ -25,7 +25,7 @@ public class AiRoutingConfig {
     /**
      * 决策超时时间（秒），超时按降级链回退 SpEL/默认分支
      */
-    private Integer timeoutSeconds = 15;
+    private Integer timeoutSeconds = 30;
 
     /**
      * 置信度阈值（0-100），低于阈值视为不可信，回退降级链
@@ -34,7 +34,7 @@ public class AiRoutingConfig {
 
     public int getTimeoutSecondsOrDefault() {
         if (timeoutSeconds == null || timeoutSeconds < 5) {
-            return 15;
+            return 30;
         }
         return Math.min(timeoutSeconds, 60);
     }

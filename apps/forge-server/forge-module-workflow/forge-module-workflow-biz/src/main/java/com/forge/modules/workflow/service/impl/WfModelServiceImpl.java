@@ -176,6 +176,10 @@ public class WfModelServiceImpl implements WfModelService {
         ext.setUseScope(request.getUseScope() == null ? 0 : request.getUseScope());
         ext.setUseScopeUsers(request.getUseScopeUsers());
         ext.setMetaInfo(metaInfoNode.toString());
+        // 创建时一并落模型内容（此前仅 updateModel 处理，API 一步建模会被静默丢弃）
+        if (StrUtil.isNotBlank(request.getModelJson())) {
+            ext.setModelJson(request.getModelJson());
+        }
         ext.setCreateBy(currentUserId);
         ext.setCreateByName(userName);
         ext.setCreateTime(LocalDateTime.now());
