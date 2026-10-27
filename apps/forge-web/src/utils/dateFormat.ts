@@ -44,7 +44,7 @@ export function formatDate(date: string | Date | number | null | undefined): str
   return `${year}-${month}-${day}`
 }
 
-export function formatDateTime(date: string | Date | number | null | undefined): string {
+export function formatDateTime(date: string | Date | number | null | undefined, withSecond: boolean = false): string {
   const d = toDate(date)
   if (!d) return '-'
 
@@ -54,8 +54,8 @@ export function formatDateTime(date: string | Date | number | null | undefined):
   const hours = String(d.getHours()).padStart(2, '0')
   const minutes = String(d.getMinutes()).padStart(2, '0')
   const seconds = String(d.getSeconds()).padStart(2, '0')
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  if (withSecond) return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  return `${year}-${month}-${day} ${hours}:${minutes}`
 }
 
 export function formatDateTimeFull(date: string | Date | number | null | undefined): string {

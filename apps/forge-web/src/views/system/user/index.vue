@@ -161,13 +161,13 @@
         <vxe-column field="phone" title="手机号" width="110" />
 
         <!-- 部门 -->
-        <vxe-column field="deptName" title="部门" width="120" />
+        <vxe-column field="deptName" title="部门" width="100" />
 
         <!-- 邮箱（桌面端） -->
         <vxe-column v-if="!isMobile" field="email" title="邮箱" width="170" />
 
         <!-- 岗位 -->
-        <vxe-column title="岗位" width="120">
+        <vxe-column title="岗位" width="100">
           <template #default="{ row }">
             <template v-if="row.positionNames && row.positionNames.length > 0">
               <el-tag v-for="(name, index) in row.positionNames.slice(0, 2)" :key="index" size="small" style="margin-right: 4px;">
@@ -180,7 +180,7 @@
         </vxe-column>
 
         <!-- 角色 -->
-        <vxe-column title="角色" width="190">
+        <vxe-column title="角色" min-width="120">
           <template #default="{ row }">
             <template v-if="row.roleNames && row.roleNames.length > 0">
               <el-tag v-for="(name, index) in row.roleNames.slice(0, 2)" :key="index" size="small" style="margin-right: 4px;">
@@ -193,21 +193,21 @@
         </vxe-column>
 
         <!-- 状态 -->
-        <vxe-column title="状态" width="80" align="center">
+        <vxe-column title="状态" width="70" align="center">
           <template #default="{ row }">
             <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
           </template>
         </vxe-column>
 
         <!-- 创建时间（桌面端） -->
-        <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="150">
+        <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="140">
           <template #default="{ row }">
             {{ formatDateTime(row.createTime) }}
           </template>
         </vxe-column>
 
         <!-- 桌面端操作列 -->
-        <vxe-column v-if="!isMobile" title="操作" width="240" fixed="right">
+        <vxe-column v-if="!isMobile" title="操作" width="230" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleAssignRoles(row)">分配角色</el-button>
@@ -435,7 +435,7 @@ const asideTreeHeight = ref<number | undefined>(undefined)
 const calcAsideTreeHeight = () => {
   const headerH = document.querySelector('.layout-header')?.getBoundingClientRect().height || 60
   const tabsH = document.querySelector('.tabs-view')?.getBoundingClientRect().height || 0
-  asideTreeHeight.value = Math.max(window.innerHeight - headerH - tabsH - 40, 200)
+  asideTreeHeight.value = Math.max(window.innerHeight - headerH - tabsH - 23, 200)
 }
 
 const roleList = ref<Role[]>([])
