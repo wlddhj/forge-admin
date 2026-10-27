@@ -6,13 +6,13 @@ export default defineConfig({
   fullyParallel: false,
   reporter: 'list',
   use: {
-    baseURL: process.env.E2E_BASE_URL || 'http://localhost:3003',
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure'
   },
   webServer: {
     command: 'pnpm dev',
-    port: 3003,
+    port: 3000,
     reuseExistingServer: !process.env.CI
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1920, height: 1080 } } }]

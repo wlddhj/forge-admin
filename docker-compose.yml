@@ -100,7 +100,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost:8181/v3/api-docs || exit 1"]
+      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost:8180/v3/api-docs || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -108,7 +108,7 @@ services:
     networks:
       - app-network
     # 默认不对外暴露，经 frontend 容器反向代理访问；
-    # 需要直连调试时放开：ports: ["8181:8181"]
+    # 需要直连调试时放开：ports: ["8180:8180"]
 
   frontend:
     build:

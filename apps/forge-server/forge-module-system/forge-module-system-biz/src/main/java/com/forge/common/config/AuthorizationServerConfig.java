@@ -60,7 +60,7 @@ public class AuthorizationServerConfig {
         // 未认证时重定向到前端登录页（支持 authorization_code 浏览器流程）
         http.exceptionHandling(exceptions ->
                 exceptions.authenticationEntryPoint(
-                        new LoginUrlAuthenticationEntryPoint("http://localhost:3003/login"))
+                        new LoginUrlAuthenticationEntryPoint("http://localhost:3000/login"))
         );
 
         return http.build();
@@ -118,7 +118,7 @@ public class AuthorizationServerConfig {
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
         return AuthorizationServerSettings.builder()
-                .issuer("http://localhost:8181")
+                .issuer("http://localhost:8180")
                 .build();
     }
 }

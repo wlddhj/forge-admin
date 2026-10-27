@@ -34,18 +34,18 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3003,
+    port: 3000,
     proxy: {
       '/admin-api': {
-        target: 'http://localhost:8181',
+        target: 'http://localhost:8180',
         changeOrigin: true
       },
       '/app-api': {
-        target: 'http://localhost:8181',
+        target: 'http://localhost:8180',
         changeOrigin: true
       },
       '/ws': {
-        target: 'http://localhost:8181',
+        target: 'http://localhost:8180',
         changeOrigin: true,
         ws: true
       },

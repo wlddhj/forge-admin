@@ -157,7 +157,7 @@ LIMIT 100
 **HTTP config 示例**：
 
 ```json
-{ "method": "GET", "url": "http://forge-server:8181/api/xxx", "headers": "{}", "params": "{}", "timeout": 5 }
+{ "method": "GET", "url": "http://forge-server:8180/api/xxx", "headers": "{}", "params": "{}", "timeout": 5 }
 ```
 
 **测试**：编辑已有数据源时点「测试」，调用 `POST /screen/data-source/execute/{id}`，

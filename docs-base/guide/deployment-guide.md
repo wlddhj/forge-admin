@@ -132,7 +132,7 @@ docker compose logs -f backend
 
 说明：
 
-- **backend 重启期间前端 API 会短暂 502**（frontend 的 nginx 直转 `backend:8181`），选择低峰窗口发布
+- **backend 重启期间前端 API 会短暂 502**（frontend 的 nginx 直转 `backend:8180`），选择低峰窗口发布
 - **对比升级前后各模块 `db/migration/` 目录，按版本号顺序手工执行新增的增量迁移脚本**（项目未引入 Flyway，迁移不自动执行）
 - 后端镜像重建耗时较长（Maven 依赖层有 Docker 缓存，改 POM 才会重下依赖）
 
@@ -175,7 +175,7 @@ docker build -t my-admin-frontend .
 # 运行后端（连接宿主机自建的 MySQL/Redis）
 docker run -d \
   --name my-admin-backend \
-  -p 8181:8181 \
+  -p 8180:8180 \
   -e DB_HOST=host.docker.internal \
   -e DB_PASSWORD=your-password \
   -e REDIS_HOST=host.docker.internal \

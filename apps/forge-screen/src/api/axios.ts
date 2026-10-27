@@ -1,7 +1,7 @@
 import axios, { AxiosResponse, InternalAxiosRequestConfig, AxiosError } from 'axios'
 
 const axiosInstance = axios.create({
-  // forge-admin API baseURL（开发: localhost:8181/admin-api，生产: /admin-api）
+  // forge-admin API baseURL（开发: localhost:8180/admin-api，生产: /admin-api）
   baseURL: import.meta.env.VITE_API_BASE || '/admin-api',
   timeout: 15000,
 })

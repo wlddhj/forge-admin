@@ -96,7 +96,7 @@ class HttpDataSourceExecutorTest {
     void allowlist_match_is_case_insensitive() {
         Map<String, Object> config = Map.of(
             "method", "GET",
-            "url", "http://LOCALHOST:8181/api/system/user/list"
+            "url", "http://LOCALHOST:8180/api/system/user/list"
         );
         // host 大写 → 经 SSRF 闸门通过即可（实际请求失败可忽略）
         assertThatCode(() -> {
@@ -121,7 +121,7 @@ class HttpDataSourceExecutorTest {
     void accepts_url_in_allowlist() {
         Map<String, Object> config = Map.of(
             "method", "GET",
-            "url", "http://localhost:8181/api/system/user/list"
+            "url", "http://localhost:8180/api/system/user/list"
         );
         assertThatCode(() -> {
             try {

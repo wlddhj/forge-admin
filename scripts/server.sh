@@ -5,7 +5,7 @@
 SERVER_DIR="$(cd "$(dirname "$0")/../apps/forge-server" && pwd)"
 PID_FILE="$SERVER_DIR/.server.pid"
 LOG_FILE="/tmp/forge-server.log"
-PORT=8181
+PORT=8180
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

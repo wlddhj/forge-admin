@@ -142,7 +142,7 @@ forge-admin 作为 OAuth2 授权服务器，支持标准 OAuth2 / OIDC 协议，
 | OpenID Discovery | `GET /.well-known/openid-configuration` |
 | UserInfo | `GET /userinfo` |
 
-> **注意：** 所有端点均在 context-path `/api` 下，完整 URL 如 `http://localhost:8181/api/oauth2/token`
+> **注意：** 所有端点均在 context-path `/api` 下，完整 URL 如 `http://localhost:8180/api/oauth2/token`
 
 ### 2.3 管理客户端
 
@@ -242,7 +242,7 @@ client_credentials 模式需要将 OAuth2 客户端映射到系统用户。在�
 **Step 3：获取 access_token**
 
 ```bash
-curl -X POST http://localhost:8181/api/oauth2/token \
+curl -X POST http://localhost:8180/api/oauth2/token \
   -u "your-client-id:your-client-secret" \
   -d "grant_type=client_credentials&scope=openid profile"
 ```
@@ -266,15 +266,15 @@ OAuth2 access_token 可用于调用本系统的任意业务 API（只要服务�
 
 ```bash
 # 查询字典列表
-curl "http://localhost:8181/api/system/dict-type/list?pageNum=1&pageSize=10" \
+curl "http://localhost:8180/api/system/dict-type/list?pageNum=1&pageSize=10" \
   -H "Authorization: Bearer <access_token>"
 
 # 查询角色列表
-curl "http://localhost:8181/api/system/role/list?pageNum=1&pageSize=10" \
+curl "http://localhost:8180/api/system/role/list?pageNum=1&pageSize=10" \
   -H "Authorization: Bearer <access_token>"
 
 # Token 自省（验证 token 是否有效）
-curl -X POST http://localhost:8181/api/oauth2/introspect \
+curl -X POST http://localhost:8180/api/oauth2/introspect \
   -u "your-client-id:your-client-secret" \
   --data-urlencode "token=<access_token>"
 ```
@@ -282,7 +282,7 @@ curl -X POST http://localhost:8181/api/oauth2/introspect \
 **Step 4：撤销令牌**
 
 ```bash
-curl -X POST http://localhost:8181/api/oauth2/revoke \
+curl -X POST http://localhost:8180/api/oauth2/revoke \
   -u "your-client-id:your-client-secret" \
   --data-urlencode "token=<access_token>"
 ```
@@ -290,7 +290,7 @@ curl -X POST http://localhost:8181/api/oauth2/revoke \
 撤销后通过 Introspection 验证：
 
 ```bash
-curl -X POST http://localhost:8181/api/oauth2/introspect \
+curl -X POST http://localhost:8180/api/oauth2/introspect \
   -u "your-client-id:your-client-secret" \
   --data-urlencode "token=<access_token>"
 # 返回 {"active": false}
@@ -312,7 +312,7 @@ curl -X POST http://localhost:8181/api/oauth2/introspect \
 
 适用于有用户参与的 Web 应用，用户在 forge-admin 登录并授权后，第三方应用获取用户信息。
 
-> **注意：** 以下示例中 `redirect_uri=http://127.0.0.1:8080/callback` 是**第三方应用**的回调地址，需与创建客户端时配置的重定向 URI 一致。`localhost:8181` 是本系统（授权服务器）的地址。
+> **注意：** 以下示例中 `redirect_uri=http://127.0.0.1:8080/callback` 是**第三方应用**的回调地址，需与创建客户端时配置的重定向 URI 一致。`localhost:8180` 是本系统（授权服务器）的地址。
 
 **流程：**
 
@@ -360,7 +360,7 @@ curl -X POST http://localhost:8181/api/oauth2/introspect \
 **Step 1：引导用户到授权页面**
 
 ```
-GET http://localhost:8181/api/oauth2/authorize?response_type=code&client_id=test-client&scope=openid profile&redirect_uri=http://127.0.0.1:8080/callback
+GET http://localhost:8180/api/oauth2/authorize?response_type=code&client_id=test-client&scope=openid profile&redirect_uri=http://127.0.0.1:8080/callback
 ```
 
 **Step 2：用户登录并授权后，回调到第三方应用的 redirect_uri**
@@ -372,7 +372,7 @@ http://127.0.0.1:8080/callback?code=xxxxx
 **Step 3：用 code 换取 token**
 
 ```bash
-curl -X POST http://localhost:8181/api/oauth2/token \
+curl -X POST http://localhost:8180/api/oauth2/token \
   -u "test-client:your-client-secret" \
   -d "grant_type=authorization_code&code=xxxxx&redirect_uri=http://127.0.0.1:8080/callback"
 ```
@@ -380,7 +380,7 @@ curl -X POST http://localhost:8181/api/oauth2/token \
 **Step 4：使用 access_token 获取用户信息**
 
 ```bash
-curl http://localhost:8181/api/userinfo \
+curl http://localhost:8180/api/userinfo \
   -H "Authorization: Bearer eyJraWQiOi..."
 ```
 
@@ -415,10 +415,10 @@ spring:
               - profile
         provider:
           forge-admin:
-            authorization-uri: http://localhost:8181/api/oauth2/authorize
-            token-uri: http://localhost:8181/api/oauth2/token
-            jwk-set-uri: http://localhost:8181/api/oauth2/jwks
-            user-info-uri: http://localhost:8181/api/userinfo
+            authorization-uri: http://localhost:8180/api/oauth2/authorize
+            token-uri: http://localhost:8180/api/oauth2/token
+            jwk-set-uri: http://localhost:8180/api/oauth2/jwks
+            user-info-uri: http://localhost:8180/api/userinfo
             user-name-attribute: sub
 ```
 

@@ -14,7 +14,7 @@ const projectRoutes: RouteRecordRaw = {
   name: PageEnum.BASE_HOME_NAME,
   // 不再使用项目列表页；自动跳转到 forge-admin 大屏列表
   redirect: () => {
-    const base = import.meta.env.DEV ? 'http://localhost:3003' : ''
+    const base = import.meta.env.DEV ? 'http://localhost:3000' : ''
     window.location.href = `${base}/screen/screen`
   },
   meta: {

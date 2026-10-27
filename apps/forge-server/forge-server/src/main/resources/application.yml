@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:8181}
+  port: ${SERVER_PORT:8180}
 
 spring:
   # 邮件提醒 SMTP（flowlong.scheduler.email-enabled=true 时生效）

@@ -18,9 +18,9 @@ forge-admin 是一个基于 RBAC 的企业级后台管理系统，采用 monorep
 
 | 服务 | 端口 | 路径 |
 |------|------|------|
-| 前端开发 | 3003 | `apps/forge-web` |
+| 前端开发 | 3000 | `apps/forge-web` |
 | 小程序开发 | - | `apps/forge-miniapp` |
-| 后端 API | 8181 | `apps/forge-server` |
+| 后端 API | 8180 | `apps/forge-server` |
 | 上下文路径 | - | `/api` |
 
 **数据库：** MySQL `forge_admin`，localhost:3306 | **Redis：** localhost:6379（无密码） | **Java：** 21 | **Node：** 22.9.0 | **pnpm：** 11.10.0（workspace 根与 apps/forge-web 各有一份 lockfile，后者为 Docker 构建专用，改依赖后需 `cd apps/forge-web && pnpm install --lockfile-only --ignore-workspace` 刷新）
@@ -30,7 +30,7 @@ forge-admin 是一个基于 RBAC 的企业级后台管理系统，采用 monorep
 ### 前端（在 `apps/forge-web` 目录下）
 ```bash
 pnpm install    # 安装依赖
-pnpm dev        # 启动开发服务器（端口 3003）
+pnpm dev        # 启动开发服务器（端口 3000）
 pnpm build      # 生产构建（含类型检查）
 pnpm lint       # 运行 ESLint
 pnpm test       # 运行 vitest 单元测试

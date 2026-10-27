@@ -369,7 +369,7 @@ cd apps/forge-server
 mvn spring-boot:run -pl forge-server
 ```
 
-后端服务运行在 http://localhost:8181
+后端服务运行在 http://localhost:8180
 
 4. **启动前端**
 
@@ -379,7 +379,7 @@ pnpm install
 pnpm dev
 ```
 
-前端服务运行在 http://localhost:3003
+前端服务运行在 http://localhost:3000
 
 5. **启动大屏编辑器**（可选）
 
@@ -403,9 +403,9 @@ pnpm dev:mp-weixin
 
 7. **访问系统**
 
-- 前端地址：http://localhost:3003
+- 前端地址：http://localhost:3000
 - 大屏编辑器：http://localhost:8001
-- API 文档：http://localhost:8181/swagger-ui/index.html
+- API 文档：http://localhost:8180/swagger-ui/index.html
 - 默认账号：`admin` / `password`（启用多租户时登录页需输入租户标识，默认 `default`）
 - OAuth2 使用文档：[docs-base/guide/oauth2-guide.md](docs-base/guide/oauth2-guide.md)
 
@@ -430,7 +430,7 @@ TENANT_ENABLE=true
 
 ```bash
 pnpm install    # 安装依赖
-pnpm dev        # 启动开发服务器（端口 3003）
+pnpm dev        # 启动开发服务器（端口 3000）
 pnpm build      # 生产构建（含类型检查）
 pnpm preview    # 预览生产构建
 pnpm lint       # 运行 ESLint
@@ -731,7 +731,7 @@ mysql -h 127.0.0.1 -P ${MYSQL_EXPOSE_PORT:-3306} -u root -p forge_admin \
 
 | 配置项 | 默认值 |
 |--------|--------|
-| 服务端口 | 8181 |
+| 服务端口 | 8180 |
 | 数据库 | localhost:3306/forge_admin |
 | Redis | localhost:6379 |
 | JWT 密钥 | （生产环境请修改） |
@@ -740,8 +740,8 @@ mysql -h 127.0.0.1 -P ${MYSQL_EXPOSE_PORT:-3306} -u root -p forge_admin \
 
 | 变量 | 开发环境 | 生产环境 |
 |------|----------|----------|
-| 后台 API 地址 | http://localhost:8181/admin-api | /admin-api |
-| 移动端 API 地址 | http://localhost:8181/app-api | /app-api |
+| 后台 API 地址 | http://localhost:8180/admin-api | /admin-api |
+| 移动端 API 地址 | http://localhost:8180/app-api | /app-api |
 | 大屏编辑器地址 | http://localhost:8001 | /screen-app |
 
 ### 等保安全配置（application.yml）
