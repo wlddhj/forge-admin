@@ -4,6 +4,7 @@
  * 项目初始化脚本
  * 用于基于 forge-admin 模板创建新项目
  * 复制模板到新目录后在新目录中修改，不影响模板本身
+ * 端口会与模板错开：后台 8180 -> 8081，前端 3000 -> 3001
  *
  * 使用方法: pnpm run init <项目名称> "<项目描述>" <包名>
  * 示例: pnpm run init my-admin "我的管理系统" com.mycompany
@@ -223,6 +224,23 @@ function main() {
 
   // 定义替换规则（顺序重要：先匹配长的字符串，避免部分匹配）
   const replacements = [
+    // 端口替换（新项目端口与模板错开，避免本机同时启动时冲突）
+    // 后台 8180 -> 8081；只能按上下文形态枚举替换：
+    // 裸替换 8180/3000 会误伤大屏 geojson 坐标数字与超时毫秒数/版本号等
+    // （forge-server:8180 必须先于下文 forge-server 改名规则执行）
+    { from: 'localhost:8180', to: 'localhost:8081' },
+    { from: 'backend:8180', to: 'backend:8081' },
+    { from: 'forge-server:8180', to: 'forge-server:8081' },
+    { from: 'SERVER_PORT:8180', to: 'SERVER_PORT:8081' },
+    { from: 'port: 8180', to: 'port: 8081' },
+    { from: '8180:8180', to: '8081:8081' },
+    { from: 'PORT=8180', to: 'PORT=8081' },
+    { from: 'EXPOSE 8180', to: 'EXPOSE 8081' },
+    { from: '| 8180 |', to: '| 8081 |' },
+    // 前端 3000 -> 3001
+    { from: 'localhost:3000', to: 'localhost:3001' },
+    { from: 'port: 3000', to: 'port: 3001' },
+    { from: '（端口 3000）', to: '（端口 3001）' },
     // 后端替换
     { from: 'ForgeAdminApplication', to: `${namePascal}Application` },
     { from: 'com.forge.admin', to: config.basePackage },
@@ -273,8 +291,8 @@ function main() {
     '.py', '.toml',
     '.imports'
   ]
-  // 无扩展名但需要处理的文件名
-  const targetFilenames = ['Dockerfile', 'server.sh', 'remove-module.sh']
+  // 无扩展名但需要处理的文件名（nginx.conf 含 backend 端口代理，必须处理）
+  const targetFilenames = ['Dockerfile', 'server.sh', 'remove-module.sh', 'nginx.conf']
 
   // 复制时排除的目录与文件（构建产物、AI/流程产物、脚手架自身、开发过程产物、失效的 lock 文件）
   const EXCLUDE_DIRS = ['node_modules', 'target', 'dist', '.git', '.idea', 'logs', 'uploads', '.claude', '.flow-neo', '.playwright-mcp', '.worktrees', '.template']
@@ -440,6 +458,7 @@ function main() {
 
   log(`新项目路径: ${targetDir}`, 'green')
   log('（模板目录未做任何修改）\n')
+  log(`端口（与模板错开）: 后台 8081，前端 3001\n`, 'cyan')
 
   log('后续步骤:', 'yellow')
   log(`  1. 进入新项目: cd ${targetDir}`)
