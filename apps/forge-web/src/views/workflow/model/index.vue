@@ -331,10 +331,11 @@ const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeR
 // 分类列表
 const categoryList = ref<WfCategory[]>([])
 
-// 左侧分类树（含「全部」根节点）
+// 左侧分类树（「全部」与真实顶级分类同级平铺）
 const categoryTreeRef = ref()
 const categoryTreeData = computed(() => [
-  { id: 0, categoryName: '全部', children: categoryList.value }
+  { id: 0, categoryName: '全部', children: [] },
+  ...categoryList.value
 ])
 
 /** 点击分类树节点过滤：全部(0)清空条件，否则按分类编码（后端前缀命中子树） */

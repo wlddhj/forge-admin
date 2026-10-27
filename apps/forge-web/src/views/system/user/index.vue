@@ -417,10 +417,11 @@ const rules: FormRules = {
 // 部门树和角色列表
 const deptTree = ref<DeptTree[]>([])
 
-// 左侧部门树（含「全部」根节点）
+// 左侧部门树（「全部」与真实顶级部门同级平铺）
 const deptTreeRef = ref()
 const deptTreeData = computed(() => [
-  { id: 0, deptName: '全部', children: deptTree.value }
+  { id: 0, deptName: '全部', children: [] },
+  ...deptTree.value
 ])
 
 /** 点击部门树节点过滤：全部(0)清空条件，否则按部门精确过滤 */
