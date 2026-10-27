@@ -125,58 +125,8 @@
       </template>
     </el-dialog>
 
-    <!-- 投递记录抽屉 -->
-    <el-drawer v-model="recordsVisible" :title="`投递记录 - ${currentCallback?.name || ''}`" size="70%">
-      <el-form inline>
-        <el-form-item label="状态">
-          <el-select v-model="recordQuery.status" placeholder="全部" clearable style="width: 120px" @change="getRecords">
-            <el-option label="成功" value="SUCCESS" />
-            <el-option label="失败" value="FAILED" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button @click="getRecords">刷新</el-button>
-        </el-form-item>
-      </el-form>
-      <vxe-table :data="recordData" :loading="recordLoading" border="none" stripe show-overflow="tooltip"
-        :row-config="{ isHover: true }" :column-config="{ resizable: true }" :max-height="recordTableHeight">
-        <vxe-column type="seq" title="序号" width="50" align="center" />
-        <vxe-column field="createTime" title="时间" width="170">
-          <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
-        </vxe-column>
-        <vxe-column title="事件" width="100">
-          <template #default="{ row }">{{ eventLabel(row.eventType) }}</template>
-        </vxe-column>
-        <vxe-column field="processKey" title="流程" width="130" />
-        <vxe-column field="instanceId" title="实例ID" width="170" />
-        <vxe-column field="nodeKey" title="节点" width="120" />
-        <vxe-column title="状态" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'SUCCESS' ? 'success' : 'danger'" size="small">
-              {{ row.status === 'SUCCESS' ? '成功' : '失败' }}
-            </el-tag>
-          </template>
-        </vxe-column>
-        <vxe-column field="httpStatus" title="HTTP" width="80" align="center" />
-        <vxe-column field="retryCount" title="重试" width="60" align="center" />
-        <vxe-column field="errorMsg" title="失败原因" min-width="160" />
-        <vxe-column title="操作" width="90" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              v-if="row.status === 'FAILED'"
-              v-permission="'workflow:callback:edit'"
-              type="primary" link size="small"
-              @click="handleResend(row)"
-            >
-重发
-</el-button>
-          </template>
-        </vxe-column>
-      </vxe-table>
-      <TablePagination v-model:page-num="recordQuery.pageNum"
-        v-model:page-size="recordQuery.pageSize" :total="recordTotal"
-        @change="getRecords" />
-    </el-drawer>
+    <!-- 投递记录抽屉（独立组件，表格高度自适应） -->
+    <CallbackRecordDrawer v-model="recordsVisible" :callback="currentCallback" />
   </div>
 </template>
 
@@ -189,13 +139,12 @@ import TablePagination from '@/components/TablePagination.vue'
 import { useTableSeq } from '@/composables/useTableSeq'
 import { formatDateTime } from '@/utils/dateFormat'
 import { callbackApi, type CallbackRequest } from '@/api/workflow/callback'
-import type { BusinessCallback, BusinessCallbackRecord } from '@/types/workflow'
+import CallbackRecordDrawer from './components/CallbackRecordDrawer.vue'
+import type { BusinessCallback } from '@/types/workflow'
 
 defineOptions({ name: 'WorkflowCallback' })
 
 const { tableHeight } = useTableHeight()
-// 抽屉内表格高度：表格高度减去筛选与分页区域
-const recordTableHeight = computed(() => Math.max(tableHeight.value - 120, 300))
 const tableRef = ref<VxeTableInstance | null>(null)
 const toolbarRef = ref<VxeToolbarInstance | null>(null)
 
@@ -329,41 +278,11 @@ const handleDelete = async (row: BusinessCallback) => {
 
 // ========== 投递记录 ==========
 const recordsVisible = ref(false)
-const recordLoading = ref(false)
-const recordData = ref<BusinessCallbackRecord[]>([])
-const recordTotal = ref(0)
 const currentCallback = ref<BusinessCallback | null>(null)
-const recordQuery = reactive({
-  pageNum: 1,
-  pageSize: 20,
-  status: undefined as string | undefined
-})
 
 const openRecords = (row: BusinessCallback) => {
   currentCallback.value = row
-  recordQuery.pageNum = 1
-  recordQuery.status = undefined
   recordsVisible.value = true
-  getRecords()
-}
-
-const getRecords = async () => {
-  if (!currentCallback.value) return
-  recordLoading.value = true
-  try {
-    const data = await callbackApi.records(currentCallback.value.id, recordQuery)
-    recordData.value = data.list
-    recordTotal.value = data.total
-  } finally {
-    recordLoading.value = false
-  }
-}
-
-const handleResend = async (row: BusinessCallbackRecord) => {
-  await ElMessageBox.confirm('确定重发该投递？', '提示', { type: 'warning' })
-  await callbackApi.resend(row.id)
-  ElMessage.success('已重新投递')
-  getRecords()
 }
 </script>
 
