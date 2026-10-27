@@ -61,13 +61,17 @@
             <el-icon><Plus /></el-icon>
             新增分类
           </el-button>
+          <el-button @click="handleToggleExpand">
+            <el-icon><component :is="allExpanded ? 'Fold' : 'Expand'" /></el-icon>
+            {{ allExpanded ? '全部折叠' : '全部展开' }}
+          </el-button>
         </template>
         <template #tools>
           <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
         </template>
       </vxe-toolbar>
 
-      <!-- vxe-table 表格 -->
+      <!-- vxe-table 树形表格（平铺数据由 transform 按 parentId 组装） -->
       <vxe-table
         id="wfCategoryTable"
         ref="tableRef"
@@ -75,8 +79,8 @@
         :data="tableData"
         :height="tableHeight"
         :loading="loading"
-        :seq-config="{seqMethod}"
-        :row-config="{ isCurrent: true, isHover: true }"
+        :row-config="{ isCurrent: true, isHover: true, keyField: 'id' }"
+        :tree-config="{ expandAll: !isMobile, indent: 20, transform: true, rowField: 'id', parentField: 'parentId' }"
         :column-config="{ resizable: true }"
         border="none"
         stripe
@@ -84,11 +88,8 @@
         show-header-overflow="tooltip"
         @current-change="handleCurrentChange"
       >
-        <!-- 序号列（桌面端） -->
-        <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" />
-
         <!-- 分类名称 -->
-        <vxe-column field="categoryName" title="分类名称" min-width="150" />
+        <vxe-column field="categoryName" title="分类名称" min-width="200" tree-node />
 
         <!-- 分类编码 -->
         <vxe-column field="categoryCode" title="分类编码" width="150" />
@@ -114,20 +115,14 @@
         </vxe-column>
 
         <!-- 桌面端操作列 -->
-        <vxe-column v-if="!isMobile" title="操作" width="150" fixed="right">
+        <vxe-column v-if="!isMobile" title="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'workflow:category:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'workflow:category:add'" type="primary" link size="small" @click.stop="handleAddChild(row)">新增子分类</el-button>
             <el-button v-permission="'workflow:category:delete'" type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>
-
-      <TablePagination
-        v-model:page-num="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :total="total"
-        @change="getList"
-      />
     </el-card>
 
     <!-- 移动端底部操作栏 -->
@@ -139,13 +134,26 @@
     >
       <template #actions="{ item }">
         <el-button v-permission="'workflow:category:edit'" size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
+        <el-button v-permission="'workflow:category:add'" size="small" type="primary" @click.stop="handleAddChild(item)">新增子分类</el-button>
         <el-button v-permission="'workflow:category:delete'" size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
       </template>
     </MobileBottomActions>
 
     <!-- 对话框 -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" class="dialog-form-responsive">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" class="dialog-form-responsive" @close="handleDialogClose">
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
+        <el-form-item label="父分类">
+          <el-tree-select
+            v-model="formData.parentId"
+            :data="parentTreeOptions"
+            :props="{ label: 'categoryName' }"
+            node-key="id"
+            placeholder="请选择父分类（不选则为顶级分类）"
+            clearable
+            check-strictly
+            style="width: 100%"
+          />
+        </el-form-item>
         <el-form-item label="分类名称" prop="categoryName">
           <el-input v-model="formData.categoryName" placeholder="请输入分类名称" />
         </el-form-item>
@@ -174,7 +182,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, nextTick, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
@@ -183,7 +191,6 @@ import type { WfCategory, CategoryRequest } from '@/types/workflow'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
-import { useTableSeq } from '@/composables/useTableSeq'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
@@ -191,7 +198,7 @@ import MobileBottomActions from '@/components/MobileBottomActions.vue'
 const { isMobile } = useResponsive()
 
 // 表格高度自适应
-const { tableHeight } = useTableHeight()
+const { tableHeight } = useTableHeight({ hasPagination: false })
 
 // 表格实例
 const tableRef = ref<VxeTableInstance | null>(null)
@@ -199,7 +206,7 @@ const toolbarRef = ref<VxeToolbarInstance | null>(null)
 
 const loading = ref(false)
 const tableData = ref<WfCategory[]>([])
-const total = ref(0)
+const allExpanded = ref(true)
 
 // 移动端状态
 const searchDrawerVisible = ref(false)
@@ -208,15 +215,8 @@ const selectedRow = ref<WfCategory | null>(null)
 const queryParams = reactive({
   categoryName: '',
   categoryCode: '',
-  status: undefined as number | undefined,
-  pageNum: 1,
-  pageSize: 20
+  status: undefined as number | undefined
 })
-
-// 序号计算
-const pageNumRef = computed(() => queryParams.pageNum)
-const pageSizeRef = computed(() => queryParams.pageSize)
-const { seqMethod } = useTableSeq({ currentPage: pageNumRef, pageSize: pageSizeRef }) as any
 
 // 计算激活的搜索条件数量
 const activeConditionsCount = computed(() => {
@@ -234,6 +234,7 @@ const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
 const formData = reactive<CategoryRequest>({
   id: undefined,
+  parentId: undefined,
   categoryName: '',
   categoryCode: '',
   sortOrder: 0,
@@ -245,6 +246,22 @@ const formRules: FormRules = {
   categoryCode: [{ required: true, message: '请输入分类编码', trigger: 'blur' }]
 }
 
+/** 启用状态的分类树（父分类选择器数据源） */
+const categoryTree = ref<WfCategory[]>([])
+
+/** 递归剔除指定节点及其子树（编辑时禁止把自身/子孙选为父级） */
+const filterOutSubtree = (nodes: WfCategory[], excludeId: number): WfCategory[] =>
+  nodes
+    .filter(node => node.id !== excludeId)
+    .map(node => ({ ...node, children: filterOutSubtree(node.children ?? [], excludeId) }))
+
+/** 父分类选项：合成顶级根节点 + 启用树（编辑时排除自身子树） */
+const parentTreeOptions = computed(() => {
+  const editingId = isEdit.value ? formData.id : undefined
+  const children = editingId ? filterOutSubtree(categoryTree.value, editingId) : categoryTree.value
+  return [{ id: 0, categoryName: '顶级分类', children }]
+})
+
 // 关联工具栏与表格
 onMounted(() => {
   if (tableRef.value && toolbarRef.value) {
@@ -252,33 +269,54 @@ onMounted(() => {
   }
 })
 
-/** 获取分类列表 */
+/** 获取分类列表（平铺，树形由 vxe-table transform 组装） */
 const getList = async () => {
   loading.value = true
   try {
-    const res = await categoryApi.page(queryParams)
-    tableData.value = res.list
-    total.value = res.total
+    const res = await categoryApi.list(queryParams)
+    tableData.value = res
+    allExpanded.value = !isMobile.value
+    nextTick(() => {
+      if (!isMobile.value && tableRef.value) {
+        tableRef.value.setAllTreeExpand(true)
+      }
+    })
   } finally {
     loading.value = false
   }
 }
 
-const handleQuery = () => {
-  queryParams.pageNum = 1
-  getList()
+/** 拉取启用分类树（弹窗每次打开都重新拉，避免新增/编辑后选项过期） */
+const getCategoryTreeData = async () => {
+  try {
+    categoryTree.value = await categoryApi.listAll()
+  } catch (error) {
+    console.error('获取分类树失败:', error)
+  }
 }
+
+const handleToggleExpand = () => {
+  allExpanded.value = !allExpanded.value
+  if (tableRef.value) {
+    if (allExpanded.value) {
+      tableRef.value.setAllTreeExpand(true)
+    } else {
+      tableRef.value.clearTreeExpand()
+    }
+  }
+}
+
+const handleQuery = () => getList()
 
 const handleReset = () => {
   queryParams.categoryName = ''
   queryParams.categoryCode = ''
   queryParams.status = undefined
-  handleQuery()
+  getList()
 }
 
 // 移动端抽屉搜索
 const handleSearchFromDrawer = () => {
-  queryParams.pageNum = 1
   getList()
 }
 
@@ -291,8 +329,18 @@ const handleAdd = () => {
   cancelSelection()
   isEdit.value = false
   dialogTitle.value = '新增分类'
-  Object.assign(formData, { id: undefined, categoryName: '', categoryCode: '', sortOrder: 0, status: 1, remark: '' })
+  Object.assign(formData, { id: undefined, parentId: undefined, categoryName: '', categoryCode: '', sortOrder: 0, status: 1, remark: '' })
   dialogVisible.value = true
+  getCategoryTreeData()
+}
+
+const handleAddChild = (row: WfCategory) => {
+  cancelSelection()
+  isEdit.value = false
+  dialogTitle.value = '新增子分类'
+  Object.assign(formData, { id: undefined, parentId: row.id, categoryName: '', categoryCode: '', sortOrder: 0, status: 1, remark: '' })
+  dialogVisible.value = true
+  getCategoryTreeData()
 }
 
 const handleEdit = (row: WfCategory) => {
@@ -301,6 +349,7 @@ const handleEdit = (row: WfCategory) => {
   dialogTitle.value = '编辑分类'
   Object.assign(formData, {
     id: row.id,
+    parentId: row.parentId,
     categoryName: row.categoryName,
     categoryCode: row.categoryCode,
     sortOrder: row.sortOrder,
@@ -308,6 +357,7 @@ const handleEdit = (row: WfCategory) => {
     remark: row.remark
   })
   dialogVisible.value = true
+  getCategoryTreeData()
 }
 
 const handleSubmit = async () => {
@@ -328,6 +378,8 @@ const handleSubmit = async () => {
     submitLoading.value = false
   }
 }
+
+const handleDialogClose = () => formRef.value?.resetFields()
 
 const handleDelete = async (row: WfCategory) => {
   cancelSelection()

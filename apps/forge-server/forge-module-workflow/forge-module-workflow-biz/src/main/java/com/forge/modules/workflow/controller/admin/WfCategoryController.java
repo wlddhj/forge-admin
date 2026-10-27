@@ -1,8 +1,6 @@
 package com.forge.modules.workflow.controller.admin;
 
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
-import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.modules.workflow.dto.category.CategoryQueryRequest;
 import com.forge.modules.workflow.dto.category.CategoryRequest;
@@ -31,15 +29,11 @@ public class WfCategoryController {
 
     private final WfCategoryService wfCategoryService;
 
-    @Operation(summary = "分页查询流程分类")
+    @Operation(summary = "查询流程分类列表（平铺全量，树形由前端组装）")
     @GetMapping("/list")
     @PreAuthorize("hasAuthority('workflow:category:list')")
-    public Result<PageResult<WfCategory>> list(CategoryQueryRequest request) {
-        Page<WfCategory> page = wfCategoryService.pageCategory(request);
-        PageResult<WfCategory> result = PageResult.of(
-                page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize()
-        );
-        return Result.success(result);
+    public Result<List<WfCategory>> list(CategoryQueryRequest request) {
+        return Result.success(wfCategoryService.listCategory(request));
     }
 
     @Operation(summary = "获取所有启用的分类")

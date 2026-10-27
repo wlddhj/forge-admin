@@ -24,14 +24,4 @@ public class CategoryQueryRequest {
      * 状态(0:禁用 1:启用)
      */
     private Integer status;
-
-    /**
-     * 当前页
-     */
-    private Integer pageNum = 1;
-
-    /**
-     * 每页大小
-     */
-    private Integer pageSize = 10;
 }

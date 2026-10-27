@@ -11,14 +11,17 @@
           <el-input v-model="queryParams.key" placeholder="请输入模型标识" clearable />
         </el-form-item>
         <el-form-item label="分类">
-          <el-select v-model="queryParams.category" placeholder="请选择分类" clearable style="width: 160px">
-            <el-option
-              v-for="item in categoryList"
-              :key="item.categoryCode"
-              :label="item.categoryName"
-              :value="item.categoryCode"
-            />
-          </el-select>
+          <el-tree-select
+            v-model="queryParams.category"
+            :data="categoryList"
+            :props="{ label: 'categoryName' }"
+            node-key="categoryCode"
+            placeholder="请选择分类"
+            clearable
+            check-strictly
+            filterable
+            style="width: 160px"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleQuery">搜索</el-button>
@@ -48,14 +51,17 @@
           <el-input v-model="queryParams.key" placeholder="请输入模型标识" clearable />
         </el-form-item>
         <el-form-item label="分类">
-          <el-select v-model="queryParams.category" placeholder="请选择分类" clearable style="width: 100%">
-            <el-option
-              v-for="item in categoryList"
-              :key="item.categoryCode"
-              :label="item.categoryName"
-              :value="item.categoryCode"
-            />
-          </el-select>
+          <el-tree-select
+            v-model="queryParams.category"
+            :data="categoryList"
+            :props="{ label: 'categoryName' }"
+            node-key="categoryCode"
+            placeholder="请选择分类"
+            clearable
+            check-strictly
+            filterable
+            style="width: 100%"
+          />
         </el-form-item>
       </template>
     </MobileSearchDrawer>
@@ -172,14 +178,17 @@
           <el-input v-model="formData.key" placeholder="请输入模型标识（英文）" :disabled="isEditDialog" />
         </el-form-item>
         <el-form-item label="分类">
-          <el-select v-model="formData.categoryId" placeholder="请选择分类" clearable style="width: 100%">
-            <el-option
-              v-for="item in categoryList"
-              :key="item.id"
-              :label="item.categoryName"
-              :value="item.id"
-            />
-          </el-select>
+          <el-tree-select
+            v-model="formData.categoryId"
+            :data="categoryList"
+            :props="{ label: 'categoryName' }"
+            node-key="id"
+            placeholder="请选择分类"
+            clearable
+            check-strictly
+            filterable
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="formData.description" type="textarea" :rows="3" placeholder="请输入描述" />

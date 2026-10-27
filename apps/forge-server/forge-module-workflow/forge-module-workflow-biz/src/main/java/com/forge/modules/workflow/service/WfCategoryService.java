@@ -1,6 +1,5 @@
 package com.forge.modules.workflow.service;
 
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.modules.workflow.dto.category.CategoryQueryRequest;
 import com.forge.modules.workflow.dto.category.CategoryRequest;
 import com.forge.modules.workflow.dto.category.CategoryResponse;
@@ -16,12 +15,12 @@ import java.util.List;
 public interface WfCategoryService {
 
     /**
-     * 分页查询流程分类
+     * 查询流程分类（平铺全量，含禁用，树形由前端按 parentId 组装）
      *
      * @param request 查询参数
-     * @return 分页结果
+     * @return 分类列表
      */
-    Page<WfCategory> pageCategory(CategoryQueryRequest request);
+    List<WfCategory> listCategory(CategoryQueryRequest request);
 
     /**
      * 获取所有启用的分类（用于下拉选择）

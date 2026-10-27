@@ -12,8 +12,6 @@ export interface WfCategory {
 }
 
 export interface CategoryQuery {
-  pageNum: number
-  pageSize: number
   categoryName?: string
   categoryCode?: string
   status?: number

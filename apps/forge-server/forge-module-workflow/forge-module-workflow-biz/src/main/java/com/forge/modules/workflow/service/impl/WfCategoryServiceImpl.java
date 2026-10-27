@@ -4,7 +4,6 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
@@ -18,9 +17,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -35,9 +38,7 @@ public class WfCategoryServiceImpl extends ServiceImpl<WfCategoryMapper, WfCateg
     private final WfCategoryMapper wfCategoryMapper;
 
     @Override
-    public Page<WfCategory> pageCategory(CategoryQueryRequest request) {
-        Page<WfCategory> page = new Page<>(request.getPageNum(), request.getPageSize());
-
+    public List<WfCategory> listCategory(CategoryQueryRequest request) {
         LambdaQueryWrapper<WfCategory> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(StrUtil.isNotBlank(request.getCategoryName()), WfCategory::getCategoryName, request.getCategoryName())
                 .eq(StrUtil.isNotBlank(request.getCategoryCode()), WfCategory::getCategoryCode, request.getCategoryCode())
@@ -45,7 +46,7 @@ public class WfCategoryServiceImpl extends ServiceImpl<WfCategoryMapper, WfCateg
                 .orderByAsc(WfCategory::getSortOrder)
                 .orderByDesc(WfCategory::getCreateTime);
 
-        return wfCategoryMapper.selectPage(page, wrapper);
+        return wfCategoryMapper.selectList(wrapper);
     }
 
     @Override
@@ -105,9 +106,15 @@ public class WfCategoryServiceImpl extends ServiceImpl<WfCategoryMapper, WfCateg
             }
         }
 
-        // 不允许将分类设置为自己的子分类
-        if (request.getParentId() != null && request.getParentId().equals(request.getId())) {
-            throw new BusinessException("不能将分类设置为自己的子分类");
+        // 不允许将分类挂到自身或其子孙分类下（会成环）
+        if (request.getParentId() == null) {
+            request.setParentId(0L);
+        } else {
+            Set<Long> forbidden = collectDescendantIds(list(), request.getId());
+            forbidden.add(request.getId());
+            if (forbidden.contains(request.getParentId())) {
+                throw new BusinessException("不能选择自身或其子分类作为父级");
+            }
         }
 
         BeanUtil.copyProperties(request, category);
@@ -130,6 +137,32 @@ public class WfCategoryServiceImpl extends ServiceImpl<WfCategoryMapper, WfCateg
         }
 
         removeByIds(ids);
+    }
+
+    /**
+     * 计算指定分类的全部子孙ID集合（按 parentId 邻接关系广度遍历）
+     * 纯函数，供环校验与单测直接使用
+     *
+     * @param all    全量分类（平铺）
+     * @param rootId 起始分类ID
+     * @return 不含 rootId 自身的子孙ID集合
+     */
+    static Set<Long> collectDescendantIds(List<WfCategory> all, Long rootId) {
+        Map<Long, List<Long>> childrenByParent = all.stream()
+                .filter(c -> c.getParentId() != null)
+                .collect(Collectors.groupingBy(WfCategory::getParentId,
+                        Collectors.mapping(WfCategory::getId, Collectors.toList())));
+
+        Set<Long> descendants = new HashSet<>();
+        Deque<Long> queue = new ArrayDeque<>(childrenByParent.getOrDefault(rootId, List.of()));
+        while (!queue.isEmpty()) {
+            Long current = queue.poll();
+            // 脏数据互指环可能绕回根自身，子孙集合不含根
+            if (!current.equals(rootId) && descendants.add(current)) {
+                queue.addAll(childrenByParent.getOrDefault(current, List.of()));
+            }
+        }
+        return descendants;
     }
 
     /**

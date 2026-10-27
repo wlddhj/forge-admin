@@ -11,14 +11,17 @@
           <el-input v-model="queryParams.key" placeholder="请输入流程标识" clearable />
         </el-form-item>
         <el-form-item label="分类">
-          <el-select v-model="queryParams.categoryId" placeholder="请选择分类" clearable style="width: 150px">
-            <el-option
-              v-for="item in categoryList"
-              :key="item.id"
-              :label="item.categoryName"
-              :value="item.id"
-            />
-          </el-select>
+          <el-tree-select
+            v-model="queryParams.categoryId"
+            :data="categoryList"
+            :props="{ label: 'categoryName' }"
+            node-key="id"
+            placeholder="请选择分类"
+            clearable
+            check-strictly
+            filterable
+            style="width: 150px"
+          />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.processState" placeholder="请选择" clearable style="width: 120px">
@@ -52,14 +55,17 @@
           <el-input v-model="queryParams.key" placeholder="请输入流程标识" clearable />
         </el-form-item>
         <el-form-item label="分类">
-          <el-select v-model="queryParams.categoryId" placeholder="请选择分类" clearable style="width: 100%">
-            <el-option
-              v-for="item in categoryList"
-              :key="item.id"
-              :label="item.categoryName"
-              :value="item.id"
-            />
-          </el-select>
+          <el-tree-select
+            v-model="queryParams.categoryId"
+            :data="categoryList"
+            :props="{ label: 'categoryName' }"
+            node-key="id"
+            placeholder="请选择分类"
+            clearable
+            check-strictly
+            filterable
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.processState" placeholder="请选择" clearable style="width: 100%">
@@ -299,7 +305,7 @@ import { processDefinitionApi } from '@/api/workflow/process-definition'
 import { processInstanceApi } from '@/api/workflow/process-instance'
 import { categoryApi } from '@/api/workflow/category'
 import { formApi } from '@/api/workflow/form'
-import type { ProcessDefinition, UserTaskNode } from '@/types/workflow'
+import type { ProcessDefinition, UserTaskNode, WfCategory } from '@/types/workflow'
 import { formatDateTime } from '@/utils/dateFormat'
 import { decodeFields } from '@/utils/formCreate'
 import { getUserList } from '@/api/system'
@@ -329,7 +335,7 @@ const searchDrawerVisible = ref(false)
 const selectedRow = ref<ProcessDefinition | null>(null)
 
 // 分类列表
-const categoryList = ref<{ id: number; categoryName: string }[]>([])
+const categoryList = ref<WfCategory[]>([])
 
 const queryParams = reactive({
   name: '',
