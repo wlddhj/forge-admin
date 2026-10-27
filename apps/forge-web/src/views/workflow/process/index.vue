@@ -357,7 +357,7 @@ const asideTreeHeight = ref<number | undefined>(undefined)
 const calcAsideTreeHeight = () => {
   const headerH = document.querySelector('.layout-header')?.getBoundingClientRect().height || 60
   const tabsH = document.querySelector('.tabs-view')?.getBoundingClientRect().height || 0
-  asideTreeHeight.value = Math.max(window.innerHeight - headerH - tabsH - 40, 200)
+  asideTreeHeight.value = Math.max(window.innerHeight - headerH - tabsH - 23, 200)
 }
 
 const queryParams = reactive({
