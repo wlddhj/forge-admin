@@ -80,6 +80,14 @@
             <el-tag v-else type="success">已结束</el-tag>
           </template>
         </vxe-column>
+        <vxe-column title="紧急程度" width="110" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.urgent && row.urgent > 0" :type="row.urgent === 3 ? 'danger' : row.urgent === 2 ? 'warning' : 'primary'" size="small">
+              {{ row.urgentName || '加急' }}
+            </el-tag>
+            <span v-else style="color: #909399">常规</span>
+          </template>
+        </vxe-column>
         <vxe-column field="startTime" title="发起时间" width="170">
           <template #default="{ row }">
             {{ formatDateTime(row.startTime) }}

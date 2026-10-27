@@ -46,4 +46,9 @@ public class ProcessStartRequest {
      * 默认为0
      */
     private Integer priority = 0;
+
+    /**
+     * 紧急程度（0 常规 1 重要不紧急 2 紧急不重要 3 紧急且重要，flowlong 1.2.7）
+     */
+    private Integer urgent = 0;
 }

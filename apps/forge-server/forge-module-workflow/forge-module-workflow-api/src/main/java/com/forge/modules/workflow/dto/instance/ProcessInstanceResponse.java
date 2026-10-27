@@ -112,4 +112,14 @@ public class ProcessInstanceResponse {
      * 优先级名称
      */
     private String priorityName;
+
+    /**
+     * 紧急程度（0 常规 1 重要不紧急 2 紧急不重要 3 紧急且重要）
+     */
+    private Integer urgent;
+
+    /**
+     * 紧急程度名称
+     */
+    private String urgentName;
 }

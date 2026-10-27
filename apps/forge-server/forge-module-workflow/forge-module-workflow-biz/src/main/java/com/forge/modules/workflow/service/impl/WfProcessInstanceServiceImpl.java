@@ -181,6 +181,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             // 获取 businessKey 和 priority
             String businessKey = request.getBusinessKey();
             Integer priority = request.getPriority() != null ? request.getPriority() : 0;
+            Integer urgent = request.getUrgent() != null ? request.getUrgent() : 0;
 
             // 自定义模型校验：跳过已通过 FlowDataTransfer 传递审批人的发起人自选节点
             // 使用 supplier 创建带有 businessKey 和 priority 的 FlwInstance
@@ -190,6 +191,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             }, () -> {
                 FlwInstance instance = FlwInstance.of(businessKey);
                 instance.setPriority(priority);
+                instance.setUrgent(urgent);
                 // 设置流程编号
                 instance.setInstanceNo(processNoGenerator.generateNo());
                 return instance;
@@ -1217,6 +1219,12 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         if (priorityVal != null) {
             response.setPriority(Integer.parseInt(String.valueOf(priorityVal)));
         }
+        Object urgentVal = row.get("urgent");
+        if (urgentVal != null) {
+            int urgent = Integer.parseInt(String.valueOf(urgentVal));
+            response.setUrgent(urgent);
+            response.setUrgentName(getUrgentName(urgent));
+        }
         Integer state = row.get("instance_state") == null ? null
                 : Integer.parseInt(String.valueOf(row.get("instance_state")));
         // 运行中实例补充当前处理人/候选人（与旧版两侧转换行为对齐）
@@ -1318,6 +1326,8 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         // 优先级信息
         response.setPriority(instance.getPriority());
         response.setPriorityName(getPriorityName(instance.getPriority()));
+        response.setUrgent(instance.getUrgent());
+        response.setUrgentName(getUrgentName(instance.getUrgent()));
 
         // 发起人信息
         if (StrUtil.isNotBlank(instance.getCreateId())) {
@@ -1415,6 +1425,8 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         // 优先级信息
         response.setPriority(hisInstance.getPriority());
         response.setPriorityName(getPriorityName(hisInstance.getPriority()));
+        response.setUrgent(hisInstance.getUrgent());
+        response.setUrgentName(getUrgentName(hisInstance.getUrgent()));
         // 流程编号
         response.setProcessNo(hisInstance.getInstanceNo());
         // 发起人信息
@@ -1483,6 +1495,18 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             return "高优先级";
         }
         return "未知";
+    }
+
+    private String getUrgentName(Integer urgent) {
+        if (urgent == null) {
+            return "常规";
+        }
+        return switch (urgent) {
+            case 1 -> "重要不紧急";
+            case 2 -> "紧急不重要";
+            case 3 -> "紧急且重要";
+            default -> "常规";
+        };
     }
 
     @Override

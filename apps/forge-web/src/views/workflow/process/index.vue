@@ -251,6 +251,14 @@
         <el-form-item label="业务标识">
           <el-input v-model="startForm.businessKey" placeholder="请输入业务标识（可选）" />
         </el-form-item>
+        <el-form-item label="紧急程度">
+          <el-radio-group v-model="startForm.urgent">
+            <el-radio-button :value="0">常规</el-radio-button>
+            <el-radio-button :value="1">重要不紧急</el-radio-button>
+            <el-radio-button :value="2">紧急不重要</el-radio-button>
+            <el-radio-button :value="3">紧急且重要</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="startForm.comment" type="textarea" :rows="2" placeholder="请输入备注（可选）" />
         </el-form-item>
@@ -535,6 +543,7 @@ const startForm = reactive({
   processName: '',
   businessKey: '',
   comment: '',
+  urgent: 0,
   formRule: [] as any[],
   formOption: { submitBtn: false, resetBtn: false } as Record<string, unknown>,
   startSelectTasks: [] as UserTaskNode[], // 发起人自选节点
@@ -625,6 +634,7 @@ const handleConfirmStart = async () => {
       businessKey: startForm.businessKey || undefined,
       variables: Object.keys(variables).length > 0 ? variables : undefined,
       comment: startForm.comment || undefined,
+      urgent: startForm.urgent || 0,
       startUserSelectActors: Object.keys(startUserSelectActors).length > 0 ? startUserSelectActors : undefined,
     })
     ElMessage.success('流程发起成功')

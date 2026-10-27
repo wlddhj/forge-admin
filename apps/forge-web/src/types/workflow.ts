@@ -100,7 +100,9 @@ export interface ProcessInstance {
   currentAssigneeNames?: string[]
   currentCandidateNames?: string[]
   suspensionState: number
-  deleteReason: string | null
+  deleteReason: string | null  /** 紧急程度 0 常规 1 重要不紧急 2 紧急不重要 3 紧急且重要 */
+  urgent?: number
+  urgentName?: string
 }
 
 export interface ProcessInstanceQuery {
@@ -120,6 +122,8 @@ export interface ProcessStartRequest {
   comment?: string
   /** 发起人自选审批人 key: taskDefKey, value: 审批人ID数组 */
   startUserSelectActors?: Record<string, string[]>
+  /** 紧急程度 0 常规 1 重要不紧急 2 紧急不重要 3 紧急且重要 */
+  urgent?: number
 }
 
 // 任务
