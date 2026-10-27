@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <div :class="{ 'process-layout': !isMobile }">
+    <div :class="{ 'category-layout': !isMobile }">
       <!-- 分类树（桌面端左侧，点击节点过滤） -->
       <el-card v-if="!isMobile" shadow="never" class="category-tree-card" :style="{ height: asideTreeHeight ? asideTreeHeight + 'px' : undefined }">
         <el-tree
@@ -15,7 +15,7 @@
         />
       </el-card>
 
-      <div :class="{ 'process-main': !isMobile }">
+      <div :class="{ 'category-main': !isMobile }">
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card">
       <!-- 桌面端搜索表单 -->
@@ -647,27 +647,5 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-// 桌面端：左侧分类树 + 右侧内容
-.process-layout {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
 
-  .category-tree-card {
-    width: 220px;
-    flex-shrink: 0;
-
-    :deep(.el-card__body) {
-      padding: 8px;
-      height: 100%;
-      box-sizing: border-box;
-      overflow: auto; // 树节点多时卡片内滚动
-    }
-  }
-
-  .process-main {
-    flex: 1;
-    min-width: 0; // 允许内容列收缩，防止表格撑破
-  }
-}
 </style>

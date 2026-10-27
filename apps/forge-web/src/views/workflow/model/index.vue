@@ -674,27 +674,5 @@ const loadAutoCopyReferenceData = async () => {
 </script>
 
 <style scoped lang="scss">
-// 桌面端：左侧分类树 + 右侧内容
-.category-layout {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
 
-  .category-tree-card {
-    width: 220px;
-    flex-shrink: 0;
-
-    :deep(.el-card__body) {
-      padding: 8px;
-      height: 100%;
-      box-sizing: border-box;
-      overflow: auto; // 树节点多时卡片内滚动
-    }
-  }
-
-  .category-main {
-    flex: 1;
-    min-width: 0; // 允许内容列收缩，防止表格撑破
-  }
-}
 </style>
