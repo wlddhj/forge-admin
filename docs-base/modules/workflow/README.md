@@ -1,7 +1,7 @@
 # 工作流模块文档
 
 > 适用模块: `forge-module-workflow`
-> 基于引擎: FlowLong 1.2.5（flowlong-spring-boot-starter，Boot3 兼容排除传递依赖）
+> 基于引擎: FlowLong 1.2.7（flowlong-spring-boot-starter，Boot3 兼容排除传递依赖）
 
 ---
 
@@ -13,6 +13,7 @@
 | [02.condition-node-guide.md](02.condition-node-guide.md) | 条件节点指南 | 流程设计者 / 后端开发 | type=3/4 实际行为差异、SpEL 求值机制、变量缺失行为、兜底机制、AI 路由优先级、排查速查 |
 | [03.trigger-bean-guide.md](03.trigger-bean-guide.md) | 触发器 Bean 开发指南 | 后端开发 | 自定义 @FlowLongTrigger Bean、AbstractFlowLongTrigger 抽象基类、4 种业务模式、反射调用 |
 | [04.ai-approval-and-routing.md](04.ai-approval-and-routing.md) | AI 智能审批与智能路由 | 流程设计者 / 管理员 / 后端开发 | 两个 AI 能力对比、配置项、降级链与决策状态、审计表查询、注意事项与 FAQ |
+| [05.business-callback-guide.md](05.business-callback-guide.md) | 业务回调(Webhook 事件订阅) | 外部系统集成方 / 流程管理员 / 后端开发 | 事件类型与引擎映射、投递重试机制、HMAC-SHA256 签名验签、载荷契约、接收方实现建议 |
 
 ## 推荐阅读路径
 
@@ -29,10 +30,14 @@
 要扩展触发器能力(写自定义 Bean)?
   → 03.trigger-bean-guide.md (§4 bean 模式,§7 抽象基类,§8 返回值约定)
 
+要让外部系统接收流程事件(webhook)?
+  → 05.business-callback-guide.md (§3 事件映射,§5 验签契约,§6 载荷字段)
+
 排错?
   → 02.condition-node-guide.md §9 排查速查
   → 03.trigger-bean-guide.md §10 调试与日志
   → 04.ai-approval-and-routing.md §5 AI FAQ
+  → 05.business-callback-guide.md §9 回调 FAQ
 ```
 
 ## 文档约定
