@@ -1,0 +1,99 @@
+# 更新日志
+
+本项目所有显著变更都记录在此文件中。
+
+格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
+
+## [1.0.0] - 2026-10-28
+
+首个公开发布版本，收录自项目启动以来的全部能力。
+
+**forge-admin** 是一款开箱即用的企业级后台管理系统（Spring Boot 3.4 + Vue 3 + TypeScript，JDK 21），覆盖 RBAC 权限、B2B SaaS 多租户、工作流审批、可视化大屏、AI 对话与 Agent 编排、打印模板、等保二级合规。
+
+### 系统管理
+
+- RBAC 权限：用户/角色/菜单/部门/岗位五级管理，数据权限支持全部/本部门/本部门及以下/仅本人等多种范围（SQL 级过滤）
+- 字典管理、参数配置、通知公告、在线用户（强制下线）、品牌设置（Logo/项目名/登录页文案运行时配置，全局生效免重构建）
+- 定时任务：基于 Quartz 的任务管理与执行日志
+- 操作日志 / 登录日志审计，服务监控（服务器/JVM/Redis）
+
+### B2B SaaS 多租户
+
+- SQL 级自动隔离（MyBatis Plus `TenantLineInnerInterceptor`）+ 缓存 key 租户前缀
+- 套餐化菜单分配、平台超管 `X-Tenant-Id` 跨租户代管
+- 创建租户自动生成管理员账号 + 强密码 + 首次登录强制改密
+- 全库 16 表租户化（2026-10 路径 A 治理），`forge.tenant.enable` 一键回归单租户
+
+### 工作流审批（FlowLong 1.2.7）
+
+- 钉钉式可视化流程设计器：审批/抄送/条件/触发器/并行/包容/子流程/定时器/路由分支节点，模型部署与版本管理
+- 办理方式：或签/会签/依次/票签（权重+门槛）
+- 审批操作全集：通过/驳回（4 种驳回策略）/委派/转办/退回/撤回/加签/减签/认领/催办/拿回/唤醒，发起紧急程度
+- 流程分类树（层级码编码、防环校验、前缀命中子树筛选）
+- 可视化表单设计器、流程表达式管理
+- AI 智能审批：节点级 AI 决策（通过/驳回/转人工），置信度阈值 + 失败降级，决策审计落库
+- AI 智能路由：条件/包容/路由网关 AI 分支决策（同步限时 30s），降级链 SpEL 条件 → 默认分支，路由审计落库
+- 业务回调 SPI：事件订阅外部系统，HMAC-SHA256 签名 webhook 投递 + 超时重试 + 投递记录审计
+
+### AI 能力（Spring AI 1.1.8 + LangGraph4j 1.9.2）
+
+- 多模型对话：直连 DeepSeek/Qwen/GLM/ERNIE（OpenAI 兼容协议），模型配置表驱动、可用性探测、主模型失败自动切备用
+- SSE 流式响应；Tika 文档解析（PDF/DOCX/TXT）与智能摘要
+- Agent 编排：工具决策循环（SQL 查询/HTTP 抓取）、高危工具人工审批中断（可恢复）、检查点恢复、执行时间线
+- Agent 团队协作：Supervisor 调度式多 Agent，成员独立提示词/模型/工具白名单，流式汇总结论
+- Agent 定时任务：cron 驱动后台自动化（单 Agent 或团队）
+- AI 用量统计看板：请求量/成功率/Token/时延汇总与明细，按日期与模型过滤
+
+### 可视化大屏（goView 1.3.2）
+
+- 拖拽式大屏编辑器（iframe 嵌入管理端）、草稿自动保存、发布/版本管理、公开访问与登录访问
+- SQL / HTTP 双数据源，缓存时长可配
+- SQL 安全三道闸门：AST 校验（SELECT-only/禁 UNION/禁危险函数/必须 LIMIT）+ 表列白名单（列级 fail-closed）+ 运行时实参上限
+- HTTP SSRF 防护（host 白名单/超时/响应体上限）、数据源熔断器（Redis 滑动窗口）
+
+### 打印模板
+
+- hiprint 拖拽式模板设计器（纸张/缩放/旋转/导出 JSON）
+- 浏览器原生打印预览，按编号跨租户调用，附调用示例页
+
+### 等保二级合规（GB/T 22239-2019）
+
+- 密码安全：复杂度校验、历史 5 条不可重复、90 天有效期、首次登录强制改密、BCrypt=12
+- 登录安全：失败 5 次锁定 15 分钟、图形验证码、单点登录（旧会话与 refreshToken 同步失效）
+- 数据安全：AES-256-GCM 敏感字段加密、jasypt 配置加密、操作日志敏感字段自动脱敏
+- 应用安全：XSS 过滤、安全响应头（CSP/HSTS 等）、文件上传扩展名 + Magic Number 校验
+
+### 认证与第三方
+
+- OAuth2 授权服务器（Spring Authorization Server，授权码/客户端凭证/OIDC）
+- 微信、钉钉扫码登录（JustAuth）
+- 微信小程序：独立 `/app-api` 端点与 `app_user` 用户体系，授权登录一键注册
+
+### 主题系统
+
+- 10 套预设套餐 + 调色板/布局/风格三维度独立切换 + 自定义 HEX 主色（自动派生 EP 色阶）
+- 明暗双模式、无刷新切换（CSS 变量两阶桥接）、系统默认主题配置、老数据自动迁移
+
+### 工程化
+
+- pnpm monorepo：forge-web（管理端）/ forge-screen（大屏编辑器）/ forge-miniapp（小程序）+ 16 模块 Maven 后端（api/biz 分离、6 个框架 starter）
+- 业务模块脚手架（创建/删除）、项目模板化工具（`pnpm run init` 一键派生新项目）
+- Docker Compose 四服务编排（MySQL/Redis/后端/前端），首次启动自动执行初始化 SQL
+- vxe-table 统一表格（列自定义/导出/打印/虚拟滚动/树形）
+
+### 存量库升级（自早期内部版本升级时执行）
+
+项目未引入 Flyway，已有数据库按日期顺序手工执行：
+
+| 脚本 | 说明 |
+|------|------|
+| `sql/upgrade-20261024-ai-tenant.sql` | AI 4 表补 tenant_id |
+| `sql/upgrade-20261025-tenant-full.sql` | 全库租户化：16 表补 tenant_id + 唯一键调整 |
+| `sql/upgrade-20261025-ai-usage-menu.sql` | AI 用量统计菜单与权限 |
+| `sql/upgrade-20261026-ai-route-record.sql` | AI 智能路由审计表 |
+| `sql/upgrade-20261027-callback.sql` | 业务回调表 + 菜单权限 |
+| `sql/upgrade-20261027-flowlong127.sql` | FlowLong 1.2.7 urgent 列迁移 |
+
+全新建库直接执行 `sql/init*.sql`，无需以上脚本。
+
+[1.0.0]: https://github.com/wlddhj/forge-admin/releases/tag/v1.0.0
