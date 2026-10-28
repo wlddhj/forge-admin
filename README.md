@@ -31,7 +31,7 @@ RBAC 权限 · B2B SaaS 多租户 · 工作流审批 · 可视化大屏 · AI �
 |------|------|
 | RBAC + 数据权限 | 用户/角色/菜单/部门/岗位五级管理，数据权限支持全部/本部门/本部门及以下/仅本人等多种范围 |
 | B2B SaaS 多租户 | SQL 级自动隔离（TenantLineInnerInterceptor）、套餐化菜单分配、平台超管代管，配置开关一键回归单租户 |
-| 工作流审批 | 基于 FlowLong 的可视化流程设计器，支持驳回/委派/转办/退回/加签/抄送等完整审批操作 |
+| 工作流审批 | 基于 FlowLong 的可视化流程设计器，或签/会签/依次/票签多种办理方式，驳回策略/退回/撤回/加签/催办/拿回/唤醒等完整审批操作；AI 智能审批 + AI 智能路由；业务回调 SPI（签名 webhook）事件订阅外部系统 |
 | 可视化大屏 | goView 拖拽编辑器 + SQL/HTTP 双数据源 + AST 级 SQL 安全层（SELECT-only/表列白名单/强制 LIMIT/熔断/SSRF 防护） |
 | AI 能力 | Spring AI 直连 DeepSeek/Qwen/GLM/ERNIE，SSE 流式对话、Tika 文档解析、智能摘要，模型配置表驱动；LangGraph4j Agent 编排：工具循环 + 高危审批中断 + 检查点恢复，Supervisor 多 Agent 团队协作与定时自动化 |
 | 打印模板 | 基于 hiprint 的拖拽式模板设计器，浏览器原生打印预览，按编号跨租户调用 |
@@ -145,7 +145,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 
 | 功能 | 说明 |
 |------|------|
-| 用户管理 | 用户增删改查、状态控制、密码重置、部门关联、岗位分配 |
+| 用户管理 | 用户增删改查、状态控制、密码重置、部门关联、岗位分配，左侧部门树过滤 |
 | 角色管理 | 角色增删改查、菜单权限分配、数据权限设置 |
 | 菜单管理 | 菜单增删改查、路由配置、权限标识、图标设置 |
 | 部门管理 | 部门树形结构、增删改查、负责人设置 |
@@ -173,16 +173,18 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 
 | 功能 | 说明 |
 |------|------|
-| 模型管理 | 流程模型设计（FlowLong可视化设计器）、模型部署、版本管理 |
-| 审批流程 | 已部署流程查看、启用/停用、版本切换 |
+| 模型管理 | 流程模型设计（钉钉式可视化设计器：审批/抄送/条件/触发器/并行/包容/子流程/定时器/路由分支节点）、模型部署、版本管理，左侧分类树过滤 |
+| 审批流程 | 已部署流程查看、启用/停用、版本切换，左侧分类树过滤 |
 | 表单管理 | 表单设计（可视化拖拽）、表单配置 |
-| 流程分类 | 分类树形结构、增删改查 |
-| 流程实例 | 实例查询、详情查看、取消流程 |
-| 待办任务 | 待办列表、审批操作（通过/驳回/委派/转办/退回/加签） |
-| 已办任务 | 已办列表、审批记录查看 |
-| 抄送列表 | 抄送记录查看 |
+| 流程分类 | 分类树形结构（层级码编码、防环校验、前缀命中子树筛选）、增删改查 |
+| 流程实例 | 实例查询、详情查看（流转轨迹/审批时间线/AI 决策记录）、取消流程、催办、唤醒（终态实例重新激活）、紧急程度标识 |
+| 待办任务 | 待办列表（我的待办/抢办池）、审批操作（通过/驳回/委派/转办/退回/撤回/加签/减签/认领/催办） |
+| 已办任务 | 已办列表、审批记录查看、拿回（流程仍在审批中时可取回） |
+| 抄送列表 | 抄送记录查看，终态自动抄送策略 |
 | 表达式管理 | 流程表达式增删改查 |
-| 监听器管理 | 流程监听器增删改查 |
+| AI 智能审批 | 审批节点 AI 决策（通过/驳回/转人工），事务提交后异步执行，置信度阈值 + 失败降级策略，决策审计落库 |
+| AI 智能路由 | 条件/包容/路由网关 AI 分支决策（同步限时 30s），降级链 SpEL 条件 → 默认分支，路由审计落库 |
+| 业务回调 | 事件订阅外部系统（taskCreated/taskCompleted/instanceFinished），HMAC-SHA256 签名 webhook 投递、超时重试、投递记录审计 |
 
 ### AI 功能
 
@@ -195,6 +197,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 | Agent 编排 | LangGraph4j 多步编排：工具决策循环（SQL 查询/HTTP 抓取）、高危工具人工审批中断（可恢复）、执行步骤时间线与运行历史 |
 | Agent 团队协作 | Supervisor 调度式多 Agent：主管按成员职责动态分派子任务，专家各自独立提示词/模型/工具白名单执行并汇报，流式汇总结论；对话与定时任务双入口触发 |
 | Agent 定时任务 | cron 驱动的后台自动化（单 Agent 或团队），占位符模板输入，运行数据生命周期清理 |
+| 用量统计 | AI 调用用量看板（总请求/成功率/总 Token/平均时延/失败次数汇总卡 + 明细），按日期与模型过滤 |
 
 ### 大屏管理
 
@@ -254,7 +257,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 - **多租户**：B2B SaaS 多租户隔离（MyBatis Plus `TenantLineInnerInterceptor` + SQL 自动注入 + 缓存 key 前缀），可配置开关 `forge.tenant.enable`
 - **OAuth2 授权服务器**：基于 Spring Authorization Server，支持授权码、客户端凭证等标准 OAuth2/OIDC 协议
 - **第三方登录**：支持微信、钉钉扫码登录，基于 JustAuth 实现
-- **工作流引擎**：集成 FlowLong 国产工作流引擎，支持流程设计、审批管理、待办任务、流程实例监控
+- **工作流引擎**：集成 FlowLong 国产工作流引擎，支持流程设计、审批管理、待办任务、流程实例监控；或签/会签/依次/票签（权重+门槛）多种办理方式，驳回策略（终止/回发起人/上一节点/指定节点），催办/拿回/撤回/唤醒，发起紧急程度；AI 智能审批与 AI 智能路由；业务回调 SPI（签名 webhook 投递 + 重试 + 审计）
 - **可视化大屏**：基于 goView 的拖拽式大屏编辑器、多数据源配置、列级 SQL 白名单、SSRF 防护、数据源熔断
 - **字典管理**：灵活的数据字典配置，支持缓存刷新
 - **定时任务**：基于 Quartz 的定时任务管理和日志
@@ -293,7 +296,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 - JustAuth（第三方登录）
 - springdoc-openapi 2.8（Swagger UI）
 - Quartz 定时任务
-- FlowLong 1.2.5（国产工作流引擎）
+- FlowLong 1.2.7（国产工作流引擎）
 - JSqlParser 4.9（SQL 解析与 AST 校验）
 - jasypt-spring-boot-starter（配置文件加密）
 - AES-256-GCM + BCrypt（数据加密与密码哈希）
@@ -325,7 +328,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 ### AI 能力（Java 原生）
 
 - Spring AI 1.1.8（OpenAI 兼容协议直连上游）
-- LangGraph4j 1.9（Agent 编排：工具循环/审批中断/检查点恢复/多 Agent 团队协作）
+- LangGraph4j 1.9.2（Agent 编排：工具循环/审批中断/检查点恢复/多 Agent 团队协作）
 - 多模型支持：DeepSeek、Qwen（通义）、GLM（智谱）、ERNIE（百度千帆 v2）
 - 文档解析：Apache Tika（PDF、DOCX、TXT）
 - SSE 流式响应（模型实例按 ai_model_config 表配置指纹缓存）
@@ -423,6 +426,19 @@ TENANT_ENABLE=true
 
 - 登录页输入租户标识（默认租户 `default`）；平台超管（admin）可通过顶栏租户切换器跨租户代管
 - 已知限制与后续迭代见审计报告「六、治理落地记录」（OAuth2 授权记录归属默认租户、Agent 定时任务租户归属二期）
+
+### 存量库增量升级（未引入 Flyway，按日期顺序手工执行）
+
+全新建库执行 `sql/init*.sql` 已包含全部结构；已有数据库按下表逐个执行新增的升级脚本：
+
+| 升级脚本 | 说明 |
+|---------|------|
+| `sql/upgrade-20261024-ai-tenant.sql` | AI 4 表补 tenant_id（多租户模式下 AI 模块读写修复） |
+| `sql/upgrade-20261025-tenant-full.sql` | 全库租户化路径 A：16 表补 tenant_id + 联合唯一键调整 |
+| `sql/upgrade-20261025-ai-usage-menu.sql` | AI 用量统计菜单与权限 |
+| `sql/upgrade-20261026-ai-route-record.sql` | AI 智能路由审计表 `wf_ai_route_record` |
+| `sql/upgrade-20261027-callback.sql` | 业务回调 `wf_business_callback` / `wf_callback_record` + 菜单权限 |
+| `sql/upgrade-20261027-flowlong127.sql` | FlowLong 1.2.7 任务/实例表新增 `urgent`（紧急程度）列 |
 
 ## 开发命令
 
@@ -665,7 +681,7 @@ pnpm run init <项目名称> "<项目描述>" <包名>
 # 示例：pnpm run init my-admin "我的管理系统" com.mycompany
 ```
 
-自动扫描所有模块的 Java 源码目录，重命名包名、更新配置文件、前端标题和数据库名。详见 [docs-base/template-guide.md](docs-base/template-guide.md)。
+自动扫描所有模块的 Java 源码目录，重命名包名、更新配置文件、前端标题和数据库名。生成的新项目默认端口与模板错开（后台 8081、前端 3001），可与本模板同时本地运行。详见 [docs-base/template-guide.md](docs-base/template-guide.md)。
 
 ## 模块管理
 
@@ -843,6 +859,7 @@ mysql -u root -p forge_admin < sql/init-screen.sql
 | [01.workflow-usage.md](docs-base/modules/workflow/01.workflow-usage.md) | 流程管理员 / 配置人员 / 最终用户 | 流程管理菜单、完整配置流程、候选人策略、触发器任务、待办/已办、状态码 |
 | [02.condition-node-guide.md](docs-base/modules/workflow/02.condition-node-guide.md) | 流程设计者 / 后端开发 | 条件节点(type=3 / type=4)实际行为、触发条件使用时机、SpEL 求值、兜底机制 |
 | [03.trigger-bean-guide.md](docs-base/modules/workflow/03.trigger-bean-guide.md) | 后端开发 | 自定义 `@FlowLongTrigger` Bean、`AbstractFlowLongTrigger` 抽象基类、4 种业务模式、反射调用 |
+| [04.ai-approval-and-routing.md](docs-base/modules/workflow/04.ai-approval-and-routing.md) | 流程设计者 / 流程管理员 / 后端开发 | AI 智能审批与 AI 智能路由：能力对比、设计器配置、降级链、审计表查询与 FAQ |
 
 ### 其他文档
 
