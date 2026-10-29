@@ -71,6 +71,9 @@
               <el-tag v-else-if="instance?.deleteReason" type="danger">已终止</el-tag>
               <el-tag v-else type="success">已结束</el-tag>
             </el-descriptions-item>
+            <el-descriptions-item label="紧急程度">
+              <el-tag :type="urgentTagType" size="small">{{ instance?.urgentName || '常规' }}</el-tag>
+            </el-descriptions-item>
             <el-descriptions-item v-if="!instance?.endTime" label="当前节点">
               <el-tag v-if="instance?.currentActivityName" type="warning">{{ instance.currentActivityName }}</el-tag>
               <span v-else style="color: #909399">-</span>
@@ -354,6 +357,13 @@ const aiDecisions = ref<AiDecisionRecords | null>(null)
 const diagramDialogVisible = ref(false)
 // 审批进度默认收起
 const timelineExpanded = ref(false)
+
+// 紧急程度标签着色（与流程实例列表口径一致：3 danger / 2 warning / 1 primary / 常规 info）
+const urgentTagType = computed<'primary' | 'success' | 'warning' | 'info' | 'danger'>(() => {
+  const urgent = instance.value?.urgent ?? 0
+  const map: Record<number, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = { 1: 'primary', 2: 'warning', 3: 'danger' }
+  return map[urgent] || 'info'
+})
 
 // ========== 打印（实例信息/申请表单/审批记录） ==========
 const printAreaRef = ref<HTMLElement | null>(null)

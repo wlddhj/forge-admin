@@ -55,6 +55,14 @@
           <el-descriptions-item label="业务标识">
             {{ instanceInfo?.businessKey || '-' }}
           </el-descriptions-item>
+          <el-descriptions-item label="紧急程度">
+            <el-tag
+              :type="urgentTagType"
+              size="small"
+            >
+{{ instanceInfo?.urgentName || taskInfo?.urgentName || '常规' }}
+</el-tag>
+          </el-descriptions-item>
         </el-descriptions>
       </el-card>
 
@@ -428,6 +436,13 @@ const selectedUsers = reactive<Record<string, number[]>>({})
 
 // 判断是否为已办任务
 const isDoneTask = computed(() => !!taskInfo.value?.endTime)
+
+// 紧急程度标签着色（与流程实例列表口径一致：3 danger / 2 warning / 1 primary / 常规 info）
+const urgentTagType = computed<'primary' | 'success' | 'warning' | 'info' | 'danger'>(() => {
+  const urgent = (instanceInfo.value?.urgent ?? taskInfo.value?.urgent) ?? 0
+  const map: Record<number, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = { 1: 'primary', 2: 'warning', 3: 'danger' }
+  return map[urgent] || 'info'
+})
 
 
 // 流程图弹窗

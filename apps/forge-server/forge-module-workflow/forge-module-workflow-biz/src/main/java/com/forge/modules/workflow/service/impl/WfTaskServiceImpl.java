@@ -347,6 +347,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         FlwHisInstance hisInstance = ctx.hisInstanceMap.get(hisTask.getInstanceId());
         if (hisInstance != null) {
             response.setProcessInstanceId(String.valueOf(hisInstance.getId()));
+            response.setUrgent(hisInstance.getUrgent());
             FlwProcess process = ctx.processMap.get(hisInstance.getProcessId());
             if (process != null) {
                 response.setProcessDefinitionId(String.valueOf(process.getId()));
@@ -415,6 +416,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         FlwInstance instance = ctx.instanceMap.get(task.getInstanceId());
         if (instance != null) {
             response.setProcessInstanceId(String.valueOf(instance.getId()));
+            response.setUrgent(instance.getUrgent());
             FlwProcess process = ctx.processMap.get(instance.getProcessId());
             if (process != null) {
                 response.setProcessDefinitionId(String.valueOf(process.getId()));
@@ -1380,6 +1382,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         FlwInstance instance = instanceMapper.selectById(task.getInstanceId());
         if (instance != null) {
             response.setProcessInstanceId(String.valueOf(instance.getId()));
+            response.setUrgent(instance.getUrgent());
 
             // 补充流程定义信息
             FlwProcess process = processService.getProcessById(instance.getProcessId());
