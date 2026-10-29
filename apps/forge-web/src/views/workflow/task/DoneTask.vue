@@ -91,8 +91,8 @@
       />
     </el-card>
 
-    <!-- 任务详情抽屉 -->
-    <TaskDetailDrawer ref="drawerRef" @success="getList" />
+    <!-- 流程详情抽屉（已办只读场景复用实例详情） -->
+    <InstanceDetailDrawer v-model="detailVisible" :instance-id="detailInstanceId" />
   </div>
 </template>
 
@@ -107,7 +107,7 @@ import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
 import { useResponsive } from '@/composables/useResponsive'
 import { DICT_TYPE } from '@/constants/dict'
-import TaskDetailDrawer from './components/TaskDetailDrawer.vue'
+import InstanceDetailDrawer from '@/views/workflow/instance/components/InstanceDetailDrawer.vue'
 
 const { isMobile } = useResponsive()
 
@@ -117,7 +117,8 @@ const { tableHeight } = useTableHeight()
 // 表格实例
 const tableRef = ref<VxeTableInstance | null>(null)
 const toolbarRef = ref<VxeToolbarInstance | null>(null)
-const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
+const detailVisible = ref(false)
+const detailInstanceId = ref('')
 
 // 序号计算
 const loading = ref(false)
@@ -168,9 +169,10 @@ const handleReset = () => {
   getList()
 }
 
-// 查看任务详情
+// 查看详情（复用流程详情抽屉，只读视角看整条实例）
 const handleView = (row: TaskInfo) => {
-  drawerRef.value?.open(row.id)
+  detailInstanceId.value = row.processInstanceId
+  detailVisible.value = true
 }
 
 // 拿回任务（下一节点尚未办理时）
