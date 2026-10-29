@@ -592,6 +592,16 @@ INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dic
 (2214, 'wf_action_type', '拿回',   'reclaim',      14, 1, 'warning'),
 (2215, 'wf_action_type', '唤醒',   'resume',       15, 1, 'primary');
 
+-- 流程紧急程度（flowlong 1.2.7 urgent，标签色随 list_class）
+INSERT INTO `sys_dict_type` (`id`, `dict_name`, `dict_type`, `status`, `is_system`, `remark`) VALUES
+(224, '流程紧急程度', 'wf_urgent', 1, 1, '流程实例/任务紧急程度（flowlong urgent）');
+
+INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dict_sort`, `status`, `list_class`) VALUES
+(2245, 'wf_urgent', '常规',       '0', 1, 1, 'info'),
+(2242, 'wf_urgent', '重要不紧急', '1', 2, 1, 'primary'),
+(2243, 'wf_urgent', '紧急不重要', '2', 3, 1, 'warning'),
+(2244, 'wf_urgent', '紧急且重要', '3', 4, 1, 'danger');
+
 -- 流程实例状态
 INSERT INTO `sys_dict_type` (`id`, `dict_name`, `dict_type`, `status`, `is_system`, `remark`) VALUES
 (221, '流程实例状态', 'wf_instance_state', 1, 1, 'FlowLong流程实例状态');

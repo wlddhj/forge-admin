@@ -48,6 +48,9 @@ export const DICT_TYPE = {
   /** 审批操作类型 */
   WF_ACTION_TYPE: 'wf_action_type',
 
+  /** 流程紧急程度 */
+  WF_URGENT: 'wf_urgent',
+
   /** AI模型类型 */
   AI_MODEL_TYPE: 'ai_model_type'
 } as const

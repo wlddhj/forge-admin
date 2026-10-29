@@ -73,7 +73,7 @@
               <el-tag v-else type="success">已结束</el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="紧急程度">
-              <el-tag :type="urgentTagType" size="small">{{ instance?.urgentName || '常规' }}</el-tag>
+              <dict-value :dict-type="DICT_TYPE.WF_URGENT" :value="instance?.urgent ?? 0" />
             </el-descriptions-item>
             <el-descriptions-item v-if="!instance?.endTime" label="当前节点">
               <el-tag v-if="instance?.currentActivityName" type="warning">{{ instance.currentActivityName }}</el-tag>
@@ -266,7 +266,7 @@
             <th>结束时间</th>
             <td>{{ instance?.endTime ? formatDateTime(instance.endTime) : '-' }}</td>
             <th>紧急程度</th>
-            <td>{{ instance?.urgentName || '常规' }}</td>
+            <td>{{ wfUrgentLabel(instance?.urgent ?? 0) }}</td>
           </tr>
           <tr>
             <th>当前状态</th>
@@ -359,18 +359,12 @@ const diagramDialogVisible = ref(false)
 // 审批进度默认收起
 const timelineExpanded = ref(false)
 
-// 紧急程度标签着色（与流程实例列表口径一致：3 danger / 2 warning / 1 primary / 常规 info）
-const urgentTagType = computed<'primary' | 'success' | 'warning' | 'info' | 'danger'>(() => {
-  const urgent = instance.value?.urgent ?? 0
-  const map: Record<number, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = { 1: 'primary', 2: 'warning', 3: 'danger' }
-  return map[urgent] || 'info'
-})
-
 // ========== 打印（实例信息/申请表单/审批记录） ==========
 const printAreaRef = ref<HTMLElement | null>(null)
 // 毫秒时间戳（formatDateTime 字符串分支不认 ISO 格式）；打印瞬间刷新为当前时间
 const printTime = ref<number>(Date.now())
 const { getDictLabel: wfActionLabel } = useDict(DICT_TYPE.WF_ACTION_TYPE)
+const { getDictLabel: wfUrgentLabel } = useDict(DICT_TYPE.WF_URGENT)
 
 // 扁平化 form-create 规则（fcRow/col 嵌套 children）为 field/title 列表
 const printFormItems = computed(() => {

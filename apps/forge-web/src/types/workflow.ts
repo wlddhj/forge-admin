@@ -102,7 +102,6 @@ export interface ProcessInstance {
   suspensionState: number
   deleteReason: string | null  /** 紧急程度 0 常规 1 重要不紧急 2 紧急不重要 3 紧急且重要 */
   urgent?: number
-  urgentName?: string
 }
 
 export interface ProcessInstanceQuery {
@@ -157,9 +156,8 @@ export interface TaskInfo {
   withdrawn?: boolean
   /** 是否可拿回（已办任务：下一节点待人审批任务尚未办理） */
   canReclaim?: boolean
-  /** 紧急程度 0 常规 1 重要不紧急 2 紧急不重要 3 紧急且重要（取自流程实例） */
+  /** 紧急程度码值（0-3，渲染走 wf_urgent 字典） */
   urgent?: number
-  urgentName?: string
 }
 
 export interface TaskQuery {

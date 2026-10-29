@@ -82,10 +82,7 @@
         </vxe-column>
         <vxe-column title="紧急程度" width="110" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.urgent && row.urgent > 0" :type="row.urgent === 3 ? 'danger' : row.urgent === 2 ? 'warning' : 'primary'" size="small">
-              {{ row.urgentName || '加急' }}
-            </el-tag>
-            <span v-else style="color: #909399">常规</span>
+            <dict-value :dict-type="DICT_TYPE.WF_URGENT" :value="row.urgent ?? 0" />
           </template>
         </vxe-column>
         <vxe-column field="startTime" title="发起时间" width="170">
@@ -147,6 +144,7 @@ import type { ProcessInstance, ProcessInstanceQuery } from '@/types/workflow'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
+import { DICT_TYPE } from '@/constants/dict'
 import { useResponsive } from '@/composables/useResponsive'
 import InstanceDetailDrawer from './components/InstanceDetailDrawer.vue'
 

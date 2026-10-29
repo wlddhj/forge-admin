@@ -1223,7 +1223,6 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         if (urgentVal != null) {
             int urgent = Integer.parseInt(String.valueOf(urgentVal));
             response.setUrgent(urgent);
-            response.setUrgentName(getUrgentName(urgent));
         }
         Integer state = row.get("instance_state") == null ? null
                 : Integer.parseInt(String.valueOf(row.get("instance_state")));
@@ -1327,7 +1326,6 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         response.setPriority(instance.getPriority());
         response.setPriorityName(getPriorityName(instance.getPriority()));
         response.setUrgent(instance.getUrgent());
-        response.setUrgentName(getUrgentName(instance.getUrgent()));
 
         // 发起人信息
         if (StrUtil.isNotBlank(instance.getCreateId())) {
@@ -1426,7 +1424,6 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         response.setPriority(hisInstance.getPriority());
         response.setPriorityName(getPriorityName(hisInstance.getPriority()));
         response.setUrgent(hisInstance.getUrgent());
-        response.setUrgentName(getUrgentName(hisInstance.getUrgent()));
         // 流程编号
         response.setProcessNo(hisInstance.getInstanceNo());
         // 发起人信息
@@ -1497,17 +1494,6 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         return "未知";
     }
 
-    private String getUrgentName(Integer urgent) {
-        if (urgent == null) {
-            return "常规";
-        }
-        return switch (urgent) {
-            case 1 -> "重要不紧急";
-            case 2 -> "紧急不重要";
-            case 3 -> "紧急且重要";
-            default -> "常规";
-        };
-    }
 
     @Override
     public List<ProcessInstanceResponse> getInstancesByBusinessKey(String businessKey) {

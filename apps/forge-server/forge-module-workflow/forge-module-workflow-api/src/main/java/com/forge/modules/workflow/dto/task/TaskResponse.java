@@ -160,22 +160,8 @@ public class TaskResponse {
     private Boolean withdrawn;
 
     /**
-     * 紧急程度（0 常规 1 重要不紧急 2 紧急不重要 3 紧急且重要，flowlong 1.2.7 任务表冗余）
+     * 紧急程度码值（0-3，名称渲染走 wf_urgent 字典）
      */
     private Integer urgent;
 
-    /**
-     * 紧急程度名称（由 urgent 派生，无 urgentName 字段）
-     */
-    public String getUrgentName() {
-        if (urgent == null) {
-            return "常规";
-        }
-        return switch (urgent) {
-            case 1 -> "重要不紧急";
-            case 2 -> "紧急不重要";
-            case 3 -> "紧急且重要";
-            default -> "常规";
-        };
-    }
 }

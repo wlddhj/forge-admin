@@ -118,8 +118,4 @@ public class ProcessInstanceResponse {
      */
     private Integer urgent;
 
-    /**
-     * 紧急程度名称
-     */
-    private String urgentName;
 }
