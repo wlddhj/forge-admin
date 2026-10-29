@@ -240,7 +240,7 @@
       <h1 class="print-title">{{ instance?.processDefinitionName || '流程审批单' }}</h1>
       <div class="print-meta">
         <span>流程编号：{{ instance?.processNo || instance?.id }}</span>
-        <span>打印时间：{{ formatDateTime(new Date().toISOString()) }}</span>
+        <span>打印时间：{{ formatDateTime(printTime) }}</span>
       </div>
 
       <h2 class="print-section">一、实例信息</h2>
@@ -357,6 +357,8 @@ const timelineExpanded = ref(false)
 
 // ========== 打印（实例信息/申请表单/审批记录） ==========
 const printAreaRef = ref<HTMLElement | null>(null)
+// 毫秒时间戳（formatDateTime 字符串分支不认 ISO 格式）；打印瞬间刷新为当前时间
+const printTime = ref<number>(Date.now())
 const { getDictLabel: wfActionLabel } = useDict(DICT_TYPE.WF_ACTION_TYPE)
 
 // 扁平化 form-create 规则（fcRow/col 嵌套 children）为 field/title 列表
@@ -420,6 +422,7 @@ const printRecords = computed(() =>
 )
 
 const handlePrint = async () => {
+  printTime.value = Date.now()
   await nextTick()
   const area = printAreaRef.value
   if (!area) return
