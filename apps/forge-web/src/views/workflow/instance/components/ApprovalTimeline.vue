@@ -7,7 +7,6 @@
         :key="node.activityId"
         :type="timelineType(node.status)"
         :hollow="node.status !== 1"
-        :timestamp="nodeTimestamp(node)"
         timestamp-placement="top"
       >
         <div class="node-header">
@@ -88,13 +87,6 @@ const timelineType = (status: number) => {
   if (status === 2) return 'success'
   return 'info'
 }
-
-const nodeTimestamp = (node: ApprovalNode) => {
-  if (node.startTime && node.endTime) {
-    return `${formatDateTime(node.startTime)} ~ ${formatDateTime(node.endTime)}`
-  }
-  return node.startTime ? formatDateTime(node.startTime) : ''
-}
 </script>
 
 <style scoped lang="scss">
@@ -120,7 +112,6 @@ const nodeTimestamp = (node: ApprovalNode) => {
     font-size: 13px;
 
     .task-user {
-      font-weight: 500;
     }
 
     .task-action {

@@ -301,11 +301,11 @@
         </thead>
         <tbody>
           <tr v-for="(record, index) in printRecords" :key="index">
-            <td>{{ record.nodeName }}</td>
-            <td>{{ record.userName }}</td>
-            <td>
-              <!-- 打印用纯文本，不带字典标签样式 -->
-              {{ record.actionType ? wfActionLabel(record.actionType) : record.statusText }}
+            <td style="text-align: center">{{ record.nodeName }}</td>
+            <td style="text-align: center">{{ record.userName }}</td>
+            <td style="text-align: center">
+              <!-- 打印用纯文本（发起人节点固定"提交"），不带字典标签样式 -->
+              {{ record.actionText }}
             </td>
             <td class="print-pre">{{ record.comment || '-' }}</td>
             <td>{{ record.time ? formatDateTime(record.time) : '-' }}</td>
@@ -391,16 +391,19 @@ const printFormField = (field: string): string => {
   return String(value)
 }
 
-// 已到达节点的任务记录（未到达不输出）
+// 已到达节点的任务记录（未到达不输出）；发起人节点（activityType=0）动作固定显示"提交"
 const printRecords = computed(() =>
   approvalNodes.value
     .filter(node => node.status !== 0)
     .flatMap(node => {
+      const isStartNode = node.activityType === '0'
+      const actionFallback = node.status === 1 ? '进行中' : '已完成'
       const rows = (node.tasks || []).map(task => ({
         nodeName: node.activityName,
         userName: task.userName,
-        actionType: task.actionType,
-        statusText: node.status === 1 ? '进行中' : '已完成',
+        actionText: isStartNode
+          ? '提交'
+          : (task.actionType ? wfActionLabel(task.actionType) : actionFallback),
         comment: task.comment,
         time: task.endTime || task.createTime
       }))
@@ -409,8 +412,7 @@ const printRecords = computed(() =>
       return [{
         nodeName: node.activityName,
         userName: '-',
-        actionType: '',
-        statusText: node.status === 1 ? '进行中' : '已完成',
+        actionText: isStartNode ? '提交' : actionFallback,
         comment: '',
         time: node.endTime || node.startTime
       }]

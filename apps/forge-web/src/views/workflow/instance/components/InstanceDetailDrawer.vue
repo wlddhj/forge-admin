@@ -3,7 +3,7 @@
     class="instance-detail-drawer"
     :model-value="modelValue"
     :title="title"
-    :size="isMobile ? '100%' : '72%'"
+    :size="isMobile ? '100%' : '900px'"
     destroy-on-close
     append-to-body
     @update:model-value="emit('update:modelValue', $event)"
