@@ -47,6 +47,9 @@
                 <el-button type="primary" size="small" @click="diagramDialogVisible = true">
                   查看流程图
                 </el-button>
+                <el-button type="primary" size="small" plain @click="handlePrint">
+                  打印
+                </el-button>
               </div>
             </div>
           </template>
@@ -231,6 +234,82 @@
       v-model="copyDialogVisible"
       :instance-id="instanceId"
     />
+
+    <!-- 打印区域（屏幕隐藏，打印时挂到 body 顶层输出：实例信息/申请表单/审批记录） -->
+    <div ref="printAreaRef" class="flow-print-area">
+      <h1 class="print-title">{{ instance?.processDefinitionName || '流程审批单' }}</h1>
+      <div class="print-meta">
+        <span>流程编号：{{ instance?.processNo || instance?.id }}</span>
+        <span>打印时间：{{ formatDateTime(new Date().toISOString()) }}</span>
+      </div>
+
+      <h2 class="print-section">一、实例信息</h2>
+      <table class="print-table">
+        <tbody>
+          <tr>
+            <th>流程名称</th>
+            <td>{{ instance?.processDefinitionName || '-' }}</td>
+            <th>业务标识</th>
+            <td>{{ instance?.businessKey || '-' }}</td>
+          </tr>
+          <tr>
+            <th>发起人</th>
+            <td>{{ instance?.startUserName || '-' }}</td>
+            <th>发起时间</th>
+            <td>{{ formatDateTime(instance?.startTime) }}</td>
+          </tr>
+          <tr>
+            <th>结束时间</th>
+            <td>{{ instance?.endTime ? formatDateTime(instance.endTime) : '-' }}</td>
+            <th>紧急程度</th>
+            <td>{{ instance?.urgentName || '常规' }}</td>
+          </tr>
+          <tr>
+            <th>当前状态</th>
+            <td colspan="3">
+              {{ instance?.endTime ? (instance.deleteReason ? `已终止（${instance.deleteReason}）` : '已结束') : `运行中（当前节点：${instance?.currentActivityName || '-'}）` }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="print-section">二、申请表单</h2>
+      <table v-if="printFormItems.length" class="print-table">
+        <tbody>
+          <tr v-for="item in printFormItems" :key="item.field">
+            <th class="print-form-label">{{ item.title }}</th>
+            <td colspan="3">{{ printFormField(item.field) }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="print-empty">（本流程未配置表单）</p>
+
+      <h2 class="print-section">三、审批记录</h2>
+      <table v-if="printRecords.length" class="print-table print-records">
+        <thead>
+          <tr>
+            <th style="width: 18%">审批节点</th>
+            <th style="width: 14%">处理人</th>
+            <th style="width: 14%">动作</th>
+            <th style="width: 34%">审批意见</th>
+            <th style="width: 20%">时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(record, index) in printRecords" :key="index">
+            <td>{{ record.nodeName }}</td>
+            <td>{{ record.userName }}</td>
+            <td>
+              <dict-value v-if="record.actionType" :dict-type="DICT_TYPE.WF_ACTION_TYPE" :value="record.actionType" />
+              <span v-else>{{ record.statusText }}</span>
+            </td>
+            <td class="print-pre">{{ record.comment || '-' }}</td>
+            <td>{{ record.time ? formatDateTime(record.time) : '-' }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="print-empty">（暂无审批记录）</p>
+    </div>
   </div>
 </template>
 
@@ -270,6 +349,74 @@ const aiDecisions = ref<AiDecisionRecords | null>(null)
 const diagramDialogVisible = ref(false)
 // 审批进度默认收起
 const timelineExpanded = ref(false)
+
+// ========== 打印（实例信息/申请表单/审批记录） ==========
+const printAreaRef = ref<HTMLElement | null>(null)
+
+// 扁平化 form-create 规则（fcRow/col 嵌套 children）为 field/title 列表
+const printFormItems = computed(() => {
+  const items: { field: string; title: string }[] = []
+  const walk = (rules: { field?: string; title?: string; children?: unknown[] }[] | undefined) => {
+    for (const rule of rules || []) {
+      if (rule.field && rule.title) {
+        items.push({ field: rule.field, title: rule.title })
+      }
+      if (Array.isArray(rule.children)) {
+        walk(rule.children as { field?: string; title?: string; children?: unknown[] }[])
+      }
+    }
+  }
+  walk(formRule.value)
+  return items
+})
+
+const printFormField = (field: string): string => {
+  const value = formData.value?.[field]
+  if (value == null || value === '') return '-'
+  return String(value)
+}
+
+// 已到达节点的任务记录（未到达不输出）
+const printRecords = computed(() =>
+  approvalNodes.value
+    .filter(node => node.status !== 0)
+    .flatMap(node => {
+      const rows = (node.tasks || []).map(task => ({
+        nodeName: node.activityName,
+        userName: task.userName,
+        actionType: task.actionType,
+        statusText: node.status === 1 ? '进行中' : '已完成',
+        comment: task.comment,
+        time: task.endTime || task.createTime
+      }))
+      if (rows.length) return rows
+      // 节点已到达但无任务明细（如自动通过/触发器节点），输出节点级记录
+      return [{
+        nodeName: node.activityName,
+        userName: '-',
+        actionType: '',
+        statusText: node.status === 1 ? '进行中' : '已完成',
+        comment: '',
+        time: node.endTime || node.startTime
+      }]
+    })
+)
+
+const handlePrint = async () => {
+  await nextTick()
+  const area = printAreaRef.value
+  if (!area) return
+  // 抽屉/弹窗带 transform 形成 containing block，打印区须挂到 body 顶层再输出
+  const parent = area.parentNode
+  document.body.appendChild(area)
+  const restore = () => {
+    parent?.appendChild(area)
+    window.removeEventListener('afterprint', restore)
+  }
+  window.addEventListener('afterprint', restore)
+  window.print()
+  // Safari 等不触发 afterprint 的兜底：同步还原由打印快照机制兜住，视觉无残留
+}
 const copyDialogVisible = ref(false)
 const urging = ref(false)
 
@@ -525,6 +672,93 @@ onMounted(() => {
     font-weight: 600;
     color: #646a73;
     margin-bottom: 8px;
+  }
+}
+</style>
+
+<!-- 打印样式：打印时只输出打印区（打印区会被临时挂到 body 顶层，须全局作用） -->
+<style lang="scss">
+.flow-print-area {
+  display: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .flow-print-area,
+  .flow-print-area * {
+    visibility: visible;
+  }
+
+  .flow-print-area {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 16px;
+    color: #000;
+    background: #fff;
+
+    .print-title {
+      text-align: center;
+      font-size: 20px;
+      margin: 0 0 8px;
+    }
+
+    .print-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #333;
+      margin-bottom: 12px;
+    }
+
+    .print-section {
+      font-size: 15px;
+      margin: 14px 0 6px;
+    }
+
+    .print-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      table-layout: fixed;
+
+      th,
+      td {
+        border: 1px solid #333;
+        padding: 5px 8px;
+        text-align: left;
+        word-break: break-all;
+      }
+
+      th {
+        background: #f2f2f2;
+        width: 15%;
+        font-weight: 600;
+      }
+
+      thead th {
+        text-align: center;
+      }
+
+      .print-form-label {
+        width: 22%;
+      }
+    }
+
+    .print-pre {
+      white-space: pre-wrap;
+    }
+
+    .print-empty {
+      font-size: 13px;
+      color: #666;
+    }
   }
 }
 </style>
