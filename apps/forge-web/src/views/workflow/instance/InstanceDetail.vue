@@ -99,10 +99,17 @@
           />
         </el-card>
 
-        <!-- 审批进度时间线 -->
+        <!-- 审批进度时间线（默认收起，点击头部展开） -->
         <el-card v-if="approvalNodes.length" shadow="never" class="timeline-card">
-          <template #header>审批进度</template>
-          <ApprovalTimeline :nodes="approvalNodes" />
+          <template #header>
+            <div class="collapsible-header" @click="timelineExpanded = !timelineExpanded">
+              <span>审批进度</span>
+              <el-icon class="toggle-icon" :class="{ expanded: timelineExpanded }">
+                <ArrowDown />
+              </el-icon>
+            </div>
+          </template>
+          <ApprovalTimeline v-show="timelineExpanded" :nodes="approvalNodes" />
         </el-card>
 
         <!-- AI 决策记录（分支路由 + 审批决策，两组皆空隐藏） -->
@@ -231,7 +238,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Paperclip } from '@element-plus/icons-vue'
+import { ArrowDown, Paperclip } from '@element-plus/icons-vue'
 import { processInstanceApi } from '@/api/workflow/process-instance'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
 import { formApi } from '@/api/workflow/form'
@@ -261,6 +268,8 @@ const approvalNodes = ref<ApprovalNode[]>([])
 const comments = ref<ApprovalComment[]>([])
 const aiDecisions = ref<AiDecisionRecords | null>(null)
 const diagramDialogVisible = ref(false)
+// 审批进度默认收起
+const timelineExpanded = ref(false)
 const copyDialogVisible = ref(false)
 const urging = ref(false)
 
@@ -459,6 +468,23 @@ onMounted(() => {
         display: flex;
         justify-content: space-between;
         align-items: center;
+      }
+    }
+
+    .collapsible-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+
+      .toggle-icon {
+        transition: transform 0.2s;
+        color: var(--el-text-color-secondary);
+
+        &.expanded {
+          transform: rotate(180deg);
+        }
       }
     }
 
