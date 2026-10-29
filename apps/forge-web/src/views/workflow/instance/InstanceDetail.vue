@@ -195,7 +195,7 @@
                 <dict-value :dict-type="DICT_TYPE.WF_ACTION_TYPE" :value="row.actionType" />
               </template>
             </el-table-column>
-            <el-table-column prop="taskName" label="任务名称" min-width="120" />
+            <el-table-column prop="taskName" label="任务名称" width="110" />
             <el-table-column prop="commentText" label="审批意见" min-width="200">
               <template #default="{ row }">
                 <div class="comment-text">{{ row.commentText || '-' }}</div>
