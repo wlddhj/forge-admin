@@ -55,6 +55,7 @@ class ProjectApprovalServiceImplTest {
     private ProcessInstanceResponse instance(String id, boolean active) {
         ProcessInstanceResponse response = new ProcessInstanceResponse();
         response.setId(id);
+        response.setProcessNo("PRJ-" + id);
         response.setEndTime(active ? null : java.time.LocalDateTime.of(2026, 1, 1, 0, 0));
         return response;
     }
@@ -86,6 +87,7 @@ class ProjectApprovalServiceImplTest {
         verify(projectMapper).updateById(updateCaptor.capture());
         assertEquals(10L, updateCaptor.getValue().getId());
         assertEquals(789L, updateCaptor.getValue().getProcessInstanceId());
+        assertEquals("PRJ-789", updateCaptor.getValue().getProcessNo());
     }
 
     @Test

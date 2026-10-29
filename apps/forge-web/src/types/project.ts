@@ -10,6 +10,8 @@ export interface ProjectItem {
   deptName?: string
   remark?: string
   processInstanceId?: string
+  /** 流程编号（发起回写） */
+  processNo?: string
   approveStatus: 'APPROVING' | 'APPROVED' | 'REJECTED' | 'CANCELED'
   approveStatusName: string
   createBy?: string

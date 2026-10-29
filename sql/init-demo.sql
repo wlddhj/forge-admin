@@ -13,6 +13,7 @@ CREATE TABLE `demo_biz_project` (
     `dept_name` VARCHAR(64) DEFAULT NULL COMMENT '责任部门',
     `remark` VARCHAR(500) DEFAULT NULL COMMENT '备注',
     `process_instance_id` BIGINT DEFAULT NULL COMMENT '流程实例ID（businessKey=project:{id} 发起后回写）',
+    `process_no` VARCHAR(64) DEFAULT NULL COMMENT '流程编号（发起回写）',
     `approve_status` VARCHAR(20) NOT NULL DEFAULT 'APPROVING' COMMENT '审批状态 APPROVING/APPROVED/REJECTED/CANCELED（仅由工作流事件回写）',
     `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID（多租户拦截器自动隔离）',
     `create_by` BIGINT DEFAULT NULL COMMENT '创建人（发起人）',

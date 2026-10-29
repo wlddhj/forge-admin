@@ -50,6 +50,9 @@
       >
         <vxe-column type="seq" title="序号" width="60" align="center" />
         <vxe-column field="projectName" title="项目名称" min-width="180" />
+        <vxe-column field="processNo" title="流程编号" width="140">
+          <template #default="{ row }">{{ row.processNo || '-' }}</template>
+        </vxe-column>
         <vxe-column field="totalAmount" title="项目金额" width="130" align="right">
           <template #default="{ row }">{{ formatAmount(row.totalAmount) }}</template>
         </vxe-column>

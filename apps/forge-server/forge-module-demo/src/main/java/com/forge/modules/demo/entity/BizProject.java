@@ -70,6 +70,11 @@ public class BizProject {
     private Long processInstanceId;
 
     /**
+     * 流程编号（发起回写，同实例 processNo）
+     */
+    private String processNo;
+
+    /**
      * 审批状态 APPROVING/APPROVED/REJECTED/CANCELED，仅由事件回写变更
      */
     private String approveStatus;

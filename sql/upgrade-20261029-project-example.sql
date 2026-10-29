@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS `demo_biz_project` (
     `dept_name` VARCHAR(64) DEFAULT NULL COMMENT '责任部门',
     `remark` VARCHAR(500) DEFAULT NULL COMMENT '备注',
     `process_instance_id` BIGINT DEFAULT NULL COMMENT '流程实例ID（businessKey=project:{id} 发起后回写）',
+    `process_no` VARCHAR(64) DEFAULT NULL COMMENT '流程编号（发起回写）',
     `approve_status` VARCHAR(20) NOT NULL DEFAULT 'APPROVING' COMMENT '审批状态 APPROVING/APPROVED/REJECTED/CANCELED（仅由工作流事件回写）',
     `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID（多租户拦截器自动隔离）',
     `create_by` BIGINT DEFAULT NULL COMMENT '创建人（发起人）',
@@ -23,6 +24,9 @@ CREATE TABLE IF NOT EXISTS `demo_biz_project` (
     KEY `idx_create_time` (`create_time`),
     KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='项目立项表（业务示例模块）';
+
+-- 存量库补列（首版建表无 process_no；MySQL 不支持 ADD COLUMN IF NOT EXISTS，已补过的库跳过）
+ALTER TABLE `demo_biz_project` ADD COLUMN `process_no` VARCHAR(64) DEFAULT NULL COMMENT '流程编号（发起回写）' AFTER `process_instance_id`;
 
 -- 示例模块菜单（id 280-284 空闲段，2026-10-29 核对无占用）
 INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES

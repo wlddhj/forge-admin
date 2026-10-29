@@ -82,19 +82,19 @@ public class ProjectApprovalServiceImpl implements ProjectApprovalService {
         startRequest.setVariables(variables);
         processInstanceService.startProcess(startRequest);
 
-        // ④ startProcess 返回 void：按 businessKey 查回在途实例，回写 process_instance_id
-        Long instanceId = processInstanceService.getInstancesByBusinessKey(businessKey).stream()
+        // ④ startProcess 返回 void：按 businessKey 查回在途实例，回写 process_instance_id 与流程编号
+        ProcessInstanceResponse activeInstance = processInstanceService.getInstancesByBusinessKey(businessKey).stream()
                 .filter(i -> i.getEndTime() == null)
-                .map(ProcessInstanceResponse::getId)
                 .findFirst()
-                .map(Long::parseLong)
                 .orElseThrow(() -> new BusinessException(500, "流程已发起但未查到在途实例，请检查实例状态"));
         BizProject update = new BizProject();
         update.setId(project.getId());
-        update.setProcessInstanceId(instanceId);
+        update.setProcessInstanceId(Long.parseLong(activeInstance.getId()));
+        update.setProcessNo(activeInstance.getProcessNo());
         projectMapper.updateById(update);
 
-        log.info("项目立项已提交: projectId={}, businessKey={}, instanceId={}", project.getId(), businessKey, instanceId);
+        log.info("项目立项已提交: projectId={}, businessKey={}, instanceId={}, processNo={}",
+                project.getId(), businessKey, activeInstance.getId(), activeInstance.getProcessNo());
         return project.getId();
     }
 

@@ -35,6 +35,11 @@ public class ProjectResponse {
     private Long processInstanceId;
 
     /**
+     * 流程编号（发起回写）
+     */
+    private String processNo;
+
+    /**
      * 审批状态 APPROVING/APPROVED/REJECTED/CANCELED
      */
     private String approveStatus;
@@ -62,6 +67,7 @@ public class ProjectResponse {
         response.setDeptName(project.getDeptName());
         response.setRemark(project.getRemark());
         response.setProcessInstanceId(project.getProcessInstanceId());
+        response.setProcessNo(project.getProcessNo());
         response.setApproveStatus(project.getApproveStatus());
         response.setApproveStatusName(approveStatusName(project.getApproveStatus()));
         response.setCreateBy(project.getCreateBy());
