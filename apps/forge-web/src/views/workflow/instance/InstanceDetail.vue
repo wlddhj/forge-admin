@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <div class="detail-header">
+    <div v-if="!embedded" class="detail-header">
       <el-page-header @back="router.back()">
         <template #content>
           <span class="page-title">{{ instance?.processDefinitionName || '流程实例详情' }}</span>
@@ -228,7 +228,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Paperclip } from '@element-plus/icons-vue'
@@ -243,6 +243,13 @@ import ApprovalTimeline from './components/ApprovalTimeline.vue'
 import InstanceCopyDialog from './components/InstanceCopyDialog.vue'
 import { useResponsive } from '@/composables/useResponsive'
 import { DICT_TYPE } from '@/constants/dict'
+
+const props = defineProps<{
+  /** 实例ID：抽屉等嵌入场景注入；不传则取路由 query.id（页面模式） */
+  instanceId?: string
+  /** 嵌入模式：隐藏页面头与返回按钮（由容器提供标题） */
+  embedded?: boolean
+}>()
 
 const { isMobile } = useResponsive()
 const route = useRoute()
@@ -263,7 +270,7 @@ const handleResume = async () => {
   try {
     await ElMessageBox.confirm('确定唤醒该流程？流程将恢复到上次中断的节点继续办理', '提示', { type: 'warning' })
     resuming.value = true
-    await processInstanceApi.resume(instanceId)
+    await processInstanceApi.resume(instanceId.value)
     ElMessage.success('唤醒成功')
     getInstanceDetail()
   } catch {
@@ -309,14 +316,19 @@ const handleUrge = async () => {
   }
   urging.value = true
   try {
-    await processInstanceApi.urge(instanceId, comment ? { comment } : undefined)
+    await processInstanceApi.urge(instanceId.value, comment ? { comment } : undefined)
     ElMessage.success('催办成功，已通知当前审批人')
   } finally {
     urging.value = false
   }
 }
 
-const instanceId = route.query.id as string
+const instanceId = computed(() => props.instanceId || (route.query.id as string))
+
+// 抽屉复用同一组件实例切换实例时重载
+watch(() => props.instanceId, (val) => {
+  if (val) getInstanceDetail()
+})
 
 // 表单相关
 const formCreateRef = ref<any>(null)
@@ -327,14 +339,14 @@ const formReady = ref(false)
 
 // 获取实例详情
 const getInstanceDetail = async () => {
-  if (!instanceId) return
+  if (!instanceId.value) return
   loading.value = true
   try {
     const [instanceData, detailData, commentsData, aiDecisionsData] = await Promise.allSettled([
-      processInstanceApi.getById(instanceId),
-      processInstanceApi.getApprovalDetail(instanceId),
-      processInstanceApi.getComments(instanceId),
-      processInstanceApi.getAiDecisions(instanceId)
+      processInstanceApi.getById(instanceId.value),
+      processInstanceApi.getApprovalDetail(instanceId.value),
+      processInstanceApi.getComments(instanceId.value),
+      processInstanceApi.getAiDecisions(instanceId.value)
     ])
 
     if (instanceData.status === 'fulfilled') {
@@ -356,7 +368,7 @@ const getInstanceDetail = async () => {
               formOption.value.disabled = true
 
               try {
-                const variables = await processInstanceApi.getVariables(instanceId)
+                const variables = await processInstanceApi.getVariables(instanceId.value)
                 formData.value = variables || {}
               } catch { /* ignore */ }
 

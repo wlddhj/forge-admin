@@ -115,24 +115,26 @@
         <el-button type="primary" :loading="submitLoading" @click="confirmSubmit">提交并发起审批</el-button>
       </template>
     </el-dialog>
+
+    <!-- 流程详情抽屉 -->
+    <InstanceDetailDrawer v-model="detailDrawerVisible" :instance-id="detailInstanceId" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { useTableHeight } from '@/composables/useTableHeight'
 import TablePagination from '@/components/TablePagination.vue'
 import { useTableSeq } from '@/composables/useTableSeq'
 import { formatDateTime } from '@/utils/dateFormat'
+import InstanceDetailDrawer from '@/views/workflow/instance/components/InstanceDetailDrawer.vue'
 import { projectApi } from '@/api/demo/project'
 import { PROJECT_STATUS_TAG, type ProjectItem, type ProjectSubmitRequest } from '@/types/project'
 
 defineOptions({ name: 'ProjectApproval' })
 
-const router = useRouter()
 const { tableHeight } = useTableHeight()
 const tableRef = ref<VxeTableInstance | null>(null)
 const toolbarRef = ref<VxeToolbarInstance | null>(null)
@@ -236,7 +238,12 @@ const handleCancel = async (row: ProjectItem) => {
   getList()
 }
 
+// 流程详情抽屉
+const detailDrawerVisible = ref(false)
+const detailInstanceId = ref<string>('')
+
 const viewProcess = (row: ProjectItem) => {
-  router.push({ path: '/workflow/instance/detail', query: { id: row.processInstanceId } })
+  detailInstanceId.value = row.processInstanceId as string
+  detailDrawerVisible.value = true
 }
 </script>
