@@ -10,6 +10,7 @@ import com.aizuda.bpm.engine.core.enums.NodeSetType;
 import com.aizuda.bpm.engine.core.enums.TaskType;
 import com.aizuda.bpm.engine.entity.FlwInstance;
 import com.aizuda.bpm.engine.entity.FlwProcess;
+import com.aizuda.bpm.engine.exception.FlowLongException;
 import com.aizuda.bpm.mybatisplus.mapper.FlwInstanceMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -136,6 +137,22 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
         resultPage.setTotal(processPage.getTotal());
         resultPage.setRecords(records);
         return resultPage;
+    }
+
+    @Override
+    public String getLatestDefinitionIdByKey(String processKey) {
+        if (StrUtil.isBlank(processKey)) {
+            throw new BusinessException(400, "流程标识不能为空");
+        }
+        FlwProcess process;
+        try {
+            // version=null 引擎按 processVersion 倒序取最新部署版本
+            process = processService.getProcessByKey(FlowCreatorFactory.currentTenantId(), processKey);
+        } catch (FlowLongException e) {
+            throw new BusinessException(404, String.format(
+                    "未找到流程标识为 [%s] 的已部署流程，请在「模型管理」确认流程 Key，并检查业务模块的 process-key 配置", processKey));
+        }
+        return String.valueOf(process.getId());
     }
 
     @Override

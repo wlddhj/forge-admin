@@ -14,6 +14,7 @@
 | [03.trigger-bean-guide.md](03.trigger-bean-guide.md) | 触发器 Bean 开发指南 | 后端开发 | 自定义 @FlowLongTrigger Bean、AbstractFlowLongTrigger 抽象基类、4 种业务模式、反射调用 |
 | [04.ai-approval-and-routing.md](04.ai-approval-and-routing.md) | AI 智能审批与智能路由 | 流程设计者 / 管理员 / 后端开发 | 两个 AI 能力对比、配置项、降级链与决策状态、审计表查询、注意事项与 FAQ |
 | [05.business-callback-guide.md](05.business-callback-guide.md) | 业务回调(Webhook 事件订阅) | 外部系统集成方 / 流程管理员 / 后端开发 | 事件类型与引擎映射、投递重试机制、HMAC-SHA256 签名验签、载荷契约、接收方实现建议 |
+| [06.business-integration-guide.md](06.business-integration-guide.md) | 业务模块接入对接步骤 | 业务后端开发 | 两种接入形态选型、businessKey 与业务表设计、发起对接(Java/HTTP)、Spring 事件/Webhook/触发器三种联动方式选型、状态回写幂等、安全租户注意、测试清单 |
 
 ## 推荐阅读路径
 
@@ -33,11 +34,15 @@
 要让外部系统接收流程事件(webhook)?
   → 05.business-callback-guide.md (§3 事件映射,§5 验签契约,§6 载荷字段)
 
+要让业务单据接入审批流(端到端对接)?
+  → 06.business-integration-guide.md (§2 形态选型,§4 业务表设计,§6 三种联动方式)
+
 排错?
   → 02.condition-node-guide.md §9 排查速查
   → 03.trigger-bean-guide.md §10 调试与日志
   → 04.ai-approval-and-routing.md §5 AI FAQ
   → 05.business-callback-guide.md §9 回调 FAQ
+  → 06.business-integration-guide.md §10 对接 FAQ
 ```
 
 ## 文档约定

@@ -33,6 +33,16 @@ public interface WfProcessDefinitionService {
     ProcessDefinitionResponse getDefinitionById(String processDefinitionId);
 
     /**
+     * 按流程标识（processKey）取最新已部署版本的流程定义ID。
+     * 供业务模块以稳定的 key 绑定流程，重新部署后自动跟随最新版本。
+     *
+     * @param processKey 流程标识（模型管理中的流程 Key）
+     * @return 流程定义ID（字符串形式）
+     * @throws BusinessException 该 key 无已部署流程时（404）
+     */
+    String getLatestDefinitionIdByKey(String processKey);
+
+    /**
      * 部署流程定义
      *
      * @param request 部署请求

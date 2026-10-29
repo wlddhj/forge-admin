@@ -94,6 +94,8 @@ forge:
         queue: ${AI_AGENT_EXEC_QUEUE:200}
       allowed-hosts:
         - "*"            # 放行全部，仅建议开发环境
+  demo:
+    project-process-key: project_approval   # 业务示例模块(项目立项)绑定的流程 Key（模型管理可查），见 forge-module-demo
   tenant:
     enable: ${TENANT_ENABLE:false}          # 关闭多租户时改为 false
     header: X-Tenant-Id

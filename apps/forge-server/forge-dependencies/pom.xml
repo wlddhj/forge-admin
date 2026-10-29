@@ -98,6 +98,11 @@
                 <artifactId>forge-module-workflow-biz</artifactId>
                 <version>${forge.version}</version>
             </dependency>
+ <dependency>
+                <groupId>com.forge</groupId>
+                <artifactId>forge-module-demo</artifactId>
+                <version>${forge.version}</version>
+            </dependency>
             <!-- AI 模块 -->
             <dependency>
                 <groupId>com.forge</groupId>
