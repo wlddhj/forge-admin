@@ -52,7 +52,7 @@
   --app-footer-height: 50px;
 
   --transition-time-02: 0.2s;
-  --el-disabled-text-color: #515a6e;
+  --el-disabled-text-color: #515a6e!important;
   --el-dialog-padding-primary: 10px;
   --el-menu-item-height: 46px!important;
   --vxe-ui-table-cell-padding-left: 5px;

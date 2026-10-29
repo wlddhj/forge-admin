@@ -211,3 +211,6 @@ html.dark {
 .el-footer{
   --el-footer-height: auto;
 }
+.el-input.is-disabled .el-input__inner{
+  color: var(--el-text-color-disabled);
+}
