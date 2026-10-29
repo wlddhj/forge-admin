@@ -198,7 +198,7 @@
             <el-table-column prop="taskName" label="任务名称" min-width="120" />
             <el-table-column prop="commentText" label="审批意见" min-width="200">
               <template #default="{ row }">
-                <div>{{ row.commentText || '-' }}</div>
+                <div class="comment-text">{{ row.commentText || '-' }}</div>
                 <div v-if="row.attachments?.length" class="comment-attachments">
                   <el-link
                     v-for="att in row.attachments"
@@ -595,6 +595,11 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+// 审批意见保留审批时输入的换行
+.comment-text {
+  white-space: pre-wrap;
+}
+
 .comment-attachments {
   display: flex;
   flex-direction: column;

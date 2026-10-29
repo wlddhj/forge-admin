@@ -136,6 +136,7 @@ const timelineType = (status: number) => {
       background: #f5f7fa;
       border-radius: 4px;
       color: #606266;
+      white-space: pre-wrap; // 保留审批时输入的换行
     }
   }
 
