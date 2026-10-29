@@ -481,6 +481,8 @@ public class WfTaskServiceImpl implements WfTaskService {
         taskWrapper.in(FlwHisTask::getId, hisTaskIds);
         // 只查询已完成的任务（task_state > 0 表示已完成）
         taskWrapper.gt(FlwHisTask::getTaskState, 0);
+        // 排除发起节点的发起人任务（taskType=0），已办只展示真实审批记录
+        taskWrapper.ne(FlwHisTask::getTaskType, 0);
 
         // 任务名称筛选
         if (StrUtil.isNotBlank(request.getName())) {
