@@ -276,9 +276,13 @@
       <h2 class="print-section">二、申请表单</h2>
       <table v-if="printFormItems.length" class="print-table">
         <tbody>
-          <tr v-for="item in printFormItems" :key="item.field">
-            <th class="print-form-label">{{ item.title }}</th>
-            <td colspan="3">{{ printFormField(item.field) }}</td>
+          <!-- 与详情页栅格一致：一行两个属性，末行奇数项值列跨到行尾 -->
+          <tr v-for="(row, rowIndex) in printFormRows" :key="rowIndex">
+            <template v-for="(item, colIndex) in row" :key="item.field">
+              <th class="print-form-label">{{ item.title }}</th>
+              <td v-if="colIndex === 0 && row.length === 1" colspan="3">{{ printFormField(item.field) }}</td>
+              <td v-else>{{ printFormField(item.field) }}</td>
+            </template>
           </tr>
         </tbody>
       </table>
@@ -368,6 +372,15 @@ const printFormItems = computed(() => {
   }
   walk(formRule.value)
   return items
+})
+
+// 两两成行（与详情页一行两属性对齐），末行奇数项由模板跨列补齐
+const printFormRows = computed(() => {
+  const rows: { field: string; title: string }[][] = []
+  for (let i = 0; i < printFormItems.value.length; i += 2) {
+    rows.push(printFormItems.value.slice(i, i + 2))
+  }
+  return rows
 })
 
 const printFormField = (field: string): string => {
