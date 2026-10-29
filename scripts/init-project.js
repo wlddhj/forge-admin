@@ -296,7 +296,7 @@ function main() {
 
   // 复制时排除的目录与文件（构建产物、AI/流程产物、脚手架自身、开发过程产物、失效的 lock 文件）
   const EXCLUDE_DIRS = ['node_modules', 'target', 'dist', '.git', '.idea', 'logs', 'uploads', '.claude', '.flow-neo', '.playwright-mcp', '.worktrees', '.template']
-  const EXCLUDE_FILES = ['CLAUDE.md', 'pnpm-lock.yaml', 'init-project.js', '.DS_Store', 'workflow-extension-implementation-status.md']
+  const EXCLUDE_FILES = ['CLAUDE.md', 'pnpm-lock.yaml', 'init-project.js', '.DS_Store']
 
   log(`1. 复制模板到新目录: ${targetDir}`, 'yellow')
   fs.cpSync(rootDir, targetDir, {
