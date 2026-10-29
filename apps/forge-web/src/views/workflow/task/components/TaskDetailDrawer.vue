@@ -172,17 +172,15 @@
       <el-card shadow="never" class="timeline-card">
         <template #header>审批记录</template>
         <el-table v-if="comments.length" :data="comments" size="small">
-          <el-table-column type="index" label="序号" width="60" align="center" />
-          <el-table-column prop="createTime" label="时间" width="160">
-            <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
-          </el-table-column>
+          <el-table-column type="index" label="序号" width="50" align="center" />
+
           <el-table-column prop="userName" label="审批人" width="80" />
           <el-table-column prop="actionType" label="动作" width="70" align="center">
             <template #default="{ row }">
               <dict-value :dict-type="DICT_TYPE.WF_ACTION_TYPE" :value="row.actionType" />
             </template>
           </el-table-column>
-          <el-table-column prop="taskName" label="任务" min-width="100" />
+          <el-table-column prop="taskName" label="任务" width="110" />
           <el-table-column prop="commentText" label="意见" min-width="150">
             <template #default="{ row }">
               <div>{{ row.commentText || '-' }}</div>
@@ -200,6 +198,9 @@
                 </el-link>
               </div>
             </template>
+          </el-table-column>
+          <el-table-column prop="createTime" label="时间" width="130">
+            <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
           </el-table-column>
         </el-table>
         <el-empty v-else description="暂无审批记录" :image-size="60" />

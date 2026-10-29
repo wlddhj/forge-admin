@@ -214,7 +214,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column prop="createTime" label="时间" width="120">
+            <el-table-column prop="createTime" label="时间" width="130">
               <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
             </el-table-column>
           </el-table>
