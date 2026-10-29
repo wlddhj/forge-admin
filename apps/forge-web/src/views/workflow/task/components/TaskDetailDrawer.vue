@@ -28,7 +28,8 @@
             </div>
           </div>
         </template>
-        <el-descriptions :column="isMobile ? 1 : 2" size="small" border>
+        <!-- 加载中不渲染，避免兜底文案（运行中/常规）随加载闪变；加载失败仍渲染占位 -->
+        <el-descriptions v-if="instanceInfo || !loading" :column="isMobile ? 1 : 2" size="small" border>
           <el-descriptions-item label="流程编号">
             {{ instanceInfo?.processNo || taskInfo?.processNo || '-' }}
           </el-descriptions-item>
