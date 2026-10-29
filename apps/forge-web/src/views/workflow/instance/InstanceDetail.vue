@@ -304,8 +304,8 @@
             <td>{{ record.nodeName }}</td>
             <td>{{ record.userName }}</td>
             <td>
-              <dict-value v-if="record.actionType" :dict-type="DICT_TYPE.WF_ACTION_TYPE" :value="record.actionType" />
-              <span v-else>{{ record.statusText }}</span>
+              <!-- 打印用纯文本，不带字典标签样式 -->
+              {{ record.actionType ? wfActionLabel(record.actionType) : record.statusText }}
             </td>
             <td class="print-pre">{{ record.comment || '-' }}</td>
             <td>{{ record.time ? formatDateTime(record.time) : '-' }}</td>
@@ -333,6 +333,7 @@ import ApprovalTimeline from './components/ApprovalTimeline.vue'
 import InstanceCopyDialog from './components/InstanceCopyDialog.vue'
 import { useResponsive } from '@/composables/useResponsive'
 import { DICT_TYPE } from '@/constants/dict'
+import { useDict } from '@/composables/useDict'
 
 const props = defineProps<{
   /** 实例ID：抽屉等嵌入场景注入；不传则取路由 query.id（页面模式） */
@@ -356,6 +357,7 @@ const timelineExpanded = ref(false)
 
 // ========== 打印（实例信息/申请表单/审批记录） ==========
 const printAreaRef = ref<HTMLElement | null>(null)
+const { getDictLabel: wfActionLabel } = useDict(DICT_TYPE.WF_ACTION_TYPE)
 
 // 扁平化 form-create 规则（fcRow/col 嵌套 children）为 field/title 列表
 const printFormItems = computed(() => {
