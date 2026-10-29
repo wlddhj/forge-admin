@@ -132,12 +132,14 @@
         @change="getList"
       />
     </el-card>
+
+    <!-- 流程详情抽屉 -->
+    <InstanceDetailDrawer v-model="detailDrawerVisible" :instance-id="detailInstanceId" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { processInstanceApi } from '@/api/workflow/process-instance'
@@ -146,8 +148,8 @@ import { formatDateTime } from '@/utils/dateFormat'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
 import { useResponsive } from '@/composables/useResponsive'
+import InstanceDetailDrawer from './components/InstanceDetailDrawer.vue'
 
-const router = useRouter()
 const { isMobile } = useResponsive()
 
 // 表格高度自适应
@@ -208,9 +210,13 @@ const handleReset = () => {
   getList()
 }
 
-// 查看详情
+// 查看详情（抽屉）
+const detailDrawerVisible = ref(false)
+const detailInstanceId = ref<string>('')
+
 const handleDetail = (row: ProcessInstance) => {
-  router.push({ path: '/workflow/instance/detail', query: { id: row.id } })
+  detailInstanceId.value = row.id
+  detailDrawerVisible.value = true
 }
 
 // 唤醒流程实例
