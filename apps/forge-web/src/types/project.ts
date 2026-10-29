@@ -14,6 +14,8 @@ export interface ProjectItem {
   processNo?: string
   approveStatus: 'APPROVING' | 'APPROVED' | 'REJECTED' | 'CANCELED'
   approveStatusName: string
+  /** 审批完成时间（终态事件回写） */
+  approveTime?: string
   createBy?: string
   createTime?: string
   cancelable?: boolean

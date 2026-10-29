@@ -12,6 +12,10 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.util.Date;
+import java.time.ZoneId;
+
 /**
  * 工作流实例事件 → 项目立项状态回写（形态A事件驱动联动示例）。
  * <p>
@@ -63,6 +67,7 @@ public class ProjectWorkflowEventHandler {
             BizProject update = new BizProject();
             update.setId(projectId);
             update.setApproveStatus(targetStatus);
+            update.setApproveTime(toLocalDateTime(event.getInstance()));
             projectMapper.updateById(update);
             log.info("立项状态回写: projectId={}, {} -> {}（instanceId={}）",
                     projectId, project.getApproveStatus(), targetStatus, event.getInstanceId());
@@ -103,5 +108,13 @@ public class ProjectWorkflowEventHandler {
         } catch (NumberFormatException e) {
             return 1L;
         }
+    }
+
+    /**
+     * 实例终态时间（引擎实体为 java.util.Date，转 LocalDateTime 落库）
+     */
+    private LocalDateTime toLocalDateTime(FlwHisInstance instance) {
+        Date endTime = instance != null ? instance.getEndTime() : null;
+        return endTime != null ? LocalDateTime.ofInstant(endTime.toInstant(), ZoneId.systemDefault()) : null;
     }
 }

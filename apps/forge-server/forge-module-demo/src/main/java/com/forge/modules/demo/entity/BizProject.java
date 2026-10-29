@@ -79,6 +79,11 @@ public class BizProject {
      */
     private String approveStatus;
 
+    /**
+     * 审批完成时间（终态事件回写，取实例 endTime）
+     */
+    private LocalDateTime approveTime;
+
     @TableField(fill = FieldFill.INSERT)
     private Long createBy;
 

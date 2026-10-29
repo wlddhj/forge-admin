@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -49,6 +50,34 @@ class ProjectWorkflowEventHandlerTest {
                 return businessKey;
             }
         };
+    }
+
+    private WorkflowInstanceEvent eventWithEndTime(String businessKey, InstanceEventType type, String tenantId,
+                                                   java.util.Date endTime) {
+        FlwHisInstance instance = new FlwHisInstance();
+        instance.setId(789L);
+        instance.setTenantId(tenantId);
+        instance.setEndTime(endTime);
+        return new WorkflowInstanceEvent(this, type, instance, null, null) {
+            @Override
+            public String getBusinessKey() {
+                return businessKey;
+            }
+        };
+    }
+
+    @Test
+    @DisplayName("end 终态 → 回写 APPROVED，并回填审批完成时间（实例 endTime）")
+    void endWritesApprovedWithApproveTime() {
+        when(projectMapper.selectById(10L)).thenReturn(approving());
+
+        handler.onInstanceEvent(eventWithEndTime("project:10", InstanceEventType.end, "1",
+                new java.util.Date(1761000000000L)));
+
+        ArgumentCaptor<BizProject> captor = ArgumentCaptor.forClass(BizProject.class);
+        verify(projectMapper).updateById(captor.capture());
+        assertEquals(BizProject.STATUS_APPROVED, captor.getValue().getApproveStatus());
+        assertNotNull(captor.getValue().getApproveTime(), "终态回写应带审批完成时间");
     }
 
     @Test

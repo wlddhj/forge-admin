@@ -68,6 +68,9 @@
         <vxe-column title="提交时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
         </vxe-column>
+        <vxe-column title="审批完成时间" width="170">
+          <template #default="{ row }">{{ row.approveTime ? formatDateTime(row.approveTime) : '-' }}</template>
+        </vxe-column>
         <vxe-column title="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button

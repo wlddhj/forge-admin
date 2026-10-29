@@ -49,6 +49,11 @@ public class ProjectResponse {
      */
     private String approveStatusName;
 
+    /**
+     * 审批完成时间（终态事件回写）
+     */
+    private LocalDateTime approveTime;
+
     private Long createBy;
 
     private LocalDateTime createTime;
@@ -70,6 +75,7 @@ public class ProjectResponse {
         response.setProcessNo(project.getProcessNo());
         response.setApproveStatus(project.getApproveStatus());
         response.setApproveStatusName(approveStatusName(project.getApproveStatus()));
+        response.setApproveTime(project.getApproveTime());
         response.setCreateBy(project.getCreateBy());
         response.setCreateTime(project.getCreateTime());
         response.setCancelable(BizProject.STATUS_APPROVING.equals(project.getApproveStatus())
