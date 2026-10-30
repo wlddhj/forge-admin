@@ -70,7 +70,7 @@ class WfTaskServiceUrgeTest {
                 queryService, identityService, approvalCommentMapper,
                 mock(FlwTaskMapper.class), mock(FlwHisTaskMapper.class),
                 mock(FlwTaskActorMapper.class), mock(FlwHisTaskActorMapper.class),
-                mock(FlwInstanceMapper.class), mock(FlwHisInstanceMapper.class),
+                mock(FlwInstanceMapper.class), mock(com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper.class), mock(FlwHisInstanceMapper.class),
                 mock(FlowLongEngine.class), mock(SysAttachmentService.class),
                 notificationService, schedulerProperties, new ObjectMapper());
     }

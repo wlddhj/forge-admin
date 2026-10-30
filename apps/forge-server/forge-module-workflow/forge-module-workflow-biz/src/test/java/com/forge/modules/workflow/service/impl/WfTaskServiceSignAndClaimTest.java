@@ -77,7 +77,7 @@ class WfTaskServiceSignAndClaimTest {
                 queryService, identityService, mock(WfApprovalCommentMapper.class),
                 taskMapper, mock(FlwHisTaskMapper.class), taskActorMapper,
                 mock(FlwHisTaskActorMapper.class), mock(FlwInstanceMapper.class),
-                mock(FlwHisInstanceMapper.class), flowLongEngine, mock(SysAttachmentService.class),
+                mock(com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper.class), mock(FlwHisInstanceMapper.class), flowLongEngine, mock(SysAttachmentService.class),
                 mock(NotificationService.class), new FlowLongSchedulerProperties(), new ObjectMapper());
     }
 

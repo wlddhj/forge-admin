@@ -56,7 +56,7 @@ class WfIter2RejectReclaimTest {
         service = new WfTaskServiceImpl(taskService, mock(ProcessService.class), mock(RuntimeService.class),
                 queryService, mock(FlowLongIdentityService.class), mock(WfApprovalCommentMapper.class),
                 mock(FlwTaskMapper.class), hisTaskMapper, mock(FlwTaskActorMapper.class),
-                hisTaskActorMapper, mock(FlwInstanceMapper.class), mock(FlwHisInstanceMapper.class),
+                hisTaskActorMapper, mock(FlwInstanceMapper.class), mock(com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper.class), mock(FlwHisInstanceMapper.class),
                 flowLongEngine, mock(SysAttachmentService.class), mock(NotificationService.class),
                 new FlowLongSchedulerProperties(), new ObjectMapper());
     }

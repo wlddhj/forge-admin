@@ -68,6 +68,7 @@ public class WfTaskServiceImpl implements WfTaskService {
     private final FlwTaskActorMapper taskActorMapper;
     private final FlwHisTaskActorMapper hisTaskActorMapper;
     private final FlwInstanceMapper instanceMapper;
+    private final com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper processMapper;
     private final FlwHisInstanceMapper hisInstanceMapper;
     private final FlowLongEngine flowLongEngine;
     private final SysAttachmentService sysAttachmentService;
@@ -113,6 +114,16 @@ public class WfTaskServiceImpl implements WfTaskService {
         // 任务名称筛选
         if (StrUtil.isNotBlank(request.getName())) {
             taskWrapper.like(FlwTask::getTaskName, request.getName());
+        }
+
+        // 流程名称过滤两步式：圈流程→实例（待办实例必在活动表），再 in 任务
+        if (StrUtil.isNotBlank(request.getProcessDefinitionName())) {
+            List<Long> nameInstanceIds = instanceIdsByProcessName(
+                    request.getProcessDefinitionName(), false);
+            if (nameInstanceIds.isEmpty()) {
+                return emptyTaskPage(request);
+            }
+            taskWrapper.in(FlwTask::getInstanceId, nameInstanceIds);
         }
 
         // 标题过滤两步式：先按 __title 圈实例，再 in 任务（顶层谓词避 EXISTS 方言差异）
@@ -503,6 +514,16 @@ public class WfTaskServiceImpl implements WfTaskService {
         // 任务名称筛选
         if (StrUtil.isNotBlank(request.getName())) {
             taskWrapper.like(FlwHisTask::getTaskName, request.getName());
+        }
+
+        // 流程名称过滤两步式：已办实例可能在途（活动表）或已结束（历史表），两侧并集
+        if (StrUtil.isNotBlank(request.getProcessDefinitionName())) {
+            List<Long> nameInstanceIds = instanceIdsByProcessName(
+                    request.getProcessDefinitionName(), true);
+            if (nameInstanceIds.isEmpty()) {
+                return emptyTaskPage(request);
+            }
+            taskWrapper.in(FlwHisTask::getInstanceId, nameInstanceIds);
         }
 
         // 标题过滤两步式：先按 __title 圈实例。流程可能仍在运行（实例在活动表）或已结束（在历史表），
@@ -1473,6 +1494,33 @@ public class WfTaskServiceImpl implements WfTaskService {
     /**
      * 转换历史任务响应（包含流程信息）
      */
+
+    /**
+     * 按流程名称模糊圈实例 ID：先圈流程再圈实例（includeHis=已办场景实例可能在途或已结束，两侧并集）
+     */
+    private List<Long> instanceIdsByProcessName(String processName, boolean includeHis) {
+        Set<Long> processIds = processMapper.selectList(new LambdaQueryWrapper<com.aizuda.bpm.engine.entity.FlwProcess>()
+                        .select(com.aizuda.bpm.engine.entity.FlwProcess::getId)
+                        .like(com.aizuda.bpm.engine.entity.FlwProcess::getProcessName, processName))
+                .stream().map(com.aizuda.bpm.engine.entity.FlwProcess::getId)
+                .collect(java.util.stream.Collectors.toSet());
+        if (processIds.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> instanceIds = new java.util.HashSet<>(instanceMapper.selectList(
+                        new LambdaQueryWrapper<FlwInstance>()
+                                .select(FlwInstance::getId)
+                                .in(FlwInstance::getProcessId, processIds))
+                .stream().map(FlwInstance::getId).toList());
+        if (includeHis) {
+            instanceIds.addAll(hisInstanceMapper.selectList(
+                            new LambdaQueryWrapper<FlwHisInstance>()
+                                    .select(FlwHisInstance::getId)
+                                    .in(FlwHisInstance::getProcessId, processIds))
+                    .stream().map(FlwHisInstance::getId).toList());
+        }
+        return List.copyOf(instanceIds);
+    }
 
     /**
      * 标题过滤无命中的空页快速返回

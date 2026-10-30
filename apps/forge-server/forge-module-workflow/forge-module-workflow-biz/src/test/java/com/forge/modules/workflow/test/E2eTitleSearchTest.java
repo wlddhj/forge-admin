@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mockStatic;
 
 /**
@@ -54,7 +55,7 @@ class E2eTitleSearchTest extends WorkflowIntegrationTestBase {
         assertEquals(1, hit.size(), "标题关键字仅命中 1 例");
         Page<Map<String, Object>> all = new Page<>(1, 10);
         instanceQueryMapper.selectUnionPage(all, null, null, null, null, null, null, false);
-        assertEquals(2, all.getTotal(), "无过滤时两例都在");
+        assertTrue(all.getTotal() >= 2, "无过滤时本用例两例都在");
 
         // 待办 EXISTS 侧：审批人乙按标题过滤只剩 1 条待办（mockStatic 须指向声明类 SecurityHelper）
         try (MockedStatic<SecurityHelper> security = mockStatic(SecurityHelper.class)) {
@@ -103,6 +104,47 @@ class E2eTitleSearchTest extends WorkflowIntegrationTestBase {
             request.setTitle("在途已办");
             assertEquals(1, taskService.getDoneTasks(request).getRecords().size(),
                     "运行中实例的已办任务按标题命中（活动表+历史表并集）");
+        }
+    }
+
+    @Test
+    @DisplayName("流程名称搜索：待办/已办按流程名称命中（此前后端从未消费该参数的存量缺口）")
+    void processNameSearch_todoAndDone() {
+        String model = """
+                {"name":"名称搜索专用流程","key":"e2e_name_search",
+                 "nodeConfig":{"nodeName":"发起人","nodeKey":"start","type":0,
+                   "childNode":{"nodeName":"审批","nodeKey":"ap1","type":1,"setType":1,"examineMode":3,
+                     "nodeAssigneeList":[{"id":"2","name":"审批人乙"}]}}}
+                """;
+        Long processId = deploy(model);
+        FlwInstance instance = flowLongEngine.startInstanceById(processId, user(1L, "发起人甲"),
+                (java.util.Map<String, Object>) null).orElseThrow();
+
+        try (MockedStatic<SecurityHelper> security = mockStatic(SecurityHelper.class)) {
+            security.when(SecurityHelper::getCurrentUserId).thenReturn(2L);
+
+            // 待办按流程名称
+            TaskQueryRequest todo = new TaskQueryRequest();
+            todo.setPageNum(1);
+            todo.setPageSize(10);
+            todo.setProcessDefinitionName("名称搜索专用");
+            assertEquals(1, taskService.getTodoTasks(todo).getRecords().size(), "待办按流程名称命中");
+
+            // 办结后（实例结束、任务进历史）已办按流程名称
+            FlwTask task = activeTasks(instance.getId()).get(0);
+            flowLongEngine.executeTask(task.getId(), user(2L, "审批人乙"), null);
+            TaskQueryRequest done = new TaskQueryRequest();
+            done.setPageNum(1);
+            done.setPageSize(10);
+            done.setProcessDefinitionName("名称搜索专用");
+            assertEquals(1, taskService.getDoneTasks(done).getRecords().size(), "已办按流程名称命中");
+
+            // 未命中名称快速空页
+            TaskQueryRequest miss = new TaskQueryRequest();
+            miss.setPageNum(1);
+            miss.setPageSize(10);
+            miss.setProcessDefinitionName("不存在的流程");
+            assertEquals(0, taskService.getTodoTasks(miss).getRecords().size());
         }
     }
 }
