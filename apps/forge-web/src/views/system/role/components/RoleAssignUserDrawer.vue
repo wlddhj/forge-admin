@@ -135,7 +135,9 @@ const handleOpen = async () => {
       props.role ? getRoleUserIds(props.role.id) : Promise.resolve<number[]>([])
     ])
     deptTree.value = (tree as DeptTree[]) || []
-    selectedIdSet.value = new Set(roleUserIds || [])
+    // 后端 LongSerializer 把所有 Long 序列化为字符串，Set 边界统一 Number() 归一，
+    // 否则取消勾选 delete(数字) 删不掉初始化的字符串 id
+    selectedIdSet.value = new Set((roleUserIds || []).map(Number))
     await getUserData()
     updateHeight()
   } finally {
@@ -149,10 +151,10 @@ const getUserData = async () => {
     const res = await getUserList(queryParams.value)
     userList.value = res.list
     total.value = res.total
-    // 数据到位后按已选集回显当前页勾选状态
+    // 数据到位后按已选集回显当前页勾选状态（user.id 运行时为字符串，同样归一）
     await nextTick()
     userList.value.forEach(user => {
-      tableRef.value?.toggleRowSelection(user, selectedIdSet.value.has(user.id))
+      tableRef.value?.toggleRowSelection(user, selectedIdSet.value.has(Number(user.id)))
     })
   } finally {
     loading.value = false
@@ -178,9 +180,9 @@ const handleSelect = (selection: Record<string, unknown>[], row: Record<string, 
 // 当前页全选/全不选
 const handleSelectAll = (selection: Record<string, unknown>[]) => {
   if (selection.length) {
-    userList.value.forEach(user => selectedIdSet.value.add(user.id))
+    userList.value.forEach(user => selectedIdSet.value.add(Number(user.id)))
   } else {
-    userList.value.forEach(user => selectedIdSet.value.delete(user.id))
+    userList.value.forEach(user => selectedIdSet.value.delete(Number(user.id)))
   }
 }
 
