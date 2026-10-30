@@ -505,15 +505,29 @@ const handleDesign = (row: WfModel) => {
 }
 
 /** 新增模型 */
+/** 按编码递归查找分类（categoryList 为树形嵌套，顶层 find 命中不了子分类） */
+const findCategoryByCode = (nodes: WfCategory[], code: string): WfCategory | undefined => {
+  for (const node of nodes) {
+    if (node.categoryCode === code) {
+      return node
+    }
+    const hit = node.children?.length ? findCategoryByCode(node.children, code) : undefined
+    if (hit) {
+      return hit
+    }
+  }
+  return undefined
+}
+
 const handleAdd = () => {
   cancelSelection()
   isEditDialog.value = false
   formData.id = undefined
   formData.name = ''
   formData.key = ''
-  // 分类筛选联动：当前选中分类预填到新增表单（按编码换算ID，无选中不预填）
+  // 分类筛选联动：当前选中分类预填到新增表单（按编码递归换算ID，无选中不预填）
   formData.categoryId = queryParams.category
-    ? categoryList.value.find(c => c.categoryCode === queryParams.category)?.id
+    ? findCategoryByCode(categoryList.value, queryParams.category)?.id
     : undefined
   formData.description = ''
   formData.formType = undefined
