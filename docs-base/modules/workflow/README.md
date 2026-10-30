@@ -9,7 +9,7 @@
 
 | 序号 | 文档 | 目标读者 | 用途 |
 |---|---|---|---|
-| [01.workflow-usage.md](01.workflow-usage.md) | 使用说明 | 流程管理员 / 配置人员 / 最终用户 | 菜单导航、完整配置流程、分支节点选型、候选人策略、触发器使用、AI 审批与路由入口、待办/已办、状态码、迭代能力速览 |
+| [01.workflow-usage.md](01.workflow-usage.md) | 使用说明 | 流程管理员 / 配置人员 / 最终用户 | 菜单导航、完整配置流程(含标题规则/发起范围)、分支节点选型、候选人策略、触发器使用、AI 审批与路由入口、待办/已办、实例跟踪与打印、紧急程度字典、状态码、迭代能力速览 |
 | [02.condition-node-guide.md](02.condition-node-guide.md) | 条件节点指南 | 流程设计者 / 后端开发 | type=3/4 实际行为差异、SpEL 求值机制、变量缺失行为、兜底机制、AI 路由优先级、排查速查 |
 | [03.trigger-bean-guide.md](03.trigger-bean-guide.md) | 触发器 Bean 开发指南 | 后端开发 | 自定义 @FlowLongTrigger Bean、AbstractFlowLongTrigger 抽象基类、4 种业务模式、反射调用 |
 | [04.ai-approval-and-routing.md](04.ai-approval-and-routing.md) | AI 智能审批与智能路由 | 流程设计者 / 管理员 / 后端开发 | 两个 AI 能力对比、配置项、降级链与决策状态、审计表查询、注意事项与 FAQ |
