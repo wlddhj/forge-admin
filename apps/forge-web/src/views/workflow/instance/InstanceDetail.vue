@@ -3,7 +3,7 @@
     <div v-if="!embedded" class="detail-header">
       <el-page-header @back="router.back()">
         <template #content>
-          <span class="page-title">{{ instance?.instanceTitle || instance?.processDefinitionName || '流程实例详情' }}</span>
+          <span class="page-title">{{ instance?.processDefinitionName || '流程实例详情' }}</span>
         </template>
       </el-page-header>
     </div>
@@ -60,9 +60,6 @@
             </el-descriptions-item>
             <el-descriptions-item label="流程名称">
               {{ instance?.processDefinitionName || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="流程标题">
-              {{ instance?.instanceTitle || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="发起人">
               {{ instance?.startUserName || '-' }}
@@ -244,7 +241,7 @@
 
     <!-- 打印区域（屏幕隐藏，打印时挂到 body 顶层输出：实例信息/申请表单/审批记录） -->
     <div ref="printAreaRef" class="flow-print-area">
-      <h1 class="print-title">{{ instance?.instanceTitle || instance?.processDefinitionName || '流程审批单' }}</h1>
+      <h1 class="print-title">{{ instance?.processDefinitionName || '流程审批单' }}</h1>
       <div class="print-meta">
         <span>流程编号：{{ instance?.processNo || instance?.id }}</span>
         <span>打印时间：{{ formatDateTime(printTime) }}</span>
@@ -254,26 +251,22 @@
       <table class="print-table">
         <tbody>
           <tr>
-            <th>流程标题</th>
-            <td>{{ instance?.instanceTitle || '-' }}</td>
+            <th>流程名称</th>
+            <td>{{ instance?.processDefinitionName || '-' }}</td>
             <th>业务标识</th>
             <td>{{ instance?.businessKey || '-' }}</td>
           </tr>
           <tr>
-            <th>流程名称</th>
-            <td>{{ instance?.processDefinitionName || '-' }}</td>
             <th>发起人</th>
             <td>{{ instance?.startUserName || '-' }}</td>
-          </tr>
-          <tr>
             <th>发起时间</th>
             <td>{{ formatDateTime(instance?.startTime) }}</td>
-            <th>结束时间</th>
-            <td>{{ instance?.endTime ? formatDateTime(instance.endTime) : '-' }}</td>
           </tr>
           <tr>
+            <th>结束时间</th>
+            <td>{{ instance?.endTime ? formatDateTime(instance.endTime) : '-' }}</td>
             <th>紧急程度</th>
-            <td colspan="3">{{ wfUrgentLabel(instance?.urgent ?? 0) }}</td>
+            <td>{{ wfUrgentLabel(instance?.urgent ?? 0) }}</td>
           </tr>
           <tr>
             <th>当前状态</th>
