@@ -40,21 +40,26 @@
           <span style="color: #909399; font-size: 12px;">已选 {{ selectedIdSet.size }} 个用户</span>
         </el-form-item>
       </el-form>
-      <el-table
+      <vxe-table
+        id="roleAssignUserTable"
         ref="tableRef"
-        v-loading="loading"
         :data="userList"
-        row-key="id"
         :height="tableHeight"
-        border
-        @select="handleSelect"
-        @select-all="handleSelectAll"
+        :loading="loading"
+        :row-config="{ keyField: 'id', isHover: true }"
+        :column-config="{ resizable: true }"
+        border="none"
+        stripe
+        show-overflow="tooltip"
+        @checkbox-change="handleCheckboxChange"
+        @checkbox-all="handleCheckboxAll"
       >
-        <el-table-column type="selection" width="44" />
-        <el-table-column prop="username" label="用户名" min-width="100" show-overflow-tooltip />
-        <el-table-column prop="nickname" label="昵称" min-width="100" show-overflow-tooltip />
-        <el-table-column prop="deptName" label="部门" min-width="110" show-overflow-tooltip />
-      </el-table>
+        <vxe-column type="checkbox" width="44" align="center" />
+        <vxe-column type="seq" title="序号" width="50" align="center" />
+        <vxe-column field="username" title="用户名" min-width="100" />
+        <vxe-column field="nickname" title="昵称" min-width="100" />
+        <vxe-column field="deptName" title="部门" min-width="110" />
+      </vxe-table>
       <TablePagination
         v-model:page-num="queryParams.pageNum"
         v-model:page-size="queryParams.pageSize"
@@ -98,7 +103,7 @@ const { tableHeight, updateHeight } = useDrawerTableHeight({
   excludeSelectors: ['.assign-user-alert', '.assign-user-search'],
 })
 
-const tableRef = ref()
+const tableRef = ref<{ clearCheckboxRow: () => void; setCheckboxRow: (rows: User | User[], checked: boolean) => void } | null>(null)
 const loading = ref(false)
 const submitLoading = ref(false)
 const userList = ref<User[]>([])
@@ -153,9 +158,11 @@ const getUserData = async () => {
     total.value = res.total
     // 数据到位后按已选集回显当前页勾选状态（user.id 运行时为字符串，同样归一）
     await nextTick()
-    userList.value.forEach(user => {
-      tableRef.value?.toggleRowSelection(user, selectedIdSet.value.has(Number(user.id)))
-    })
+    tableRef.value?.clearCheckboxRow()
+    const checkedRows = userList.value.filter(user => selectedIdSet.value.has(Number(user.id)))
+    if (checkedRows.length) {
+      tableRef.value?.setCheckboxRow(checkedRows, true)
+    }
   } finally {
     loading.value = false
   }
@@ -166,10 +173,9 @@ const handleSearch = () => {
   getUserData()
 }
 
-// 单行勾选/取消：增量维护已选集（参数类型按 el-table 事件签名 Record 行）
-const handleSelect = (selection: Record<string, unknown>[], row: Record<string, unknown>) => {
+// 单行勾选/取消（vxe checkbox-change：{ row, checked }）：增量维护已选集
+const handleCheckboxChange = ({ row, checked }: { row: User; checked: boolean }) => {
   const rowId = Number(row.id)
-  const checked = selection.some(item => Number(item.id) === rowId)
   if (checked) {
     selectedIdSet.value.add(rowId)
   } else {
@@ -177,13 +183,16 @@ const handleSelect = (selection: Record<string, unknown>[], row: Record<string, 
   }
 }
 
-// 当前页全选/全不选
-const handleSelectAll = (selection: Record<string, unknown>[]) => {
-  if (selection.length) {
-    userList.value.forEach(user => selectedIdSet.value.add(Number(user.id)))
-  } else {
-    userList.value.forEach(user => selectedIdSet.value.delete(Number(user.id)))
-  }
+// 当前页全选/全不选（vxe checkbox-all：{ checked }）
+const handleCheckboxAll = ({ checked }: { checked: boolean }) => {
+  userList.value.forEach(user => {
+    const rowId = Number(user.id)
+    if (checked) {
+      selectedIdSet.value.add(rowId)
+    } else {
+      selectedIdSet.value.delete(rowId)
+    }
+  })
 }
 
 const handleConfirm = async () => {
