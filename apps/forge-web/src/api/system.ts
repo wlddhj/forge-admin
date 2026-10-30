@@ -53,6 +53,10 @@ export function resetPassword(id: number) {
   return request.put(`/system/user/${id}/reset-password`)
 }
 
+export function unlockUser(id: number) {
+  return request.put(`/system/user/${id}/unlock`)
+}
+
 export function getUserRoles(id: number) {
   return request.get<number[]>(`/system/user/${id}/roles`).then(res => res.data)
 }

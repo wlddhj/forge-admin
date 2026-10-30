@@ -422,6 +422,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 查询并设置岗位名称
         List<String> positionNames = sysUserPositionMapper.selectPositionNamesByUserId(user.getId());
         response.setPositionNames(positionNames);
+        // 登录锁定态以 Redis 闸口为准（DB lock_time 是快照，TTL 到期后仍为历史值）
+        boolean locked = loginAttemptService.isLocked(user.getUsername());
+        response.setLocked(locked);
+        if (locked) {
+            response.setLockRemainSeconds(loginAttemptService.getRemainingLockSeconds(user.getUsername()));
+        }
         return response;
     }
 

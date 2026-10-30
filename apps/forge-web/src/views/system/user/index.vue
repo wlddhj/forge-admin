@@ -199,6 +199,16 @@
           </template>
         </vxe-column>
 
+        <!-- 锁定状态列（桌面端） -->
+        <vxe-column v-if="!isMobile" title="锁定" width="70" align="center">
+          <template #default="{ row }">
+            <el-tooltip v-if="row.locked" :content="lockTip(row)" placement="top">
+              <el-tag type="danger" size="small">已锁定</el-tag>
+            </el-tooltip>
+            <el-tag v-else type="success" size="small">正常</el-tag>
+          </template>
+        </vxe-column>
+
         <!-- 创建时间（桌面端） -->
         <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="140">
           <template #default="{ row }">
@@ -207,11 +217,12 @@
         </vxe-column>
 
         <!-- 桌面端操作列 -->
-        <vxe-column v-if="!isMobile" title="操作" width="230" fixed="right">
+        <vxe-column v-if="!isMobile" title="操作" width="285" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleAssignRoles(row)">分配角色</el-button>
             <el-button v-permission="'system:user:resetPwd'" type="warning" link size="small" @click.stop="handleResetPwd(row)">重置密码</el-button>
+            <el-button v-if="row.locked" v-permission="'system:user:unlock'" type="warning" link size="small" @click.stop="handleUnlock(row)">解锁</el-button>
             <el-button v-permission="'system:user:delete'" type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
@@ -238,6 +249,7 @@
         <el-button v-permission="'system:user:edit'" size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
         <el-button v-permission="'system:user:edit'" size="small" type="primary" @click.stop="handleAssignRoles(item)">分配角色</el-button>
         <el-button v-permission="'system:user:resetPwd'" size="small" @click.stop="handleResetPwd(item)">重置密码</el-button>
+        <el-button v-if="item.locked" v-permission="'system:user:unlock'" size="small" type="warning" @click.stop="handleUnlock(item)">解锁</el-button>
         <el-button v-permission="'system:user:delete'" size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
       </template>
     </MobileBottomActions>
@@ -320,7 +332,7 @@ import { ElMessage, ElMessageBox, ElInput, ElButton } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import {
-  getUserList, getUser, addUser, updateUser, deleteUser, resetPassword, exportUsers
+  getUserList, getUser, addUser, updateUser, deleteUser, resetPassword, unlockUser, exportUsers
 } from '@/api/system'
 import { getAllRoles } from '@/api/system'
 import { getAllPositions } from '@/api/system'
@@ -593,6 +605,30 @@ const handleResetPwd = (row: User) => {
       `用户【${row.username}】密码已重置`,
       { dangerouslyUseHTMLString: false }
     ).catch(() => { /* 用户主动关闭 */ })
+  })
+}
+
+// 锁定标签悬浮提示：失败次数 + 预计自动解锁时间
+const lockTip = (row: User) => {
+  const failCount = row.passwordErrorCount ?? '-'
+  const until = row.lockTime ? formatDateTime(row.lockTime) : ''
+  if (row.lockRemainSeconds) {
+    const remainMin = Math.ceil(row.lockRemainSeconds / 60)
+    return `连续登录失败 ${failCount} 次被锁定，约 ${remainMin} 分钟后（${until}）自动解锁`
+  }
+  return until
+    ? `连续登录失败 ${failCount} 次被锁定，截止 ${until} 自动解锁`
+    : `连续登录失败 ${failCount} 次被锁定`
+}
+
+const handleUnlock = (row: User) => {
+  ElMessageBox.confirm(`确定要解锁用户【${row.username}】吗？解锁后该账号可立即登录。`, '提示', {
+    type: 'warning'
+  }).then(async () => {
+    await unlockUser(row.id)
+    ElMessage.success('解锁成功')
+    cancelSelection()
+    getList()
   })
 }
 

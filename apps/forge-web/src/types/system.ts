@@ -14,6 +14,14 @@ export interface User {
   status: number
   lastLoginTime: string
   lastLoginIp: string
+  /** 是否处于登录锁定状态（后端以 Redis 登录闸口为准） */
+  locked?: boolean
+  /** 账号锁定截止时间（毫秒时间戳） */
+  lockTime?: string
+  /** 连续登录失败次数 */
+  passwordErrorCount?: number
+  /** 锁定剩余秒数（未锁定为 0） */
+  lockRemainSeconds?: number
   createTime: string
   roleIds: number[]
   roleNames: string[]
