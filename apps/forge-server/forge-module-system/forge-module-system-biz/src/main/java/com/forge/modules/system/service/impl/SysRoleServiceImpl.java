@@ -15,9 +15,12 @@ import com.forge.modules.system.dto.role.RoleResponse;
 import com.forge.modules.system.entity.SysRole;
 import com.forge.modules.system.entity.SysRoleDept;
 import com.forge.modules.system.entity.SysRoleMenu;
+import com.forge.modules.system.entity.SysUser;
+import com.forge.modules.system.entity.SysUserRole;
 import com.forge.modules.system.mapper.SysRoleDeptMapper;
 import com.forge.modules.system.mapper.SysRoleMapper;
 import com.forge.modules.system.mapper.SysRoleMenuMapper;
+import com.forge.modules.system.mapper.SysUserMapper;
 import com.forge.modules.system.mapper.SysUserRoleMapper;
 import com.forge.modules.system.service.SysRoleService;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +46,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     private final SysRoleMenuMapper sysRoleMenuMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
     private final SysRoleDeptMapper sysRoleDeptMapper;
+    private final SysUserMapper sysUserMapper;
     private final com.forge.modules.system.service.SysMenuService sysMenuService;
 
     @Override
@@ -204,6 +208,47 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
                     })
                     .collect(Collectors.toList());
             sysRoleMenuMapper.batchInsert(roleMenus);
+        }
+    }
+
+    @Override
+    public List<Long> getUserIdsByRoleId(Long roleId) {
+        return sysUserRoleMapper.selectUserIdsByRoleId(roleId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void assignUsers(Long roleId, List<Long> userIds) {
+        List<Long> distinctUserIds = (userIds == null) ? new ArrayList<>()
+                : userIds.stream().distinct().collect(Collectors.toList());
+
+        if (!distinctUserIds.isEmpty()) {
+            // 存在性校验（数量不符说明含不存在或已删除的用户）
+            List<SysUser> users = sysUserMapper.selectBatchIds(distinctUserIds);
+            if (users.size() != distinctUserIds.size()) {
+                throw new BusinessException(ResultCode.USER_NOT_FOUND);
+            }
+            // 租户越权校验（与用户侧分配角色同规则：平台超管放行）
+            UserContext currentUser = UserContext.get();
+            Long currentTenantId = currentUser != null ? currentUser.getTenantId() : null;
+            boolean isPlatformAdmin = currentUser != null && currentUser.isPlatformAdmin();
+            for (SysUser user : users) {
+                if (currentTenantId != null && !isPlatformAdmin && !currentTenantId.equals(user.getTenantId())) {
+                    throw new BusinessException("无权修改其他租户的用户");
+                }
+            }
+        }
+
+        // 覆盖式重写关联（空集=清空该角色全部用户）
+        sysUserRoleMapper.deleteByRoleId(roleId);
+        if (!distinctUserIds.isEmpty()) {
+            List<SysUserRole> userRoles = distinctUserIds.stream().map(userId -> {
+                SysUserRole userRole = new SysUserRole();
+                userRole.setUserId(userId);
+                userRole.setRoleId(roleId);
+                return userRole;
+            }).collect(Collectors.toList());
+            sysUserRoleMapper.batchInsert(userRoles);
         }
     }
 

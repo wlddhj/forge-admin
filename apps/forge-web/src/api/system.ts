@@ -144,6 +144,14 @@ export function assignRoleMenus(id: number, menuIds: number[]) {
   return request.put(`/system/role/${id}/menus`, menuIds)
 }
 
+export function getRoleUserIds(id: number) {
+  return request.get<number[]>(`/system/role/${id}/user-ids`).then(res => res.data)
+}
+
+export function assignRoleUsers(id: number, userIds: number[]) {
+  return request.put(`/system/role/${id}/users`, userIds)
+}
+
 export function exportRoles(params: RoleQuery) {
   return request.getBlob('/system/role/export', { params, responseType: 'blob' }).then(res => {
     const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })

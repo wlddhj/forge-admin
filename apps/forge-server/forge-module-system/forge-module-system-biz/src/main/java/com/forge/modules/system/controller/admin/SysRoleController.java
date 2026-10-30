@@ -115,6 +115,23 @@ public class SysRoleController {
         return Result.success();
     }
 
+    @Operation(summary = "获取角色用户ID列表")
+    @GetMapping("/{id}/user-ids")
+    @PreAuthorize("hasAuthority('system:role:query')")
+    public Result<List<Long>> getRoleUserIds(@PathVariable Long id) {
+        return Result.success(sysRoleService.getUserIdsByRoleId(id));
+    }
+
+    @Operation(summary = "分配用户（覆盖式）")
+    @PutMapping("/{id}/users")
+    @PreAuthorize("hasAuthority('system:role:edit')")
+    @OperationLog(title = "角色管理", businessType = OperationLog.BusinessType.GRANT)
+    @RepeatSubmit
+    public Result<Void> assignUsers(@PathVariable Long id, @RequestBody List<Long> userIds) {
+        sysRoleService.assignUsers(id, userIds);
+        return Result.success();
+    }
+
     @Operation(summary = "导出角色")
     @GetMapping("/export")
     @PreAuthorize("hasAuthority('system:role:export')")

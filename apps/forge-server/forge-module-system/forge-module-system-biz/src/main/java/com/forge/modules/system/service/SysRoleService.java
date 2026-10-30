@@ -68,6 +68,16 @@ public interface SysRoleService extends IService<SysRole> {
     void assignMenus(Long roleId, List<Long> menuIds);
 
     /**
+     * 获取角色已关联的用户ID列表
+     */
+    List<Long> getUserIdsByRoleId(Long roleId);
+
+    /**
+     * 分配用户（覆盖式重写该角色的用户关联）
+     */
+    void assignUsers(Long roleId, List<Long> userIds);
+
+    /**
      * 获取角色导出列表
      */
     List<RoleExport> getExportList(RoleQueryRequest request);

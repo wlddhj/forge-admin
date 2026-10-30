@@ -136,10 +136,11 @@
         </vxe-column>
 
         <!-- 桌面端操作列 -->
-        <vxe-column v-if="!isMobile" title="操作" width="180" fixed="right">
+        <vxe-column v-if="!isMobile" title="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
             <el-button type="primary" link size="small" @click.stop="handleAssignMenus(row)">分配菜单</el-button>
+            <el-button v-permission="'system:role:edit'" type="primary" link size="small" @click.stop="handleAssignUsers(row)">分配用户</el-button>
             <el-button type="danger" link size="small" :disabled="row.isFixed === 1" @click.stop="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
@@ -163,6 +164,7 @@
       <template #actions="{ item }">
         <el-button size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
         <el-button size="small" @click.stop="handleAssignMenus(item)">分配菜单</el-button>
+        <el-button size="small" type="primary" @click.stop="handleAssignUsers(item)">分配用户</el-button>
         <el-button size="small" type="danger" :disabled="item.isFixed === 1" @click.stop="handleDelete(item)">删除</el-button>
       </template>
     </MobileBottomActions>
@@ -244,6 +246,15 @@
         </div>
       </template>
     </el-drawer>
+
+    <!-- 分配用户抽屉（v-if 挂载使表格高度自适应生效，@closed 动画结束后卸载） -->
+    <RoleAssignUserDrawer
+      v-if="assignUsersDrawerAlive"
+      v-model="assignUsersDrawerVisible"
+      :role="assignTargetRole"
+      @success="getList"
+      @closed="assignUsersDrawerAlive = false"
+    />
   </div>
 </template>
 
@@ -268,6 +279,7 @@ import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
 import DictValue from '@/components/DictValue.vue'
 import MenuAssignTree from '@/components/MenuAssignTree.vue'
+import RoleAssignUserDrawer from './components/RoleAssignUserDrawer.vue'
 
 const { isMobile } = useResponsive()
 const { dictData: statusOptions } = useDict(DICT_TYPE.SYS_NORMAL_DISABLE)
@@ -336,6 +348,11 @@ const menuDialogVisible = ref(false)
 const assignLoading = ref(false)
 const currentRoleId = ref(0)
 const assignedMenuIds = ref<number[]>([])
+
+// 分配用户抽屉
+const assignUsersDrawerAlive = ref(false)
+const assignUsersDrawerVisible = ref(false)
+const assignTargetRole = ref<Role | null>(null)
 
 // 部门树相关
 const deptTree = ref<DeptTree[]>([])
@@ -475,6 +492,13 @@ const handleAssignMenus = async (row: Role) => {
   } catch (error) {
     console.error('获取角色菜单失败:', error)
   }
+}
+
+const handleAssignUsers = (row: Role) => {
+  cancelSelection()
+  assignTargetRole.value = row
+  assignUsersDrawerAlive.value = true
+  assignUsersDrawerVisible.value = true
 }
 
 const handleConfirmAssignMenus = async () => {
