@@ -172,14 +172,21 @@
     </MobileBottomActions>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" destroy-on-close>
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
-        <el-form-item label="模型名称" prop="name">
-          <el-input v-model="formData.name" placeholder="请输入模型名称" />
-        </el-form-item>
-        <el-form-item label="模型标识" prop="key">
-          <el-input v-model="formData.key" placeholder="请输入模型标识（英文）" :disabled="isEditDialog" />
-        </el-form-item>
+        <el-row>
+          <el-col :span="12">
+          <el-form-item label="模型名称" prop="name">
+            <el-input v-model="formData.name" placeholder="请输入模型名称" />
+          </el-form-item>
+          </el-col>
+          <el-col :span="12">
+          <el-form-item label="模型标识" prop="key">
+            <el-input v-model="formData.key" placeholder="请输入模型标识（英文）" :disabled="isEditDialog" />
+          </el-form-item>
+          </el-col>
+
+        <el-col :span="12">
         <el-form-item label="分类">
           <el-tree-select
             v-model="formData.categoryId"
@@ -193,14 +200,18 @@
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="formData.description" type="textarea" :rows="3" placeholder="请输入描述" />
-        </el-form-item>
+        </el-col>
+        <el-col :span="12">
         <el-form-item label="表单类型">
           <el-select v-model="formData.formType" placeholder="请选择表单类型" clearable style="width: 100%">
             <el-option label="流程表单" :value="10" />
             <el-option label="业务表单" :value="20" />
           </el-select>
+        </el-form-item>
+        </el-col>
+        </el-row>
+        <el-form-item label="描述">
+          <el-input v-model="formData.description" type="textarea" :rows="3" placeholder="请输入描述" />
         </el-form-item>
         <el-form-item v-if="formData.formType" label="关联表单">
           <el-select v-model="formData.formId" placeholder="请选择表单" clearable filterable style="width: 100%">
@@ -212,7 +223,6 @@
             />
           </el-select>
         </el-form-item>
-        <el-divider content-position="left">标题规则</el-divider>
         <el-form-item label="标题规则">
           <el-input
             v-model="formData.titleRule"
@@ -508,6 +518,7 @@ const handleAdd = () => {
   formData.autoCopyStrategy = undefined
   formData.autoCopyParam = undefined
   formData.useScope = 0
+  formData.titleRule = ''
   useScopeUserIds.value = []
   dialogVisible.value = true
 }

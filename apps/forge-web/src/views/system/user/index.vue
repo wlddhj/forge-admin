@@ -204,7 +204,7 @@
         </vxe-column>
 
         <!-- 锁定状态列（桌面端） -->
-        <vxe-column v-if="!isMobile" title="锁定" width="70" align="center">
+        <vxe-column v-if="!isMobile" title="锁定" width="80" align="center">
           <template #default="{ row }">
             <el-tooltip v-if="row.locked" :content="lockTip(row)" placement="top">
               <el-tag type="danger" size="small">已锁定</el-tag>
