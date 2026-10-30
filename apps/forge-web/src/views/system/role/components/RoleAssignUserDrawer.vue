@@ -2,19 +2,11 @@
   <el-drawer
     :model-value="modelValue"
     :title="drawerTitle"
-    :size="isMobile ? '85%' : '640px'"
+    :size="isMobile ? '85%' : '700px'"
     @update:model-value="(val: boolean) => emit('update:modelValue', val)"
     @closed="emit('closed')"
   >
     <div ref="containerRef" style="height: 100%; display: flex; flex-direction: column;">
-      <el-alert
-        title="请勾选该角色的用户，保存后覆盖原有关联（未勾选的用户将被移除）"
-        type="info"
-        :closable="false"
-        show-icon
-        class="assign-user-alert"
-        style="margin-bottom: 12px"
-      />
       <el-form inline class="assign-user-search" @submit.prevent>
         <el-form-item label="用户名">
           <el-input v-model="queryParams.username" placeholder="请输入用户名" clearable style="width: 130px" @keyup.enter="handleSearch" />
@@ -101,6 +93,7 @@ const containerRef = ref<HTMLElement>()
 const { tableHeight, updateHeight } = useDrawerTableHeight({
   containerRef,
   excludeSelectors: ['.assign-user-alert', '.assign-user-search'],
+  extraOffset: 25,
 })
 
 const tableRef = ref<{ clearCheckboxRow: () => void; setCheckboxRow: (rows: User | User[], checked: boolean) => void } | null>(null)
