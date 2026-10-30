@@ -55,6 +55,8 @@
         <result column="status" property="status"/>
         <result column="last_login_time" property="lastLoginTime"/>
         <result column="last_login_ip" property="lastLoginIp"/>
+        <result column="password_error_count" property="passwordErrorCount"/>
+        <result column="lock_time" property="lockTime"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
@@ -85,7 +87,8 @@
     <select id="selectUserPageWithPermission" resultMap="SysUserWithEncryptMap">
         SELECT u.id, u.username, u.nickname, u.phone, u.email, u.avatar,
                u.dept_id, u.position_id, u.tenant_id, u.account_type, u.status,
-               u.last_login_time, u.last_login_ip, u.create_time, u.update_time
+               u.last_login_time, u.last_login_ip, u.password_error_count, u.lock_time,
+               u.create_time, u.update_time
         FROM sys_user u
         LEFT JOIN sys_dept d ON u.dept_id = d.id
         <where>
