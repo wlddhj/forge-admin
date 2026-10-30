@@ -6,7 +6,15 @@
           <img :src="brandStore.logoUrl" alt="logo" />
           <span>{{ brandStore.brand.name }}</span>
         </div>
-          <button ref="menuBtnRef" type="button" class="menu-trigger" aria-label="打开菜单" @click="menuVisible = true">
+          <button
+            ref="menuBtnRef"
+            type="button"
+            class="menu-trigger"
+            aria-label="打开菜单"
+            @click="openMenu"
+            @mouseenter="scheduleHoverOpen"
+            @mouseleave="clearHoverTimer"
+          >
             <el-icon :size="16"><Menu /></el-icon>
             <span>菜单</span>
           </button>
@@ -37,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTabsStore } from '@/stores/tabs'
 import { usePageConfigStore } from '@/stores/pageConfig'
@@ -62,6 +70,32 @@ const { isMobile } = useResponsive()
 
 const menuVisible = ref(false)
 const menuBtnRef = ref<HTMLButtonElement | null>(null)
+
+// 悬停 1s 自动弹出全屏菜单；移开、点击打开或组件卸载时清除定时器，避免悬挂触发
+const HOVER_OPEN_DELAY = 500
+let hoverOpenTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearHoverTimer() {
+  if (hoverOpenTimer) {
+    clearTimeout(hoverOpenTimer)
+    hoverOpenTimer = null
+  }
+}
+
+function scheduleHoverOpen() {
+  clearHoverTimer()
+  hoverOpenTimer = setTimeout(() => {
+    hoverOpenTimer = null
+    openMenu()
+  }, HOVER_OPEN_DELAY)
+}
+
+function openMenu() {
+  clearHoverTimer()
+  menuVisible.value = true
+}
+
+onUnmounted(clearHoverTimer)
 
 function findChainById(menus: MenuTree[], menuId: number, parents: MenuTree[] = []): MenuTree[] {
   for (const m of menus) {
