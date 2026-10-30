@@ -119,6 +119,10 @@
           <el-button v-permission="'system:user:edit'" type="info" :disabled="selectedUserIds.length === 0" @click="handleBatchAssignRoles">
             分配角色
           </el-button>
+          <el-button v-permission="'system:user:delete'" type="danger" :disabled="selectedUserIds.length === 0" @click="handleBatchDelete">
+            <el-icon><Delete /></el-icon>
+            批量删除
+          </el-button>
         </template>
         <template #tools>
           <vxe-button circle icon="vxe-icon-repeat" style="margin-right: 10px" @click="handleReset"></vxe-button>
@@ -217,13 +221,12 @@
         </vxe-column>
 
         <!-- 桌面端操作列 -->
-        <vxe-column v-if="!isMobile" title="操作" width="285" fixed="right">
+        <vxe-column v-if="!isMobile" title="操作" width="230" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleAssignRoles(row)">分配角色</el-button>
             <el-button v-permission="'system:user:resetPwd'" type="warning" link size="small" @click.stop="handleResetPwd(row)">重置密码</el-button>
             <el-button v-if="row.locked" v-permission="'system:user:unlock'" type="warning" link size="small" @click.stop="handleUnlock(row)">解锁</el-button>
-            <el-button v-permission="'system:user:delete'" type="danger" link size="small" @click.stop="handleDelete(row)">删除</el-button>
           </template>
         </vxe-column>
       </vxe-table>
@@ -574,6 +577,19 @@ const handleDelete = (row: User) => {
     await deleteUser([row.id])
     ElMessage.success('删除成功')
     cancelSelection()
+    getList()
+  })
+}
+
+// 批量删除（桌面端勾选）；移动端无勾选列，仍走底部操作栏的单行删除
+const handleBatchDelete = () => {
+  ElMessageBox.confirm(`确定要删除选中的 ${selectedUserIds.value.length} 个用户吗？删除后将无法恢复。`, '提示', {
+    type: 'warning'
+  }).then(async () => {
+    await deleteUser(selectedUserIds.value)
+    ElMessage.success('批量删除成功')
+    tableRef.value?.clearCheckboxRow()
+    selectedUserIds.value = []
     getList()
   })
 }
