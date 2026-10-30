@@ -511,7 +511,10 @@ const handleAdd = () => {
   formData.id = undefined
   formData.name = ''
   formData.key = ''
-  formData.categoryId = undefined
+  // 分类筛选联动：当前选中分类预填到新增表单（按编码换算ID，无选中不预填）
+  formData.categoryId = queryParams.category
+    ? categoryList.value.find(c => c.categoryCode === queryParams.category)?.id
+    : undefined
   formData.description = ''
   formData.formType = undefined
   formData.formId = undefined
