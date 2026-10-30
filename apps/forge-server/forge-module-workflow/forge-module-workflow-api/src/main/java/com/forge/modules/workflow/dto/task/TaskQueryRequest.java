@@ -29,4 +29,9 @@ public class TaskQueryRequest {
      * 流程定义名称
      */
     private String processDefinitionName;
+
+    /**
+     * 流程标题关键字（按所属实例变量 __title 模糊匹配）
+     */
+    private String title;
 }

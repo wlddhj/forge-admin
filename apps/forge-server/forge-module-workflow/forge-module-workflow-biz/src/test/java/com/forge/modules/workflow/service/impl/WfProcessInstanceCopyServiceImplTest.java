@@ -240,7 +240,16 @@ class WfProcessInstanceCopyServiceImplTest {
     @DisplayName("终态事件处理器：仅终态事件触发抄送，start事件跳过")
     void eventHandler_shouldOnlyReactToTerminalEvents() {
         WfProcessInstanceCopyServiceForTest copyService = new WfProcessInstanceCopyServiceForTest();
-        WfAutoCopyEventHandler handler = new WfAutoCopyEventHandler(copyService);
+        // consumer 直跑无重试：该用例关注事件过滤，可靠性由 ReliableEventConsumerTest 覆盖
+        com.forge.modules.workflow.framework.event.ReliableEventConsumer noopConsumer =
+                new com.forge.modules.workflow.framework.event.ReliableEventConsumer(
+                        org.mockito.Mockito.mock(com.forge.modules.workflow.mapper.WfEventAuditMapper.class)) {
+                    @Override
+                    protected void scheduleRetry(Runnable retry, long delayMs) {
+                        retry.run();
+                    }
+                };
+        WfAutoCopyEventHandler handler = new WfAutoCopyEventHandler(copyService, noopConsumer);
 
         FlwHisInstance hisInstance = new FlwHisInstance();
         hisInstance.setId(INSTANCE_ID);

@@ -2,6 +2,7 @@ package com.forge.modules.workflow.listener.event;
 
 import com.aizuda.bpm.engine.core.enums.InstanceEventType;
 import com.forge.modules.workflow.service.WfProcessInstanceCopyService;
+import com.forge.modules.workflow.framework.event.ReliableEventConsumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -36,19 +37,17 @@ public class WfAutoCopyEventHandler {
             InstanceEventType.timeoutComplete);
 
     private final WfProcessInstanceCopyService copyService;
+    private final ReliableEventConsumer consumer;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onInstanceEvent(WorkflowInstanceEvent event) {
         if (!TERMINAL_EVENTS.contains(event.getEventType())) {
             return;
         }
-        try {
-            copyService.autoCopyOnProcessEnd(
-                    String.valueOf(event.getInstanceId()),
-                    event.getProcessId() == null ? null : String.valueOf(event.getProcessId()),
-                    "流程结束自动抄送（" + event.getEventType() + "）");
-        } catch (Exception e) {
-            log.error("流程结束自动抄送处理异常: instanceId={}", event.getInstanceId(), e);
-        }
+        consumer.consume("WfAutoCopyEventHandler", event.getInstanceId(), () ->
+                copyService.autoCopyOnProcessEnd(
+                        String.valueOf(event.getInstanceId()),
+                        event.getProcessId() == null ? null : String.valueOf(event.getProcessId()),
+                        "流程结束自动抄送（" + event.getEventType() + "）"));
     }
 }

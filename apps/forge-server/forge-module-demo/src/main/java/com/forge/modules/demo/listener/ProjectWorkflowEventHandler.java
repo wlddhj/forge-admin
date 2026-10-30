@@ -5,6 +5,7 @@ import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.demo.entity.BizProject;
 import com.forge.modules.demo.mapper.BizProjectMapper;
 import com.forge.modules.demo.service.impl.ProjectApprovalServiceImpl;
+import com.forge.modules.workflow.framework.event.ReliableEventConsumer;
 import com.forge.modules.workflow.listener.event.WorkflowInstanceEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ import java.time.ZoneId;
 public class ProjectWorkflowEventHandler {
 
     private final BizProjectMapper projectMapper;
+    private final ReliableEventConsumer consumer;
 
     @Async
     @EventListener
@@ -53,27 +55,29 @@ public class ProjectWorkflowEventHandler {
             return; // 中间态（start/suspend/forceComplete 等）不回写业务状态
         }
 
-        // @Async 线程租户上下文缺失：以事件实例快照重建（demo_biz_project 受租户拦截器隔离）
-        TenantContextHolder.setTenantId(resolveTenantId(event.getInstance()));
-        try {
-            BizProject project = projectMapper.selectById(projectId);
-            if (project == null) {
-                log.warn("立项事件回写落空（记录不存在）: projectId={}, type={}", projectId, event.getEventType());
-                return;
+        // 可靠消费：失败退避重试+终败审计（06 文档 §6.1）；租户上下文随重试单元重建
+        consumer.consume("ProjectWorkflowEventHandler", event.getInstanceId(), () -> {
+            TenantContextHolder.setTenantId(resolveTenantId(event.getInstance()));
+            try {
+                BizProject project = projectMapper.selectById(projectId);
+                if (project == null) {
+                    log.warn("立项事件回写落空（记录不存在）: projectId={}, type={}", projectId, event.getEventType());
+                    return;
+                }
+                if (targetStatus.equals(project.getApproveStatus())) {
+                    return; // 事件重复投递，同值幂等跳过
+                }
+                BizProject update = new BizProject();
+                update.setId(projectId);
+                update.setApproveStatus(targetStatus);
+                update.setApproveTime(toLocalDateTime(event.getInstance()));
+                projectMapper.updateById(update);
+                log.info("立项状态回写: projectId={}, {} -> {}（instanceId={}）",
+                        projectId, project.getApproveStatus(), targetStatus, event.getInstanceId());
+            } finally {
+                TenantContextHolder.clear();
             }
-            if (targetStatus.equals(project.getApproveStatus())) {
-                return; // 事件重复投递，同值幂等跳过
-            }
-            BizProject update = new BizProject();
-            update.setId(projectId);
-            update.setApproveStatus(targetStatus);
-            update.setApproveTime(toLocalDateTime(event.getInstance()));
-            projectMapper.updateById(update);
-            log.info("立项状态回写: projectId={}, {} -> {}（instanceId={}）",
-                    projectId, project.getApproveStatus(), targetStatus, event.getInstanceId());
-        } finally {
-            TenantContextHolder.clear();
-        }
+        });
     }
 
     /**

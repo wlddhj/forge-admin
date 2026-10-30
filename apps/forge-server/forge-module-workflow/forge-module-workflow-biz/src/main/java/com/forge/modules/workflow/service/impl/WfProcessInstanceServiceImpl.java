@@ -184,14 +184,19 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             Integer priority = request.getPriority() != null ? request.getPriority() : 0;
             Integer urgent = request.getUrgent() != null ? request.getUrgent() : 0;
 
-            // 标题规则渲染：按模型配置生成流程标题存实例变量 __title（列表侧优先展示，回退流程名称）
-            WfProcessExt startExt = getProcessExtByProcessId(processId);
-            if (startExt != null && startExt.getTitleRule() != null && !startExt.getTitleRule().isBlank()) {
-                String title = InstanceTitleRenderer.render(startExt.getTitleRule(),
-                        process.getProcessName(), identityService.getUserName(currentUserId),
-                        businessKey, variables);
-                if (title != null) {
-                    variables.put(InstanceTitleRenderer.TITLE_VARIABLE, title);
+            // 流程标题：显式传入优先（业务模块覆盖场景），否则按模型标题规则渲染；存实例变量 __title
+            String explicitTitle = request.getTitle() == null ? null : request.getTitle().trim();
+            if (explicitTitle != null && !explicitTitle.isEmpty()) {
+                variables.put(InstanceTitleRenderer.TITLE_VARIABLE, explicitTitle);
+            } else {
+                WfProcessExt startExt = getProcessExtByProcessId(processId);
+                if (startExt != null && startExt.getTitleRule() != null && !startExt.getTitleRule().isBlank()) {
+                    String title = InstanceTitleRenderer.render(startExt.getTitleRule(),
+                            process.getProcessName(), identityService.getUserName(currentUserId),
+                            businessKey, variables);
+                    if (title != null) {
+                        variables.put(InstanceTitleRenderer.TITLE_VARIABLE, title);
+                    }
                 }
             }
 
@@ -1181,6 +1186,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
                 nameLike,
                 StrUtil.blankToDefault(request.getBusinessKey(), null),
                 request.getPriority(),
+                escapeLike(request.getTitle()),
                 Boolean.TRUE.equals(request.getSortByPriority()));
 
         List<ProcessInstanceResponse> records = rows.stream()
@@ -1569,5 +1575,18 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         }
 
         return null;
+    }
+
+    /**
+     * 标题/模糊关键字转义：以 | 为转义符（MySQL/H2 双兼容），% _ 按字面匹配；空白返回 null
+     */
+    private String escapeLike(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return keyword.trim()
+                .replace("|", "||")
+                .replace("%", "|%")
+                .replace("_", "|_");
     }
 }

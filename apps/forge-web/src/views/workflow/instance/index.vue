@@ -6,6 +6,9 @@
         <el-form-item label="流程名称">
           <el-input v-model="queryParams.processDefinitionName" placeholder="请输入流程名称" clearable />
         </el-form-item>
+        <el-form-item label="标题">
+          <el-input v-model="queryParams.title" placeholder="请输入流程标题" clearable />
+        </el-form-item>
         <el-form-item label="发起人">
           <el-input v-model="queryParams.startUserName" placeholder="请输入发起人" clearable />
         </el-form-item>
@@ -166,6 +169,7 @@ const total = ref(0)
 
 const queryParams = reactive<ProcessInstanceQuery>({
   processDefinitionName: '',
+  title: '',
   startUserName: '',
   status: undefined,
   pageNum: 1,
@@ -204,6 +208,7 @@ const handleQuery = () => {
 // 重置
 const handleReset = () => {
   queryParams.processDefinitionName = ''
+  queryParams.title = ''
   queryParams.startUserName = ''
   queryParams.status = undefined
   queryParams.pageNum = 1

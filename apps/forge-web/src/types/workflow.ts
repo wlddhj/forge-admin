@@ -116,6 +116,8 @@ export interface ProcessInstanceQuery {
   startTimeBegin?: string
   startTimeEnd?: string
   status?: string  // running, finished, terminated
+  /** 流程标题关键字 */
+  title?: string
 }
 
 export interface ProcessStartRequest {
@@ -171,6 +173,8 @@ export interface TaskQuery {
   pageSize: number
   name?: string
   processDefinitionName?: string
+  /** 流程标题关键字 */
+  title?: string
   createTimeBegin?: string
   createTimeEnd?: string
 }

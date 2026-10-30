@@ -45,4 +45,10 @@ public class ProjectSubmitRequest {
      */
     @Size(max = 500, message = "备注不能超过500个字符")
     private String remark;
+
+    /**
+     * 显式流程标题（可选，非空时覆盖模型标题规则）
+     */
+    @Size(max = 200, message = "标题不能超过200个字符")
+    private String title;
 }

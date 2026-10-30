@@ -9,6 +9,7 @@ import com.aizuda.bpm.engine.entity.FlwProcess;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.forge.modules.workflow.entity.WfBusinessCallback;
+import com.forge.modules.workflow.framework.event.ReliableEventConsumer;
 import com.forge.modules.workflow.listener.event.WorkflowInstanceEvent;
 import com.forge.modules.workflow.listener.event.WorkflowTaskEvent;
 import com.forge.modules.workflow.mapper.WfBusinessCallbackMapper;
@@ -32,6 +33,7 @@ import java.util.Set;
 @Component
 public class BusinessCallbackEventListener {
 
+    private final ReliableEventConsumer consumer;
     /**
      * 引擎实例终态集合 → 契约 instanceFinished
      */
@@ -50,7 +52,9 @@ public class BusinessCallbackEventListener {
                                          CallbackPayloadBuilder payloadBuilder,
                                          CallbackDispatcher dispatcher,
                                          ProcessService processService,
-                                         QueryService queryService) {
+                                         QueryService queryService,
+                                         ReliableEventConsumer consumer) {
+        this.consumer = consumer;
         this.callbackMapper = callbackMapper;
         this.payloadBuilder = payloadBuilder;
         this.dispatcher = dispatcher;
@@ -61,8 +65,8 @@ public class BusinessCallbackEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     @Async("workflowExecutor")
     public void onTaskEvent(WorkflowTaskEvent event) {
-        try {
-            CallbackEventType eventType = mapTaskEvent(event.getEventType());
+        consumer.consume("BusinessCallbackEventListener:task", event.getInstanceId(), () -> {
+        CallbackEventType eventType = mapTaskEvent(event.getEventType());
             if (eventType == null) {
                 return;
             }
@@ -79,18 +83,16 @@ public class BusinessCallbackEventListener {
                         task != null ? task.getId() : null,
                         task != null ? task.getTaskKey() : null, payload);
             }
-        } catch (Exception e) {
-            log.error("业务回调任务事件处理异常: type={}", event.getEventType(), e);
-        }
+        });
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     @Async("workflowExecutor")
     public void onInstanceEvent(WorkflowInstanceEvent event) {
-        try {
-            if (!TERMINAL_INSTANCE_EVENTS.contains(event.getEventType())) {
-                return;
-            }
+        if (!TERMINAL_INSTANCE_EVENTS.contains(event.getEventType())) {
+            return;
+        }
+        consumer.consume("BusinessCallbackEventListener:instance", event.getInstanceId(), () -> {
             FlwProcess process = resolveProcess(event.getProcessId());
             String processKey = process != null ? process.getProcessKey() : null;
             String processName = process != null ? process.getProcessName() : null;
@@ -101,9 +103,7 @@ public class BusinessCallbackEventListener {
                 dispatcher.deliver(callback, CallbackEventType.instanceFinished.name(), processKey,
                         event.getBusinessKey(), event.getInstanceId(), null, null, payload);
             }
-        } catch (Exception e) {
-            log.error("业务回调实例事件处理异常: type={}", event.getEventType(), e);
-        }
+        });
     }
 
     private CallbackEventType mapTaskEvent(TaskEventType type) {

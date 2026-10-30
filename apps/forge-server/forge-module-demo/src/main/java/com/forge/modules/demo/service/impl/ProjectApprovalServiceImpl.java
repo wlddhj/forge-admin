@@ -65,6 +65,9 @@ public class ProjectApprovalServiceImpl implements ProjectApprovalService {
         startRequest.setProcessDefinitionId(definitionId);
         startRequest.setBusinessKey(businessKey);
         startRequest.setComment("提交立项");
+        if (request.getTitle() != null && !request.getTitle().isBlank()) {
+            startRequest.setTitle(request.getTitle().trim());
+        }
         Map<String, Object> variables = new HashMap<>();
         variables.put("projectName", request.getProjectName());
         if (request.getTotalAmount() != null) {

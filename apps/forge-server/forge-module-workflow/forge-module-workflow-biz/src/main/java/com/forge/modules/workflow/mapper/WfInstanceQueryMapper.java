@@ -39,6 +39,9 @@ public interface WfInstanceQueryMapper {
               <if test="processDefinitionId != null"> AND i.process_id = #{processDefinitionId} </if>
               <if test="processName != null and processName != ''"> AND p.process_name LIKE CONCAT('%', #{processName}, '%') </if>
               <if test="businessKey != null and businessKey != ''"> AND i.business_key = #{businessKey} </if>
+              <if test="title != null and title != ''">
+                AND i.variable LIKE CONCAT('%"__title":"%', #{title}, '%') ESCAPE '|'
+              </if>
               <if test="priority != null"> AND i.priority = #{priority} </if>
               UNION ALL
               SELECT h.id, h.tenant_id, h.create_id, h.create_by, h.create_time, h.process_id,
@@ -54,6 +57,9 @@ public interface WfInstanceQueryMapper {
               <if test="processDefinitionId != null"> AND h.process_id = #{processDefinitionId} </if>
               <if test="processName != null and processName != ''"> AND p2.process_name LIKE CONCAT('%', #{processName}, '%') </if>
               <if test="businessKey != null and businessKey != ''"> AND h.business_key = #{businessKey} </if>
+              <if test="title != null and title != ''">
+                AND h.variable LIKE CONCAT('%"__title":"%', #{title}, '%') ESCAPE '|'
+              </if>
               <if test="priority != null"> AND h.priority = #{priority} </if>
             ) merged
             <choose>
@@ -72,5 +78,6 @@ public interface WfInstanceQueryMapper {
                                                @Param("processName") String processName,
                                                @Param("businessKey") String businessKey,
                                                @Param("priority") Integer priority,
+                                               @Param("title") String title,
                                                @Param("sortByPriority") boolean sortByPriority);
 }

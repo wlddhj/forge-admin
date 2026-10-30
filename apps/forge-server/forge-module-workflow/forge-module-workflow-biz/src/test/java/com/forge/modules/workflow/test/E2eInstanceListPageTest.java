@@ -40,18 +40,18 @@ class E2eInstanceListPageTest extends WorkflowIntegrationTestBase {
         flowLongEngine.executeTask(task.getId(), user(2L, "审批人乙"), null);
 
         Page<Map<String, Object>> page1 = new Page<>(1, 1);
-        List<Map<String, Object>> rows1 = instanceQueryMapper.selectUnionPage(page1, null, null, null, null, null, false);
+        List<Map<String, Object>> rows1 = instanceQueryMapper.selectUnionPage(page1, null, null, null, null, null, null, false);
         assertEquals(1, rows1.size(), "页大小 1 只返回 1 行");
         assertTrue(page1.getTotal() >= 2, "总数应含运行中+历史两侧");
 
         Page<Map<String, Object>> page2 = new Page<>(2, 1);
-        List<Map<String, Object>> rows2 = instanceQueryMapper.selectUnionPage(page2, null, null, null, null, null, false);
+        List<Map<String, Object>> rows2 = instanceQueryMapper.selectUnionPage(page2, null, null, null, null, null, null, false);
         assertEquals(1, rows2.size(), "第二页仍有数据");
         assertNotEquals(rows1.get(0).get("id"), rows2.get(0).get("id"), "两页不重复");
 
         // 筛选下推：发起人过滤
         Page<Map<String, Object>> filtered = new Page<>(1, 10);
-        List<Map<String, Object>> byUser = instanceQueryMapper.selectUnionPage(filtered, "1", null, null, null, null, false);
+        List<Map<String, Object>> byUser = instanceQueryMapper.selectUnionPage(filtered, "1", null, null, null, null, null, false);
         assertEquals(filtered.getTotal(), page1.getTotal(), "发起人=1 覆盖全部种子实例");
         assertTrue(byUser.stream().allMatch(r -> "1".equals(r.get("create_id"))));
     }

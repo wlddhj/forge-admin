@@ -115,6 +115,19 @@ public class WfTaskServiceImpl implements WfTaskService {
             taskWrapper.like(FlwTask::getTaskName, request.getName());
         }
 
+        // 标题过滤两步式：先按 __title 圈实例，再 in 任务（顶层谓词避 EXISTS 方言差异）
+        String titleKeyword = escapeLike(request.getTitle());
+        if (titleKeyword != null) {
+            List<Long> titleInstanceIds = instanceMapper.selectList(new LambdaQueryWrapper<FlwInstance>()
+                            .select(FlwInstance::getId)
+                            .apply("variable LIKE CONCAT('%\"__title\":\"%', {0}, '%') ESCAPE '|'", titleKeyword))
+                    .stream().map(FlwInstance::getId).toList();
+            if (titleInstanceIds.isEmpty()) {
+                return emptyTaskPage(request);
+            }
+            taskWrapper.in(FlwTask::getInstanceId, titleInstanceIds);
+        }
+
         taskWrapper.orderByDesc(FlwTask::getCreateTime);
 
         Page<FlwTask> pageParam = new Page<>(request.getPageNum(), request.getPageSize());
@@ -490,6 +503,26 @@ public class WfTaskServiceImpl implements WfTaskService {
         // 任务名称筛选
         if (StrUtil.isNotBlank(request.getName())) {
             taskWrapper.like(FlwHisTask::getTaskName, request.getName());
+        }
+
+        // 标题过滤两步式：先按 __title 圈实例。流程可能仍在运行（实例在活动表）或已结束（在历史表），
+        // 已办任务两态并存，故两侧并集
+        String titleKeyword = escapeLike(request.getTitle());
+        if (titleKeyword != null) {
+            Set<Long> titleInstanceIds = new java.util.HashSet<>(instanceMapper.selectList(
+                            new LambdaQueryWrapper<FlwInstance>()
+                                    .select(FlwInstance::getId)
+                                    .apply("variable LIKE CONCAT('%\"__title\":\"%', {0}, '%') ESCAPE '|'", titleKeyword))
+                    .stream().map(FlwInstance::getId).toList());
+            titleInstanceIds.addAll(hisInstanceMapper.selectList(
+                            new LambdaQueryWrapper<FlwHisInstance>()
+                                    .select(FlwHisInstance::getId)
+                                    .apply("variable LIKE CONCAT('%\"__title\":\"%', {0}, '%') ESCAPE '|'", titleKeyword))
+                    .stream().map(FlwHisInstance::getId).toList());
+            if (titleInstanceIds.isEmpty()) {
+                return emptyTaskPage(request);
+            }
+            taskWrapper.in(FlwHisTask::getInstanceId, titleInstanceIds);
         }
 
         taskWrapper.orderByDesc(FlwHisTask::getFinishTime);
@@ -1440,4 +1473,27 @@ public class WfTaskServiceImpl implements WfTaskService {
     /**
      * 转换历史任务响应（包含流程信息）
      */
+
+    /**
+     * 标题过滤无命中的空页快速返回
+     */
+    private Page<TaskResponse> emptyTaskPage(TaskQueryRequest request) {
+        Page<TaskResponse> empty = new Page<>(request.getPageNum(), request.getPageSize());
+        empty.setTotal(0);
+        empty.setRecords(Collections.emptyList());
+        return empty;
+    }
+
+    /**
+     * 标题/模糊关键字转义：以 | 为转义符（MySQL/H2 双兼容），% _ 按字面匹配；空白返回 null
+     */
+    private String escapeLike(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return keyword.trim()
+                .replace("|", "||")
+                .replace("%", "|%")
+                .replace("_", "|_");
+    }
 }

@@ -26,7 +26,15 @@ import static org.mockito.Mockito.when;
 class ProjectWorkflowEventHandlerTest {
 
     private final BizProjectMapper projectMapper = mock(BizProjectMapper.class);
-    private final ProjectWorkflowEventHandler handler = new ProjectWorkflowEventHandler(projectMapper);
+    private final com.forge.modules.workflow.framework.event.ReliableEventConsumer consumer =
+            new com.forge.modules.workflow.framework.event.ReliableEventConsumer(
+                    org.mockito.Mockito.mock(com.forge.modules.workflow.mapper.WfEventAuditMapper.class)) {
+        @Override
+        protected void scheduleRetry(Runnable retry, long delayMs) {
+            retry.run();
+        }
+    };
+    private final ProjectWorkflowEventHandler handler = new ProjectWorkflowEventHandler(projectMapper, consumer);
 
     @AfterEach
     void tearDown() {

@@ -9,6 +9,9 @@
         <el-form-item label="流程名称">
           <el-input v-model="queryParams.processDefinitionName" placeholder="请输入流程名称" clearable />
         </el-form-item>
+        <el-form-item label="标题">
+          <el-input v-model="queryParams.title" placeholder="请输入流程标题" clearable />
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleQuery">
             <el-icon><Search /></el-icon>
@@ -130,6 +133,7 @@ const total = ref(0)
 const queryParams = reactive<TaskQuery>({
   name: '',
   processDefinitionName: '',
+  title: '',
   pageNum: 1,
   pageSize: 20
 })
@@ -167,6 +171,7 @@ const handleQuery = () => {
 const handleReset = () => {
   queryParams.name = ''
   queryParams.processDefinitionName = ''
+  queryParams.title = ''
   queryParams.pageNum = 1
   getList()
 }

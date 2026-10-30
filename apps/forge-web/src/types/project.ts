@@ -27,6 +27,8 @@ export interface ProjectSubmitRequest {
   bizUser?: string
   deptName?: string
   remark?: string
+  /** 显式流程标题（可选，非空覆盖模型标题规则） */
+  title?: string
 }
 
 /** 审批状态 → 标签颜色 */

@@ -36,6 +36,11 @@ public class ProcessInstanceQueryRequest {
     private String processDefinitionName;
 
     /**
+     * 流程标题关键字（实例变量 __title 模糊匹配，通配符按字面处理）
+     */
+    private String title;
+
+    /**
      * 发起人名称
      */
     private String startUserName;
