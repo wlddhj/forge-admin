@@ -244,6 +244,7 @@ CREATE TABLE `wf_process_ext` (
     `auto_copy_param` VARCHAR(512) COMMENT '自动抄送参数',
     `use_scope` INT COMMENT '发起范围 0全员 1指定人员 2均不可发起',
     `use_scope_users` VARCHAR(2000) COMMENT '发起范围人员名单JSON(用户ID数组),use_scope=1时生效',
+    `title_rule` VARCHAR(500) DEFAULT NULL COMMENT '标题规则（${}模板：内置 processName/initiatorName/businessKey/date + 表单变量）',
     `model_json` LONGTEXT COMMENT 'FlowLong流程模型JSON内容',
     `meta_info` TEXT COMMENT '元信息JSON（存储表单配置等扩展信息）',
     `create_by` BIGINT COMMENT '创建人ID',

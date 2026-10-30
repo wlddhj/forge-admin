@@ -540,6 +540,7 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
             response.setFormId(ext.getFormId());
             response.setAutoCopyStrategy(ext.getAutoCopyStrategy());
             response.setAutoCopyParam(ext.getAutoCopyParam());
+            response.setTitleRule(ext.getTitleRule());
             response.setUseScope(ext.getUseScope());
             response.setUseScopeUsers(ext.getUseScopeUsers());
             if (ext.getCreateTime() != null) {

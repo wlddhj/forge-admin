@@ -248,6 +248,11 @@
         <el-form-item label="流程名称">
           <el-input :model-value="startForm.processName" disabled />
         </el-form-item>
+        <el-form-item v-if="startForm.titleRule" label="流程标题">
+          <div class="title-preview">
+            {{ titlePreview || '（填写表单后生成）' }}
+          </div>
+        </el-form-item>
         <el-form-item label="业务标识">
           <el-input v-model="startForm.businessKey" placeholder="请输入业务标识（可选）" />
         </el-form-item>
@@ -320,6 +325,8 @@ import type { ProcessDefinition, UserTaskNode, WfCategory } from '@/types/workfl
 import { formatDateTime } from '@/utils/dateFormat'
 import { decodeFields } from '@/utils/formCreate'
 import { getUserList } from '@/api/system'
+import { useUserStore } from '@/stores/user'
+import { renderTitle } from '@/utils/titleRule'
 import type { User } from '@/types/system'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
@@ -538,10 +545,20 @@ const startDialogVisible = ref(false)
 const startLoading = ref(false)
 const formCreateRef = ref<any>(null)
 const startFormData = ref<Record<string, any>>({})
+
+// 流程标题实时预览（与后端 InstanceTitleRenderer 同构渲染）
+const userStore = useUserStore()
+const titlePreview = computed(() => renderTitle(startForm.titleRule, {
+  processName: startForm.processName,
+  initiatorName: userStore.userInfo?.nickname || userStore.userInfo?.username,
+  businessKey: startForm.businessKey || undefined,
+  variables: startFormData.value || {}
+}))
 const startForm = reactive({
   processDefinitionId: '',
   processName: '',
   businessKey: '',
+  titleRule: '',
   comment: '',
   urgent: 0,
   formRule: [] as any[],
@@ -575,10 +592,12 @@ const handleStartProcess = async (row: ProcessDefinition) => {
   startForm.approveSelectTasks = []
   startForm.selectedUsers = {}
   startFormData.value = {}
+  startForm.titleRule = ''
 
   // 加载流程定义详情获取关联表单
   try {
     const detail = await processDefinitionApi.getById(row.id)
+    startForm.titleRule = detail.titleRule || ''
     if (detail.formId) {
       const formData = await formApi.getById(detail.formId)
       if (formData.conf && formData.fields) {
@@ -660,4 +679,15 @@ onMounted(() => {
 
 <style scoped lang="scss">
 
+
+.title-preview {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-color-primary);
+  line-height: 1.5;
+  padding: 4px 8px;
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+  word-break: break-all;
+}
 </style>

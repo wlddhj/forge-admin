@@ -175,6 +175,7 @@ public class WfModelServiceImpl implements WfModelService {
         ext.setAutoCopyParam(request.getAutoCopyParam());
         ext.setUseScope(request.getUseScope() == null ? 0 : request.getUseScope());
         ext.setUseScopeUsers(request.getUseScopeUsers());
+        ext.setTitleRule(normalizeTitleRule(request.getTitleRule()));
         ext.setMetaInfo(metaInfoNode.toString());
         // 创建时一并落模型内容（此前仅 updateModel 处理，API 一步建模会被静默丢弃）
         if (StrUtil.isNotBlank(request.getModelJson())) {
@@ -229,6 +230,7 @@ public class WfModelServiceImpl implements WfModelService {
                 ext.setUseScope(request.getUseScope());
             }
             ext.setUseScopeUsers(request.getUseScopeUsers());
+            ext.setTitleRule(normalizeTitleRule(request.getTitleRule()));
             ext.setUpdateTime(LocalDateTime.now());
             processExtMapper.updateById(ext);
             log.info("更新已部署模型扩展信息：id={}, name={}, formId={}", ext.getId(), ext.getProcessName(), ext.getFormId());
@@ -246,6 +248,7 @@ public class WfModelServiceImpl implements WfModelService {
         ext.setAutoCopyParam(request.getAutoCopyParam());
         ext.setUseScope(request.getUseScope() == null ? 0 : request.getUseScope());
         ext.setUseScopeUsers(request.getUseScopeUsers());
+        ext.setTitleRule(normalizeTitleRule(request.getTitleRule()));
         ext.setUpdateTime(LocalDateTime.now());
 
         // 构建 metaInfo
@@ -385,6 +388,7 @@ public class WfModelServiceImpl implements WfModelService {
         response.setAutoCopyParam(ext.getAutoCopyParam());
         response.setUseScope(ext.getUseScope());
         response.setUseScopeUsers(ext.getUseScopeUsers());
+        response.setTitleRule(ext.getTitleRule());
         response.setCreateTime(ext.getCreateTime());
         response.setLastUpdateTime(ext.getUpdateTime());
 
@@ -414,5 +418,16 @@ public class WfModelServiceImpl implements WfModelService {
         response.setDeployed(ext.getProcessId() != null);
 
         return response;
+    }
+
+    /**
+     * 标题规则归一：去首尾空白，空串归 null（不生成标题）
+     */
+    private String normalizeTitleRule(String titleRule) {
+        if (titleRule == null) {
+            return null;
+        }
+        String trimmed = titleRule.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

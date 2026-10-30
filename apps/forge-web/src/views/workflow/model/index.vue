@@ -212,6 +212,19 @@
             />
           </el-select>
         </el-form-item>
+        <el-divider content-position="left">标题规则</el-divider>
+        <el-form-item label="标题规则">
+          <el-input
+            v-model="formData.titleRule"
+            placeholder="如：${initiatorName}的${processName}，留空则不生成标题"
+            maxlength="200"
+            show-word-limit
+            clearable
+          />
+          <div class="rule-help">
+            支持占位符：${processName} 流程名称、${initiatorName} 发起人、${businessKey} 业务标识、${date} 日期，及表单字段名（如 ${projectName}）；发起时自动生成流程标题
+          </div>
+        </el-form-item>
         <el-divider content-position="left">发起范围</el-divider>
         <el-form-item label="可发起人员">
           <el-radio-group v-model="formData.useScope">
@@ -398,6 +411,7 @@ const formData = reactive({
   autoCopyStrategy: undefined as number | undefined,
   autoCopyParam: undefined as string | undefined,
   useScope: 0,
+  titleRule: '',
 })
 
 const formRules: FormRules = {
@@ -512,6 +526,7 @@ const handleEdit = (row: WfModel) => {
   formData.autoCopyStrategy = row.autoCopyStrategy || undefined
   formData.autoCopyParam = row.autoCopyParam || undefined
   formData.useScope = row.useScope ?? 0
+  formData.titleRule = row.titleRule || ''
   try {
     useScopeUserIds.value = row.useScopeUsers ? JSON.parse(row.useScopeUsers) : []
   } catch {
@@ -557,6 +572,7 @@ const handleSubmit = async () => {
         useScopeUsers: formData.useScope === 1 && useScopeUserIds.value.length > 0
           ? JSON.stringify(useScopeUserIds.value)
           : undefined,
+        titleRule: formData.titleRule?.trim() || undefined,
         metaInfo: Object.keys(metaInfo).length > 0 ? JSON.stringify(metaInfo) : undefined,
       })
       ElMessage.success('更新成功')
@@ -574,6 +590,7 @@ const handleSubmit = async () => {
         useScopeUsers: formData.useScope === 1 && useScopeUserIds.value.length > 0
           ? JSON.stringify(useScopeUserIds.value)
           : undefined,
+        titleRule: formData.titleRule?.trim() || undefined,
         metaInfo: Object.keys(metaInfo).length > 0 ? JSON.stringify(metaInfo) : undefined,
       })
       ElMessage.success('新增成功')
@@ -673,5 +690,10 @@ const loadAutoCopyReferenceData = async () => {
 </script>
 
 <style scoped lang="scss">
-
+.rule-help {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.5;
+  margin-top: 4px;
+}
 </style>

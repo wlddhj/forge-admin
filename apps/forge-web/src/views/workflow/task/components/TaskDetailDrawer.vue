@@ -36,6 +36,9 @@
           <el-descriptions-item label="流程名称">
             {{ instanceInfo?.processDefinitionName || taskInfo?.processDefinitionName || '-' }}
           </el-descriptions-item>
+          <el-descriptions-item label="流程标题">
+            {{ instanceInfo?.instanceTitle || '-' }}
+          </el-descriptions-item>
           <el-descriptions-item v-if="!isDoneTask" label="任务名称">
             {{ taskInfo?.name || '-' }}
           </el-descriptions-item>

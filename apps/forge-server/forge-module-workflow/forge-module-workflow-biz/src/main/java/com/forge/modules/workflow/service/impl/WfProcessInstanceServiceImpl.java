@@ -36,6 +36,7 @@ import com.forge.modules.workflow.framework.ApprovalActionTypeEnum;
 import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import com.forge.modules.workflow.framework.diagram.FlowLongDiagramGenerator;
+import com.forge.modules.workflow.framework.title.InstanceTitleRenderer;
 import com.forge.modules.workflow.framework.timeline.ApprovalTimelineBuilder;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisInstanceMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisTaskMapper;
@@ -182,6 +183,17 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             String businessKey = request.getBusinessKey();
             Integer priority = request.getPriority() != null ? request.getPriority() : 0;
             Integer urgent = request.getUrgent() != null ? request.getUrgent() : 0;
+
+            // 标题规则渲染：按模型配置生成流程标题存实例变量 __title（列表侧优先展示，回退流程名称）
+            WfProcessExt startExt = getProcessExtByProcessId(processId);
+            if (startExt != null && startExt.getTitleRule() != null && !startExt.getTitleRule().isBlank()) {
+                String title = InstanceTitleRenderer.render(startExt.getTitleRule(),
+                        process.getProcessName(), identityService.getUserName(currentUserId),
+                        businessKey, variables);
+                if (title != null) {
+                    variables.put(InstanceTitleRenderer.TITLE_VARIABLE, title);
+                }
+            }
 
             // 自定义模型校验：跳过已通过 FlowDataTransfer 传递审批人的发起人自选节点
             // 使用 supplier 创建带有 businessKey 和 priority 的 FlwInstance
@@ -1224,6 +1236,9 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
             int urgent = Integer.parseInt(String.valueOf(urgentVal));
             response.setUrgent(urgent);
         }
+        // 流程标题（发起时按标题规则生成，存实例变量 __title）
+        response.setInstanceTitle(InstanceTitleRenderer.extractTitle(
+                row.get("variable") == null ? null : String.valueOf(row.get("variable"))));
         Integer state = row.get("instance_state") == null ? null
                 : Integer.parseInt(String.valueOf(row.get("instance_state")));
         // 运行中实例补充当前处理人/候选人（与旧版两侧转换行为对齐）
@@ -1326,6 +1341,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         response.setPriority(instance.getPriority());
         response.setPriorityName(getPriorityName(instance.getPriority()));
         response.setUrgent(instance.getUrgent());
+        response.setInstanceTitle(InstanceTitleRenderer.extractTitle(instance.getVariable()));
 
         // 发起人信息
         if (StrUtil.isNotBlank(instance.getCreateId())) {
@@ -1424,6 +1440,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
         response.setPriority(hisInstance.getPriority());
         response.setPriorityName(getPriorityName(hisInstance.getPriority()));
         response.setUrgent(hisInstance.getUrgent());
+        response.setInstanceTitle(InstanceTitleRenderer.extractTitle(hisInstance.getVariable()));
         // 流程编号
         response.setProcessNo(hisInstance.getInstanceNo());
         // 发起人信息

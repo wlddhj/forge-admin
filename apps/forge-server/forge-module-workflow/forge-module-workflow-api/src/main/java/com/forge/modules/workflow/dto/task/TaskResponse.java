@@ -164,4 +164,9 @@ public class TaskResponse {
      */
     private Integer urgent;
 
+    /**
+     * 流程标题（实例变量 __title，空则前端回退流程名称）
+     */
+    private String instanceTitle;
+
 }

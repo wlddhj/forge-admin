@@ -46,6 +46,8 @@ export interface ProcessDefinition {
   formId: number | null
   autoCopyStrategy: number | null
   autoCopyParam: string | null
+  /** 标题规则（${} 模板，发起弹窗预览用） */
+  titleRule?: string
   /** 发起范围 0全员 1指定人员 2均不可发起 */
   useScope: number | null
   /** 发起范围人员名单JSON（用户ID数组） */
@@ -96,6 +98,8 @@ export interface ProcessInstance {
   durationInMillis: number
   startUserId: string
   startUserName: string
+  /** 流程标题（标题规则生成，空则回退流程名称） */
+  instanceTitle?: string
   currentActivityName: string
   currentAssigneeNames?: string[]
   currentCandidateNames?: string[]
@@ -158,6 +162,8 @@ export interface TaskInfo {
   canReclaim?: boolean
   /** 紧急程度码值（0-3，渲染走 wf_urgent 字典） */
   urgent?: number
+  /** 流程标题（实例变量 __title，空则回退流程名称） */
+  instanceTitle?: string
 }
 
 export interface TaskQuery {

@@ -33,6 +33,7 @@ import com.forge.modules.workflow.dto.task.*;
 import com.forge.modules.workflow.entity.WfApprovalComment;
 import com.forge.modules.workflow.framework.ApprovalActionTypeEnum;
 import com.forge.modules.workflow.framework.FlowCreatorFactory;
+import com.forge.modules.workflow.framework.title.InstanceTitleRenderer;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import com.forge.modules.workflow.mapper.WfApprovalCommentMapper;
 import com.forge.modules.workflow.service.WfTaskService;
@@ -348,6 +349,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         if (hisInstance != null) {
             response.setProcessInstanceId(String.valueOf(hisInstance.getId()));
             response.setUrgent(hisInstance.getUrgent());
+            response.setInstanceTitle(InstanceTitleRenderer.extractTitle(hisInstance.getVariable()));
             FlwProcess process = ctx.processMap.get(hisInstance.getProcessId());
             if (process != null) {
                 response.setProcessDefinitionId(String.valueOf(process.getId()));
@@ -417,6 +419,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         if (instance != null) {
             response.setProcessInstanceId(String.valueOf(instance.getId()));
             response.setUrgent(instance.getUrgent());
+            response.setInstanceTitle(InstanceTitleRenderer.extractTitle(instance.getVariable()));
             FlwProcess process = ctx.processMap.get(instance.getProcessId());
             if (process != null) {
                 response.setProcessDefinitionId(String.valueOf(process.getId()));
@@ -1385,6 +1388,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         if (instance != null) {
             response.setProcessInstanceId(String.valueOf(instance.getId()));
             response.setUrgent(instance.getUrgent());
+            response.setInstanceTitle(InstanceTitleRenderer.extractTitle(instance.getVariable()));
 
             // 补充流程定义信息
             FlwProcess process = processService.getProcessById(instance.getProcessId());

@@ -82,6 +82,11 @@ public class ProcessDefinitionResponse {
      */
     private String autoCopyParam;
 
+    /**
+     * 标题规则（${} 模板；发起弹窗实时预览与发起渲染共用）
+     */
+    private String titleRule;
+
     /** 发起范围 0全员 1指定人员 2均不可发起 */
     private Integer useScope;
 

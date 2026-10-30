@@ -75,6 +75,11 @@ public class ModelRequest {
     private String useScopeUsers;
 
     /**
+     * 标题规则（${} 模板，空=不生成标题）
+     */
+    private String titleRule;
+
+    /**
      * 扩展信息（JSON）
      */
     private String metaInfo;

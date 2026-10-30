@@ -118,4 +118,9 @@ public class ProcessInstanceResponse {
      */
     private Integer urgent;
 
+    /**
+     * 流程标题（发起时按模型标题规则生成，存实例变量 __title；空则前端回退流程名称）
+     */
+    private String instanceTitle;
+
 }

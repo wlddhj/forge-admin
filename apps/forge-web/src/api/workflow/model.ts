@@ -22,6 +22,7 @@ export interface WfModel {
   useScope: number | null
   /** 发起范围人员名单JSON（用户ID数组） */
   useScopeUsers: string | null
+  titleRule?: string
   /** @deprecated 使用 modelJson */
   bpmnXml: string | null
   /** FlowLong 流程模型 JSON */
@@ -48,6 +49,7 @@ export interface ModelRequest {
   autoCopyParam?: string
   useScope?: number
   useScopeUsers?: string
+  titleRule?: string
   metaInfo?: string
   /** @deprecated 使用 modelJson */
   bpmnXml?: string

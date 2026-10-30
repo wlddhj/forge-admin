@@ -99,6 +99,11 @@ public class ModelResponse {
     private String useScopeUsers;
 
     /**
+     * 标题规则（${} 模板，空=不生成标题）
+     */
+    private String titleRule;
+
+    /**
      * FlowLong 流程模型 JSON 内容（仅详情接口返回）
      */
     private String modelJson;

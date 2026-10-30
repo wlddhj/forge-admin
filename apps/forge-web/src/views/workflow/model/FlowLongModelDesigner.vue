@@ -251,6 +251,7 @@ const handleSave = async () => {
       formId: modelData.value?.formId,
       autoCopyStrategy: modelData.value?.autoCopyStrategy,
       autoCopyParam: modelData.value?.autoCopyParam,
+      titleRule: modelData.value?.titleRule,
       metaInfo: modelData.value?.metaInfo,
       modelJson: JSON.stringify(processModelJson)
     })

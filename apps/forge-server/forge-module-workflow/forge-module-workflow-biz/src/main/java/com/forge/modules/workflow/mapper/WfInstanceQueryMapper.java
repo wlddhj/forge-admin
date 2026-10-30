@@ -28,6 +28,7 @@ public interface WfInstanceQueryMapper {
             SELECT * FROM (
               SELECT i.id, i.tenant_id, i.create_id, i.create_by, i.create_time, i.process_id,
                      i.priority, i.urgent, i.instance_no, i.business_key, i.current_node_name, i.current_node_key,
+                     i.variable,
                      0 AS instance_state, NULL AS end_time
               FROM flw_instance i
               <if test="processName != null and processName != ''">
@@ -42,6 +43,7 @@ public interface WfInstanceQueryMapper {
               UNION ALL
               SELECT h.id, h.tenant_id, h.create_id, h.create_by, h.create_time, h.process_id,
                      h.priority, h.urgent, h.instance_no, h.business_key, h.current_node_name, h.current_node_key,
+                     h.variable,
                      h.instance_state, h.end_time
               FROM flw_his_instance h
               <if test="processName != null and processName != ''">
