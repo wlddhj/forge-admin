@@ -15,6 +15,7 @@ public class BrandTheme {
     public static final String DEFAULT_LAYOUT = "sidebar";
     public static final String DEFAULT_STYLE = "flat";
     public static final String DEFAULT_MODE = "auto";
+    public static final String DEFAULT_SIDEBAR = "dark";
 
     @Pattern(regexp = "blue|purple|green|crimson|orange|cyan|teal", message = "调色板取值不合法")
     private String palette;
@@ -28,6 +29,10 @@ public class BrandTheme {
     @Pattern(regexp = "light|dark|auto", message = "明暗模式取值不合法")
     private String mode;
 
+    /** 菜单底色：浅色仅明亮主题生效（暗黑下前端级联恒深色），默认深色 */
+    @Pattern(regexp = "light|dark", message = "菜单底色取值不合法")
+    private String sidebar;
+
     /**
      * 逐字段回退默认值（null/空白/白名单外 → 默认；白名单外防御 sys_config 被直接改库），
      * null 入参返回全新默认对象
@@ -39,12 +44,14 @@ public class BrandTheme {
             result.setLayout(DEFAULT_LAYOUT);
             result.setStyle(DEFAULT_STYLE);
             result.setMode(DEFAULT_MODE);
+            result.setSidebar(DEFAULT_SIDEBAR);
             return result;
         }
         result.setPalette(sanitize(theme.getPalette(), "blue|purple|green|crimson|orange|cyan|teal", DEFAULT_PALETTE));
         result.setLayout(sanitize(theme.getLayout(), "sidebar|top|fullscreen", DEFAULT_LAYOUT));
         result.setStyle(sanitize(theme.getStyle(), "flat|glass|card|compact", DEFAULT_STYLE));
         result.setMode(sanitize(theme.getMode(), "light|dark|auto", DEFAULT_MODE));
+        result.setSidebar(sanitize(theme.getSidebar(), "light|dark", DEFAULT_SIDEBAR));
         return result;
     }
 

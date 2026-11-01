@@ -135,6 +135,35 @@ describe('pageConfig store - 三维度独立切换', () => {
     })
   })
 
+  describe('changeSidebarTheme（用户侧入口）', () => {
+    it('应用菜单底色并退出跟随系统默认', () => {
+      const store = usePageConfigStore()
+      store.changeSidebarTheme('light')
+      expect(store.config.sidebarTheme).toBe('light')
+      expect(document.documentElement.getAttribute('data-sidebar')).toBe('light')
+      expect(store.config.followSystemTheme).toBe(false)
+    })
+  })
+
+  describe('applySystemDefault 消费菜单底色', () => {
+    it('合法 light 应用到配置与 DOM', () => {
+      const store = usePageConfigStore()
+      store.applySystemDefault({ sidebarTheme: 'light' })
+      expect(store.config.sidebarTheme).toBe('light')
+      expect(document.documentElement.getAttribute('data-sidebar')).toBe('light')
+    })
+
+    it('非法/缺失 sidebarTheme 回退 dark（覆盖用户此前选择）', () => {
+      const store = usePageConfigStore()
+      store.applySidebarTheme('light')
+      store.applySystemDefault({ sidebarTheme: 'pink' as unknown as Partial<import('@/themes').DefaultThemeConfig>['sidebarTheme'] })
+      expect(store.config.sidebarTheme).toBe('dark')
+      store.applySidebarTheme('light')
+      store.applySystemDefault({})
+      expect(store.config.sidebarTheme).toBe('dark')
+    })
+  })
+
   describe('changePreset（套餐快捷切换）', () => {
     it('一次性设置三维度', () => {
       const store = usePageConfigStore()

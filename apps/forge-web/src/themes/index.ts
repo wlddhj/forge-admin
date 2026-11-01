@@ -36,13 +36,15 @@ export interface DefaultThemeConfig {
   layout: LayoutKind
   style: StyleKind
   mode: ThemeMode
+  sidebarTheme: SidebarTheme
 }
 
 export const DEFAULT_THEME: DefaultThemeConfig = {
   palette: 'blue',
   layout: 'sidebar',
   style: 'flat',
-  mode: 'auto'
+  mode: 'auto',
+  sidebarTheme: 'dark'
 }
 
 /** EP 默认主色（custom 模式首次默认值） */

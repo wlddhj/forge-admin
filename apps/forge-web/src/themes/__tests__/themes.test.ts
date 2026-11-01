@@ -121,7 +121,8 @@ describe('系统默认主题', () => {
       palette: 'blue',
       layout: 'sidebar',
       style: 'flat',
-      mode: 'auto'
+      mode: 'auto',
+      sidebarTheme: 'dark'
     })
   })
 

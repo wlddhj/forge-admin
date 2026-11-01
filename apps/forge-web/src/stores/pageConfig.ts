@@ -27,7 +27,7 @@ export interface PageConfig {
 
   // 侧边栏设置
   sidebarCollapsed: boolean
-  /** 侧栏底色个人偏好：浅色仅明亮主题生效（暗黑下 tokens 级联恒深色）；不接入系统默认主题 */
+  /** 侧栏底色：浅色仅明亮主题生效（暗黑下 tokens 级联恒深色）；系统默认主题可配，用户手动切换即个人化 */
   sidebarTheme: SidebarTheme
 
   // 其他设置
@@ -47,7 +47,7 @@ const VALID_STYLES: StyleKind[] = ['flat', 'glass', 'card', 'compact']
 const VALID_THEME_MODES: ThemeMode[] = ['light', 'dark', 'auto']
 const VALID_SIDEBAR_THEMES: SidebarTheme[] = ['light', 'dark']
 // 用户手动变更的主题维度键（updateConfig 据此退出跟随系统默认）
-const USER_THEME_KEYS: (keyof PageConfig)[] = ['theme', 'palette', 'layout', 'style', 'customPrimary']
+const USER_THEME_KEYS: (keyof PageConfig)[] = ['theme', 'palette', 'layout', 'style', 'customPrimary', 'sidebarTheme']
 
 // 默认配置
 const defaultConfig: PageConfig = {
@@ -249,7 +249,7 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     document.documentElement.setAttribute('data-style', style)
   }
 
-  // 应用侧栏底色偏好（个人偏好维度：不退出跟随系统默认主题，系统默认亦不含此维度）
+  // 应用侧栏底色（裸应用不动跟随状态；用户侧入口走 changeSidebarTheme）
   const applySidebarTheme = (sidebarTheme: SidebarTheme) => {
     config.value.sidebarTheme = sidebarTheme
     document.documentElement.setAttribute('data-sidebar', sidebarTheme)
@@ -277,6 +277,10 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     markUserChoice()
     applyStyle(style)
   }
+  const changeSidebarTheme = (sidebarTheme: SidebarTheme) => {
+    markUserChoice()
+    applySidebarTheme(sidebarTheme)
+  }
 
   // 切换主题
   const toggleTheme = () => {
@@ -293,6 +297,7 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     const layout = VALID_LAYOUTS.includes(t.layout as LayoutKind) ? t.layout as LayoutKind : DEFAULT_THEME.layout
     const style = VALID_STYLES.includes(t.style as StyleKind) ? t.style as StyleKind : DEFAULT_THEME.style
     const mode = VALID_THEME_MODES.includes(t.mode as ThemeMode) ? t.mode as ThemeMode : DEFAULT_THEME.mode
+    const sidebarTheme = VALID_SIDEBAR_THEMES.includes(t.sidebarTheme as SidebarTheme) ? t.sidebarTheme as SidebarTheme : DEFAULT_THEME.sidebarTheme
     const resolved: ThemeType = mode === 'auto'
       ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
       : mode
@@ -305,6 +310,7 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     applyPalette(palette)
     applyLayout(layout)
     applyStyle(style)
+    applySidebarTheme(sidebarTheme)
     saveConfig()
     firstVisit.value = false
   }
@@ -356,6 +362,7 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     changePalette,
     changeLayout,
     changeStyle,
+    changeSidebarTheme,
     changeCustomPrimary,
     toggleTheme,
     applySystemDefault,

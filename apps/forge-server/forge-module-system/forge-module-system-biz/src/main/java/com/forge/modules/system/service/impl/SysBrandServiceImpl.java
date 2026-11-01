@@ -31,6 +31,7 @@ public class SysBrandServiceImpl implements SysBrandService {
     private static final String KEY_THEME_LAYOUT = "sys.brand.theme.layout";
     private static final String KEY_THEME_STYLE = "sys.brand.theme.style";
     private static final String KEY_THEME_MODE = "sys.brand.theme.mode";
+    private static final String KEY_THEME_SIDEBAR = "sys.brand.theme.sidebar";
 
     /**
      * 不含 svg：与附件服务 FileUploadValidator 的安全校验对齐（svg 可内嵌脚本，禁止上传）
@@ -59,6 +60,7 @@ public class SysBrandServiceImpl implements SysBrandService {
         theme.setLayout(sysConfigService.getConfigValueByKey(KEY_THEME_LAYOUT));
         theme.setStyle(sysConfigService.getConfigValueByKey(KEY_THEME_STYLE));
         theme.setMode(sysConfigService.getConfigValueByKey(KEY_THEME_MODE));
+        theme.setSidebar(sysConfigService.getConfigValueByKey(KEY_THEME_SIDEBAR));
         return BrandTheme.normalize(theme);
     }
 
@@ -81,6 +83,7 @@ public class SysBrandServiceImpl implements SysBrandService {
         upsert(KEY_THEME_LAYOUT, "默认主题-布局", normalized.getLayout(), "brand");
         upsert(KEY_THEME_STYLE, "默认主题-风格", normalized.getStyle(), "brand");
         upsert(KEY_THEME_MODE, "默认主题-明暗模式", normalized.getMode(), "brand");
+        upsert(KEY_THEME_SIDEBAR, "默认主题-菜单底色", normalized.getSidebar(), "brand");
     }
 
     @Override

@@ -1,5 +1,5 @@
 import { request } from '@/utils/request'
-import type { LayoutKind, Palette, StyleKind, ThemeMode } from '@/themes'
+import type { LayoutKind, Palette, SidebarTheme, StyleKind, ThemeMode } from '@/themes'
 
 /** 系统默认主题（新用户首次进入时的初始主题，palette 不含 custom） */
 export interface BrandThemeConfig {
@@ -7,6 +7,7 @@ export interface BrandThemeConfig {
   layout: LayoutKind
   style: StyleKind
   mode: ThemeMode
+  sidebarTheme: SidebarTheme
 }
 
 export interface BrandConfig {

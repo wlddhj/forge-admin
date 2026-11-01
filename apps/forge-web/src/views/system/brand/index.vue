@@ -73,6 +73,11 @@
           <el-segmented v-model="form.defaultTheme.style" :options="styleOptions" />
         </el-form-item>
 
+        <el-form-item label="菜单底色">
+          <el-segmented v-model="form.defaultTheme.sidebarTheme" :options="sidebarThemeOptions" />
+          <span class="theme-field-tip">浅色仅明亮主题生效，暗黑模式下菜单恒深色</span>
+        </el-form-item>
+
         <el-form-item label="明暗模式">
           <el-radio-group v-model="form.defaultTheme.mode">
             <el-radio value="light">明亮</el-radio>
@@ -136,6 +141,10 @@ const styleOptions = [
   { label: '玻璃', value: 'glass' },
   { label: '卡片', value: 'card' },
   { label: '紧凑', value: 'compact' }
+]
+const sidebarThemeOptions = [
+  { label: '浅色', value: 'light' },
+  { label: '深色', value: 'dark' }
 ]
 
 const isPresetActive = (preset: Preset) =>
@@ -216,6 +225,12 @@ const handleSave = async () => {
     color: var(--el-text-color-secondary);
     line-height: 1.5;
     margin: 0 0 16px 0;
+  }
+
+  .theme-field-tip {
+    margin-left: 12px;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
   }
 
   .theme-preset-grid {

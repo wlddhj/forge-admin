@@ -130,7 +130,7 @@
         <div class="setting-item">
           <div class="item-label">
             <span>菜单底色</span>
-            <p class="item-desc">左侧菜单背景色调，暗黑模式下保持深色</p>
+            <p class="item-desc">左侧菜单背景色调，暗黑模式下保持深色；修改后不再跟随系统默认</p>
           </div>
           <el-segmented
             v-model="localConfig.sidebarTheme"
@@ -245,7 +245,7 @@ const themeOptions = [
   { label: '暗黑', value: 'dark' }
 ]
 
-// 菜单底色选项（个人偏好维度，不触发退出跟随系统默认主题）
+// 菜单底色选项（与调色板等维度同语义：手动切换即个人化，退出跟随系统默认）
 const sidebarThemeOptions: { label: string; value: SidebarTheme }[] = [
   { label: '浅色', value: 'light' },
   { label: '深色', value: 'dark' }
@@ -331,8 +331,8 @@ const handlePaletteChange = (val: Palette) => pageConfigStore.changePalette(val)
 const handleLayoutChange = (val: LayoutKind) => pageConfigStore.changeLayout(val)
 const handleStyleChange = (val: StyleKind) => pageConfigStore.changeStyle(val)
 
-// 菜单底色切换
-const handleSidebarThemeChange = (val: SidebarTheme) => pageConfigStore.applySidebarTheme(val)
+// 菜单底色切换（用户侧入口：退出跟随系统默认）
+const handleSidebarThemeChange = (val: SidebarTheme) => pageConfigStore.changeSidebarTheme(val)
 
 // 自定义主色切换（el-color-picker 清空时 val 为 null，回落默认）
 const handleCustomPrimaryChange = (val: string | null) => {
