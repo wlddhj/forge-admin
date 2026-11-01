@@ -10,6 +10,7 @@ describe('pageConfig store - 三维度独立切换', () => {
     document.documentElement.removeAttribute('data-palette')
     document.documentElement.removeAttribute('data-layout')
     document.documentElement.removeAttribute('data-style')
+    document.documentElement.removeAttribute('data-sidebar')
     document.documentElement.removeAttribute('data-theme')
     // 清理 custom 调色板可能写入的 inline style
     document.documentElement.style.cssText = ''
@@ -64,6 +65,73 @@ describe('pageConfig store - 三维度独立切换', () => {
       store.applyStyle('compact')
       expect(store.config.style).toBe('compact')
       expect(document.documentElement.getAttribute('data-style')).toBe('compact')
+    })
+  })
+
+  describe('applySidebarTheme（菜单底色偏好）', () => {
+    it('默认 dark 且初始化时已应用 data-sidebar 属性', () => {
+      const store = usePageConfigStore()
+      expect(store.config.sidebarTheme).toBe('dark')
+      expect(document.documentElement.getAttribute('data-sidebar')).toBe('dark')
+    })
+
+    it('设置 data-sidebar 属性并更新配置', () => {
+      const store = usePageConfigStore()
+      store.applySidebarTheme('light')
+      expect(store.config.sidebarTheme).toBe('light')
+      expect(document.documentElement.getAttribute('data-sidebar')).toBe('light')
+    })
+
+    it('不影响三维度与明暗主题', () => {
+      const store = usePageConfigStore()
+      store.applyPalette('teal')
+      store.applyLayout('fullscreen')
+      store.applyTheme('dark')
+      store.applySidebarTheme('light')
+      expect(store.config.palette).toBe('teal')
+      expect(store.config.layout).toBe('fullscreen')
+      expect(document.documentElement.classList.contains('dark')).toBe(true)
+    })
+
+    it('不触发退出跟随系统默认主题', () => {
+      const store = usePageConfigStore()
+      store.applySidebarTheme('light')
+      expect(store.config.followSystemTheme).toBe(true)
+    })
+
+    it('loadConfig 被篡改为非法值 → 回落 dark', () => {
+      localStorage.setItem('forge_admin-page-config', JSON.stringify({
+        sidebarTheme: 'pink'
+      }))
+      const store = usePageConfigStore()
+      store.loadConfig()
+      expect(store.config.sidebarTheme).toBe('dark')
+    })
+
+    it('loadConfig 老数据无字段 → 合并默认 dark', () => {
+      localStorage.setItem('forge_admin-page-config', JSON.stringify({
+        palette: 'green'
+      }))
+      const store = usePageConfigStore()
+      store.loadConfig()
+      expect(store.config.sidebarTheme).toBe('dark')
+    })
+
+    it('loadConfig 合法 light 值被保留', () => {
+      localStorage.setItem('forge_admin-page-config', JSON.stringify({
+        sidebarTheme: 'light'
+      }))
+      const store = usePageConfigStore()
+      store.loadConfig()
+      expect(store.config.sidebarTheme).toBe('light')
+    })
+
+    it('resetConfig 回到 dark 并应用到 DOM', () => {
+      const store = usePageConfigStore()
+      store.applySidebarTheme('light')
+      store.resetConfig()
+      expect(store.config.sidebarTheme).toBe('dark')
+      expect(document.documentElement.getAttribute('data-sidebar')).toBe('dark')
     })
   })
 

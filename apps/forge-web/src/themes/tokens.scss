@@ -10,6 +10,9 @@
   --app-sidebar-bg:     #304156;
   --app-sidebar-text:   #bfcbd9;
   --app-sidebar-active: var(--app-color-primary);
+  --app-sidebar-title:  #ffffff;                       // logo/用户名等标题文字
+  --app-sidebar-border: 1px solid transparent;         // 侧栏与内容区分隔线（浅色时显形）
+  --app-sidebar-divider: rgba(255, 255, 255, 0.1);     // 侧栏内部横向分隔线
 
   --app-header-bg:      #ffffff;
 
@@ -35,6 +38,19 @@
   --el-border-radius-round: var(--app-radius-lg);
   --el-box-shadow:          var(--app-shadow-card);
   --el-box-shadow-light:    var(--app-shadow-popover);
+}
+
+// ─── 侧栏底色浅色偏好（sidebarTheme='light'）───
+// 三重 :root 凑特异性 (0,4,0)：压过全部调色板侧栏块 (0,3,0)（tokens 先于 palettes
+// 引入，平特异性会被源顺序反杀）；不带 [data-layout] 守卫，移动端 top/fullscreen
+// 布局下的 MobileMenu 抽屉同样吃到浅色变量。必须置于下方 dark 强制块之前：
+// 二者同为 (0,4,0)，暗黑主题按源顺序由后者胜出 → 暗黑下侧栏恒深色
+:root:root:root[data-sidebar='light'] {
+  --app-sidebar-bg:     var(--el-fill-color-light);
+  --app-sidebar-text:   var(--el-text-color-primary);
+  --app-sidebar-title:  var(--el-text-color-primary);
+  --app-sidebar-border: 1px solid var(--el-border-color-lighter);
+  --app-sidebar-divider: var(--el-border-color-lighter);
 }
 
 // dark 通用覆盖（不依赖 palette，调中性色）

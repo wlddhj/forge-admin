@@ -2,6 +2,8 @@ export type Palette = 'blue' | 'purple' | 'green' | 'crimson' | 'orange' | 'cyan
 export type LayoutKind = 'sidebar' | 'top' | 'fullscreen'
 export type StyleKind = 'flat' | 'glass' | 'card' | 'compact'
 export type ThemeMode = 'light' | 'dark' | 'auto'
+/** 侧栏底色个人偏好：浅色仅明亮主题生效，暗黑下恒深色（tokens 级联决定） */
+export type SidebarTheme = 'light' | 'dark'
 
 export interface Preset {
   id: string

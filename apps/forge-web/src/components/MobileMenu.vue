@@ -23,9 +23,9 @@
         <el-menu
           :default-active="activeMenu"
           :unique-opened="true"
-          background-color="#304156"
-          text-color="#bfcbd9"
-          active-text-color="#409EFF"
+          background-color="var(--app-sidebar-bg)"
+          text-color="var(--app-sidebar-text)"
+          active-text-color="var(--app-color-primary)"
           @select="handleMenuSelect"
         >
           <!-- 首页菜单 -->
@@ -148,20 +148,20 @@ const handleLogout = async () => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #304156;
+  background-color: var(--app-sidebar-bg);
 
   .mobile-menu-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 15px 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--app-sidebar-divider);
 
     .logo {
       display: flex;
       align-items: center;
       gap: 10px;
-      color: #fff;
+      color: var(--app-sidebar-title);
       font-size: 18px;
       font-weight: bold;
 
@@ -197,7 +197,7 @@ const handleLogout = async () => {
 
   .mobile-menu-footer {
     padding: 15px 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--app-sidebar-divider);
     background-color: rgba(0, 0, 0, 0.1);
 
     .user-info {
@@ -210,7 +210,7 @@ const handleLogout = async () => {
         flex: 1;
 
         .username {
-          color: #fff;
+          color: var(--app-sidebar-title);
           font-size: 16px;
           font-weight: 500;
           margin-bottom: 4px;

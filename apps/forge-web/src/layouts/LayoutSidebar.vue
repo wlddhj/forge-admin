@@ -184,6 +184,7 @@ watch(
 
 .layout-aside {
   background-color: var(--app-sidebar-bg);
+  border-right: var(--app-sidebar-border);
   transition: width 0.3s;
   display: flex;
   flex-direction: column;
@@ -196,7 +197,7 @@ watch(
     align-items: center;
     justify-content: center;
     gap: 10px;
-    color: #fff;
+    color: var(--app-sidebar-title);
     font-size: 18px;
     font-weight: bold;
 

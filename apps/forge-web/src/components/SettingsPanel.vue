@@ -126,6 +126,18 @@
           </div>
           <el-segmented v-model="localConfig.theme" :options="themeOptions" @change="handleConfigChange('theme', $event)" />
         </div>
+
+        <div class="setting-item">
+          <div class="item-label">
+            <span>菜单底色</span>
+            <p class="item-desc">左侧菜单背景色调，暗黑模式下保持深色</p>
+          </div>
+          <el-segmented
+            v-model="localConfig.sidebarTheme"
+            :options="sidebarThemeOptions"
+            @change="handleSidebarThemeChange"
+          />
+        </div>
       </div>
 
       <el-divider />
@@ -221,7 +233,7 @@ import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { usePageConfigStore, type ThemeType } from '@/stores/pageConfig'
 import { PRESETS, DEFAULT_CUSTOM_PRIMARY, isValidPrimary } from '@/themes'
-import type { Palette, LayoutKind, StyleKind } from '@/themes'
+import type { Palette, LayoutKind, StyleKind, SidebarTheme } from '@/themes'
 import { useBrandStore } from '@/stores/brand'
 
 const pageConfigStore = usePageConfigStore()
@@ -231,6 +243,12 @@ const brandStore = useBrandStore()
 const themeOptions = [
   { label: '明亮', value: 'light' },
   { label: '暗黑', value: 'dark' }
+]
+
+// 菜单底色选项（个人偏好维度，不触发退出跟随系统默认主题）
+const sidebarThemeOptions: { label: string; value: SidebarTheme }[] = [
+  { label: '浅色', value: 'light' },
+  { label: '深色', value: 'dark' }
 ]
 
 // 高级设置三维度选项
@@ -312,6 +330,9 @@ const isPresetActive = (preset: { palette: Palette; layout: LayoutKind; style: S
 const handlePaletteChange = (val: Palette) => pageConfigStore.changePalette(val)
 const handleLayoutChange = (val: LayoutKind) => pageConfigStore.changeLayout(val)
 const handleStyleChange = (val: StyleKind) => pageConfigStore.changeStyle(val)
+
+// 菜单底色切换
+const handleSidebarThemeChange = (val: SidebarTheme) => pageConfigStore.applySidebarTheme(val)
 
 // 自定义主色切换（el-color-picker 清空时 val 为 null，回落默认）
 const handleCustomPrimaryChange = (val: string | null) => {

@@ -60,12 +60,13 @@ const setDefaultTheme = () => {
 }
 setDefaultTheme()
 
-// 显式实例化 pageConfig store，保证启动时立即应用 palette/layout/style 与 theme
+// 显式实例化 pageConfig store，保证启动时立即应用 palette/layout/style/sidebarTheme 与 theme
 // 避免依赖 BasicLayout 渲染时的惰性初始化导致主题闪烁
 const pageConfigStore = usePageConfigStore()
 pageConfigStore.applyPalette(pageConfigStore.config.palette)
 pageConfigStore.applyLayout(pageConfigStore.config.layout)
 pageConfigStore.applyStyle(pageConfigStore.config.style)
+pageConfigStore.applySidebarTheme(pageConfigStore.config.sidebarTheme)
 pageConfigStore.applyTheme(pageConfigStore.config.theme)
 
 // 加载品牌配置（document.title/favicon 在数据返回后应用，接口异常回退 .env 默认值）

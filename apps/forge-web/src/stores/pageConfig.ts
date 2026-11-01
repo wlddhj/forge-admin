@@ -5,7 +5,7 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import {CACHE_KEY, useCache} from "@/hooks/web/useCache.ts";
 import {VxeUI} from "vxe-pc-ui";
-import { getPreset, type Palette, type LayoutKind, type StyleKind, type ThemeMode, type DefaultThemeConfig, DEFAULT_CUSTOM_PRIMARY, DEFAULT_THEME, isValidPrimary } from '@/themes'
+import { getPreset, type Palette, type LayoutKind, type StyleKind, type ThemeMode, type SidebarTheme, type DefaultThemeConfig, DEFAULT_CUSTOM_PRIMARY, DEFAULT_THEME, isValidPrimary } from '@/themes'
 import { lightStep, darkStep } from '@/themes/color-utils'
 const { wsCache } = useCache()
 export type ThemeType = 'light' | 'dark'
@@ -27,6 +27,8 @@ export interface PageConfig {
 
   // 侧边栏设置
   sidebarCollapsed: boolean
+  /** 侧栏底色个人偏好：浅色仅明亮主题生效（暗黑下 tokens 级联恒深色）；不接入系统默认主题 */
+  sidebarTheme: SidebarTheme
 
   // 其他设置
   showBreadcrumb: boolean
@@ -43,6 +45,7 @@ const VALID_SYSTEM_PALETTES: Palette[] = ['blue', 'purple', 'green', 'crimson', 
 const VALID_LAYOUTS: LayoutKind[] = ['sidebar', 'top', 'fullscreen']
 const VALID_STYLES: StyleKind[] = ['flat', 'glass', 'card', 'compact']
 const VALID_THEME_MODES: ThemeMode[] = ['light', 'dark', 'auto']
+const VALID_SIDEBAR_THEMES: SidebarTheme[] = ['light', 'dark']
 // 用户手动变更的主题维度键（updateConfig 据此退出跟随系统默认）
 const USER_THEME_KEYS: (keyof PageConfig)[] = ['theme', 'palette', 'layout', 'style', 'customPrimary']
 
@@ -58,6 +61,7 @@ const defaultConfig: PageConfig = {
   style: 'flat',
   followSystemTheme: true,
   sidebarCollapsed: false,
+  sidebarTheme: 'dark', // 默认深色侧栏，保持既有套餐观感
   showBreadcrumb: true,
   showPageTransition: true,
   keepAlive: true
@@ -93,6 +97,9 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
         if (!VALID_PALETTES.includes(config.value.palette)) config.value.palette = 'blue'
         if (!VALID_LAYOUTS.includes(config.value.layout)) config.value.layout = 'sidebar'
         if (!VALID_STYLES.includes(config.value.style)) config.value.style = 'flat'
+
+        // 校验侧栏底色合法性（老数据无字段时展开默认值已是 'dark'）
+        if (!VALID_SIDEBAR_THEMES.includes(config.value.sidebarTheme)) config.value.sidebarTheme = 'dark'
 
         // 校验 customPrimary 合法性
         if (!isValidPrimary(config.value.customPrimary)) {
@@ -148,6 +155,7 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     applyPalette(config.value.palette)
     applyLayout(config.value.layout)
     applyStyle(config.value.style)
+    applySidebarTheme(config.value.sidebarTheme)
   }
 
   // 打开设置面板
@@ -241,6 +249,12 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     document.documentElement.setAttribute('data-style', style)
   }
 
+  // 应用侧栏底色偏好（个人偏好维度：不退出跟随系统默认主题，系统默认亦不含此维度）
+  const applySidebarTheme = (sidebarTheme: SidebarTheme) => {
+    config.value.sidebarTheme = sidebarTheme
+    document.documentElement.setAttribute('data-sidebar', sidebarTheme)
+  }
+
   // 切换套餐（一次性设置三维度）
   const changePreset = (presetId: string) => {
     markUserChoice()
@@ -320,6 +334,7 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
   applyPalette(config.value.palette)
   applyLayout(config.value.layout)
   applyStyle(config.value.style)
+  applySidebarTheme(config.value.sidebarTheme)
 
   return {
     config,
@@ -336,6 +351,7 @@ export const usePageConfigStore = defineStore('pageConfig', () => {
     applyPalette,
     applyLayout,
     applyStyle,
+    applySidebarTheme,
     changePreset,
     changePalette,
     changeLayout,
