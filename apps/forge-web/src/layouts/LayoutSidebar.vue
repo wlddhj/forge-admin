@@ -11,9 +11,6 @@
           :default-active="activeMenu"
           :collapse="isCollapse"
           :unique-opened="true"
-          background-color="var(--app-sidebar-bg)"
-          text-color="var(--app-sidebar-text)"
-          active-text-color="var(--app-color-primary)"
           @select="handleMenuSelect"
         >
           <!-- 首页菜单 -->
@@ -214,6 +211,14 @@ watch(
 
   .el-menu {
     border-right: none;
+
+    // 不走 el-menu 的 background-color/text-color props：props 传 var() 时 EP 内部
+    // Color 工具解析失败，会把 hover 底色推导成纯黑；改由 CSS 变量整链接管
+    --el-menu-bg-color: var(--app-sidebar-bg);
+    --el-menu-text-color: var(--app-sidebar-text);
+    --el-menu-active-color: var(--app-color-primary);
+    --el-menu-hover-bg-color: var(--app-sidebar-hover-bg);
+    --el-menu-hover-text-color: var(--app-sidebar-hover-text);
   }
 }
 

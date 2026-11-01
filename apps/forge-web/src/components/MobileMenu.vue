@@ -23,9 +23,6 @@
         <el-menu
           :default-active="activeMenu"
           :unique-opened="true"
-          background-color="var(--app-sidebar-bg)"
-          text-color="var(--app-sidebar-text)"
-          active-text-color="var(--app-color-primary)"
           @select="handleMenuSelect"
         >
           <!-- 首页菜单 -->
@@ -193,6 +190,13 @@ const handleLogout = async () => {
 
   .el-menu {
     border-right: none;
+
+    // 不走 el-menu 颜色 props（var() 会被 EP 推导成纯黑 hover），CSS 变量整链接管
+    --el-menu-bg-color: var(--app-sidebar-bg);
+    --el-menu-text-color: var(--app-sidebar-text);
+    --el-menu-active-color: var(--app-color-primary);
+    --el-menu-hover-bg-color: var(--app-sidebar-hover-bg);
+    --el-menu-hover-text-color: var(--app-sidebar-hover-text);
   }
 
   .mobile-menu-footer {

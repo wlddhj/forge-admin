@@ -13,6 +13,10 @@
   --app-sidebar-title:  #ffffff;                       // logo/用户名等标题文字
   --app-sidebar-border: 1px solid transparent;         // 侧栏与内容区分隔线（浅色时显形）
   --app-sidebar-divider: rgba(255, 255, 255, 0.1);     // 侧栏内部横向分隔线
+  // hover 底色保持存量黑块观感：el-menu 的 background-color prop 传 var() 时 EP 无法推导
+  // 调暗色回落 rgb(0,0,0)，深色侧栏下浅字黑底可读，故沿用；浅色侧栏由下方覆盖块接管
+  --app-sidebar-hover-bg:   #000000;
+  --app-sidebar-hover-text: #bfcbd9;
 
   --app-header-bg:      #ffffff;
 
@@ -51,6 +55,9 @@
   --app-sidebar-title:  var(--el-text-color-primary);
   --app-sidebar-border: 1px solid var(--el-border-color-lighter);
   --app-sidebar-divider: var(--el-border-color-lighter);
+  // 浅色 hover：主题浅色调底 + 深字（修复 EP 黑底推导失败导致深字黑底不可读）
+  --app-sidebar-hover-bg:   var(--el-color-primary-light-9);
+  --app-sidebar-hover-text: var(--el-text-color-primary);
 }
 
 // dark 通用覆盖（不依赖 palette，调中性色）
