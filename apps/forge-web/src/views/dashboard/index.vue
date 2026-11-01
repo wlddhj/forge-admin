@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard">
     <!-- 统计卡片 -->
-    <el-row :gutter="16" class="stats-row">
+    <el-row :gutter="10" class="stats-row">
       <el-col :xs="12" :sm="12" :md="6" :lg="6" :xl="6">
         <div class="stat-card" @click="$router.push('/system/user')">
           <div class="stat-icon user">
@@ -62,7 +62,7 @@
     <TodoTaskCard />
 
     <!-- 主要内容区 -->
-    <el-row :gutter="16" class="content-row">
+    <el-row :gutter="10" class="content-row">
       <!-- 左侧列 -->
       <el-col :xs="24" :sm="24" :md="16" :lg="16" :xl="16">
         <!-- 常用功能收藏 -->
@@ -625,7 +625,7 @@ onMounted(() => {
   padding: 0;
 
   .stats-row {
-    margin-bottom: 16px;
+    margin-bottom: 0px;
   }
 
   .stat-card {
@@ -636,7 +636,7 @@ onMounted(() => {
     align-items: center;
     cursor: pointer;
     transition: all 0.3s;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
 
     &:hover {
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -700,11 +700,11 @@ onMounted(() => {
   }
 
   .content-row {
-    margin-bottom: 16px;
+    margin-bottom: 10px;
   }
 
   .content-card {
-    margin-bottom: 16px;
+    margin-bottom: 10px;
 
     &.fixed-height-card {
       :deep(.el-card__body) {

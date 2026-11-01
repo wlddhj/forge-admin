@@ -123,7 +123,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .todo-task-card {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 
   .card-header {
     display: flex;
