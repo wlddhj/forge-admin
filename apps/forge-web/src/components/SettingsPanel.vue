@@ -370,14 +370,14 @@ const handleReset = () => {
 
   .preset-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
     margin-bottom: 8px;
   }
 
   .preset-card {
     cursor: pointer;
-    padding: 8px;
+    padding: 6px;
     border: 2px solid var(--el-border-color-lighter);
     border-radius: var(--el-border-radius-base);
     transition: all 0.2s;
@@ -392,9 +392,9 @@ const handleReset = () => {
     }
 
     .preset-thumb {
-      height: 48px;
+      height: 36px;
       border-radius: 4px;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       position: relative;
       overflow: hidden;
       background: var(--el-fill-color-lighter);
@@ -422,47 +422,47 @@ const handleReset = () => {
       }
 
       .preset-thumb-sidebar {
-        left: 4px;
-        top: 4px;
-        bottom: 4px;
-        width: 12px;
+        left: 3px;
+        top: 3px;
+        bottom: 3px;
+        width: 9px;
         border-radius: 2px;
       }
 
       .preset-thumb-topbar {
-        left: 4px;
-        right: 4px;
-        top: 4px;
-        height: 10px;
+        left: 3px;
+        right: 3px;
+        top: 3px;
+        height: 8px;
         border-radius: 2px;
       }
 
       .preset-thumb-portal {
-        left: 4px;
-        right: 4px;
-        top: 4px;
-        height: 10px;
+        left: 3px;
+        right: 3px;
+        top: 3px;
+        height: 8px;
         border-radius: 2px;
 
         // 顶栏下方网格点阵，示意全屏菜单门户
         &::after {
           content: '';
           position: absolute;
-          left: 8px;
-          right: 8px;
-          top: 18px;
-          height: 22px;
+          left: 6px;
+          right: 6px;
+          top: 14px;
+          height: 15px;
           background-image: radial-gradient(rgba(255, 255, 255, 0.9) 1.5px, transparent 1.5px);
-          background-size: 8px 8px;
+          background-size: 6px 6px;
         }
       }
 
       .preset-thumb-dot {
         position: absolute;
-        right: 6px;
-        bottom: 6px;
-        width: 8px;
-        height: 8px;
+        right: 4px;
+        bottom: 4px;
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.9);
       }
@@ -471,8 +471,9 @@ const handleReset = () => {
     .preset-name {
       display: block;
       text-align: center;
-      font-size: 13px;
+      font-size: 12px;
       color: var(--el-text-color-primary);
+      white-space: nowrap;
     }
   }
 
