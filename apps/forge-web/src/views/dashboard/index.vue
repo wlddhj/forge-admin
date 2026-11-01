@@ -1,22 +1,5 @@
 <template>
   <div class="dashboard">
-    <!-- 轮播图区域 -->
-    <el-card shadow="never" class="banner-card">
-      <el-carousel height="200px" :interval="5000" arrow="hover" indicator-position="">
-        <el-carousel-item v-for="banner in banners" :key="banner.id">
-          <div class="banner-item" :style="{ background: banner.background }">
-            <div class="banner-content">
-              <h2>{{ banner.title }}</h2>
-              <p>{{ banner.description }}</p>
-            </div>
-            <div class="banner-image">
-              <el-icon :size="80" :color="banner.iconColor"><component :is="banner.icon" /></el-icon>
-            </div>
-          </div>
-        </el-carousel-item>
-      </el-carousel>
-    </el-card>
-
     <!-- 统计卡片 -->
     <el-row :gutter="16" class="stats-row">
       <el-col :xs="12" :sm="12" :md="6" :lg="6" :xl="6">
@@ -74,6 +57,9 @@
         </div>
       </el-col>
     </el-row>
+
+    <!-- 我的待办任务（无 workflow:task:list 权限时组件自身不渲染） -->
+    <TodoTaskCard />
 
     <!-- 主要内容区 -->
     <el-row :gutter="16" class="content-row">
@@ -203,13 +189,13 @@
 
       <!-- 右侧列 -->
       <el-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8" class="right-column">
-        <!-- 待办事项 -->
+        <!-- 备忘录（个人便签） -->
         <el-card shadow="never" class="content-card fixed-height-card">
           <template #header>
             <div class="card-header">
               <span class="card-title">
                 <el-icon><List /></el-icon>
-                待办事项
+                备忘录
               </span>
               <el-button type="primary" link @click="addTodo">
                 <el-icon><Plus /></el-icon>
@@ -226,7 +212,7 @@
                 <el-icon><Close /></el-icon>
               </el-button>
             </div>
-            <el-empty v-if="todos.length === 0" description="暂无待办事项" :image-size="50" />
+            <el-empty v-if="todos.length === 0" description="暂无备忘录" :image-size="50" />
           </div>
         </el-card>
 
@@ -312,11 +298,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { getDashboardStats, getLatestNotices, type DashboardStats, type Notice } from '@/api/system'
 import type { MenuTree } from '@/types/system'
 import { ElMessage } from 'element-plus'
+import TodoTaskCard from './components/TodoTaskCard.vue'
 
 const userStore = useUserStore()
 
@@ -372,34 +359,6 @@ const groupedFunctions = computed(() => {
   }
   return groups
 })
-
-// 轮播图数据
-const banners = ref([
-  {
-    id: 1,
-    title: '欢迎使用 forge-admin',
-    description: '现代化的一站式后台管理系统',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    icon: 'House',
-    iconColor: '#fff'
-  },
-  {
-    id: 2,
-    title: '高效管理，轻松办公',
-    description: '强大的权限控制与数据管理',
-    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    icon: 'Trophy',
-    iconColor: '#fff'
-  },
-  {
-    id: 3,
-    title: '数据驱动，智能决策',
-    description: '实时监控与数据分析平台',
-    background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    icon: 'TrendCharts',
-    iconColor: '#fff'
-  }
-])
 
 // 统计数据
 const stats = ref<DashboardStats & { userTrend?: number; logTrend?: number }>({
@@ -562,18 +521,12 @@ const openEditFavorites = () => {
 // 保存收藏
 const saveFavorites = () => {
   // 确保保存的是数字类型的 ID
-  const dataToSave = JSON.stringify(favoriteIds.value)
-  localStorage.setItem('dashboard-favorites', dataToSave)
-  console.log('保存收藏数据:', {
-    favoriteIds: favoriteIds.value,
-    savedData: dataToSave,
-    localStorageValue: localStorage.getItem('dashboard-favorites')
-  })
+  localStorage.setItem('dashboard-favorites', JSON.stringify(favoriteIds.value))
   editFavorites.value = false
   ElMessage.success('保存成功')
 }
 
-// 待办事项
+// 备忘录（个人便签，存 localStorage）
 const todos = ref([
   { id: 1, text: '审查新用户注册申请', completed: false },
   { id: 2, text: '更新系统配置参数', completed: true },
@@ -590,7 +543,7 @@ const deleteTodo = (id: number) => {
 }
 
 const addTodo = () => {
-  const text = prompt('请输入待办事项：')
+  const text = prompt('请输入备忘录：')
   if (text) {
     todos.value.push({
       id: Date.now(),
@@ -638,17 +591,6 @@ const loadNotices = async () => {
   }
 }
 
-// 路由变化时无特殊处理（收藏功能由用户手动操作）
-
-// 监控 favoriteIds 变化
-watch(favoriteIds, (newVal, oldVal) => {
-  console.log('favoriteIds 变化:', {
-    oldVal,
-    newVal,
-    changed: JSON.stringify(newVal) !== JSON.stringify(oldVal)
-  })
-}, { deep: true })
-
 // 初始化
 onMounted(() => {
   loadStats()
@@ -656,10 +598,6 @@ onMounted(() => {
 
   // 加载本地存储的数据
   const savedFavorites = localStorage.getItem('dashboard-favorites')
-  console.log('初始化加载收藏数据:', {
-    savedFavorites,
-    allFunctionsLength: allFunctions.value.length
-  })
 
   if (savedFavorites) {
     const parsed = JSON.parse(savedFavorites)
@@ -668,14 +606,11 @@ onMounted(() => {
       // 确保所有 ID 转换为数字类型（如果需要）
       const normalizedIds = parsed.map((id: any) => typeof id === 'string' ? parseInt(id, 10) : id)
       favoriteIds.value = normalizedIds
-      console.log('从 localStorage 加载的收藏 ID:', favoriteIds.value)
     } else {
       favoriteIds.value = [...defaultFavoriteIds.value]
-      console.log('空数据，使用默认收藏:', favoriteIds.value)
     }
   } else {
     favoriteIds.value = [...defaultFavoriteIds.value]
-    console.log('无保存数据，使用默认收藏:', favoriteIds.value)
   }
 
   const savedTodos = localStorage.getItem('dashboard-todos')
@@ -688,41 +623,6 @@ onMounted(() => {
 <style scoped lang="scss">
 .dashboard {
   padding: 0;
-
-  .banner-card {
-    margin-bottom: 16px;
-
-    :deep(.el-card__body) {
-      padding: 0;
-    }
-
-    .banner-item {
-      height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 40px;
-      color: #fff;
-
-      .banner-content {
-        h2 {
-          margin: 0 0 10px;
-          font-size: 28px;
-          font-weight: 600;
-        }
-
-        p {
-          margin: 0;
-          font-size: 16px;
-          opacity: 0.9;
-        }
-      }
-
-      .banner-image {
-        opacity: 0.8;
-      }
-    }
-  }
 
   .stats-row {
     margin-bottom: 16px;
@@ -1150,22 +1050,6 @@ onMounted(() => {
 // 响应式设计
 @media (max-width: 768px) {
   .dashboard {
-    .banner-item {
-      padding: 0 20px !important;
-
-      .banner-content h2 {
-        font-size: 20px !important;
-      }
-
-      .banner-content p {
-        font-size: 14px !important;
-      }
-
-      .banner-image .el-icon {
-        font-size: 50px !important;
-      }
-    }
-
     .favorites-grid {
       grid-template-columns: repeat(2, 1fr) !important;
     }
