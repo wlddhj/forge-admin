@@ -200,7 +200,7 @@ import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
-import { useDict } from '@/composables/useDict'
+import { useDict, reloadDictCache } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
@@ -327,6 +327,8 @@ const handleRefreshCache = async () => {
   try {
     await ElMessageBox.confirm('确定刷新字典缓存？', '提示', { type: 'warning' })
     await refreshDictCache()
+    // 后端缓存清除后，同步重载前端已缓存的字典
+    reloadDictCache()
     ElMessage.success('刷新缓存成功')
   } catch (e) { }
 }

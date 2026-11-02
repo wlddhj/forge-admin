@@ -255,7 +255,7 @@ import type { DictData } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
 import { useDrawerTableHeight } from '@/composables/useDrawerTableHeight'
-import { useDict } from '@/composables/useDict'
+import { useDict, reloadDictCache } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
@@ -502,6 +502,8 @@ const handleBatchSave = async () => {
     })
     ElMessage.success('保存成功')
     getList()
+    // 已打开页面中该字典的标签即时更新
+    reloadDictCache(props.dictType)
   } finally {
     loading.value = false
   }
