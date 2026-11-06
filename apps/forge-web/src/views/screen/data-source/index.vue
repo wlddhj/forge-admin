@@ -29,7 +29,7 @@
         ref="tableRef" :data="tableData" :loading="loading" :height="tableHeight"
         :row-config="{ isCurrent: true, isHover: true }" border="none" stripe show-overflow="tooltip"
       >
-        <vxe-column type="seq" title="#" width="60" :seq-method="seqMethod" />
+        <vxe-column type="seq" title="序号" width="60" :seq-method="seqMethod" />
         <vxe-column field="code" title="编码" min-width="120" />
         <vxe-column field="name" title="名称" min-width="160" />
         <vxe-column field="type" title="类型" width="100">

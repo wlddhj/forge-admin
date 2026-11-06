@@ -88,6 +88,7 @@
         show-header-overflow="tooltip"
         @current-change="handleCurrentChange"
       >
+        <vxe-column type="seq" title="序号" width="50" />
         <!-- 分类名称 -->
         <vxe-column field="categoryName" title="分类名称" min-width="200" tree-node />
 

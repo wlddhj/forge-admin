@@ -109,9 +109,6 @@
         <!-- 序号列（桌面端） -->
         <vxe-column v-if="!isMobile" type="seq" title="序号" width="60" />
 
-        <!-- ID（桌面端） -->
-        <vxe-column v-if="!isMobile" field="id" title="ID" width="80" />
-
         <!-- 公告标题 -->
         <vxe-column field="noticeTitle" title="公告标题" min-width="200" />
 

@@ -47,7 +47,6 @@
         show-overflow="tooltip"
       >
         <vxe-column type="seq" title="序号" width="50" align="center" />
-        <vxe-column field="id" title="ID" width="70" align="center" />
         <vxe-column field="name" title="名称" min-width="150" />
         <vxe-column field="expression" title="表达式" min-width="150" />
         <vxe-column field="remark" title="备注" min-width="200" />
