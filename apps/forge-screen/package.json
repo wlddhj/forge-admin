@@ -9,7 +9,6 @@
     "build": "vite build",
     "preview": "vite preview",
     "new": "plop --plopfile ./plop/plopfile.js",
-    "postinstall": "husky install",
     "lint": "eslint --ext .js,.jsx,.ts,.tsx,.vue src",
     "lint:fix": "eslint --ext .js,.jsx,.ts,.tsx,.vue src --fix"
   },
@@ -72,7 +71,6 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-vue": "^8.5.0",
-    "husky": "^8.0.1",
     "lodash": "~4.17.21",
     "mockjs": "^1.1.0",
     "plop": "^3.0.5",

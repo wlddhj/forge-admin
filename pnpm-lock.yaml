@@ -193,9 +193,6 @@ importers:
       happy-dom:
         specifier: ^20.8.9
         version: 20.10.6
-      husky:
-        specifier: ^9.1.7
-        version: 9.1.7
       msw:
         specifier: ^2.12.14
         version: 2.14.6(@types/node@26.1.0)(typescript@5.3.2)

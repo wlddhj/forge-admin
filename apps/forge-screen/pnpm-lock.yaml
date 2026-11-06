@@ -177,9 +177,6 @@ importers:
       eslint-plugin-vue:
         specifier: ^8.5.0
         version: 8.7.1(eslint@8.57.1)
-      husky:
-        specifier: ^8.0.1
-        version: 8.0.3
       lodash:
         specifier: ~4.17.21
         version: 4.17.21
@@ -2342,11 +2339,6 @@ packages:
   human-signals@2.1.0:
     resolution: {integrity: sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==}
     engines: {node: '>=10.17.0'}
-
-  husky@8.0.3:
-    resolution: {integrity: sha512-+dQSyqPh4x1hlO1swXBiNb2HzTDN1I2IGLQx1GrBuiqFJfoMrnZWwVmatvSiO+Iz8fBUnf+lekwNo4c2LlXItg==}
-    engines: {node: '>=14'}
-    hasBin: true
 
   iconify-icon@1.0.8:
     resolution: {integrity: sha512-jvbUKHXf8EnGGArmhlP2IG8VqQLFFyTvTqb9LVL2TKTh7/eCCD1o2HHE9thpbJJb6B8hzhcFb6rOKhvo7reNKA==}
@@ -6504,8 +6496,6 @@ snapshots:
       entities: 3.0.1
 
   human-signals@2.1.0: {}
-
-  husky@8.0.3: {}
 
   iconify-icon@1.0.8:
     dependencies:

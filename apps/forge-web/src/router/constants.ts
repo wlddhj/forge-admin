@@ -182,17 +182,6 @@ export function isWhiteListed(path: string): boolean {
 }
 
 /**
- * 生成路由名称
- *
- * @param menuCode 菜单编码
- * @param menuId 菜单ID
- * @returns 路由名称
- */
-export function generateRouteName(menuCode: string | null, menuId: number): string {
-  return menuCode || `menu_${menuId}`
-}
-
-/**
  * 处理路由路径
  * 如果是绝对路径，转换为相对路径
  *

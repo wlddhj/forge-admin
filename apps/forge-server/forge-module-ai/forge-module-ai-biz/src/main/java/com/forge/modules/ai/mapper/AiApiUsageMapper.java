@@ -15,6 +15,9 @@ public interface AiApiUsageMapper extends com.baomidou.mybatisplus.core.mapper.B
     /**
      * 用量累加 upsert（uk_user_model_date 命即累加）。
      * avg_response_time 增量加权：SET 左到右求值，先于 request_count 自增引用旧值。
+     * ⚠VALUES() 在 MySQL 8.0.20+ 已标记弃用，替代写法「VALUES(...) AS new 行别名」被租户插件
+     * TenantLineInnerInterceptor 的 JSqlParser（项目锁 4.9，行别名语法 5.0 才支持）解析即
+     * ParseException——TENANT_ENABLE=true 时运行时报错，升级 jsqlparser 5.x 前禁改（见 AiUpsertSqlParseGuardTest）。
      * 租户模式下 tenant_id 由 TenantLineInnerInterceptor 注入（表已含列）。
      */
     @Insert("INSERT INTO ai_api_usage (user_id, model_id, usage_date, request_count, success_count, failure_count, "
