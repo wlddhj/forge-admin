@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.forge.modules.workflow.mapper.WfInstanceQueryMapper">
+
+    <!--
+      运行中（flw_instance，状态视为 0）与历史（flw_his_instance）UNION ALL，分页由 MP 分页插件按首参 Page 注入 COUNT 与 LIMIT；
+      标题条件以实例变量 JSON 中的 "__title":" 键为锚点做模糊匹配，| 为 LIKE 转义符（调用方 escapeLike 已转义 |、% 与 _）
+    -->
+    <select id="selectUnionPage" resultType="java.util.Map">
+        SELECT * FROM (
+          SELECT i.id, i.tenant_id, i.create_id, i.create_by, i.create_time, i.process_id,
+                 i.priority, i.urgent, i.instance_no, i.business_key, i.current_node_name, i.current_node_key,
+                 i.variable,
+                 0 AS instance_state, NULL AS end_time
+          FROM flw_instance i
+          <if test="processName != null and processName != ''">
+            JOIN flw_process p ON p.id = i.process_id
+          </if>
+          WHERE 1=1
+          <if test="startUserId != null"> AND i.create_id = #{startUserId} </if>
+          <if test="processDefinitionId != null"> AND i.process_id = #{processDefinitionId} </if>
+          <if test="processName != null and processName != ''"> AND p.process_name LIKE CONCAT('%', #{processName}, '%') </if>
+          <if test="businessKey != null and businessKey != ''"> AND i.business_key = #{businessKey} </if>
+          <if test="title != null and title != ''">
+            AND i.variable LIKE CONCAT('%"__title":"%', #{title}, '%') ESCAPE '|'
+          </if>
+          <if test="priority != null"> AND i.priority = #{priority} </if>
+          UNION ALL
+          SELECT h.id, h.tenant_id, h.create_id, h.create_by, h.create_time, h.process_id,
+                 h.priority, h.urgent, h.instance_no, h.business_key, h.current_node_name, h.current_node_key,
+                 h.variable,
+                 h.instance_state, h.end_time
+          FROM flw_his_instance h
+          <if test="processName != null and processName != ''">
+            JOIN flw_process p2 ON p2.id = h.process_id
+          </if>
+          WHERE h.instance_state &gt; 0
+          <if test="startUserId != null"> AND h.create_id = #{startUserId} </if>
+          <if test="processDefinitionId != null"> AND h.process_id = #{processDefinitionId} </if>
+          <if test="processName != null and processName != ''"> AND p2.process_name LIKE CONCAT('%', #{processName}, '%') </if>
+          <if test="businessKey != null and businessKey != ''"> AND h.business_key = #{businessKey} </if>
+          <if test="title != null and title != ''">
+            AND h.variable LIKE CONCAT('%"__title":"%', #{title}, '%') ESCAPE '|'
+          </if>
+          <if test="priority != null"> AND h.priority = #{priority} </if>
+        ) merged
+        <choose>
+          <when test="sortByPriority">
+            ORDER BY merged.priority DESC, merged.create_time DESC
+          </when>
+          <otherwise>
+            ORDER BY merged.create_time DESC
+          </otherwise>
+        </choose>
+    </select>
+
+</mapper>

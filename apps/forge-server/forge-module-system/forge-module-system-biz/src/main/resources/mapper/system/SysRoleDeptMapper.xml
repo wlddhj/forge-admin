@@ -6,6 +6,10 @@
         DELETE FROM sys_role_dept WHERE role_id = #{roleId}
     </delete>
 
+    <select id="selectDeptIdsByRoleId" resultType="java.lang.Long">
+        SELECT dept_id FROM sys_role_dept WHERE role_id = #{roleId}
+    </select>
+
     <insert id="batchInsert">
         INSERT INTO sys_role_dept (role_id, dept_id, create_time)
         VALUES

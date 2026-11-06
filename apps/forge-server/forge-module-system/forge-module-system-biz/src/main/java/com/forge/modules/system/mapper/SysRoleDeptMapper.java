@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.forge.modules.system.entity.SysRoleDept;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -29,7 +28,6 @@ public interface SysRoleDeptMapper extends BaseMapper<SysRoleDept> {
      * @param roleId 角色ID
      * @return 部门ID列表
      */
-    @Select("SELECT dept_id FROM sys_role_dept WHERE role_id = #{roleId}")
     List<Long> selectDeptIdsByRoleId(@Param("roleId") Long roleId);
 
     /**

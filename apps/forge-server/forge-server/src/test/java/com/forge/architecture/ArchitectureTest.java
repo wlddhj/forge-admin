@@ -3,24 +3,27 @@ package com.forge.architecture;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import org.apache.ibatis.annotations.Mapper;
 import org.springframework.web.bind.annotation.RestController;
 
 import static com.tngtech.archunit.base.DescribedPredicate.not;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
  * 分层架构守护规则（依据 CLAUDE.md「后端架构 / 模块分层模式 / 多模块结构」）
  *
  * <p>放在启动模块 forge-server：其 classpath 聚合了全部业务模块与框架层，
- * 可对整体代码做包级依赖方向断言。规则分四组：
+ * 可对整体代码做包级依赖方向断言。规则分五组：
  * <ol>
  *     <li>模块内分层：controller → service → mapper 单向依赖，POJO 不反向依赖业务层</li>
  *     <li>模块间方向：system 是基础模块被他人依赖；同级业务模块默认互不依赖</li>
  *     <li>框架层纯净：common 最底层；framework 不得依赖业务模块（system 跨模块 api 除外）</li>
  *     <li>端点与命名：双端点 Controller 包位置、Controller/ServiceImpl/Mapper 命名后缀</li>
+ *     <li>Mapper SQL 落位：方法必须绑定 SQL；同一 mapper 不混用注解与 XML；注解只许单行简单 SQL</li>
  * </ol>
  *
  * <p>已知的存量违规以显式排除方式冻结（见各规则 because 说明），防止耦合面继续扩大；
@@ -146,4 +149,27 @@ class ArchitectureTest {
             classes().that().resideInAPackage("..service.impl..")
                     .and().areNotAnonymousClasses()
                     .should().haveSimpleNameEndingWith("Impl");
+
+    // ========== 五、Mapper SQL 落位（条件实现见 MapperSqlConditions） ==========
+
+    /** 声明了却没绑定 SQL 的 mapper 方法，一调用即 BindingException（已删除的 SysRoleMapper.selectRoleIdsByMenuId 即此类） */
+    @ArchTest
+    static final ArchRule mapper_methods_should_be_bound_to_sql =
+            classes().that().areInterfaces().and().areAnnotatedWith(Mapper.class)
+                    .should(MapperSqlConditions.bindEveryAbstractMethodToSql())
+                    .because("每个 mapper 方法须有 SQL 注解或 XML 同 id 语句，否则调用时才暴露 BindingException");
+
+    /** 同一 mapper 的 SQL 只放一处：已有 XML 的 mapper 不得再写 @Select 等注解 */
+    @ArchTest
+    static final ArchRule mappers_with_xml_should_not_use_sql_annotations =
+            classes().that().areInterfaces().and().areAnnotatedWith(Mapper.class)
+                    .should(MapperSqlConditions.notMixXmlWithSqlAnnotations())
+                    .because("SQL 分散在注解和 XML 两处难以查找，已有 XML 的 mapper 统一写进 XML");
+
+    /** 注解只许单行简单 SQL；多行拼接、<script> 动态 SQL、超长 SQL 写进 resources/mapper/{module}/XxxMapper.xml */
+    @ArchTest
+    static final ArchRule mapper_annotation_sql_should_be_single_line_and_simple =
+            methods().that().areDeclaredInClassesThat().areAnnotatedWith(Mapper.class)
+                    .should(MapperSqlConditions.useOnlySingleLineSimpleAnnotationSql())
+                    .because("Java 字符串里的多行/动态 SQL 难读难改（backend-development-specification.md §3.2 SQL 落位规则）");
 }

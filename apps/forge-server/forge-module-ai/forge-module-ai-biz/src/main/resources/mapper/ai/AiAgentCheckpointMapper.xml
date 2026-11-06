@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.forge.modules.ai.mapper.AiAgentCheckpointMapper">
+
+    <!--
+      ⚠ VALUES() 自 MySQL 8.0.20 起标记弃用，但替代写法「VALUES (...) AS new」行别名需 JSqlParser 5.0+，项目锁 4.9，
+        租户插件解析即 ParseException（TENANT_ENABLE=true 时运行时报错）；升级 jsqlparser 5.x 前勿改，见 AiMapperXmlGuardTest
+    -->
+    <insert id="upsert">
+        INSERT INTO ai_agent_checkpoint (run_id, thread_id, checkpoint_id, node, next_node_id, state)
+        VALUES (#{e.runId}, #{e.threadId}, #{e.checkpointId}, #{e.node}, #{e.nextNodeId}, #{e.state})
+        ON DUPLICATE KEY UPDATE
+            node         = VALUES(node),
+            next_node_id = VALUES(next_node_id),
+            state        = VALUES(state)
+    </insert>
+
+</mapper>

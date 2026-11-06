@@ -64,7 +64,7 @@ mvn test -Dtest=ClassName -pl <module>         # 运行单个测试类
 | `database-design-specification.md` | 建表/改表/字典数据 SQL |
 | `module-development.md` | 新模块端到端流程 |
 
-机器强制:`scripts/frontend-spec-guard.mjs` 扫描列表页规范条款(存量豁免清单 `frontend-spec-guard-baseline.txt`,增量严查),已挂 pre-push 与 Jenkinsfile;后端由 ArchUnit 15 条规则守护。
+机器强制:`scripts/frontend-spec-guard.mjs` 扫描列表页规范条款(存量豁免清单 `frontend-spec-guard-baseline.txt`,增量严查),已挂 pre-push 与 Jenkinsfile;后端由 ArchUnit 18 条规则守护(含 Mapper SQL 落位 3 条)。
 
 ## 后端架构
 
@@ -349,6 +349,7 @@ apps/forge-screen/
 ### 数据库约定
 - 表名前缀 `sys_`，公共字段：`id`、`create_time`、`update_time`、`create_by`、`update_by`、`deleted`、`status`、`remark`
 - MyBatis Plus 自动填充 `create_time`/`update_time`
+- 手写 SQL 落位：单行简单 SQL（≤100 字符、无 `<script>`）可用 `@Select` 等注解；多行/动态/超长 SQL 一律写 `resources/mapper/{module}/XxxMapper.xml`；同一 mapper 不混用注解与 XML，声明的方法必须绑定 SQL（ArchUnit 守卫，详见 `backend-development-specification.md` §3.2）
 
 ### Excel 导出
 `ExcelUtils.export(response, fileName, sheetName, DtoClass.class, dataList)`，配合 `@ExcelProperty` 注解。

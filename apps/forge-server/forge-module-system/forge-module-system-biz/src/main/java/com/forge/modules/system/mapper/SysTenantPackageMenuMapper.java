@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.forge.modules.system.entity.SysTenantPackageMenu;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -38,6 +37,5 @@ public interface SysTenantPackageMenuMapper extends BaseMapper<SysTenantPackageM
      * @param packageId 套餐ID
      * @return 菜单ID列表
      */
-    @Select("SELECT menu_id FROM sys_tenant_package_menu WHERE tenant_package_id = #{packageId}")
     List<Long> selectMenuIdsByPackageId(@Param("packageId") Long packageId);
 }

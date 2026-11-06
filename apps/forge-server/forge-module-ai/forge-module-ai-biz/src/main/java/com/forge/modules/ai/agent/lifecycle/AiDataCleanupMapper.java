@@ -1,9 +1,7 @@
 package com.forge.modules.ai.agent.lifecycle;
 
-import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,70 +16,44 @@ import java.util.List;
 @Mapper
 public interface AiDataCleanupMapper {
 
+    /** 每批选 id 上限；XML 经 OGNL 按名引用本常量（改名须同步 AiDataCleanupMapper.xml，AiMapperXmlGuardTest 守护） */
     int BATCH_LIMIT = 500;
 
-    // ---------- 分批选 id（每批 ≤500，含保护条件） ----------
+    // ---------- 分批选 id（每批 ≤ BATCH_LIMIT，含保护条件） ----------
 
-    @Select("SELECT id FROM ai_agent_run WHERE status IN ('SUCCEEDED','FAILED','CANCELLED') " +
-            "AND create_time < #{cutoff} LIMIT " + BATCH_LIMIT)
     List<Long> selectExpiredRunIds(@Param("cutoff") LocalDateTime cutoff);
 
-    @Select("SELECT id FROM ai_agent_run_step WHERE create_time < #{cutoff} LIMIT " + BATCH_LIMIT)
     List<Long> selectExpiredStepIds(@Param("cutoff") LocalDateTime cutoff);
 
-    @Select("SELECT s.id FROM ai_agent_run_step s LEFT JOIN ai_agent_run r ON s.run_id = r.id " +
-            "WHERE r.id IS NULL LIMIT " + BATCH_LIMIT)
     List<Long> selectOrphanStepIds();
 
-    @Select("SELECT id FROM ai_agent_todo WHERE status <> 'PENDING' AND create_time < #{cutoff} LIMIT " + BATCH_LIMIT)
     List<Long> selectExpiredTodoIds(@Param("cutoff") LocalDateTime cutoff);
 
-    @Select("SELECT t.id FROM ai_agent_todo t LEFT JOIN ai_agent_run r ON t.run_id = r.id " +
-            "WHERE r.id IS NULL LIMIT " + BATCH_LIMIT)
     List<Long> selectOrphanTodoIds();
 
-    @Select("SELECT id FROM ai_agent_checkpoint WHERE create_time < #{cutoff} LIMIT " + BATCH_LIMIT)
     List<Long> selectExpiredCheckpointIds(@Param("cutoff") LocalDateTime cutoff);
 
-    @Select("SELECT c.id FROM ai_agent_checkpoint c LEFT JOIN ai_agent_run r ON c.run_id = r.id " +
-            "WHERE r.id IS NULL LIMIT " + BATCH_LIMIT)
     List<Long> selectOrphanCheckpointIds();
 
     // ---------- 对话数据（ai_chat_conversation / ai_chat_message，物理删，会话 deleted 列一并无视） ----------
 
-    @Select("SELECT id FROM ai_chat_conversation WHERE create_time < #{cutoff} LIMIT " + BATCH_LIMIT)
     List<Long> selectExpiredConversationIds(@Param("cutoff") LocalDateTime cutoff);
 
-    @Select("SELECT id FROM ai_chat_message WHERE create_time < #{cutoff} LIMIT " + BATCH_LIMIT)
     List<Long> selectExpiredMessageIds(@Param("cutoff") LocalDateTime cutoff);
 
-    @Select("SELECT m.id FROM ai_chat_message m LEFT JOIN ai_chat_conversation c ON m.conversation_id = c.conversation_id " +
-            "WHERE c.id IS NULL LIMIT " + BATCH_LIMIT)
     List<Long> selectOrphanMessageIds();
 
     // ---------- 物理删除 ----------
 
-    @Delete("<script>DELETE FROM ai_agent_run WHERE id IN " +
-            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
     int deleteRunByIds(@Param("ids") List<Long> ids);
 
-    @Delete("<script>DELETE FROM ai_agent_run_step WHERE id IN " +
-            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
     int deleteStepByIds(@Param("ids") List<Long> ids);
 
-    @Delete("<script>DELETE FROM ai_agent_todo WHERE id IN " +
-            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
     int deleteTodoByIds(@Param("ids") List<Long> ids);
 
-    @Delete("<script>DELETE FROM ai_agent_checkpoint WHERE id IN " +
-            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
     int deleteCheckpointByIds(@Param("ids") List<Long> ids);
 
-    @Delete("<script>DELETE FROM ai_chat_conversation WHERE id IN " +
-            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
     int deleteConversationByIds(@Param("ids") List<Long> ids);
 
-    @Delete("<script>DELETE FROM ai_chat_message WHERE id IN " +
-            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
     int deleteMessageByIds(@Param("ids") List<Long> ids);
 }

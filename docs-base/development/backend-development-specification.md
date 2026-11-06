@@ -36,8 +36,8 @@ forge-module-{module}/
         └── mapper/
             └── XxxMapper.java     # MyBatis Mapper
     └── src/main/resources/
-        └── mapper/
-            └── XxxMapper.xml      # MyBatis XML（如有复杂SQL）
+        └── mapper/{module}/
+            └── XxxMapper.xml      # MyBatis XML（落位规则见 §3.2）
 ```
 
 ### 1.2 路径前缀规则
@@ -267,11 +267,11 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface Sys{Entity}Mapper extends BaseMapper<Sys{Entity}> {
 
-    // 如有复杂 SQL，可在 XML 中定义
+    // 自定义 SQL 落位见下方「SQL 落位规则」
 }
 ```
 
-对应的 XML 放在 `resources/mapper/` 下（如需自定义 SQL）：
+对应的 XML 放在 `resources/mapper/{module}/` 下（如需自定义 SQL）：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -294,6 +294,21 @@ public interface Sys{Entity}Mapper extends BaseMapper<Sys{Entity}> {
 ```
 
 **注意：** 手写 SQL 的 `<where>` 块首行必须显式 `AND xxx.deleted = 0`，`@TableLogic` 不会自动注入到手写 SQL。
+
+#### SQL 落位规则（ArchUnit 守卫）
+
+能用 MyBatis Plus 的 `BaseMapper` / `Wrapper` 表达的查询不手写 SQL；需要手写时按下表落位：
+
+| 场景 | 写法 |
+|------|------|
+| 单行简单 SQL：单段、≤100 字符、无 `<script>` | 可用 `@Select` / `@Insert` / `@Update` / `@Delete` 注解 |
+| 多行、`<if>` / `<foreach>` 等动态 SQL、超过 100 字符 | 一律写 `src/main/resources/mapper/{module}/XxxMapper.xml`，`namespace` 为接口全限定名 |
+| mapper 已有 XML | 该 mapper 的全部 SQL 写进 XML，不再混用注解（同一 mapper 的 SQL 只放一处） |
+
+- mapper 声明的每个抽象方法都必须绑定 SQL（注解或 XML 中同 id 语句），禁止留无绑定的声明——调用时才会抛 `BindingException`
+- XML 中 `<select>` 显式写 `resultType`（全限定名，与方法返回的元素类型一致，`Map` 返回写 `java.util.Map`）；`insert` / `update` / `delete` 省略即按方法返回类型推断
+- 需要在 SQL 里引用 Java 常量时，用 `<sql>` 片段 + OGNL 静态引用保持单一来源，如 `<sql id="batchLimit">LIMIT ${@com.forge.modules.ai.agent.lifecycle.AiDataCleanupMapper@BATCH_LIMIT}</sql>`，使用处 `<include refid="batchLimit"/>`；常量改名不会编译报错，需配测试守护（参考 `AiMapperXmlGuardTest`）
+- 机器守卫：`forge-server` 的 `ArchitectureTest`「五、Mapper SQL 落位」三条规则（方法必须绑定 SQL / 不混放 / 注解只许单行简单 SQL），随 CI `mvn test` 执行；100 字符阈值即 `MapperSqlConditions.MAX_ANNOTATION_SQL_LENGTH`
 
 ### 3.3 DTO 层
 

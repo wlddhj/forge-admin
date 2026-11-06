@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.forge.modules.ai.mapper.AiApiUsageMapper">
+
+    <!--
+      avg_response_time 增量加权：ON DUPLICATE KEY UPDATE 的赋值从左到右求值，此处读到的 request_count 仍是自增前的旧值，顺序不可调。
+      ⚠ VALUES() 自 MySQL 8.0.20 起标记弃用，但替代写法「VALUES (...) AS new」行别名需 JSqlParser 5.0+，项目锁 4.9，
+        租户插件解析即 ParseException（TENANT_ENABLE=true 时运行时报错）；升级 jsqlparser 5.x 前勿改，见 AiMapperXmlGuardTest
+    -->
+    <insert id="upsertIncrement">
+        INSERT INTO ai_api_usage (user_id, model_id, usage_date, request_count, success_count, failure_count,
+                                  total_input_tokens, total_output_tokens, avg_response_time)
+        VALUES (#{userId}, #{modelId}, #{usageDate}, 1, #{success}, #{failure}, #{tokensIn}, #{tokensOut}, #{responseTimeMs})
+        ON DUPLICATE KEY UPDATE
+            avg_response_time   = (avg_response_time * request_count + VALUES(avg_response_time)) / (request_count + 1),
+            request_count       = request_count + 1,
+            success_count       = success_count + VALUES(success_count),
+            failure_count       = failure_count + VALUES(failure_count),
+            total_input_tokens  = total_input_tokens + VALUES(total_input_tokens),
+            total_output_tokens = total_output_tokens + VALUES(total_output_tokens)
+    </insert>
+
+    <select id="selectSummary" resultType="java.util.Map">
+        SELECT COALESCE(SUM(request_count),0) AS totalRequest,
+               COALESCE(SUM(success_count),0) AS successCount,
+               COALESCE(SUM(failure_count),0) AS failureCount,
+               COALESCE(SUM(total_input_tokens),0) AS totalInputTokens,
+               COALESCE(SUM(total_output_tokens),0) AS totalOutputTokens,
+               COALESCE(SUM(avg_response_time * request_count),0) AS avgResponseMs
+        FROM ai_api_usage
+        WHERE 1=1
+        <if test="userId != null">AND user_id = #{userId}</if>
+        <if test="modelId != null">AND model_id = #{modelId}</if>
+        <if test="startDate != null">AND usage_date &gt;= #{startDate}</if>
+        <if test="endDate != null">AND usage_date &lt;= #{endDate}</if>
+    </select>
+
+</mapper>
