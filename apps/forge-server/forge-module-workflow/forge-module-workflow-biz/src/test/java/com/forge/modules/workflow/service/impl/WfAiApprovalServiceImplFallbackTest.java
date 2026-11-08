@@ -1,6 +1,6 @@
 package com.forge.modules.workflow.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.modules.ai.client.LlmClient;
 import com.forge.modules.ai.service.AiModelResolver;
 import com.forge.modules.workflow.dto.ai.AiApprovalConfig;

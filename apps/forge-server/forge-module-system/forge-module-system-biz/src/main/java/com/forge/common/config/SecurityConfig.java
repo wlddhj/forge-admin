@@ -114,7 +114,7 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .shouldFilterAllDispatcherTypes(false)
+                        // Security 7 移除 shouldFilterAllDispatcherTypes（默认只过滤 REQUEST，等价旧值 false）
                         .requestMatchers(ADMIN_WHITE_LIST).permitAll()
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
@@ -156,7 +156,7 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .shouldFilterAllDispatcherTypes(false)
+                        // Security 7 移除 shouldFilterAllDispatcherTypes（默认只过滤 REQUEST，等价旧值 false）
                         .requestMatchers(APP_WHITE_LIST).permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(appJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -192,8 +192,8 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
+        // Security 7：DaoAuthenticationProvider 构造器注入 UserDetailsService，setter 已移除
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }

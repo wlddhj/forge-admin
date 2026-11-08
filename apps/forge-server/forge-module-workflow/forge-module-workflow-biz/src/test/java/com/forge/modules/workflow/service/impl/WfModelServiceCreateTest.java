@@ -33,7 +33,7 @@ class WfModelServiceCreateTest {
                 processExtMapper,
                 mock(com.forge.modules.workflow.mapper.WfCategoryMapper.class),
                 mock(com.forge.modules.workflow.identity.FlowLongIdentityService.class),
-                new com.fasterxml.jackson.databind.ObjectMapper());
+                new tools.jackson.databind.ObjectMapper());
         securityHelper = mockStatic(SecurityHelper.class);
         securityHelper.when(SecurityHelper::getCurrentUserId).thenReturn(1L);
     }

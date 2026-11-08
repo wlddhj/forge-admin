@@ -1,11 +1,10 @@
 package com.forge.common.json;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.annotation.JacksonStdImpl;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.ValueSerializer;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.annotation.JacksonStdImpl;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
@@ -14,12 +13,12 @@ import java.time.ZoneId;
  * 使用时间戳格式序列化 LocalDateTime
  */
 @JacksonStdImpl
-public class TimestampLocalDateTimeSerializer extends JsonSerializer<LocalDateTime> {
+public class TimestampLocalDateTimeSerializer extends ValueSerializer<LocalDateTime> {
 
     public static final TimestampLocalDateTimeSerializer INSTANCE = new TimestampLocalDateTimeSerializer();
 
     @Override
-    public void serialize(LocalDateTime value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+    public void serialize(LocalDateTime value, JsonGenerator gen, SerializationContext serializers) {
         // 使用时间戳格式序列化（秒）
         long timestamp = value.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() / 1000;
         gen.writeNumber(timestamp);

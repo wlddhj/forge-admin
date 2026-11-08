@@ -1,6 +1,6 @@
 package com.forge.modules.ai.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;
 import com.forge.modules.ai.entity.AiModelConfig;

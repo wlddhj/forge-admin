@@ -1,6 +1,6 @@
 package com.forge.modules.ai.controller.admin;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.Result;
 import com.forge.framework.security.utils.SecurityHelper;

@@ -1,6 +1,6 @@
 package com.forge.modules.ai.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.framework.localcache.LocalCaches;
 import com.forge.modules.ai.agent.tools.AgentTool;
 import com.forge.modules.ai.agent.tools.ToolRegistry;
@@ -95,7 +95,8 @@ public class NativeToolCalling {
             OpenAiChatOptions.Builder optionsBuilder = OpenAiChatOptions.builder()
                     .model(model.getModelCode())
                     .toolCallbacks(callbacks)
-                    .internalToolExecutionEnabled(false)
+                    // Spring AI 2.0：internalToolExecutionEnabled 已移除，ChatModel 永不内部执行工具，
+                    // toolCalls 原样返回由图路由接管执行与高危门控（与旧 internalToolExecutionEnabled(false) 语义一致）
                     .parallelToolCalls(true);
             if (request.getTemperature() != null) {
                 optionsBuilder.temperature(request.getTemperature());

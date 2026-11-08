@@ -1,7 +1,7 @@
 package com.forge.modules.ai.agent.kernel;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.modules.ai.entity.AiAgentCheckpoint;
 import com.forge.modules.ai.mapper.AiAgentCheckpointMapper;
 import org.bsc.langgraph4j.RunnableConfig;
@@ -28,7 +28,8 @@ public class MysqlCheckpointSaver extends AbstractCheckpointSaver {
      * 会把 Long 写成字符串（agentId:1 → "agentId":"1"），检查点往返后类型改变，恢复时
      * dispatch.get("agentId") instanceof Number 不成立导致专家配置取不到。此处必须类型稳定往返。
      */
-    private static final ObjectMapper STATE_MAPPER = new ObjectMapper().findAndRegisterModules();
+    private static final ObjectMapper STATE_MAPPER =
+            tools.jackson.databind.json.JsonMapper.builder().findAndAddModules().build();
 
     /** 专家子图完成标记 checkpointId（loadCheckpoints 过滤，不参与框架恢复） */
     public static final String DONE_MARKER_ID = "expert-done";

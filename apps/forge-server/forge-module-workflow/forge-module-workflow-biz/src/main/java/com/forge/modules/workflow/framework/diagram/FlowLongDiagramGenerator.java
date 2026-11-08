@@ -4,7 +4,7 @@ import com.aizuda.bpm.engine.core.enums.TaskType;
 import com.aizuda.bpm.engine.model.ConditionNode;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.aizuda.bpm.engine.model.ProcessModel;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

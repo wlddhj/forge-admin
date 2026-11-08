@@ -4,19 +4,26 @@ import com.forge.framework.localcache.LocalCaches;
 import com.forge.modules.ai.config.AiModuleConfig;
 import com.forge.modules.ai.entity.AiModelConfig;
 import com.google.common.cache.Cache;
+import com.openai.client.OpenAIClient;
+import com.openai.client.OpenAIClientAsync;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.ai.openai.http.okhttp.OpenAiHttpClientBuilderCustomizer;
+import org.springframework.ai.openai.setup.OpenAiSetup;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 /**
  * 按 ai_model_config 编程式构建并缓存 OpenAiChatModel（配置变更指纹失效重建）
+ *
+ * <p>Spring AI 2.0：OpenAiApi（RestClient 封装）已移除，改为官方 OpenAI Java SDK 客户端
+ * （OpenAIClient/OpenAIClientAsync，OkHttp 传输），经 OpenAiSetup 统一装配。
  */
 @Slf4j
 @Component
@@ -24,41 +31,51 @@ public class OpenAiChatModelFactory {
 
     private static final String DEFAULT_COMPLETIONS_PATH = "/chat/completions";
 
-    private static final com.fasterxml.jackson.databind.ObjectMapper OBJECT_MAPPER =
-            new com.fasterxml.jackson.databind.ObjectMapper();
+    private static final tools.jackson.databind.ObjectMapper OBJECT_MAPPER =
+            new tools.jackson.databind.ObjectMapper();
 
     /**
      * 非流式请求 body 注入 thinking.type=disabled（智谱 GLM-4.x 等思考类模型关闭思考，
-     * 防止思考耗尽 max_tokens 导致 content 为空）。仅影响 OpenAiApi 的 RestClient 调用路径，流式 WebClient 不经过。
+     * 防止思考耗尽 max_tokens 导致 content 为空）。Spring AI 2.0 走 OkHttp，平移为网络层拦截器。
      */
-    private static final org.springframework.http.client.ClientHttpRequestInterceptor THINKING_DISABLED_INTERCEPTOR =
-            (request, body, execution) -> {
-                if (body != null && body.length > 0) {
-                    try {
-                        Map<String, Object> payload = OBJECT_MAPPER.readValue(body, Map.class);
-                        payload.put("thinking", Map.of("type", "disabled"));
-                        return execution.execute(request, OBJECT_MAPPER.writeValueAsBytes(payload));
-                    } catch (Exception e) {
-                        log.warn("注入 thinking.type=disabled 失败，按原始请求发送: {}", e.getMessage());
-                    }
+    private static final okhttp3.Interceptor THINKING_DISABLED_INTERCEPTOR = chain -> {
+        okhttp3.Request request = chain.request();
+        okhttp3.RequestBody body = request.body();
+        if (body != null) {
+            try {
+                okio.Buffer buffer = new okio.Buffer();
+                body.writeTo(buffer);
+                byte[] raw = buffer.readByteArray();
+                if (raw.length > 0) {
+                    Map<String, Object> payload = OBJECT_MAPPER.readValue(raw, Map.class);
+                    payload.put("thinking", Map.of("type", "disabled"));
+                    byte[] rewritten = OBJECT_MAPPER.writeValueAsBytes(payload);
+                    okhttp3.Request newRequest = request.newBuilder()
+                            .method(request.method(), okhttp3.RequestBody.create(body.contentType(), rewritten))
+                            .build();
+                    return chain.proceed(newRequest);
                 }
-                return execution.execute(request, body);
-            };
+            } catch (Exception e) {
+                log.warn("注入 thinking.type=disabled 失败，按原始请求发送: {}", e.getMessage());
+            }
+        }
+        return chain.proceed(request);
+    };
 
-    private final WebClient.Builder webClientBuilder;
-    private final org.springframework.web.client.RestClient.Builder restClientBuilder;
+    private static final OpenAiHttpClientBuilderCustomizer THINKING_DISABLED_CUSTOMIZER =
+            builder -> builder.interceptor(THINKING_DISABLED_INTERCEPTOR);
+
+    /** 官方 SDK 内建重试次数（替代旧自建 RetryTemplate：2 次 × 3s 退避） */
+    private static final int SDK_MAX_RETRIES = 2;
+
     private final AiModuleConfig aiModuleConfig;
     private final Cache<Long, CachedModel> cache;
 
     private record CachedModel(String fingerprint, OpenAiChatModel model) {
     }
 
-    public OpenAiChatModelFactory(@Qualifier("llmWebClientBuilder") WebClient.Builder webClientBuilder,
-                                  @Qualifier("llmRestClientBuilder") org.springframework.web.client.RestClient.Builder restClientBuilder,
-                                  AiModuleConfig aiModuleConfig,
+    public OpenAiChatModelFactory(AiModuleConfig aiModuleConfig,
                                   LocalCaches localCaches) {
-        this.webClientBuilder = webClientBuilder;
-        this.restClientBuilder = restClientBuilder;
         this.aiModuleConfig = aiModuleConfig;
         // maximumSize 兜底：配置删除后遗留实例不致无限驻留
         this.cache = localCaches.get("ai-chat-models", b -> b.maximumSize(200));
@@ -84,17 +101,22 @@ public class OpenAiChatModelFactory {
     }
 
     private OpenAiChatModel build(AiModelConfig config) {
-        org.springframework.web.client.RestClient.Builder restBuilder = restClientBuilder.clone();
-        if (Integer.valueOf(1).equals(config.getThinkingDisabled())) {
-            restBuilder.requestInterceptor(THINKING_DISABLED_INTERCEPTOR);
-        }
-        OpenAiApi api = OpenAiApi.builder()
-                .baseUrl(normalizeBaseUrl(config.getApiEndpoint()))
-                .apiKey(config.getApiKey())
-                .completionsPath(DEFAULT_COMPLETIONS_PATH)
-                .webClientBuilder(webClientBuilder.clone())
-                .restClientBuilder(restBuilder)
-                .build();
+        Duration timeout = Duration.ofMillis(aiModuleConfig.getClient().getReadTimeout());
+        List<OpenAiHttpClientBuilderCustomizer> customizers =
+                Integer.valueOf(1).equals(config.getThinkingDisabled())
+                        ? List.of(THINKING_DISABLED_CUSTOMIZER)
+                        : List.of();
+
+        OpenAIClient syncClient = OpenAiSetup.setupSyncClient(
+                normalizeBaseUrl(config.getApiEndpoint()), config.getApiKey(),
+                null, null, null, null, false, false, null,
+                timeout, SDK_MAX_RETRIES, null, null,
+                ObservationRegistry.NOOP, null, customizers);
+        OpenAIClientAsync asyncClient = OpenAiSetup.setupAsyncClient(
+                normalizeBaseUrl(config.getApiEndpoint()), config.getApiKey(),
+                null, null, null, null, false, false, null,
+                timeout, SDK_MAX_RETRIES, null, null,
+                ObservationRegistry.NOOP, null, customizers);
 
         OpenAiChatOptions.Builder options = OpenAiChatOptions.builder().model(config.getModelCode());
         Double temperature = resolveTemperature(config);
@@ -108,23 +130,10 @@ public class OpenAiChatModelFactory {
 
         log.info("构建 LLM 模型实例: {} ({})", config.getModelName(), config.getProvider());
         return OpenAiChatModel.builder()
-                .openAiApi(api)
-                .defaultOptions(options.build())
-                .retryTemplate(buildRetryTemplate())
+                .openAiClient(syncClient)
+                .openAiClientAsync(asyncClient)
+                .options(options.build())
                 .build();
-    }
-
-    /**
-     * 收紧重试：默认 3 次 × 10s 退避在长超时（120s）下最坏拖 6 分钟+；
-     * 改为 2 次 × 3s 退避，仅对 5xx/IO 错误重试（ReadTimeout 重试一次即放弃并透出失败）
-     */
-    private org.springframework.retry.support.RetryTemplate buildRetryTemplate() {
-        org.springframework.retry.backoff.FixedBackOffPolicy fixedBackOffPolicy = new org.springframework.retry.backoff.FixedBackOffPolicy();
-        fixedBackOffPolicy.setBackOffPeriod(3000L);
-        org.springframework.retry.support.RetryTemplate template = new org.springframework.retry.support.RetryTemplate();
-        template.setBackOffPolicy(fixedBackOffPolicy);
-        template.setRetryPolicy(new org.springframework.retry.policy.SimpleRetryPolicy(2));
-        return template;
     }
 
     private Double resolveTemperature(AiModelConfig config) {

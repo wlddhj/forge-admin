@@ -19,13 +19,15 @@
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
         </dependency>
+        <!-- Jackson 3（tools.jackson）：版本由 Boot 4 BOM（jackson-bom 3.x）托管；
+             java.time 内建支持，无需 jsr310 模块；注解包仍为 com.fasterxml.jackson.annotation（2/3 共用） -->
         <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>

@@ -1,11 +1,10 @@
 package com.forge.common.json;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.annotation.JacksonStdImpl;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.ValueSerializer;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.annotation.JacksonStdImpl;
 
-import java.io.IOException;
 
 /**
  * Long 类型序列化器
@@ -13,12 +12,12 @@ import java.io.IOException;
  * 将 Long 自动序列化为字符串类型
  */
 @JacksonStdImpl
-public class LongSerializer extends JsonSerializer<Long> {
+public class LongSerializer extends ValueSerializer<Long> {
 
     public static final LongSerializer INSTANCE = new LongSerializer();
 
     @Override
-    public void serialize(Long value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+    public void serialize(Long value, JsonGenerator gen, SerializationContext serializers) {
         if (value == null) {
             gen.writeNull();
         } else {

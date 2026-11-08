@@ -11,7 +11,7 @@ import com.aizuda.bpm.engine.entity.FlwHisTaskActor;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.aizuda.bpm.mybatisplus.mapper.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.framework.security.utils.SecurityHelper;
 import com.forge.framework.web.websocket.NotificationService;

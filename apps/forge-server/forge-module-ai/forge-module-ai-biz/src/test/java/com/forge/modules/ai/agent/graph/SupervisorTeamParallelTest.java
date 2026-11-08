@@ -1,7 +1,7 @@
 package com.forge.modules.ai.agent.graph;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.ai.agent.AgentEvents;
 import com.forge.modules.ai.agent.AgentProperties;

@@ -14,7 +14,7 @@ import com.aizuda.bpm.mybatisplus.mapper.*;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.framework.security.utils.SecurityHelper;
 import com.forge.framework.web.websocket.NotificationService;

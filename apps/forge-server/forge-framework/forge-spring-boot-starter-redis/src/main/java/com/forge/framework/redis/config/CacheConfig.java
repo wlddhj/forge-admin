@@ -1,13 +1,6 @@
 package com.forge.framework.redis.config;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
-import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
@@ -19,9 +12,16 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import tools.jackson.databind.DefaultTyping;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -54,23 +54,21 @@ public class CacheConfig implements CachingConfigurer {
      */
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory factory) {
-        // 创建专门用于 Redis 缓存的 ObjectMapper，启用类型信息
-        ObjectMapper redisObjectMapper = new ObjectMapper();
-        // 注册 Java 8 时间模块
-        redisObjectMapper.registerModule(new JavaTimeModule());
-        redisObjectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        redisObjectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        redisObjectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-        redisObjectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-
-        // 启用默认类型信息，允许反序列化为正确类型
+        // 创建专门用于 Redis 缓存的 Jackson 3 Mapper（java.time 内建，无需 JavaTimeModule）
         PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
                 .allowIfBaseType(Object.class)
                 .build();
-        redisObjectMapper.activateDefaultTyping(ptv, ObjectMapper.DefaultTyping.NON_FINAL);
+        ObjectMapper redisObjectMapper = JsonMapper.builder()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                // Jackson 3 默认即按 ISO 字符串写日期（等价旧的 WRITE_DATES_AS_TIMESTAMPS=false）
+                .changeDefaultPropertyInclusion(value -> value.withValueInclusion(JsonInclude.Include.NON_NULL))
+                // 启用默认类型信息，允许反序列化为正确类型
+                .activateDefaultTyping(ptv, DefaultTyping.NON_FINAL)
+                .build();
 
-        // 使用专门的 ObjectMapper 创建序列化器
-        GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer(redisObjectMapper);
+        // 使用专门的 ObjectMapper 创建序列化器（Jackson 3 线）
+        GenericJacksonJsonRedisSerializer jsonSerializer = new GenericJacksonJsonRedisSerializer(redisObjectMapper);
         StringRedisSerializer stringSerializer = new StringRedisSerializer();
 
         // 默认缓存配置（30分钟）

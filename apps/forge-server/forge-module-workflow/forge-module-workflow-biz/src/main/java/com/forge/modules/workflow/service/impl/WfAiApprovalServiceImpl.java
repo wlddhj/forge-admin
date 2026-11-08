@@ -1,7 +1,7 @@
 package com.forge.modules.workflow.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.modules.ai.client.LlmClient;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.response.ChatResponse;

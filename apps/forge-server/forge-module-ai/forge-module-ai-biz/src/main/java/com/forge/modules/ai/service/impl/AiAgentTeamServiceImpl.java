@@ -1,8 +1,8 @@
 package com.forge.modules.ai.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.ai.dto.team.TeamMemberItem;
 import com.forge.modules.ai.dto.team.TeamResponse;

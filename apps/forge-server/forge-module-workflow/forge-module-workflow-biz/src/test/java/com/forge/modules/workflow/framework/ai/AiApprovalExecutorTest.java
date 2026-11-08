@@ -5,7 +5,7 @@ import com.aizuda.bpm.engine.QueryService;
 import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.model.NodeModel;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.modules.workflow.dto.ai.AiApprovalConfig;
 import com.forge.modules.workflow.dto.ai.AiApprovalResult;
 import com.forge.modules.workflow.dto.ai.AiApprovalResult.AiStatus;

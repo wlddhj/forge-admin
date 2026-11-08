@@ -1,6 +1,6 @@
 package com.forge.modules.screen.executor;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.modules.screen.config.ScreenProperties;
 import com.forge.modules.screen.safety.SqlSafetyException;
 import lombok.extern.slf4j.Slf4j;

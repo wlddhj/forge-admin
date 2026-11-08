@@ -77,10 +77,6 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-inline</artifactId>
-            <scope>test</scope>
-        </dependency>
+        <!-- mockito-inline 已删：Mockito 5 起 inline mock maker 内置于 core -->
     </dependencies>
 </project>

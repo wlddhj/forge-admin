@@ -2,7 +2,7 @@ package com.forge.modules.system.service.storage;
 
 import cn.hutool.core.util.StrUtil;
 import com.forge.modules.system.entity.SysFileConfig;
-import org.springframework.boot.autoconfigure.web.ServerProperties;
+import org.springframework.boot.web.server.autoconfigure.ServerProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 

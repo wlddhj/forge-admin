@@ -7,7 +7,7 @@ import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.entity.*;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisTaskActorMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
 import com.forge.common.utils.UserContext;

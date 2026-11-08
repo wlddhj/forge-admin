@@ -1,7 +1,7 @@
 package com.forge.modules.system.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.framework.security.config.JwtProperties;
 import com.forge.framework.security.config.JustAuthProperties;
 import com.forge.common.enums.SocialSource;

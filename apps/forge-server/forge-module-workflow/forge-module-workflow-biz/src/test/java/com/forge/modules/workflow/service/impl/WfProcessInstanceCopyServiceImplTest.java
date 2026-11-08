@@ -7,7 +7,7 @@ import com.aizuda.bpm.engine.core.enums.InstanceEventType;
 import com.aizuda.bpm.engine.core.enums.TaskType;
 import com.aizuda.bpm.engine.entity.*;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisTaskActorMapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.UserContext;
 import com.forge.framework.security.utils.SecurityHelper;

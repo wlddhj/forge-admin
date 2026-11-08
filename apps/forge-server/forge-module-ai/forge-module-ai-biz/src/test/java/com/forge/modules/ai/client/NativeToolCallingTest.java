@@ -1,6 +1,6 @@
 package com.forge.modules.ai.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.framework.localcache.LocalCaches;
 import com.forge.modules.ai.agent.tools.AgentTool;
 import com.forge.modules.ai.agent.tools.ToolRegistry;
