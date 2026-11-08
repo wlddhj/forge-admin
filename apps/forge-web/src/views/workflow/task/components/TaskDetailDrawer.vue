@@ -51,7 +51,14 @@
             <el-tag v-else type="success">已结束</el-tag>
           </el-descriptions-item>
           <el-descriptions-item v-if="!isDoneTask" label="受理人">
-            {{ taskInfo?.assigneeName || '-' }}
+            <!-- 与待办列表口径一致：多参与人（或签/并行加签后）展示待认领 + 参与者名单，仅看 assigneeName 会停在首个受理人 -->
+            <template v-if="taskInfo?.candidate">
+              <el-tag type="warning" size="small">待认领</el-tag>
+              <span v-if="taskInfo?.candidateUsers?.length" style="margin-left: 6px; color: #909399; font-size: 12px">
+                {{ taskInfo.candidateUsers.join(', ') }}
+              </span>
+            </template>
+            <span v-else>{{ taskInfo?.assigneeName || '-' }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="业务标识">
             {{ instanceInfo?.businessKey || '-' }}
@@ -373,14 +380,14 @@
     <SignCreateDialog
       v-model="signCreateDialogVisible"
       :task-id="taskId"
-      @success="getTaskDetail"
+      @success="handleSignChanged"
     />
 
     <!-- 减签对话框 -->
     <SignDeleteDialog
       v-model="signDeleteDialogVisible"
       :task-id="taskId"
-      @success="getTaskDetail"
+      @success="handleSignChanged"
     />
   </el-drawer>
 </template>
@@ -473,6 +480,12 @@ const copyReason = ref('')
 // 加签/减签
 const signCreateDialogVisible = ref(false)
 const signDeleteDialogVisible = ref(false)
+
+// 加签/减签成功：刷新抽屉详情的同时通知列表刷新，保持两侧受理人一致
+const handleSignChanged = () => {
+  getTaskDetail()
+  emit('success')
+}
 
 // 打开抽屉
 const open = async (id: string) => {
