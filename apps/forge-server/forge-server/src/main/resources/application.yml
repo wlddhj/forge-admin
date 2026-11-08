@@ -43,8 +43,7 @@ spring:
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
-    serialization:
-      write-dates-as-timestamps: false
+    # write-dates-as-timestamps 已删：Jackson 3 无此枚举，默认即按字符串写日期（等价旧显式 false）
 
   # 文件上传配置
   servlet:
@@ -278,9 +277,12 @@ logging:
     file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
   file:
     name: ${LOG_PATH:logs}/forge-admin.log
-    max-size: 10MB
-    max-history: 30
-    total-size-cap: 1GB
+  # Boot 4 属性改名：logging.file.max-* → logging.logback.rollingpolicy.*（migrator 报告）
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
 
 # AI模块配置
 ai:

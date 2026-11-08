@@ -1,7 +1,41 @@
 # Spring Boot 4 升级评估报告
 
 > 评估日期：2026-11-08 ｜ 评估对象：forge-admin 后端（apps/forge-server，24 个 Maven 模块）
-> 结论先行：**可行，建议目标版本 Boot 4.1.2，预估 3~5 人日**；最大工作量在 Jackson 2→3 与 Spring AI 1.x→2.0，最大风险在 JSON 序列化契约回归。
+> **实施状态：✅ 已完成（2026-11-08，分支 `feat/spring-boot-4-upgrade`）——见文末「实施结果」节**
+
+## 实施结果（2026-11-08 补记）
+
+### 版本终值
+| 项 | 终值 | 备注 |
+|---|---|---|
+| Spring Boot | **4.1.2**（Spring Framework 7.0.10 / Security 7.1.2 / Tomcat 11） | 7.7s 启动 |
+| MyBatis-Plus | **3.5.18.1** `mybatis-plus-spring-boot4-starter` | **jsqlparser 4.9 锁定与适配包保持**，租户/数据权限不受影响 |
+| springdoc | **3.2.0** | swagger-ui / api-docs 实测 200 |
+| Spring AI | **2.0.2** | OpenAiApi→官方 OpenAI Java SDK 重写工厂 |
+| SAS | spring-security-oauth2-authorization-server **7.1.2**（纯 artifact，非 Boot starter） | 见下「AS 链说明」 |
+| ArchUnit | 1.5.1 ／ JUnit 6 ／ Mockito 5.20 | 479/479 测试全绿；byte-buddy 覆盖属性已删（Java 25 运行时无需） |
+| jasypt | 维持 3.0.5 | CVE-2026-9370 修复版（≥4.0.5）**至今未发布**（central 最高 4.0.4 同受影响）；issue #417 实证 3.0.5 兼容 Boot 4。发布后单独升级 |
+| 删除项 | resilience4j（零使用）、mockito-inline、mybatis.version 锁、jackson-datatype-jsr310、llmWebClient/RestClientBuilder bean | |
+
+### 行为差异与决策清单（升级实际落地项）
+1. **Jackson 3（tools.jackson）**：66 文件全量迁移；9 个自定义序列化器 SPI 重写（ValueSerializer/ValueDeserializer）；JacksonConfig 由自建 ObjectMapper bean 改为 `JsonMapperBuilderCustomizer`（Boot 4 自动装配 JsonMapper）；序列化行为（Long→字符串、LocalDateTime 秒级时间戳、NON_NULL、未知字段容错）经接口实测保持
+2. **Redis 缓存序列化**：`GenericJackson2JsonRedisSerializer`→`GenericJacksonJsonRedisSerializer`。**部署提示：升级后首次发布建议清 Redis DB1 业务缓存（dictData/dictType/sysConfig/userInfo/menu/dept）或容忍冷启动**，新旧值含 @class 类型信息可互通但时间字段格式有差异
+3. **yml 属性**：`spring.jackson.serialization.write-dates-as-timestamps` 删除（Jackson 3 无此枚举，默认即 ISO 字符串，与旧显式 false 等价）；`logging.file.max-*`→`logging.logback.rollingpolicy.*`（migrator 报告仅此 3 项）
+4. **AS 链说明**：Security 7 禁止 any-request 链遮蔽（UnreachableFilterChainException），授权服务器链改用写死端点 OrRequestMatcher（`/oauth2/**`、`/.well-known/**`、`/userinfo`、`/connect/**`），未用 configurer 延迟 matcher（其字段 init 期填充，与 securityMatcher 注册时序耦合在自定义链场景 NPE）；并改用纯 SAS artifact 绕开 Boot AS 自动配置（项目全手工配置 AS，自动配置链与自定义链并存时冲突）
+5. **Spring AI 2.0 工具语义**：`internalToolExecutionEnabled` 移除——ChatModel 永不内部执行工具，toolCalls 原样返回。项目 NativeToolCalling 本就是手动执行模式（图路由接管），删除该行即语义等价；重试由自建 RetryTemplate 改为官方 SDK `maxRetries=2`；thinking-disabled 请求体注入由 RestClient interceptor 平移为 OkHttp interceptor
+6. **jjwt 双栈**：jjwt-jackson 基于 Jackson 2，其传递的 jackson2 仅在 jjwt 内部使用，与业务 Jackson 3 共存互不交叉（设计内状态）
+7. **DaoAuthenticationProvider**：Security 7 改构造器注入 UserDetailsService，setter 移除
+
+### 遗留验收项（需真实凭据/环境）
+- 登录后接口的 JSON 契约对拍（分页 list/total、字典标签、时间字段）：dev 库演示账号密码已变更，本地 3 组凭据失败后为避免触发 Redis 登录锁定而停手。验收命令：`curl -X POST /admin-api/auth/login -H "tenant-id: 1" -d '{"username":"<账号>","password":"<密码>"}'` 后带 token 查 `/admin-api/system/user/list`
+- OAuth2 授权码全流程（浏览器跳转 3000 前端登录页）：需前端联跑
+- jasypt CVE 修复版发布后升级（≥4.0.5）
+
+### 排查经验（复用价值）
+- **spring-boot-maven-plugin repackage 增量陷阱**：源码已改但已存在 fat jar 未被替换（时间戳与内容均旧）——改依赖模块后重打 fat jar 前先 `rm` 旧 jar
+- macOS BSD sed 不支持 `\b`，正则单词边界替换静默失效——用无边界精确模式或 perl
+- javap + 常量池 MethodParameters 可从 jar 直接实证 API 参数名/签名，免网络查文档
+
 
 ---
 

@@ -40,8 +40,23 @@ public class AuthorizationServerConfig {
     public SecurityFilterChain authorizationServerSecurityFilterChain(
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
-        // Security 7：applyDefaultSecurity/getConfigurer DSL 已移除，统一走 oauth2AuthorizationServer
-        http.oauth2AuthorizationServer(as -> as.oidc(Customizer.withDefaults())); // 启用 OpenID Connect 1.0
+        // Security 7：any-request 链会遮蔽后续链（UnreachableFilterChainException）。
+        // 授权服务器端点固定集合（AuthorizationServerSettings 默认路径 + OIDC），
+        // 不使用 configurer 延迟 matcher（其字段在 init 期填充，与 securityMatcher 注册时序耦合易 NPE）
+        org.springframework.security.web.util.matcher.RequestMatcher asEndpoints =
+                new org.springframework.security.web.util.matcher.OrRequestMatcher(java.util.List.of(
+                        org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.withDefaults()
+                                .matcher("/oauth2/**"),
+                        org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.withDefaults()
+                                .matcher("/.well-known/**"),
+                        org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.withDefaults()
+                                .matcher("/userinfo"),
+                        org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.withDefaults()
+                                .matcher("/connect/**")));
+        http.securityMatcher(asEndpoints);
+
+        // 启用 OpenID Connect 1.0
+        http.oauth2AuthorizationServer(as -> as.oidc(Customizer.withDefaults()));
 
         // 禁用 CSRF（OAuth2 token 端点需要 POST 请求）
         http.csrf(AbstractHttpConfigurer::disable);
