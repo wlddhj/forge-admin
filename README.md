@@ -114,11 +114,9 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 
 ## 项目截图
 
-### 登录页面
 
-![登录页面](./docs-base/screenshots/login.png)
 
-### 仪表盘
+### 首页
 
 ![仪表盘](./docs-base/screenshots/dashboard.png)
 
@@ -133,6 +131,10 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 ### 菜单管理
 
 ![菜单管理](./docs-base/screenshots/menu.png)
+
+### 流程模型
+
+![流程模型](./docs-base/screenshots/model-setting.png)
 
 ### 定时任务
 
