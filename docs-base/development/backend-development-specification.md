@@ -1,6 +1,6 @@
 # 后端开发规范
 
-> 适用范围：`apps/forge-server`（Java 21 / Spring Boot 3.4 / MyBatis Plus）。
+> 适用范围：`apps/forge-server`（Java 21 / Spring Boot 4 / MyBatis Plus）。
 >
 > 配套文档：新模块端到端搭建流程见 [新模块开发向导](./module-development.md)；数据库设计与迁移脚本细节见 [数据库设计规范](./database-design-specification.md)；前端对接见 [前端开发规范](./frontend-development-specification.md)。
 
@@ -250,7 +250,7 @@ public class Sys{Entity} {
 **要点：**
 - `@Data` + `@TableName` + `@TableId(type = IdType.AUTO)`
 - `createTime` 用 `FieldFill.INSERT`，`updateTime` 用 `FieldFill.INSERT_UPDATE`
-- JSON 字段用 `@TableField(typeHandler = JacksonTypeHandler.class)` + `Map<String, Object>` 类型
+- JSON 字段用 `@TableField(typeHandler = Jackson3TypeHandler.class)` + `Map<String, Object>` 类型（Jackson 3 线；旧 `JacksonTypeHandler` 基于 Jackson 2 禁止新用）
 - 金额用 `BigDecimal`，日期用 `LocalDate`，时间用 `LocalDateTime`
 - 软删除字段：`@TableLogic private Integer deleted`
 - 表名前缀：`sys_`（系统模块）、`wf_`（工作流模块）、`ai_`（AI模块）等

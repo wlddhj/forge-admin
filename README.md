@@ -2,7 +2,7 @@
 
 # forge-admin
 
-**开箱即用的企业级后台管理系统 · Spring Boot 3.4 + Vue 3 + TypeScript**
+**开箱即用的企业级后台管理系统 · Spring Boot 4 + Vue 3 + TypeScript**
 
 RBAC 权限 · B2B SaaS 多租户 · 工作流审批 · 可视化大屏 · AI 对话 · 打印模板 · 等保二级
 
@@ -11,7 +11,7 @@ RBAC 权限 · B2B SaaS 多租户 · 工作流审批 · 可视化大屏 · AI �
 [![Issues](https://img.shields.io/github/issues/wlddhj/forge-admin.svg?style=flat&logo=github)](https://github.com/wlddhj/forge-admin/issues)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 ![JDK](https://img.shields.io/badge/JDK-21+-orange)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.11-green)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.2-green)
 ![Vue](https://img.shields.io/badge/Vue-3.4-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0%2B-4479A1)
@@ -110,7 +110,7 @@ graph TB
 
 ## 项目简介
 
-forge-admin 是一款现代化的企业级后台管理解决方案，采用前后端分离架构：后端基于 Spring Boot 3.4 构建，多模块 Maven 结构 + MyBatis Plus + JWT 无状态认证；前端基于 Vue 3 + TypeScript + Element Plus + vxe-table，内置多套 UI 主题切换系统与品牌信息动态配置（Logo、项目名称、登录页文案），管理后台修改后全局生效，无需重新构建。支持 Docker 容器化部署，并提供项目模板化工具，可快速基于此项目创建新的管理系统。
+forge-admin 是一款现代化的企业级后台管理解决方案，采用前后端分离架构：后端基于 Spring Boot 4 构建，多模块 Maven 结构 + MyBatis Plus + JWT 无状态认证；前端基于 Vue 3 + TypeScript + Element Plus + vxe-table，内置多套 UI 主题切换系统与品牌信息动态配置（Logo、项目名称、登录页文案），管理后台修改后全局生效，无需重新构建。支持 Docker 容器化部署，并提供项目模板化工具，可快速基于此项目创建新的管理系统。
 
 ## 项目截图
 
@@ -285,16 +285,17 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 ### 后端
 
 - Java 21
-- Spring Boot 3.4.11
-- Spring AI 1.1.8（LLM 对话/文档解析/摘要）
-- MyBatis Plus 3.5.17
+- Spring Boot 4.1.2（Spring Framework 7 / Security 7 / Tomcat 11）
+- Spring AI 2.0.2（LLM 对话/文档解析/摘要，官方 OpenAI Java SDK 传输）
+- MyBatis Plus 3.5.18.1
 - MySQL 8.0+
 - Redis 6.0+
 - JWT 认证
 - MyBatis Plus TenantLineInnerInterceptor（多租户）
-- Spring Authorization Server (OAuth2/OIDC)
+- Spring Authorization Server 7（并入 Spring Security 7，OAuth2/OIDC）
 - JustAuth（第三方登录）
-- springdoc-openapi 2.8（Swagger UI）
+- springdoc-openapi 3.2（Swagger UI）
+- Jackson 3（tools.jackson，Long→字符串/时间戳序列化自定义）
 - Quartz 定时任务
 - FlowLong 1.2.7（国产工作流引擎）
 - JSqlParser 4.9（SQL 解析与 AST 校验）
@@ -327,7 +328,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 
 ### AI 能力（Java 原生）
 
-- Spring AI 1.1.8（OpenAI 兼容协议直连上游）
+- Spring AI 2.0.2（OpenAI 兼容协议直连上游，官方 OpenAI Java SDK + OkHttp 传输）
 - LangGraph4j 1.9.2（Agent 编排：工具循环/审批中断/检查点恢复/多 Agent 团队协作）
 - 多模型支持：DeepSeek、Qwen（通义）、GLM（智谱）、ERNIE（百度千帆 v2）
 - 文档解析：Apache Tika（PDF、DOCX、TXT）
