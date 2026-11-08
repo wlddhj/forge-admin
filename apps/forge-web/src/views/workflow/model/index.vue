@@ -171,6 +171,9 @@
       </template>
     </MobileBottomActions>
 
+    <!-- 模型设计抽屉 -->
+    <ModelDesignDrawer v-model="designDrawerVisible" :model-id="designModelId" @saved="getList" @deployed="getList" />
+
     <!-- 新增/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" destroy-on-close>
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
@@ -305,7 +308,6 @@
 
 <script setup lang="ts">
 import { reactive, ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
@@ -322,8 +324,8 @@ import { useTableSeq } from '@/composables/useTableSeq'
 import MobileSearchDrawer from '@/components/MobileSearchDrawer.vue'
 import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
+import ModelDesignDrawer from './components/ModelDesignDrawer.vue'
 
-const router = useRouter()
 const { isMobile } = useResponsive()
 
 // 表格高度自适应
@@ -406,6 +408,10 @@ const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
 const isEditDialog = ref(false)
 const dialogTitle = computed(() => isEditDialog.value ? '编辑模型' : '新增模型')
+
+// 模型设计抽屉
+const designDrawerVisible = ref(false)
+const designModelId = ref('')
 
 // 发起范围指定人员（多选，提交时序列化为 JSON 数组存 useScopeUsers）
 const useScopeUserIds = ref<number[]>([])
@@ -498,10 +504,11 @@ const handleResetFromDrawer = () => {
   handleReset()
 }
 
-/** 跳转模型设计器 */
+/** 打开模型设计抽屉 */
 const handleDesign = (row: WfModel) => {
   cancelSelection()
-  router.push(`/workflow/model/designer?id=${row.id}`)
+  designModelId.value = row.id
+  designDrawerVisible.value = true
 }
 
 /** 新增模型 */

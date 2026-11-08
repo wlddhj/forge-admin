@@ -1,11 +1,11 @@
 <template>
-  <div class="flowlong-model-designer">
-    <!-- 顶部工具栏 -->
+  <div class="flowlong-model-designer" :class="{ 'is-embedded': embedded }">
+    <!-- 顶部工具栏（抽屉内嵌时兼作抽屉头） -->
     <div class="designer-toolbar">
       <div class="toolbar-left">
         <el-button size="small" @click="handleGoBack">
-          <el-icon><ArrowLeft /></el-icon>
-          返回
+          <el-icon><Close v-if="embedded" /><ArrowLeft v-else /></el-icon>
+          {{ embedded ? '关闭' : '返回' }}
         </el-button>
         <span class="page-title">{{ modelData?.name || '流程设计' }}</span>
       </div>
@@ -45,8 +45,8 @@
       <el-icon class="is-loading" size="40"><Loading /></el-icon>
     </div>
 
-    <!-- JSON 查看抽屉 -->
-    <el-drawer v-model="jsonDrawerVisible" title="流程模型 JSON" :size="500">
+    <!-- JSON 查看抽屉（内嵌于设计抽屉时须 append-to-body） -->
+    <el-drawer v-model="jsonDrawerVisible" title="流程模型 JSON" :size="500" append-to-body>
       <el-button type="primary" plain @click="copyJson">复制 JSON</el-button>
       <pre class="json-preview">{{ modelJsonStr }}</pre>
     </el-drawer>
@@ -57,15 +57,30 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, ZoomOut, ZoomIn, Check, Upload, View, Loading } from '@element-plus/icons-vue'
+import { ArrowLeft, Close, ZoomOut, ZoomIn, Check, Upload, View, Loading } from '@element-plus/icons-vue'
 import ScWorkflow from './components/FlowLongDesigner/index.vue'
 import { modelApi } from '@/api/workflow/model'
 import { useFlowLongDataTransform } from '@/composables/useFlowLongDataTransform'
 import type { FlowlongProcessModel } from '@/composables/useFlowLongDataTransform'
 
+const props = defineProps<{
+  /** 模型ID：抽屉等嵌入场景注入；不传则取路由 query.id（页面模式） */
+  modelId?: string
+  /** 嵌入模式：返回按钮变为关闭，离开设计器时 emit close 而非路由跳转 */
+  embedded?: boolean
+}>()
+
+const emit = defineEmits<{
+  close: []
+  saved: []
+  deployed: []
+}>()
+
 const router = useRouter()
 const route = useRoute()
 const workflowRef = ref<InstanceType<typeof ScWorkflow> | null>(null)
+
+const currentModelId = computed(() => props.modelId || (route.query.id as string) || '')
 
 // 数据转换 Hook
 const { createInitialModel, transformDesignerToBackend, transformBackendToDesigner } = useFlowLongDataTransform()
@@ -170,7 +185,7 @@ const loadModelData = async (id: string) => {
     }
   } catch (e) {
     ElMessage.error('加载模型失败')
-    router.push('/workflow/model')
+    handleGoBack()
   }
 }
 
@@ -191,8 +206,12 @@ const handleResetZoom = () => {
   scale.value = 1
 }
 
-// 返回列表
+// 离开设计器：嵌入模式关闭抽屉，页面模式回列表
 const handleGoBack = () => {
+  if (props.embedded) {
+    emit('close')
+    return
+  }
   router.push('/workflow/model')
 }
 
@@ -213,7 +232,7 @@ const copyJson = async () => {
 
 // 保存模型
 const handleSave = async () => {
-  const id = route.query.id as string
+  const id = currentModelId.value
   if (!id) {
     ElMessage.warning('缺少模型 ID')
     return
@@ -256,6 +275,7 @@ const handleSave = async () => {
       modelJson: JSON.stringify(processModelJson)
     })
     ElMessage.success('保存成功')
+    emit('saved')
   } catch (e) {
     // 用户取消或其他错误
   }
@@ -263,7 +283,7 @@ const handleSave = async () => {
 
 // 部署模型
 const handleDeploy = async () => {
-  const id = route.query.id as string
+  const id = currentModelId.value
   if (!id) {
     ElMessage.warning('缺少模型 ID')
     return
@@ -273,18 +293,19 @@ const handleDeploy = async () => {
     await ElMessageBox.confirm('确定部署该模型？部署后将创建流程定义。', '部署确认', { type: 'info' })
     await modelApi.deploy(id)
     ElMessage.success('部署成功')
-    router.push('/workflow/model')
+    emit('deployed')
+    handleGoBack()
   } catch (e) {
     // 用户取消或其他错误
   }
 }
 
 onMounted(async () => {
-  if (route.query.id) {
-    await loadModelData(route.query.id as string)
+  if (currentModelId.value) {
+    await loadModelData(currentModelId.value)
   } else {
     ElMessage.warning('缺少模型 ID')
-    router.push('/workflow/model')
+    handleGoBack()
   }
 })
 </script>
@@ -295,6 +316,11 @@ onMounted(async () => {
   flex-direction: column;
   height: calc(100vh - 120px);
   background: #f5f7fa;
+
+  // 嵌入抽屉时铺满抽屉 body，滚动交给画布区
+  &.is-embedded {
+    height: 100%;
+  }
 }
 
 .designer-toolbar {
