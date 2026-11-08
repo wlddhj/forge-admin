@@ -1,113 +1,69 @@
 package com.forge.framework.web.config;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalTimeDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalTimeSerializer;
-import com.forge.common.json.*;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import com.forge.common.json.DateDeserializer;
+import com.forge.common.json.DateSerializer;
+import com.forge.common.json.LocalDateDeserializer;
+import com.forge.common.json.LocalDateSerializer;
+import com.forge.common.json.LocalTimeDeserializer;
+import com.forge.common.json.LocalTimeSerializer;
+import com.forge.common.json.LongSerializer;
+import com.forge.common.json.TimestampLocalDateTimeDeserializer;
+import com.forge.common.json.TimestampLocalDateTimeSerializer;
+import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
+import tools.jackson.core.json.JsonReadFeature;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.module.SimpleModule;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
-import java.util.List;
 
 /**
- * Jackson 配置
- * 参考 shi9-boot 配置，解决 JSON 序列化问题
+ * Jackson 配置（Jackson 3 / Boot 4）
+ *
+ * <p>Boot 4 自动装配 tools.jackson.databind.json.JsonMapper，本类经 JsonMapperBuilderCustomizer
+ * 在其上追加项目序列化规则；Redis 缓存用的独立 Mapper 见 CacheConfig。
  */
-@Slf4j
 @Configuration
-@ConditionalOnClass(ObjectMapper.class)
 public class JacksonConfig {
 
     /**
-     * 创建自定义的 ObjectMapper，覆盖默认配置
-     * 使用 ConditionalOnMissingBean 避免 bean 冲突
+     * 项目统一序列化模块：
+     * Long 超过 2^53-1 在 JS 精度丢失 → 序列化为字符串；
+     * LocalDate/LocalTime 字符串格式化；LocalDateTime 秒级时间戳；Date 毫秒时间戳
      */
-    @Bean
-    @ConditionalOnMissingBean(ObjectMapper.class)
-    public ObjectMapper objectMapper() {
-        // 创建 SimpleModule 对象
+    static SimpleModule forgeSerializersModule() {
         SimpleModule simpleModule = new SimpleModule();
         simpleModule
-                // Long 类型序列化规则，数值超过 2^53-1，在 JS 会出现精度丢失问题，因此 Long 自动序列化为字符串类型
                 .addSerializer(Long.class, LongSerializer.INSTANCE)
                 .addSerializer(Long.TYPE, LongSerializer.INSTANCE)
-                // LocalDate 序列化/反序列化
                 .addSerializer(LocalDate.class, LocalDateSerializer.INSTANCE)
                 .addDeserializer(LocalDate.class, LocalDateDeserializer.INSTANCE)
-                // LocalTime 序列化/反序列化
                 .addSerializer(LocalTime.class, LocalTimeSerializer.INSTANCE)
                 .addDeserializer(LocalTime.class, LocalTimeDeserializer.INSTANCE)
-
                 .addSerializer(Date.class, DateSerializer.INSTANCE)
                 .addDeserializer(Date.class, DateDeserializer.INSTANCE)
-                // LocalDateTime 序列化/反序列化，使用秒级时间戳
                 .addSerializer(LocalDateTime.class, TimestampLocalDateTimeSerializer.INSTANCE)
                 .addDeserializer(LocalDateTime.class, TimestampLocalDateTimeDeserializer.INSTANCE);
-
-        // 创建 ObjectMapper 并注册模块
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(simpleModule);
-
-        // 其他配置
-        objectMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
-        objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, false);
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-
-        log.info("[Jackson] ObjectMapper 初始化成功，已注册自定义序列化器");
-        return objectMapper;
+        return simpleModule;
     }
 
     /**
-     * 初始化其他 ObjectMapper 实例（如 Redis 使用的）
+     * 在自动装配的 JsonMapper 上追加项目序列化规则与容错配置
      */
     @Bean
-    public Object jacksonInitializer(List<ObjectMapper> objectMappers) {
-        // 创建 SimpleModule 对象
-        SimpleModule simpleModule = new SimpleModule();
-        simpleModule
-                .addSerializer(Long.class, LongSerializer.INSTANCE)
-                .addSerializer(Long.TYPE, LongSerializer.INSTANCE)
-                .addSerializer(LocalDate.class, LocalDateSerializer.INSTANCE)
-                .addDeserializer(LocalDate.class, LocalDateDeserializer.INSTANCE)
-                .addSerializer(LocalTime.class, LocalTimeSerializer.INSTANCE)
-                .addDeserializer(LocalTime.class, LocalTimeDeserializer.INSTANCE)
-                .addSerializer(Date.class, DateSerializer.INSTANCE)
-                .addDeserializer(Date.class, DateDeserializer.INSTANCE)
-                .addSerializer(LocalDateTime.class, TimestampLocalDateTimeSerializer.INSTANCE)
-                .addDeserializer(LocalDateTime.class, TimestampLocalDateTimeDeserializer.INSTANCE);
-
-        // 注册到所有 ObjectMapper（排除已注册的）
-        int count = 0;
-        for (ObjectMapper objectMapper : objectMappers) {
-            if (!hasModule(objectMapper, simpleModule)) {
-                objectMapper.registerModule(simpleModule);
-                count++;
-            }
-        }
-
-        log.info("[Jackson] 初始化成功，已注册自定义序列化器到 {} 个 ObjectMapper", count);
-        return new Object();
+    public JsonMapperBuilderCustomizer forgeJacksonCustomizer() {
+        return builder -> builder
+                .addModule(forgeSerializersModule())
+                .enable(JsonReadFeature.ALLOW_SINGLE_QUOTES)
+                .disable(JsonReadFeature.ALLOW_UNQUOTED_PROPERTY_NAMES)
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                .changeDefaultPropertyInclusion(value -> value.withValueInclusion(JsonInclude.Include.NON_NULL));
     }
-
-    private boolean hasModule(ObjectMapper objectMapper, SimpleModule module) {
-        return objectMapper.getRegisteredModuleIds().contains(module.getTypeId());
-    }
-
 }

@@ -12,7 +12,7 @@ import com.aizuda.bpm.engine.entity.FlwInstance;
 import com.aizuda.bpm.engine.model.ConditionNode;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.aizuda.bpm.mybatisplus.mapper.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.UserContext;
 import com.forge.framework.security.utils.SecurityHelper;

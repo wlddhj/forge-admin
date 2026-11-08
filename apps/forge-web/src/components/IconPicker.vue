@@ -2,7 +2,7 @@
   <el-popover
     :visible="popoverVisible"
     placement="bottom-start"
-    :width="450"
+    :width="600"
     @update:visible="(val: boolean) => popoverVisible = val"
   >
     <template #reference>
@@ -46,7 +46,7 @@
         />
       </el-tabs>
 
-      <el-scrollbar height="220px">
+      <el-scrollbar height="300px">
         <div class="icon-grid">
           <div
             v-for="name in pagedIcons"
@@ -170,7 +170,7 @@ watch(() => popoverVisible, (visible) => {
 
   .icon-grid {
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 4px;
   }
 

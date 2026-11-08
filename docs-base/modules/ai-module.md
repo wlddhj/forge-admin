@@ -2,7 +2,7 @@
 
 > 适用范围：`apps/forge-server/forge-module-ai`（后端）与 `apps/forge-web/src/views/ai`（前端管理页）。
 >
-> AI 能力全部在 Java 端实现（基于 Spring AI 1.1.8 + LangGraph4j 1.9，无独立 AI 服务进程），四个 provider（deepseek/qwen/glm/ernie）统一走 OpenAI 兼容协议直连上游。
+> AI 能力全部在 Java 端实现（基于 Spring AI 2.0.2 + LangGraph4j 1.9，无独立 AI 服务进程），四个 provider（deepseek/qwen/glm/ernie）统一走 OpenAI 兼容协议直连上游；模型传输层为官方 OpenAI Java SDK（OkHttp），超时/重试按 `ai.client.*` 配置传入。
 
 ## 目录
 
@@ -66,7 +66,7 @@ forge-module-ai-biz/                    # 业务实现
 │   └── impl/                           # AiChatServiceImpl / AiDocumentServiceImpl / AiModelServiceImpl
 ├── config/
 │   ├── AiModuleConfig                  # @ConfigurationProperties(prefix = "ai")
-│   └── AiClientConfig                  # 上游 WebClient（带超时，16MB 流式缓冲）
+│   └── AiClientConfig                  # 通用 RestTemplate（模型传输由 OpenAiChatModelFactory 经官方 SDK/OkHttp 承担，超时按 ai.client.*）
 ├── agent/                              # Agent 编排（LangGraph4j）
 │   ├── kernel/                         # 编排内核：AgentGraphDefinition/Registry/Runner/State/Context + MysqlCheckpointSaver
 │   ├── graph/                          # 编排图：ConversationalAssistantGraph（单 Agent）/ SupervisorTeamGraph（团队协作）/ DecisionJsonParser
@@ -270,7 +270,7 @@ ai:
     default-max-tokens: ${AI_DEFAULT_MAX_TOKENS:4096}    # 模型未配置 maxTokens 时的默认值
 ```
 
-上游 `WebClient` 由 `AiClientConfig#llmWebClientBuilder` 构建（`@Qualifier("llmWebClientBuilder")`），超时参数即来自 `ai.client.*`。
+模型实例由 `OpenAiChatModelFactory` 经官方 OpenAI Java SDK 装配（sync+async 双 client，`maxRetries=2`），读超时来自 `ai.client.read-timeout`；Spring AI 2.0 起 ChatModel 不再内部执行工具，toolCalls 由 Agent 图路由接管执行。
 
 ---
 

@@ -1,6 +1,6 @@
 package com.forge.modules.system.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.modules.system.auth.service.RefreshTokenService;
 import com.forge.modules.system.dto.online.LoginUserSession;
 import com.forge.modules.system.service.LoginUserSessionService;

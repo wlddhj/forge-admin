@@ -1,11 +1,10 @@
 package com.forge.common.json;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.annotation.JacksonStdImpl;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.ValueDeserializer;
+import tools.jackson.databind.annotation.JacksonStdImpl;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -15,12 +14,12 @@ import java.time.ZoneId;
  * 从时间戳格式反序列化为 LocalDateTime
  */
 @JacksonStdImpl
-public class TimestampLocalDateTimeDeserializer extends JsonDeserializer<LocalDateTime> {
+public class TimestampLocalDateTimeDeserializer extends ValueDeserializer<LocalDateTime> {
 
     public static final TimestampLocalDateTimeDeserializer INSTANCE = new TimestampLocalDateTimeDeserializer();
 
     @Override
-    public LocalDateTime deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+    public LocalDateTime deserialize(JsonParser parser, DeserializationContext context) {
         long timestamp = parser.getLongValue();
         if (timestamp == 0) {
             return null;

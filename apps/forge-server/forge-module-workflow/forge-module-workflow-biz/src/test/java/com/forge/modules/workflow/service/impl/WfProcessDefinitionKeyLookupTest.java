@@ -6,7 +6,7 @@ import com.aizuda.bpm.engine.entity.FlwProcess;
 import com.aizuda.bpm.engine.exception.FlowLongException;
 import com.aizuda.bpm.mybatisplus.mapper.FlwInstanceMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.workflow.framework.diagram.FlowLongDiagramGenerator;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;

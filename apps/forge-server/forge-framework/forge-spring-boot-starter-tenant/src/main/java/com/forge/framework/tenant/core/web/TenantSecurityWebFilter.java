@@ -8,7 +8,7 @@ import com.forge.common.utils.UserContext;
 import com.forge.framework.tenant.config.TenantProperties;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.framework.tenant.core.service.TenantFrameworkService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

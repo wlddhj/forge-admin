@@ -46,6 +46,8 @@
             <artifactId>jjwt-jackson</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- SAS 已并入 Spring Security 7。不用 Boot starter（其自动配置注册的 AS 链在自定义链并存时
+             出现 endpointsMatcher 未初始化 NPE），项目全手工配置 AS，直接依赖纯 artifact，版本随 Security BOM -->
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-oauth2-authorization-server</artifactId>

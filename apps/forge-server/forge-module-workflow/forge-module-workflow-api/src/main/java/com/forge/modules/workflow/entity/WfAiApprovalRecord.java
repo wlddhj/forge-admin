@@ -55,7 +55,7 @@ public class WfAiApprovalRecord {
     /**
      * 原始AI响应
      */
-    @TableField(typeHandler = com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler.class)
+    @TableField(typeHandler = com.baomidou.mybatisplus.extension.handlers.Jackson3TypeHandler.class)
     private String rawResponse;
 
     /**

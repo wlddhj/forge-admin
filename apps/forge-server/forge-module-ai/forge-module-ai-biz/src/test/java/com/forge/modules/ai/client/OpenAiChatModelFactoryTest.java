@@ -4,7 +4,6 @@ import com.forge.modules.ai.config.AiModuleConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -14,8 +13,8 @@ class OpenAiChatModelFactoryTest {
 
     @BeforeEach
     void setUp() {
-        factory = new OpenAiChatModelFactory(WebClient.builder(),
-                org.springframework.web.client.RestClient.builder(), new AiModuleConfig(),
+        // Spring AI 2.0：工厂不再注入 WebClient/RestClient Builder（官方 SDK 自带 OkHttp 传输）
+        factory = new OpenAiChatModelFactory(new AiModuleConfig(),
                 new com.forge.framework.localcache.LocalCaches());
     }
 

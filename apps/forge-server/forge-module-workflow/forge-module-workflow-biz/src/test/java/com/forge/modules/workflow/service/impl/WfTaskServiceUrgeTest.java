@@ -14,7 +14,7 @@ import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.aizuda.bpm.mybatisplus.mapper.*;
 import com.aizuda.bpm.spring.adaptive.FlowJacksonHandler;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.UserContext;
 import com.forge.framework.security.utils.SecurityHelper;

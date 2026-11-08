@@ -16,7 +16,7 @@ import com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
 import com.forge.modules.workflow.dto.definition.ProcessDefinitionQueryRequest;

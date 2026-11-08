@@ -37,7 +37,7 @@ import com.forge.modules.workflow.framework.title.InstanceTitleRenderer;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import com.forge.modules.workflow.mapper.WfApprovalCommentMapper;
 import com.forge.modules.workflow.service.WfTaskService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

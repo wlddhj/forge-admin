@@ -21,7 +21,7 @@
         </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
             <exclusions>
                 <!-- starter 默认传递 5.x 适配包，与 BOM 强制的 jsqlparser 4.9 不匹配，换用下方 4.9 适配 -->
                 <exclusion>
@@ -40,7 +40,7 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

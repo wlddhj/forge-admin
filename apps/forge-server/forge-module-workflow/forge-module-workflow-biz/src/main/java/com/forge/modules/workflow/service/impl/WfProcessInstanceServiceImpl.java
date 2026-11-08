@@ -14,8 +14,8 @@ import com.aizuda.bpm.engine.model.NodeAssignee;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
 import com.forge.common.utils.UserContext;
@@ -663,7 +663,7 @@ public class WfProcessInstanceServiceImpl implements WfProcessInstanceService {
                 // TypeReference 统一反序列化为 Long——裸 List.class 会得到 Integer，
                 // 与 currentUserId(Long) 的 contains 比较恒为 false 导致名单内用户也被拒
                 List<Long> scopeUsers = objectMapper.readValue(processExt.getUseScopeUsers(),
-                        new com.fasterxml.jackson.core.type.TypeReference<List<Long>>() {});
+                        new tools.jackson.core.type.TypeReference<List<Long>>() {});
                 allowed = scopeUsers != null && scopeUsers.contains(currentUserId);
             } catch (Exception e) {
                 log.warn("解析发起范围名单失败，按无权限处理: processId={}", processId, e);

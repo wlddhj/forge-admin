@@ -1,7 +1,7 @@
 package com.forge.modules.screen.safety;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.modules.screen.entity.SysScreenSqlWhitelist;
 import com.forge.modules.screen.mapper.SysScreenSqlWhitelistMapper;
 import lombok.RequiredArgsConstructor;

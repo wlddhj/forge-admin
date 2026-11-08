@@ -6,7 +6,7 @@ import com.aizuda.bpm.engine.core.FlowCreator;
 import com.aizuda.bpm.engine.entity.FlwInstance;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.model.NodeModel;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.workflow.dto.ai.AiApprovalConfig;
 import com.forge.modules.workflow.dto.ai.AiApprovalResult;

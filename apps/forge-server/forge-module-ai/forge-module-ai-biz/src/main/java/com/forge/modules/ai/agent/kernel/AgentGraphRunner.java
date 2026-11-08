@@ -1,7 +1,7 @@
 package com.forge.modules.ai.agent.kernel;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.ai.agent.AgentEvents;
 import com.forge.modules.ai.agent.graph.SupervisorTeamGraph;
@@ -525,7 +525,7 @@ public class AgentGraphRunner {
         }
         try {
             JsonNode bindings = objectMapper.readTree(agentConfig.getModelBindings());
-            bindings.fields().forEachRemaining(entry -> {
+            bindings.properties().forEach(entry -> {
                 String node = entry.getKey();
                 JsonNode binding = entry.getValue();
                 AiModelConfig model = null;

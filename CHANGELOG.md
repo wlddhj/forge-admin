@@ -4,6 +4,19 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 变更
+
+- **Spring Boot 3.4.11 → 4.1.2 全链路升级**（Spring Framework 7 / Security 7 / Tomcat 11 / JUnit 6，479 项测试全绿）：
+  - Jackson 2 → Jackson 3（tools.jackson）全量迁移：66 文件、9 个自定义序列化器 SPI 重写，序列化契约（Long→字符串、LocalDateTime 秒级时间戳）保持不变；实体 JSON 字段统一 `Jackson3TypeHandler`
+  - Spring AI 1.1.8 → 2.0.2：`OpenAiApi` → 官方 OpenAI Java SDK（OkHttp 传输），重试改 SDK `maxRetries=2`，`internalToolExecutionEnabled` 移除（ChatModel 不再内部执行工具，与项目手动执行模式语义一致）
+  - Spring Authorization Server 并入 Spring Security 7（7.1.2 纯 artifact），授权服务器链显式端点匹配
+  - MyBatis Plus 3.5.18.1（boot4 starter，jsqlparser 4.9 锁定保持，租户/数据权限不受影响）；springdoc 3.2.0；ArchUnit 1.5.1
+  - 删除死依赖：resilience4j、mockito-inline、jackson-datatype-jsr310、byte-buddy 覆盖
+  - 部署提示：升级后首次发布建议清 Redis 业务缓存（dictData/sysConfig/menu/dept/userInfo，Redis 序列化器换代）；jasypt 维持 3.0.5（CVE-2026-9370 修复版未发布，发布后单独升级）
+- ArchitectureTest 两条存量失败修复：workflow→ai 耦合白名单补充 AI 路由、Service Impl 命名规则改为只约束顶层类
+
 ## [1.1.0] - 2026-10-30
 
 ### 新增

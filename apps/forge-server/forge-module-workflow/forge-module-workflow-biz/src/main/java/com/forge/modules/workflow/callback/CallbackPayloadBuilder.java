@@ -2,7 +2,7 @@ package com.forge.modules.workflow.callback;
 
 import com.aizuda.bpm.engine.entity.FlwHisInstance;
 import com.aizuda.bpm.engine.entity.FlwTask;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.modules.workflow.listener.event.WorkflowInstanceEvent;
 import com.forge.modules.workflow.listener.event.WorkflowTaskEvent;
 import lombok.RequiredArgsConstructor;

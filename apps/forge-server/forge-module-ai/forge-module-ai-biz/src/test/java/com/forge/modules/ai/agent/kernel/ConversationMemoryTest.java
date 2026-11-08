@@ -1,6 +1,6 @@
 package com.forge.modules.ai.agent.kernel;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.modules.ai.agent.AgentProperties;
 import com.forge.modules.ai.agent.tools.ToolRegistry;
 import com.forge.modules.ai.entity.AiAgentRun;

@@ -1,7 +1,7 @@
 package com.forge.modules.ai.client;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.forge.modules.ai.config.AiModuleConfig;
 import com.forge.modules.ai.dto.request.ChatRequest;
@@ -450,7 +450,7 @@ public class SpringAiLlmClient implements LlmClient {
     private String toJson(Map<String, Object> payload) {
         try {
             return objectMapper.writeValueAsString(payload);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return "{\"error\":true,\"message\":\"响应序列化失败\"}";
         }
     }

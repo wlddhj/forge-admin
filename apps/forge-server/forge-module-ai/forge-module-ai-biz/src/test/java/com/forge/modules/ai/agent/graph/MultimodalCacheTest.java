@@ -1,6 +1,6 @@
 package com.forge.modules.ai.agent.graph;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.forge.framework.localcache.LocalCaches;
 import com.forge.modules.ai.agent.AgentEvents;
 import com.forge.modules.ai.agent.AgentProperties;

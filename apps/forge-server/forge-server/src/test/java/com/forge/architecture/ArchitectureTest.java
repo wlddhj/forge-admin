@@ -82,13 +82,15 @@ class ArchitectureTest {
                     .should().dependOnClassesThat().resideInAnyPackage(
                             "com.forge.modules.workflow..", "com.forge.modules.ai..");
 
-    /** workflow→ai 仅允许 AI 审批适配器这一处显式妥协，防止耦合面扩大 */
+    /** workflow→ai 仅允许 AI 审批与 AI 路由两处显式妥协，防止耦合面扩大 */
     @ArchTest
     static final ArchRule workflow_ai_coupling_is_limited_to_approval_adapter =
             noClasses().that().resideInAPackage("com.forge.modules.workflow..")
                     .and().doNotHaveFullyQualifiedName("com.forge.modules.workflow.service.impl.WfAiApprovalServiceImpl")
+                    .and().doNotHaveFullyQualifiedName("com.forge.modules.workflow.service.impl.WfAiRoutingServiceImpl")
                     .should().dependOnClassesThat().resideInAPackage("com.forge.modules.ai..")
-                    .because("workflow-biz pom 注释『AI 审批需要调用 AI 服务，暂时依赖 biz 层』；新增耦合应下沉至 ai-api 而非直依赖 ai-biz");
+                    .because("workflow-biz pom 注释『AI 审批需要调用 AI 服务，暂时依赖 biz 层』（存量：AI 审批 + AI 路由各一处）；"
+                            + "新增耦合应下沉至 ai-api 而非直依赖 ai-biz，下沉重构完成后删除本白名单收紧规则");
 
     // ========== 三、框架层纯净性 ==========
 
@@ -143,11 +145,11 @@ class ArchitectureTest {
             classes().that().resideInAPackage("..mapper..")
                     .should().haveSimpleNameEndingWith("Mapper");
 
-    /** Service 实现类统一以 Impl 结尾（排除匿名内部类） */
+    /** Service 实现类统一以 Impl 结尾（只约束顶层实现入口；嵌套类是外层类的私有辅助结构，如 WfTaskServiceImpl$BatchContext） */
     @ArchTest
     static final ArchRule service_impls_should_be_suffixed_impl =
             classes().that().resideInAPackage("..service.impl..")
-                    .and().areNotAnonymousClasses()
+                    .and().areTopLevelClasses()
                     .should().haveSimpleNameEndingWith("Impl");
 
     // ========== 五、Mapper SQL 落位（条件实现见 MapperSqlConditions） ==========
