@@ -4,18 +4,47 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [2.0.0] - 2026-11-08
 
 ### 变更
 
-- **Spring Boot 3.4.11 → 4.1.2 全链路升级**（Spring Framework 7 / Security 7 / Tomcat 11 / JUnit 6，479 项测试全绿）：
+- **Spring Boot 3.4.11 → 4.1.2 全链路升级**（Spring Framework 7 / Security 7 / Tomcat 11 / JUnit 6，479 项测试全绿，应用 7.7s 启动）：
   - Jackson 2 → Jackson 3（tools.jackson）全量迁移：66 文件、9 个自定义序列化器 SPI 重写，序列化契约（Long→字符串、LocalDateTime 秒级时间戳）保持不变；实体 JSON 字段统一 `Jackson3TypeHandler`
-  - Spring AI 1.1.8 → 2.0.2：`OpenAiApi` → 官方 OpenAI Java SDK（OkHttp 传输），重试改 SDK `maxRetries=2`，`internalToolExecutionEnabled` 移除（ChatModel 不再内部执行工具，与项目手动执行模式语义一致）
-  - Spring Authorization Server 并入 Spring Security 7（7.1.2 纯 artifact），授权服务器链显式端点匹配
+  - Spring AI 1.1.8 → 2.0.2：`OpenAiApi` → 官方 OpenAI Java SDK（OkHttp 传输），重试改 SDK `maxRetries=2`；Spring AI 2.0 起 ChatModel 不再内部执行工具，与项目手动工具执行模式语义一致
+  - Spring Authorization Server 并入 Spring Security 7（7.1.2），授权服务器链显式端点匹配
   - MyBatis Plus 3.5.18.1（boot4 starter，jsqlparser 4.9 锁定保持，租户/数据权限不受影响）；springdoc 3.2.0；ArchUnit 1.5.1
   - 删除死依赖：resilience4j、mockito-inline、jackson-datatype-jsr310、byte-buddy 覆盖
-  - 部署提示：升级后首次发布建议清 Redis 业务缓存（dictData/sysConfig/menu/dept/userInfo，Redis 序列化器换代）；jasypt 维持 3.0.5（CVE-2026-9370 修复版未发布，发布后单独升级）
-- ArchitectureTest 两条存量失败修复：workflow→ai 耦合白名单补充 AI 路由、Service Impl 命名规则改为只约束顶层类
+  - jasypt 维持 3.0.5（CVE-2026-9370 修复版未发布，发布后单独升级）
+  - ArchitectureTest 两条存量失败修复：workflow→ai 耦合白名单补充 AI 路由、Service Impl 命名规则改为只约束顶层类
+
+### 新增
+
+- **角色管理分配用户**：对标分配菜单，抽屉分页勾选用户（跨页保留勾选、回显既有分配），覆盖式重写 `sys_user_role`；新增 `GET /{id}/user-ids` 与 `PUT /{id}/users` 端点，带存在性与租户越权校验、GRANT 操作日志
+- **首页我的待办任务卡片**：仪表盘新增待办卡片（最近 20 条不翻页），行内流程编号/紧急标识/标题，点击直达审批
+- **模型管理设计抽屉化**：流程模型「设计」改为抽屉弹窗打开设计器，不再跳转整页
+- **工作流标题规则增强**：`${}` 模板支持发起人/业务键/日期与表单变量组合，实例列表可按标题搜索，任务节点可配置 title 覆盖；进程内事件消费可靠性提升（防丢失兜底）
+- **品牌设置默认主题新增菜单底色配置**：BrandTheme 支持侧栏底色白名单字段
+- **侧栏菜单底色浅/深档切换**：页面设置新增菜单底色档位，data-sidebar 维度 + CSS 变量级联
+- **菜单按钮悬停自动展开**：折叠侧栏悬停展开菜单，移开自动收起
+
+### 修复
+
+- 浅色侧栏菜单悬停不可读（el-menu 颜色 props 传 var() 时 EP 内部推导失败回落纯黑底，改走 `--el-menu-*` 变量整链接管）
+- 分配用户抽屉取消勾选不生效（后端 Long 序列化为字符串，勾选集用 `Number()` 归一）
+- 角色/用户分配抽屉 el-table → vxe-table（勾选列/序号列/回显事件统一）
+- 待办/已办流程名称搜索不生效（后端从未消费 `processDefinitionName` 的存量缺口）
+- 各页面表格列的展示规范统一（对齐/宽度/格式）
+
+### 性能与重构
+
+- 字典标签表格首屏重复请求去重：`useDict` 模块级共享缓存 + in-flight Promise 去重，表格 N 行从 N 次请求降为 1 次；字典保存后已打开页面标签原地更新
+- Mapper 注解 SQL 按规则迁入 mapper.xml（8 mapper/25 条），ArchUnit 新增第五组落位守卫（方法须绑定 SQL / 不混用注解与 XML / 注解限单行简单 SQL）
+- 杂项清理：husky 残留、死代码删除；表格展示规范样式统一
+
+### 部署提示
+
+- 升级后首次发布建议清 Redis 业务缓存（dictData/dictType/sysConfig/userInfo/menu/dept）——Redis 序列化器换代（Jackson 3），新旧格式共存但建议冷启动
+- 本次无新增 SQL 脚本，存量库无需执行迁移
 
 ## [1.1.0] - 2026-10-30
 
@@ -153,5 +182,6 @@
 
 全新建库直接执行 `sql/init*.sql`，无需以上脚本。
 
+[2.0.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.0.0
 [1.1.0]: https://github.com/wlddhj/forge-admin/releases/tag/v1.1.0
 [1.0.0]: https://github.com/wlddhj/forge-admin/releases/tag/v1.0.0
