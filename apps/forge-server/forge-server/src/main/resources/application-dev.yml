@@ -34,6 +34,12 @@ justauth:
       client-id: ${DINGTALK_APP_KEY:}
       client-secret: ${DINGTALK_APP_SECRET:}
       redirect-uri: ${DINGTALK_REDIRECT_URI:http://localhost:3000/api/auth/social/callback/dingtalk}
+    # 企业微信 OAuth 扫码绑定通道（凭据与 im.notify.wework 共用同一个企微自建应用）
+    wework:
+      client-id: ${WEWORK_CORP_ID:}
+      client-secret: ${WEWORK_SECRET:}
+      agent-id: ${WEWORK_AGENT_ID:}
+      redirect-uri: ${WEWORK_REDIRECT_URI:http://localhost:3000/api/auth/social/callback/wework}
 
 # 日志级别
 logging:

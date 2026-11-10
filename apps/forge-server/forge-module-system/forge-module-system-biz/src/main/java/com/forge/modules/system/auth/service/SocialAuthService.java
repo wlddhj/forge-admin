@@ -1,5 +1,7 @@
 package com.forge.modules.system.auth.service;
 
+import com.forge.modules.system.auth.dto.CorpBindingRequest;
+import com.forge.modules.system.auth.dto.CorpBindingResponse;
 import com.forge.modules.system.auth.dto.LoginResponse;
 import com.forge.modules.system.auth.dto.SocialUserResponse;
 
@@ -62,4 +64,20 @@ public interface SocialAuthService {
      * @return 绑定列表
      */
     List<SocialUserResponse> listBindings(Long userId);
+
+    /**
+     * 查询用户的企业 IM userid 绑定（企业微信/钉钉）
+     *
+     * @param userId 系统用户ID
+     * @return 绑定视图（未绑定字段为 null）
+     */
+    CorpBindingResponse getCorpBinding(Long userId);
+
+    /**
+     * 全量态保存企业 IM userid 绑定：非空 upsert、空（且原已绑定）删
+     *
+     * @param userId  系统用户ID
+     * @param request weworkUserid / dingtalkUserid
+     */
+    void saveCorpBinding(Long userId, CorpBindingRequest request);
 }

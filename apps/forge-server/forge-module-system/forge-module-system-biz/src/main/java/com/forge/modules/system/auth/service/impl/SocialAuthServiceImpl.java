@@ -8,6 +8,8 @@ import com.forge.common.enums.SocialSource;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
 import com.forge.common.utils.IpUtils;
+import com.forge.modules.system.auth.dto.CorpBindingRequest;
+import com.forge.modules.system.auth.dto.CorpBindingResponse;
 import com.forge.modules.system.auth.dto.LoginResponse;
 import com.forge.modules.system.auth.dto.SocialUserResponse;
 import com.forge.modules.system.auth.entity.SysSocialUser;
@@ -30,6 +32,7 @@ import me.zhyd.oauth.request.AuthRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -219,6 +222,75 @@ public class SocialAuthServiceImpl implements SocialAuthService {
                     .build());
         }
         return result;
+    }
+
+    @Override
+    public CorpBindingResponse getCorpBinding(Long userId) {
+        List<SysSocialUser> bindings = socialUserMapper.selectList(
+                new LambdaQueryWrapper<SysSocialUser>()
+                        .eq(SysSocialUser::getUserId, userId)
+                        .in(SysSocialUser::getSource, "wework", "dingtalk_corp", "dingtalk")
+        );
+        String weworkUserid = null;
+        String dingtalkUserid = null;
+        boolean dingtalkUnionIdPresent = false;
+        for (SysSocialUser su : bindings) {
+            switch (su.getSource()) {
+                case "wework" -> weworkUserid = su.getOpenId();
+                case "dingtalk_corp" -> dingtalkUserid = su.getOpenId();
+                case "dingtalk" -> dingtalkUnionIdPresent = StringUtils.hasText(su.getUnionId());
+                default -> { }
+            }
+        }
+        return CorpBindingResponse.builder()
+                .userId(userId)
+                .weworkUserid(weworkUserid)
+                .dingtalkUserid(dingtalkUserid)
+                .dingtalkUnionIdPresent(dingtalkUnionIdPresent)
+                .build();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveCorpBinding(Long userId, CorpBindingRequest request) {
+        if (sysUserService.getById(userId) == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+        upsertCorpBinding(userId, "wework", request.getWeworkUserid());
+        upsertCorpBinding(userId, "dingtalk_corp", request.getDingtalkUserid());
+    }
+
+    /**
+     * 单渠道 upsert：userid 非空则保存/更新，空且已绑定则删除
+     */
+    private void upsertCorpBinding(Long userId, String source, String userid) {
+        String normalized = userid == null ? "" : userid.trim();
+        if (normalized.isEmpty()) {
+            socialUserMapper.delete(new LambdaQueryWrapper<SysSocialUser>()
+                    .eq(SysSocialUser::getUserId, userId)
+                    .eq(SysSocialUser::getSource, source));
+            return;
+        }
+        if (normalized.length() > 64) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "userid 长度不能超过 64 个字符");
+        }
+        SysSocialUser existing = socialUserMapper.selectOne(new LambdaQueryWrapper<SysSocialUser>()
+                .eq(SysSocialUser::getUserId, userId)
+                .eq(SysSocialUser::getSource, source));
+        if (existing != null) {
+            existing.setOpenId(normalized);
+            existing.setStatus(1);
+            socialUserMapper.updateById(existing);
+        } else {
+            SysSocialUser socialUser = new SysSocialUser();
+            socialUser.setUserId(userId);
+            socialUser.setSource(source);
+            socialUser.setOpenId(normalized);
+            socialUser.setStatus(1);
+            socialUser.setRemark("IM通知绑定（管理端录入）");
+            socialUserMapper.insert(socialUser);
+        }
+        log.info("企业IM绑定保存: userId={}, source={}", userId, source);
     }
 
     // ========== 私有方法 ==========

@@ -310,6 +310,27 @@ CREATE TABLE IF NOT EXISTS sys_dept (
     sort_order INT DEFAULT 0,
     deleted TINYINT DEFAULT 0
 );
+-- 社交账号绑定（IM 推送 userid 解析：wework/dingtalk_corp 直读，dingtalk 走 unionId 转换）
+CREATE TABLE IF NOT EXISTS sys_social_user (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    source VARCHAR(32) NOT NULL,
+    open_id VARCHAR(128) NOT NULL,
+    union_id VARCHAR(128),
+    access_token VARCHAR(512),
+    refresh_token VARCHAR(512),
+    token_expire_time DATETIME,
+    nickname VARCHAR(128),
+    avatar VARCHAR(512),
+    raw_user_info TEXT,
+    status TINYINT DEFAULT 1,
+    create_time DATETIME,
+    update_time DATETIME,
+    create_by VARCHAR(64),
+    update_by VARCHAR(64),
+    deleted TINYINT DEFAULT 0,
+    remark VARCHAR(500)
+);
 
 -- 种子：三个测试用户（审批人解析/身份桥接）；先清理保证跨测试类幂等
 DELETE FROM sys_user;

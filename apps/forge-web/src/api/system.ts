@@ -69,6 +69,31 @@ export function batchAssignUserRoles(userIds: number[], roleIds: number[]) {
   return request.put('/system/user/batch-assign-roles', { userIds, roleIds })
 }
 
+// ==================== 企业IM绑定（审批消息推送企微/钉钉） ====================
+
+export interface CorpBinding {
+  userId: number
+  weworkUserid: string | null
+  dingtalkUserid: string | null
+  /** 既有钉钉扫码绑定是否含 unionId（存在则推送时自动转换为 userid） */
+  dingtalkUnionIdPresent: boolean
+}
+
+export interface CorpBindingRequest {
+  /** 企业微信 userid（空=解绑） */
+  weworkUserid?: string
+  /** 钉钉 userid（空=解绑） */
+  dingtalkUserid?: string
+}
+
+export function getUserCorpBinding(id: number) {
+  return request.get<CorpBinding>(`/system/user/${id}/corp-binding`).then(res => res.data)
+}
+
+export function saveUserCorpBinding(id: number, data: CorpBindingRequest) {
+  return request.put(`/system/user/${id}/corp-binding`, data)
+}
+
 export function exportUsers(params: UserQuery) {
   return request.getBlob('/system/user/export', { params, responseType: 'blob' }).then(res => {
     const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })

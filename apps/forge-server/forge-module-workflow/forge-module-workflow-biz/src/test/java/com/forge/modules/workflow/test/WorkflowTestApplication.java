@@ -23,7 +23,8 @@ import org.springframework.context.annotation.ComponentScan;
 @MapperScan(basePackages = {
         "com.aizuda.bpm.mybatisplus.mapper",
         "com.forge.modules.workflow.mapper",
-        "com.forge.modules.system.mapper"
+        "com.forge.modules.system.mapper",
+        "com.forge.modules.system.auth.mapper"
 })
 public class WorkflowTestApplication {
 

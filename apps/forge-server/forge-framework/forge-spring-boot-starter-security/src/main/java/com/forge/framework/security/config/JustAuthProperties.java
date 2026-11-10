@@ -24,5 +24,7 @@ public class JustAuthProperties {
         private String clientSecret;
         /** 回调地址 */
         private String redirectUri;
+        /** 应用ID（仅企业微信 wework 需要，扫码登录 qrConnect 参数） */
+        private String agentId;
     }
 }

@@ -221,10 +221,11 @@
         </vxe-column>
 
         <!-- 桌面端操作列 -->
-        <vxe-column v-if="!isMobile" title="操作" width="230" fixed="right">
+        <vxe-column v-if="!isMobile" title="操作" width="290" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleAssignRoles(row)">分配角色</el-button>
+            <el-button v-permission="'system:user:edit'" type="primary" link size="small" @click.stop="handleImBinding(row)">IM绑定</el-button>
             <el-button v-permission="'system:user:resetPwd'" type="warning" link size="small" @click.stop="handleResetPwd(row)">重置密码</el-button>
             <el-button v-if="row.locked" v-permission="'system:user:unlock'" type="warning" link size="small" @click.stop="handleUnlock(row)">解锁</el-button>
           </template>
@@ -251,6 +252,7 @@
       <template #actions="{ item }">
         <el-button v-permission="'system:user:edit'" size="small" type="primary" @click.stop="handleEdit(item)">编辑</el-button>
         <el-button v-permission="'system:user:edit'" size="small" type="primary" @click.stop="handleAssignRoles(item)">分配角色</el-button>
+        <el-button v-permission="'system:user:edit'" size="small" type="primary" @click.stop="handleImBinding(item)">IM绑定</el-button>
         <el-button v-permission="'system:user:resetPwd'" size="small" @click.stop="handleResetPwd(item)">重置密码</el-button>
         <el-button v-if="item.locked" v-permission="'system:user:unlock'" size="small" type="warning" @click.stop="handleUnlock(item)">解锁</el-button>
         <el-button v-permission="'system:user:delete'" size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
@@ -324,6 +326,13 @@
       @closed="assignDrawerAlive = false"
     />
 
+    <!-- 企业IM绑定弹窗（审批消息推送企微/钉钉的用户映射） -->
+    <UserImBindingDialog
+      v-model="imBindingVisible"
+      :user="imBindingUser"
+      @saved="getList"
+    />
+
     <!-- 导入对话框 -->
     <UserImportDialog ref="importDialogRef" @success="getList" />
   </div>
@@ -350,6 +359,7 @@ import MobileSearchButton from '@/components/MobileSearchButton.vue'
 import MobileBottomActions from '@/components/MobileBottomActions.vue'
 import UserImportDialog from './UserImportDialog.vue'
 import UserAssignRoleDrawer from './components/UserAssignRoleDrawer.vue'
+import UserImBindingDialog from './components/UserImBindingDialog.vue'
 import type { User, UserQuery, UserRequest, Role, DeptTree, Position } from '@/types/system'
 import { DICT_TYPE } from '@/constants/dict'
 import DictValue from '@/components/DictValue.vue'
@@ -475,6 +485,15 @@ const handleAssignRoles = (row: User) => {
   assignTargetUser.value = row
   assignDrawerAlive.value = true
   assignDrawerVisible.value = true
+}
+
+const imBindingVisible = ref(false)
+const imBindingUser = ref<User | null>(null)
+
+const handleImBinding = (row: User) => {
+  cancelSelection()
+  imBindingUser.value = row
+  imBindingVisible.value = true
 }
 
 const handleBatchAssignRoles = () => {

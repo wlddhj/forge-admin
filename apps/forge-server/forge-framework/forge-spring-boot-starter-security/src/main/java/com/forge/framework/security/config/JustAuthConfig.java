@@ -3,6 +3,7 @@ package com.forge.framework.security.config;
 import me.zhyd.oauth.request.AuthDingTalkRequest;
 import me.zhyd.oauth.request.AuthRequest;
 import me.zhyd.oauth.request.AuthWeChatOpenRequest;
+import me.zhyd.oauth.request.AuthWeChatEnterpriseQrcodeRequest;
 import me.zhyd.oauth.config.AuthConfig;
 import me.zhyd.oauth.cache.AuthStateCache;
 import org.springframework.context.annotation.Bean;
@@ -54,6 +55,20 @@ public class JustAuthConfig {
                             .clientId(dingtalkConfig.getClientId())
                             .clientSecret(dingtalkConfig.getClientSecret())
                             .redirectUri(dingtalkConfig.getRedirectUri())
+                            .build(),
+                    stateCache
+            ));
+        }
+
+        // 企业微信（工作通知 IM 渠道同源应用；OAuth uuid 即企微 userid）
+        JustAuthProperties.ProviderConfig weworkConfig = properties.getType().get("wework");
+        if (weworkConfig != null && StringUtils.hasText(weworkConfig.getClientId())) {
+            map.put("wework", new AuthWeChatEnterpriseQrcodeRequest(
+                    AuthConfig.builder()
+                            .clientId(weworkConfig.getClientId())
+                            .clientSecret(weworkConfig.getClientSecret())
+                            .agentId(weworkConfig.getAgentId())
+                            .redirectUri(weworkConfig.getRedirectUri())
                             .build(),
                     stateCache
             ));
