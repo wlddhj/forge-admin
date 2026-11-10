@@ -66,7 +66,8 @@ const tempToken = ref('')
 
 const sourceNameMap: Record<string, string> = {
   wechat: '微信',
-  dingtalk: '钉钉'
+  dingtalk: '钉钉',
+  wework: '企业微信'
 }
 const sourceName = ref('')
 
@@ -124,6 +125,11 @@ const handleBindLogin = async () => {
         // 登录成功后绑定社交账号
         await socialApi.bind(tempToken.value)
         ElMessage.success('登录并绑定成功')
+        // 个人中心发起的绑定在弹窗中进行：关闭弹窗回到主页面（父页监听 focus 自动刷新列表）
+        if (window.opener) {
+          window.close()
+          return
+        }
         router.push('/dashboard')
       } catch (error) {
         console.error('绑定登录失败', error)

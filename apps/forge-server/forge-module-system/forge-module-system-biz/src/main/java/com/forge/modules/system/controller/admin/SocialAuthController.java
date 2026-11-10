@@ -56,15 +56,15 @@ public class SocialAuthController {
                         loginResponse.getAccessToken(), loginResponse.getRefreshToken());
                 httpResponse.sendRedirect(redirectUrl);
             } else {
-                // 未绑定，获取临时token并重定向到登录页提示绑定
+                // 未绑定，获取临时token并重定向到绑定页（callback 页承载账号密码登录+绑定表单）
                 String tempToken = socialAuthService.getUnboundTempToken(source, code, state);
-                String redirectUrl = String.format("/login?error=social_not_bound&tempToken=%s&source=%s",
+                String redirectUrl = String.format("/login/callback?error=social_not_bound&tempToken=%s&source=%s",
                         tempToken, source);
                 httpResponse.sendRedirect(redirectUrl);
             }
         } catch (Exception e) {
             log.error("社交登录回调处理失败: source={}", source, e);
-            httpResponse.sendRedirect("/login?error=social_login_failed&source=" + source);
+            httpResponse.sendRedirect("/login/callback?error=social_login_failed&source=" + source);
         }
     }
 
