@@ -49,6 +49,7 @@
         </template>
       </vxe-toolbar>
 
+      <!-- spec-guard-disable-r4: 每租户固定 wework/dingtalk 两行全量加载,无分页语义 -->
       <vxe-table
         id="wfImConfigTable"
         ref="tableRef"
@@ -56,12 +57,14 @@
         :data="tableData"
         :height="tableHeight"
         :loading="loading"
+        :seq-config="{ seqMethod }"
         :row-config="{ isCurrent: true, isHover: true }"
         :column-config="{ resizable: true }"
         border="none"
         stripe
         show-overflow="tooltip"
       >
+        <vxe-column type="seq" title="序号" width="50" align="center" />
         <vxe-column title="渠道" width="140">
           <template #default="{ row }">
             <el-tag :type="row.channel === 'wework' ? 'success' : 'primary'" size="small">
@@ -148,14 +151,18 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import { Refresh, Plus, ArrowDown } from '@element-plus/icons-vue'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { useTableHeight } from '@/composables/useTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
 import { formatDateTime } from '@/utils/dateFormat'
 import { imConfigApi, type ImChannelConfig, type ImChannelConfigRequest, type TenantOption } from '@/api/workflow/im-config'
 
 defineOptions({ name: 'WorkflowImConfig' })
 
-const { tableHeight } = useTableHeight()
+const { tableHeight } = useTableHeight({ hasPagination: false })
 const tableRef = ref<VxeTableInstance | null>(null)
 const toolbarRef = ref<VxeToolbarInstance | null>(null)
+
+// 本页无分页（固定两渠道全量），传单位页参数使序号恒等于行内 seq
+const { seqMethod } = useTableSeq({ currentPage: ref(1), pageSize: ref(20) })
 
 const ALL_CHANNELS = ['wework', 'dingtalk'] as const
 
