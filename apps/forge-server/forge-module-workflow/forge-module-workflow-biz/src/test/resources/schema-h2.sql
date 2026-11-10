@@ -251,6 +251,7 @@ CREATE TABLE IF NOT EXISTS wf_process_ext (
     auto_copy_param VARCHAR(512),
     use_scope INT DEFAULT 0,
     use_scope_users VARCHAR(2000),
+    title_rule VARCHAR(500) DEFAULT NULL,
     model_json CLOB,
     meta_info CLOB,
     create_by BIGINT,
