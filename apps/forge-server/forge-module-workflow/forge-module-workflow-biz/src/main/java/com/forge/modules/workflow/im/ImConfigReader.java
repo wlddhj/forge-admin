@@ -6,18 +6,15 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.util.Arrays;
-import java.util.List;
-
 /**
- * IM 推送运行时开关读取器（sys_config）
+ * IM 推送平台级配置读取器（sys_config）
  * <p>
- * 键：im.notify.enabled（默认 true）/ im.notify.channels（默认 wework,dingtalk）/
- * im.notify.web-base-url（默认空）。凭据本身在 yml（ImNotifyProperties），密钥不入库。
+ * 仅承载非租户差异项：im.notify.web-base-url（消息跳转域名，单一前端部署属性）。
+ * 渠道凭据与启停按租户存 wf_im_channel_config（ImChannelConfigService），
+ * v1 的 im.notify.enabled / im.notify.channels 键已废弃。
  * <p>
  * 用 {@link ObjectProvider} 惰性解析 SysConfigService：测试上下文（WorkflowTestApplication
- * 只扫 workflow 包）无该 bean 时静默退化为默认值；生产全量上下文正常注入。
- * 异步线程无租户上下文安全：sys_config 无租户隔离（已核实实体无 tenantId）。
+ * 只扫 workflow 包）无该 bean 时静默退化为默认值。
  *
  * @author forge-admin
  */
@@ -25,12 +22,7 @@ import java.util.List;
 @Component
 public class ImConfigReader {
 
-    static final String KEY_ENABLED = "im.notify.enabled";
-    static final String KEY_CHANNELS = "im.notify.channels";
     static final String KEY_WEB_BASE_URL = "im.notify.web-base-url";
-
-    static final boolean DEFAULT_ENABLED = true;
-    static final List<String> DEFAULT_CHANNELS = List.of("wework", "dingtalk");
 
     private final ObjectProvider<SysConfigService> sysConfigService;
 
@@ -39,55 +31,24 @@ public class ImConfigReader {
     }
 
     /**
-     * 总开关是否打开
-     */
-    public boolean enabled() {
-        String value = safeGet(KEY_ENABLED);
-        if (value == null) {
-            return DEFAULT_ENABLED;
-        }
-        return "true".equalsIgnoreCase(value.trim());
-    }
-
-    /**
-     * 渠道白名单
-     */
-    public List<String> channels() {
-        String value = safeGet(KEY_CHANNELS);
-        if (!StringUtils.hasText(value)) {
-            return DEFAULT_CHANNELS;
-        }
-        return Arrays.stream(value.split(","))
-                .map(String::trim)
-                .filter(StringUtils::hasText)
-                .toList();
-    }
-
-    /**
      * 消息跳转域名（无尾斜杠；未配置返回空串）
      */
     public String webBaseUrl() {
-        String value = safeGet(KEY_WEB_BASE_URL);
+        SysConfigService service = sysConfigService.getIfAvailable();
+        if (service == null) {
+            return "";
+        }
+        String value;
+        try {
+            value = service.getConfigValueByKey(KEY_WEB_BASE_URL);
+        } catch (Exception e) {
+            log.warn("sys_config 读取失败，IM 跳转域名走默认值: key={}, cause={}", KEY_WEB_BASE_URL, e.getMessage());
+            return "";
+        }
         if (!StringUtils.hasText(value)) {
             return "";
         }
         String trimmed = value.trim();
         return trimmed.endsWith("/") ? trimmed.substring(0, trimmed.length() - 1) : trimmed;
-    }
-
-    /**
-     * 单键读取：无 bean / 查询异常 一律返回 null 走默认值
-     */
-    private String safeGet(String key) {
-        SysConfigService service = sysConfigService.getIfAvailable();
-        if (service == null) {
-            return null;
-        }
-        try {
-            return service.getConfigValueByKey(key);
-        } catch (Exception e) {
-            log.warn("sys_config 读取失败，IM 推送开关走默认值: key={}, cause={}", key, e.getMessage());
-            return null;
-        }
     }
 }

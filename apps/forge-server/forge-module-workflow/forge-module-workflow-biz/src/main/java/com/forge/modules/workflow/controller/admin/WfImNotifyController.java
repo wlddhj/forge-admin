@@ -2,6 +2,7 @@ package com.forge.modules.workflow.controller.admin;
 
 import com.forge.common.response.Result;
 import com.forge.common.utils.UserContext;
+import com.forge.modules.workflow.im.ImChannelConfigService;
 import com.forge.modules.workflow.im.ImConfigReader;
 import com.forge.modules.workflow.im.ImNotificationChannel;
 import com.forge.modules.workflow.im.ImNotificationMessage;
@@ -22,7 +23,7 @@ import java.util.List;
 
 /**
  * IM 工作通知联调端点：向指定用户（默认当前登录人）的已绑定渠道发送测试消息，
- * 用于凭据与绑定自检（Swagger/curl），不做前端入口。
+ * 用于凭据与绑定自检（Swagger/curl），不做前端入口。租户缺省取上下文（非租户模式=租户1）。
  *
  * @author forge-admin
  */
@@ -35,8 +36,9 @@ public class WfImNotifyController {
     private final List<ImNotificationChannel> channels;
     private final ImUserBindingResolver bindingResolver;
     private final ImConfigReader configReader;
+    private final ImChannelConfigService configService;
 
-    public record ImTestRequest(String channel, Long userId) {
+    public record ImTestRequest(String channel, Long userId, Long tenantId) {
     }
 
     public record ImTestResult(String channel, boolean enabled, boolean bound, boolean sent, String error) {
@@ -50,6 +52,7 @@ public class WfImNotifyController {
         if (userId == null) {
             return Result.failed("未登录且未指定 userId");
         }
+        Long tenantId = request.tenantId() != null ? request.tenantId() : configService.resolveTenantId();
         String baseUrl = configReader.webBaseUrl();
         ImNotificationMessage message = new ImNotificationMessage("test",
                 "审批IM通知测试", "这是一条测试消息，收到即表示凭据与绑定配置正确。",
@@ -60,16 +63,16 @@ public class WfImNotifyController {
             if (StringUtils.hasText(request.channel()) && !channel.channel().equals(request.channel())) {
                 continue;
             }
-            boolean enabled = channel.enabled();
+            boolean enabled = channel.enabled(tenantId);
             boolean sent = false;
             boolean bound = false;
             String error = null;
             if (enabled) {
-                var bindings = bindingResolver.resolve(channel.channel(), List.of(userId));
+                var bindings = bindingResolver.resolve(channel.channel(), tenantId, List.of(userId));
                 String corpUserid = bindings.get(userId);
                 bound = corpUserid != null;
                 if (bound) {
-                    ImSendResult sendResult = channel.sendToUser(corpUserid, message);
+                    ImSendResult sendResult = channel.sendToUser(tenantId, corpUserid, message);
                     sent = sendResult.success();
                     error = sendResult.error();
                 }

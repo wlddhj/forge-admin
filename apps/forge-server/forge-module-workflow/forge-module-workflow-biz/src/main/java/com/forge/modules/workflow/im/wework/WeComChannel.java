@@ -1,9 +1,9 @@
 package com.forge.modules.workflow.im.wework;
 
+import com.forge.modules.workflow.entity.WfImChannelConfig;
 import com.forge.modules.workflow.im.AbstractTokenChannel;
-import com.forge.modules.workflow.im.ImConfigReader;
+import com.forge.modules.workflow.im.ImChannelConfigService;
 import com.forge.modules.workflow.im.ImNotificationMessage;
-import com.forge.modules.workflow.im.ImNotifyProperties;
 import com.forge.modules.workflow.im.ImSendResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 企业微信工作通知渠道：textcard 消息（点开跳转 forge-web）
+ * 企业微信工作通知渠道（按租户配置）：textcard 消息（点开跳转 forge-web）
  * <p>
  * API：GET /cgi-bin/gettoken（corpid+secret）→ POST /cgi-bin/message/send?access_token=
  * errcode=0 视为成功；invaliduser 非空记 warn（部分用户无效）；token 失效码强刷重发一次。
@@ -35,20 +35,17 @@ public class WeComChannel extends AbstractTokenChannel {
     static final String TOKEN_URL = "https://qyapi.weixin.qq.com/cgi-bin/gettoken";
     static final String SEND_URL = "https://qyapi.weixin.qq.com/cgi-bin/message/send";
 
-    private final ImNotifyProperties properties;
-    private final ImConfigReader configReader;
+    private final ImChannelConfigService configService;
     private final ObjectMapper objectMapper;
     private final RestOperations restTemplate;
 
     @Autowired
-    public WeComChannel(ImNotifyProperties properties, ImConfigReader configReader, ObjectMapper objectMapper) {
-        this(properties, configReader, objectMapper, defaultRestTemplate());
+    public WeComChannel(ImChannelConfigService configService, ObjectMapper objectMapper) {
+        this(configService, objectMapper, defaultRestTemplate());
     }
 
-    WeComChannel(ImNotifyProperties properties, ImConfigReader configReader,
-                 ObjectMapper objectMapper, RestOperations restTemplate) {
-        this.properties = properties;
-        this.configReader = configReader;
+    WeComChannel(ImChannelConfigService configService, ObjectMapper objectMapper, RestOperations restTemplate) {
+        this.configService = configService;
         this.objectMapper = objectMapper;
         this.restTemplate = restTemplate;
     }
@@ -66,16 +63,14 @@ public class WeComChannel extends AbstractTokenChannel {
     }
 
     @Override
-    public boolean enabled() {
-        return properties.weworkConfigured()
-                && configReader.enabled()
-                && configReader.channels().contains(channel());
+    public boolean enabled(Long tenantId) {
+        return configService.runnable(tenantId, channel());
     }
 
     @Override
-    protected TokenFetch fetchToken() {
-        String url = TOKEN_URL + "?corpid=" + properties.getWework().getCorpId()
-                + "&corpsecret=" + properties.getWework().getSecret();
+    protected TokenFetch fetchToken(Long tenantId) {
+        WfImChannelConfig config = requireConfig(tenantId);
+        String url = TOKEN_URL + "?corpid=" + config.getCorpId() + "&corpsecret=" + config.getSecret();
         String body = restTemplate.getForObject(url, String.class);
         var node = objectMapper.readTree(body);
         int errcode = node.path("errcode").asInt(0);
@@ -87,39 +82,60 @@ public class WeComChannel extends AbstractTokenChannel {
     }
 
     @Override
-    public ImSendResult sendToUser(String corpUserid, ImNotificationMessage message) {
+    public ImSendResult sendToUser(Long tenantId, String corpUserid, ImNotificationMessage message) {
+        WfImChannelConfig config = configService.configOf(tenantId, channel());
+        if (!isReady(config)) {
+            return ImSendResult.fail("渠道未配置或未启用");
+        }
+        int agentId;
         try {
-            ImSendResult result = doSend(corpUserid, message, false);
+            agentId = Integer.parseInt(config.getAgentId());
+        } catch (NumberFormatException e) {
+            return ImSendResult.fail("agentId 非数字: " + config.getAgentId());
+        }
+        try {
+            ImSendResult result = doSend(config, agentId, corpUserid, message, false);
             if (result.success()) {
                 String invalid = result.invalidUser();
                 if (StringUtils.hasText(invalid)) {
-                    log.warn("企微通知部分用户无效: touser={}, invaliduser={}", corpUserid, invalid);
+                    log.warn("企微通知部分用户无效: tenantId={}, touser={}, invaliduser={}",
+                            tenantId, corpUserid, invalid);
                 }
                 return ImSendResult.ok();
             }
             if (result.error() != null && result.error().startsWith("TOKEN_EXPIRED:")) {
-                return doSend(corpUserid, message, true);
+                return doSend(config, agentId, corpUserid, message, true);
             }
             return result;
         } catch (Exception e) {
-            log.warn("企微通知发送异常: touser={}, eventType={}, cause={}", corpUserid, message.eventType(), e.getMessage());
+            log.warn("企微通知发送异常: tenantId={}, touser={}, eventType={}, cause={}",
+                    tenantId, corpUserid, message.eventType(), e.getMessage());
             return ImSendResult.fail(e.getClass().getSimpleName() + ": " + e.getMessage());
         }
+    }
+
+    private WfImChannelConfig requireConfig(Long tenantId) {
+        WfImChannelConfig config = configService.configOf(tenantId, channel());
+        if (!isReady(config)) {
+            throw new IllegalStateException("企微渠道未配置或未启用: tenantId=" + tenantId);
+        }
+        return config;
+    }
+
+    private boolean isReady(WfImChannelConfig config) {
+        return config != null && config.getEnabled() != null && config.getEnabled() == 1
+                && StringUtils.hasText(config.getCorpId())
+                && StringUtils.hasText(config.getAgentId()) && StringUtils.hasText(config.getSecret());
     }
 
     /**
      * @param forceRefreshToken 先强刷 token（token 失效重试路径）
      * @return success=ok；失败时 error 为 "TOKEN_EXPIRED:errcode"（重试信号）或具体错误
      */
-    private ImSendResult doSend(String corpUserid, ImNotificationMessage message, boolean forceRefreshToken) {
-        int agentId;
+    private ImSendResult doSend(WfImChannelConfig config, int agentId, String corpUserid,
+                                ImNotificationMessage message, boolean forceRefreshToken) {
         try {
-            agentId = Integer.parseInt(properties.getWework().getAgentId());
-        } catch (NumberFormatException e) {
-            return ImSendResult.fail("agentId 非数字: " + properties.getWework().getAgentId());
-        }
-        try {
-            String token = getToken(forceRefreshToken);
+            String token = getToken(config.getTenantId(), forceRefreshToken);
             Map<String, Object> textcard = new LinkedHashMap<>();
             textcard.put("title", message.title());
             textcard.put("description", message.content());

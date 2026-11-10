@@ -38,17 +38,18 @@ public class ImUserBindingResolver {
     /**
      * 解析一批系统用户在指定渠道的企业 userid
      *
-     * @param channel 渠道标识（wework / dingtalk）
-     * @param userIds 系统用户ID集合
+     * @param channel  渠道标识（wework / dingtalk）
+     * @param tenantId 租户ID（钉钉 unionId→userid 转换按租户凭据执行）
+     * @param userIds  系统用户ID集合
      * @return userId → corpUserid（仅包含成功解析的）
      */
-    public Map<Long, String> resolve(String channel, Collection<Long> userIds) {
+    public Map<Long, String> resolve(String channel, Long tenantId, Collection<Long> userIds) {
         if (CollectionUtils.isEmpty(userIds)) {
             return Map.of();
         }
         return switch (channel) {
             case "wework" -> resolveWework(userIds);
-            case "dingtalk" -> resolveDingtalk(userIds);
+            case "dingtalk" -> resolveDingtalk(tenantId, userIds);
             default -> Map.of();
         };
     }
@@ -68,9 +69,9 @@ public class ImUserBindingResolver {
     }
 
     /**
-     * 钉钉：dingtalk_corp 直读优先；dingtalk 绑定行走 unionId 转换
+     * 钉钉：dingtalk_corp 直读优先；dingtalk 绑定行走 unionId 转换（按租户凭据）
      */
-    private Map<Long, String> resolveDingtalk(Collection<Long> userIds) {
+    private Map<Long, String> resolveDingtalk(Long tenantId, Collection<Long> userIds) {
         Map<Long, String> result = new HashMap<>();
         List<SysSocialUser> rows = selectBySources(userIds, List.of("dingtalk_corp", "dingtalk"));
         for (SysSocialUser row : rows) {
@@ -85,7 +86,7 @@ public class ImUserBindingResolver {
             if ("dingtalk_corp".equals(row.getSource()) || result.containsKey(row.getUserId())) {
                 continue;
             }
-            String userid = dingTalkChannel.resolveUseridByUnionId(row.getUnionId());
+            String userid = dingTalkChannel.resolveUseridByUnionId(tenantId, row.getUnionId());
             if (StringUtils.hasText(userid)) {
                 result.put(row.getUserId(), userid);
             }

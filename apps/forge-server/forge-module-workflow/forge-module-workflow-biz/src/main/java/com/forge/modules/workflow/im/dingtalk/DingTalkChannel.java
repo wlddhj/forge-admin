@@ -1,9 +1,9 @@
 package com.forge.modules.workflow.im.dingtalk;
 
+import com.forge.modules.workflow.entity.WfImChannelConfig;
 import com.forge.modules.workflow.im.AbstractTokenChannel;
-import com.forge.modules.workflow.im.ImConfigReader;
+import com.forge.modules.workflow.im.ImChannelConfigService;
 import com.forge.modules.workflow.im.ImNotificationMessage;
-import com.forge.modules.workflow.im.ImNotifyProperties;
 import com.forge.modules.workflow.im.ImSendResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,11 +22,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 钉钉工作通知渠道：link 消息（asyncsend_v2）
+ * 钉钉工作通知渠道（按租户配置）：link 消息（asyncsend_v2）
  * <p>
  * API：GET /gettoken（appkey+appsecret）→ POST /topapi/message/corpconversation/asyncsend_v2；
  * userid 优先取 dingtalk_corp 手动绑定行，其次由既有 dingtalk 绑定的 unionId 经
- * /topapi/user/getbyunionid 转换（转换结果进程内缓存，失败不缓存）。
+ * /topapi/user/getbyunionid 转换（按租户凭据执行，转换结果进程内缓存，失败不缓存）。
  *
  * @author forge-admin
  */
@@ -38,25 +38,22 @@ public class DingTalkChannel extends AbstractTokenChannel {
     static final String SEND_URL = "https://oapi.dingtalk.com/topapi/message/corpconversation/asyncsend_v2";
     static final String GET_BY_UNIONID_URL = "https://oapi.dingtalk.com/topapi/user/getbyunionid";
 
-    private final ImNotifyProperties properties;
-    private final ImConfigReader configReader;
+    private final ImChannelConfigService configService;
     private final ObjectMapper objectMapper;
     private final RestOperations restTemplate;
 
     /**
-     * unionId → userid 转换缓存（钉钉侧映射稳定；失败不入缓存）
+     * (tenantId|unionId) → userid 转换缓存（钉钉侧映射稳定；失败不入缓存）
      */
     private final ConcurrentHashMap<String, String> unionidCache = new ConcurrentHashMap<>();
 
     @Autowired
-    public DingTalkChannel(ImNotifyProperties properties, ImConfigReader configReader, ObjectMapper objectMapper) {
-        this(properties, configReader, objectMapper, defaultRestTemplate());
+    public DingTalkChannel(ImChannelConfigService configService, ObjectMapper objectMapper) {
+        this(configService, objectMapper, defaultRestTemplate());
     }
 
-    DingTalkChannel(ImNotifyProperties properties, ImConfigReader configReader,
-                    ObjectMapper objectMapper, RestOperations restTemplate) {
-        this.properties = properties;
-        this.configReader = configReader;
+    DingTalkChannel(ImChannelConfigService configService, ObjectMapper objectMapper, RestOperations restTemplate) {
+        this.configService = configService;
         this.objectMapper = objectMapper;
         this.restTemplate = restTemplate;
     }
@@ -74,16 +71,14 @@ public class DingTalkChannel extends AbstractTokenChannel {
     }
 
     @Override
-    public boolean enabled() {
-        return properties.dingtalkConfigured()
-                && configReader.enabled()
-                && configReader.channels().contains(channel());
+    public boolean enabled(Long tenantId) {
+        return configService.runnable(tenantId, channel());
     }
 
     @Override
-    protected TokenFetch fetchToken() {
-        String url = TOKEN_URL + "?appkey=" + properties.getDingtalk().getAppKey()
-                + "&appsecret=" + properties.getDingtalk().getAppSecret();
+    protected TokenFetch fetchToken(Long tenantId) {
+        WfImChannelConfig config = requireConfig(tenantId);
+        String url = TOKEN_URL + "?appkey=" + config.getAppKey() + "&appsecret=" + config.getSecret();
         String body = restTemplate.getForObject(url, String.class);
         var node = objectMapper.readTree(body);
         int errcode = node.path("errcode").asInt(0);
@@ -95,64 +90,85 @@ public class DingTalkChannel extends AbstractTokenChannel {
     }
 
     @Override
-    public ImSendResult sendToUser(String corpUserid, ImNotificationMessage message) {
+    public ImSendResult sendToUser(Long tenantId, String corpUserid, ImNotificationMessage message) {
+        WfImChannelConfig config = configService.configOf(tenantId, channel());
+        if (!isReady(config)) {
+            return ImSendResult.fail("渠道未配置或未启用");
+        }
+        int agentId;
         try {
-            ImSendResult result = doSend(corpUserid, message, false);
+            agentId = Integer.parseInt(config.getAgentId());
+        } catch (NumberFormatException e) {
+            return ImSendResult.fail("agentId 非数字: " + config.getAgentId());
+        }
+        try {
+            ImSendResult result = doSend(config, agentId, corpUserid, message, false);
             if (result.success()) {
                 return ImSendResult.ok();
             }
             if (result.error() != null && result.error().startsWith("TOKEN_EXPIRED:")) {
-                return doSend(corpUserid, message, true);
+                return doSend(config, agentId, corpUserid, message, true);
             }
             return result;
         } catch (Exception e) {
-            log.warn("钉钉通知发送异常: userid={}, eventType={}, cause={}", corpUserid, message.eventType(), e.getMessage());
+            log.warn("钉钉通知发送异常: tenantId={}, userid={}, eventType={}, cause={}",
+                    tenantId, corpUserid, message.eventType(), e.getMessage());
             return ImSendResult.fail(e.getClass().getSimpleName() + ": " + e.getMessage());
         }
     }
 
     /**
-     * unionId → 钉钉 userid（缓存优先；失败返回 null 不缓存）
+     * unionId → 钉钉 userid（按租户凭据换取；缓存优先；失败返回 null 不缓存）
      */
-    public String resolveUseridByUnionId(String unionId) {
+    public String resolveUseridByUnionId(Long tenantId, String unionId) {
         if (!StringUtils.hasText(unionId)) {
             return null;
         }
-        String cached = unionidCache.get(unionId);
+        String cacheKey = tenantId + "|" + unionId;
+        String cached = unionidCache.get(cacheKey);
         if (cached != null) {
             return cached;
         }
         try {
-            String token = getToken(false);
+            String token = getToken(tenantId, false);
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("unionid", unionId);
             String body = postJson(GET_BY_UNIONID_URL + "?access_token=" + token, payload);
             var node = objectMapper.readTree(body);
             if (node.path("errcode").asInt(-1) != 0) {
-                log.warn("钉钉unionId转换userid失败: errcode={}, errmsg={}",
-                        node.path("errcode").asInt(), node.path("errmsg").asText());
+                log.warn("钉钉unionId转换userid失败: tenantId={}, errcode={}, errmsg={}",
+                        tenantId, node.path("errcode").asInt(), node.path("errmsg").asText());
                 return null;
             }
             String userid = node.path("result").path("userid").asText(null);
             if (StringUtils.hasText(userid)) {
-                unionidCache.putIfAbsent(unionId, userid);
+                unionidCache.putIfAbsent(cacheKey, userid);
             }
             return userid;
         } catch (Exception e) {
-            log.warn("钉钉unionId转换userid异常: cause={}", e.getMessage());
+            log.warn("钉钉unionId转换userid异常: tenantId={}, cause={}", tenantId, e.getMessage());
             return null;
         }
     }
 
-    private ImSendResult doSend(String corpUserid, ImNotificationMessage message, boolean forceRefreshToken) {
-        int agentId;
-        try {
-            agentId = Integer.parseInt(properties.getDingtalk().getAgentId());
-        } catch (NumberFormatException e) {
-            return ImSendResult.fail("agentId 非数字: " + properties.getDingtalk().getAgentId());
+    private WfImChannelConfig requireConfig(Long tenantId) {
+        WfImChannelConfig config = configService.configOf(tenantId, channel());
+        if (!isReady(config)) {
+            throw new IllegalStateException("钉钉渠道未配置或未启用: tenantId=" + tenantId);
         }
+        return config;
+    }
+
+    private boolean isReady(WfImChannelConfig config) {
+        return config != null && config.getEnabled() != null && config.getEnabled() == 1
+                && StringUtils.hasText(config.getAppKey())
+                && StringUtils.hasText(config.getAgentId()) && StringUtils.hasText(config.getSecret());
+    }
+
+    private ImSendResult doSend(WfImChannelConfig config, int agentId, String corpUserid,
+                                ImNotificationMessage message, boolean forceRefreshToken) {
         try {
-            String token = getToken(forceRefreshToken);
+            String token = getToken(config.getTenantId(), forceRefreshToken);
 
             Map<String, Object> link = new LinkedHashMap<>();
             link.put("title", message.title());

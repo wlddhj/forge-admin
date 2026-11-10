@@ -332,6 +332,24 @@ CREATE TABLE IF NOT EXISTS sys_social_user (
     remark VARCHAR(500)
 );
 
+-- IM 通知渠道配置（按租户维度；secret 由 EncryptTypeHandler 加解密回环）
+CREATE TABLE IF NOT EXISTS wf_im_channel_config (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id BIGINT NOT NULL DEFAULT 1,
+    channel VARCHAR(32) NOT NULL,
+    enabled TINYINT DEFAULT 0,
+    corp_id VARCHAR(128),
+    app_key VARCHAR(128),
+    agent_id VARCHAR(64) NOT NULL,
+    secret VARCHAR(512) NOT NULL,
+    remark VARCHAR(500),
+    create_time DATETIME,
+    update_time DATETIME,
+    create_by VARCHAR(64),
+    update_by VARCHAR(64),
+    deleted TINYINT DEFAULT 0
+);
+
 -- 种子：三个测试用户（审批人解析/身份桥接）；先清理保证跨测试类幂等
 DELETE FROM sys_user;
 INSERT INTO sys_user (id, username, nickname, dept_id) VALUES

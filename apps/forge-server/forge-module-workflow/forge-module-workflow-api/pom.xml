@@ -24,6 +24,12 @@
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- 实体加密字段（EncryptTypeHandler），沿 ai-api provided 口径 -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-mybatis</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>

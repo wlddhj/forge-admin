@@ -400,6 +400,26 @@ CREATE TABLE `wf_callback_record` (
     KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='业务回调投递记录表';
 
+DROP TABLE IF EXISTS `wf_im_channel_config`;
+CREATE TABLE `wf_im_channel_config` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID（非租户模式视作租户1）',
+    `channel` VARCHAR(32) NOT NULL COMMENT '渠道标识: wework/dingtalk',
+    `enabled` TINYINT DEFAULT 0 COMMENT '是否启用(0/1)',
+    `corp_id` VARCHAR(128) DEFAULT NULL COMMENT '企业微信 corpId（钉钉渠道为空）',
+    `app_key` VARCHAR(128) DEFAULT NULL COMMENT '钉钉 appKey（企微渠道为空）',
+    `agent_id` VARCHAR(64) NOT NULL COMMENT '应用 agentId',
+    `secret` VARCHAR(512) NOT NULL COMMENT '应用 secret（AES-256-GCM 加密存储）',
+    `remark` VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `create_by` VARCHAR(64) DEFAULT NULL COMMENT '创建者',
+    `update_by` VARCHAR(64) DEFAULT NULL COMMENT '更新者',
+    `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除(0:正常 1:已删除)',
+    PRIMARY KEY (`id`),
+    KEY `idx_tenant_channel` (`tenant_id`, `channel`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='IM通知渠道配置表（按租户维度）';
+
 -- ========================================
 -- Part 2.5: 表达式与监听器种子数据
 -- 说明: 表达式用于 ExpressionCandidateStrategy(候选人策略) / TaskTriggerHandler(任务触发器)
@@ -550,7 +570,15 @@ INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component
 (261, '回调查询', 260, '', '', NULL, '', 1, 2, 'workflow:callback:query', 1, 1, 0, 0),
 (262, '回调新增', 260, '', '', NULL, '', 2, 2, 'workflow:callback:add', 1, 1, 0, 0),
 (263, '回调编辑', 260, '', '', NULL, '', 3, 2, 'workflow:callback:edit', 1, 1, 0, 0),
-(264, '回调删除', 260, '', '', NULL, '', 4, 2, 'workflow:callback:delete', 1, 1, 0, 0);
+(264, '回调删除', 260, '', '', NULL, '', 4, 2, 'workflow:callback:delete', 1, 1, 0, 0),
+(265, 'IM通知测试', 260, '', '', NULL, '', 5, 2, 'workflow:im:test', 1, 1, 0, 0);
+
+-- IM通知配置菜单（sort_order=11，按租户维护企微/钉钉渠道凭据与启停）
+INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(266, 'IM通知配置', 100, '/workflow/im-config', '/views/workflow/imConfig/index', NULL, 'Promotion', 11, 1, 'workflow:im:config:list', 1, 1, 0, 0);
+INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(267, '配置保存', 266, '', '', NULL, '', 1, 2, 'workflow:im:config:edit', 1, 1, 0, 0),
+(268, '配置删除', 266, '', '', NULL, '', 2, 2, 'workflow:im:config:delete', 1, 1, 0, 0);
 
 -- 监听器管理已于迭代三下线
 
@@ -566,7 +594,9 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 (1, 200), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205),
 (1, 210), (1, 211), (1, 212), (1, 213), (1, 214), (1, 215), (1, 216),
 (1, 220), (1, 221), (1, 222), (1, 223), (1, 224),
-(1, 230), (1, 231), (1, 232), (1, 233), (1, 234);
+(1, 230), (1, 231), (1, 232), (1, 233), (1, 234),
+(1, 260), (1, 261), (1, 262), (1, 263), (1, 264), (1, 265),
+(1, 266), (1, 267), (1, 268);
 
 -- ========================================
 -- Part 5: 工作流字典数据

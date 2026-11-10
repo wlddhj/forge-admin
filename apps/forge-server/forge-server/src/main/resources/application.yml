@@ -76,17 +76,8 @@ flowlong:
     work-days: "1,2,3,4,5"                 # 提醒工作日（空=不限）
 
 # IM 工作通知（审批待办/超时/结果推送到企业微信与钉钉）
-# 运行时开关在 sys_config：im.notify.enabled / im.notify.channels / im.notify.web-base-url
-im:
-  notify:
-    wework:
-      corp-id: ${WEWORK_CORP_ID:}
-      agent-id: ${WEWORK_AGENT_ID:}
-      secret: ${WEWORK_SECRET:}
-    dingtalk:
-      app-key: ${DINGTALK_CORP_APP_KEY:}
-      app-secret: ${DINGTALK_CORP_APP_SECRET:}
-      agent-id: ${DINGTALK_CORP_AGENT_ID:}
+# 渠道凭据与启停按租户配置：管理端「IM通知配置」页（表 wf_im_channel_config，secret 加密入库）
+# 平台级配置仅剩 sys_config 的 im.notify.web-base-url（消息跳转域名）
 
 
 forge:
