@@ -41,6 +41,12 @@ public interface AiChatService {
     void updateTitle(Long conversationId, String title);
 
     /**
+     * AI 生成会话标题（仅占位标题会生成：新对话/与 xx 的对话/Agent：xx）。
+     * 返回新标题；无需生成或失败时返回 null（静默，不抛错）。
+     */
+    String generateTitle(Long conversationId, String content);
+
+    /**
      * 删除对话
      */
     void deleteConversation(Long conversationId);

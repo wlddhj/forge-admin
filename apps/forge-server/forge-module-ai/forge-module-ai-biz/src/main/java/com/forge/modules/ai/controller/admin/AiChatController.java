@@ -6,6 +6,7 @@ import com.forge.common.response.Result;
 import com.forge.framework.web.annotation.OperationLog;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.request.CreateConversationRequest;
+import com.forge.modules.ai.dto.request.GenerateTitleRequest;
 import com.forge.modules.ai.dto.request.SaveAiMessageRequest;
 import com.forge.modules.ai.dto.request.UpdateTitleRequest;
 import com.forge.modules.ai.dto.response.ConversationResponse;
@@ -70,6 +71,15 @@ public class AiChatController {
     public Result<List<MessageResponse>> getMessages(@PathVariable Long id) {
         List<MessageResponse> messages = aiChatService.getMessages(id);
         return Result.success(messages);
+    }
+
+    @Operation(summary = "AI 生成对话标题")
+    @PostMapping("/conversation/{id}/generate-title")
+    @PreAuthorize("hasAuthority('ai:chat:edit')")
+    public Result<String> generateTitle(@PathVariable Long id, @Valid @RequestBody GenerateTitleRequest request) {
+        String title = aiChatService.generateTitle(id, request.getContent());
+        // 无需生成/生成失败统一返回 success(null)，前端静默处理
+        return Result.success(title);
     }
 
     @Operation(summary = "更新对话标题")

@@ -209,7 +209,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { getModelList, AI_MODEL_TYPE_TEXT } from '@/api/ai/model'
-import { createConversation, getConversationList, getConversationMessages, deleteConversation, saveAiMessage, updateConversationTitle } from '@/api/ai/chat'
+import { createConversation, getConversationList, getConversationMessages, deleteConversation, saveAiMessage, updateConversationTitle, generateConversationTitle } from '@/api/ai/chat'
 import { createSSE, parseSSEData } from '@/utils/sse'
 import type { ModelConfigResponse } from '@/api/ai/model'
 import type { ConversationResponse, MessageResponse } from '@/api/ai/chat'
@@ -616,6 +616,43 @@ const handleAgentSend = async () => {
   isStreaming.value = false
   scrollToBottom()
   loadAgentConversations()
+  // 首轮成功完成后 AI 生成会话标题（后端保留「Agent：」前缀；异步静默）
+  const agentConvId = currentAgentConversationId.value
+  if (agentConvId && reply.status !== 'FAILED') {
+    const currentTitle = agentConversations.value.find(c => c.conversationId === agentConvId)?.title
+    maybeGenerateTitle(agentConvId, content, currentTitle, (title) => {
+      const item = agentConversations.value.find(c => c.conversationId === agentConvId)
+      if (item) item.title = title
+    })
+  }
+}
+
+// ===== AI 自动生成会话标题（首轮回复完成后，fire-and-forget 静默）=====
+/** 已请求过标题生成的会话（组件级防重；后端占位标题判定兜底） */
+const titleGeneratedIds = new Set<number>()
+
+/** 占位标题初筛：判定口径与后端 isPlaceholderTitle 保持一致 */
+const isPlaceholderTitle = (title?: string | null): boolean =>
+  !title || title === '新对话'
+  || (title.startsWith('与 ') && title.endsWith(' 的对话'))
+  || title.startsWith('Agent：')
+  || title.startsWith('Agent:')
+
+/** 按需生成标题；成功后由 applyTitle 把新标题写回各自的列表（普通对话 / Agent 会话） */
+const maybeGenerateTitle = async (
+  id: number,
+  firstContent: string,
+  currentTitle: string | null | undefined,
+  applyTitle: (title: string) => void
+) => {
+  if (titleGeneratedIds.has(id) || (currentTitle != null && !isPlaceholderTitle(currentTitle))) return
+  titleGeneratedIds.add(id)
+  try {
+    const title = await generateConversationTitle(id, firstContent)
+    if (title) applyTitle(title)
+  } catch {
+    // 静默：失败保持默认标题，不打扰用户
+  }
 }
 
 const loadConversations = async () => {
@@ -739,6 +776,15 @@ const handleSend = async () => {
           messageList.value.push(aiMsg)
           // 保存到数据库
           await saveAiMessage(currentConversation.value!.id, streamingContent.value, streamingReasoning.value || undefined)
+          // 有回复内容才生成会话标题（模型报错时不触发；异步静默，不阻塞界面）
+          const doneConv = currentConversation.value
+          if (doneConv) {
+            maybeGenerateTitle(doneConv.id, content, doneConv.title, (title) => {
+              const item = conversationList.value.find(c => c.id === doneConv.id)
+              if (item) item.title = title
+              if (currentConversation.value?.id === doneConv.id) currentConversation.value.title = title
+            })
+          }
         }
         streamingContent.value = ''
         resetThinking()

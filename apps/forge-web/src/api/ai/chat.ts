@@ -1,5 +1,6 @@
 import request from '@/utils/request'
 import type { PageResult } from '@/utils/request'
+import { useUserStore } from '@/stores/user'
 
 // 对话响应
 export interface ConversationResponse {
@@ -87,3 +88,27 @@ export const updateConversationTitle = (id: number, title: string) =>
   chatApi.updateTitle(id, title)
 export const saveAiMessage = (conversationId: number, content: string, reasoningContent?: string) =>
   chatApi.saveAiMessage(conversationId, content, reasoningContent)
+
+/**
+ * AI 生成会话标题。返回新标题；无需生成或失败时返回 null。
+ * 走原生 fetch 而非 axios 实例：标题生成是后台增强，失败必须静默，
+ * 而 axios 响应拦截器会统一弹错且有 30s 超时（LLM 慢时会误报）。
+ */
+export const generateConversationTitle = async (id: number, content: string): Promise<string | null> => {
+  const userStore = useUserStore()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${userStore.token}`
+  }
+  if (userStore.tenantId !== null && userStore.tenantId !== undefined) {
+    headers['X-Tenant-Id'] = String(userStore.tenantId)
+  }
+  const response = await fetch(`/admin-api/ai/chat/conversation/${id}/generate-title`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ content })
+  })
+  if (!response.ok) return null
+  const res = await response.json()
+  return typeof res?.data === 'string' && res.data ? res.data : null
+}

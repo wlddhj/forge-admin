@@ -25,6 +25,7 @@ import reactor.core.publisher.Flux;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -113,6 +114,106 @@ public class AiChatServiceImpl implements AiChatService {
             conversation.setTitle(title);
             conversationMapper.updateById(conversation);
         }
+    }
+
+    /** 标题生成提示词：短中文标题，直接输出文本，禁止装饰符号 */
+    private static final String TITLE_PROMPT_TEMPLATE = "你是会话标题生成器。请根据用户消息生成一个简短的中文对话标题。"
+            + "要求：直接输出标题文本，不要任何解释或前后缀；不超过20个字；概括用户核心意图；"
+            + "不要使用引号、书名号、emoji、序号，也不要以句号结尾。\n\n用户消息：";
+
+    /** 标题生成输入截断长度（字符） */
+    private static final int TITLE_INPUT_MAX_LEN = 500;
+
+    /** 生成标题兜底截断长度（字符） */
+    private static final int TITLE_MAX_LEN = 30;
+
+    /** 模型常用来包裹标题的成对符号（两串下标一一对应） */
+    private static final String TITLE_WRAP_OPENERS = "\"'“‘「『《";
+    private static final String TITLE_WRAP_CLOSERS = "\"'”’」』》";
+
+    @Override
+    public String generateTitle(Long conversationId, String content) {
+        AiConversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation == null
+                || !Objects.equals(conversation.getUserId(), SecurityHelper.getCurrentUserId())) {
+            return null;
+        }
+        String currentTitle = conversation.getTitle();
+        // 仅占位标题生成：天然保证「只生成一次」且不覆盖用户手动改过的标题。
+        // 注：Agent 前缀即视为占位（用户手改成 Agent 前缀名的场景极罕见，覆盖一次可接受）
+        if (!isPlaceholderTitle(currentTitle)) {
+            return null;
+        }
+        String input = content.length() > TITLE_INPUT_MAX_LEN ? content.substring(0, TITLE_INPUT_MAX_LEN) : content;
+        ChatRequest titleRequest = new ChatRequest();
+        titleRequest.setModelId(conversation.getModelId());
+        titleRequest.setContent(TITLE_PROMPT_TEMPLATE + input);
+        titleRequest.setTemperature(0.3);
+        AiModelConfig modelConfig = modelResolver.resolve(titleRequest);
+        if (modelConfig == null) {
+            log.warn("会话标题生成跳过：无可用启用模型，conversationId={}", conversationId);
+            return null;
+        }
+        ChatResponse response = llmClient.chat(titleRequest, modelConfig);
+        recordUsage(modelConfig, response);
+        if (response == null || !Boolean.TRUE.equals(response.getSuccess())) {
+            log.warn("会话标题生成失败：conversationId={}，原因={}", conversationId,
+                    response == null ? "响应为空" : response.getErrorMessage());
+            return null;
+        }
+        String cleaned = cleanGeneratedTitle(response.getContent());
+        if (cleaned == null) {
+            log.warn("会话标题生成结果清洗后为空：conversationId={}", conversationId);
+            return null;
+        }
+        boolean agentConversation = currentTitle != null
+                && (currentTitle.trim().startsWith("Agent：") || currentTitle.trim().startsWith("Agent:"));
+        String newTitle = agentConversation ? "Agent：" + cleaned : cleaned;
+        conversation.setTitle(newTitle);
+        conversationMapper.updateById(conversation);
+        return newTitle;
+    }
+
+    /** 占位标题判定：空 / 新对话 / 与 xx 的对话 / Agent 前缀 */
+    private boolean isPlaceholderTitle(String title) {
+        if (title == null || title.isBlank()) {
+            return true;
+        }
+        String trimmed = title.trim();
+        return "新对话".equals(trimmed)
+                || (trimmed.startsWith("与 ") && trimmed.endsWith(" 的对话"))
+                || trimmed.startsWith("Agent：")
+                || trimmed.startsWith("Agent:");
+    }
+
+    /** 清洗生成结果：折叠空白、去结尾句号、剥整体包裹的成对符号、截断；清洗后为空返回 null */
+    private String cleanGeneratedTitle(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String cleaned = raw.replaceAll("\\s+", " ").trim();
+        // 只剥「整体成对包裹」的符号：标题内部的书名号/引号属于正文（如「《三体》读后感」），不能动
+        String previous;
+        do {
+            previous = cleaned;
+            cleaned = cleaned.replaceAll("[。.\\s]+$", "");
+            if (cleaned.length() >= 2) {
+                int pair = TITLE_WRAP_OPENERS.indexOf(cleaned.charAt(0));
+                int last = cleaned.length() - 1;
+                if (pair >= 0 && cleaned.indexOf(TITLE_WRAP_CLOSERS.charAt(pair), 1) == last) {
+                    cleaned = cleaned.substring(1, last).trim();
+                }
+            }
+        } while (!cleaned.equals(previous));
+        if (cleaned.isEmpty()) {
+            return null;
+        }
+        if (cleaned.length() > TITLE_MAX_LEN) {
+            // 截断点落在代理对中间时回退一位，避免留下半个字符
+            int end = Character.isHighSurrogate(cleaned.charAt(TITLE_MAX_LEN - 1)) ? TITLE_MAX_LEN - 1 : TITLE_MAX_LEN;
+            cleaned = cleaned.substring(0, end);
+        }
+        return cleaned;
     }
 
     @Override
