@@ -150,7 +150,9 @@
                     <el-icon class="caret"><CaretRight /></el-icon>
                     <span>深度思考</span>
                   </div>
-                  <div v-show="expandedReasoningIds.has(msg.id)" class="reasoning-body">{{ msg.reasoningContent }}</div>
+                  <div v-show="expandedReasoningIds.has(msg.id)" class="reasoning-body">
+                    <MarkdownRenderer :content="msg.reasoningContent" />
+                  </div>
                 </div>
                 <MarkdownRenderer :content="msg.content" />
               </div>
@@ -172,7 +174,9 @@
                     <el-icon class="caret"><CaretRight /></el-icon>
                     <span>{{ reasoningActive ? `深度思考中 ${reasoningSeconds}s` : `已深度思考 ${reasoningSeconds}s` }}</span>
                   </div>
-                  <div v-show="streamingReasoningExpanded" class="reasoning-body">{{ streamingReasoning }}</div>
+                  <div v-show="streamingReasoningExpanded" class="reasoning-body">
+                    <MarkdownRenderer :content="streamingReasoning" />
+                  </div>
                 </div>
                 <MarkdownRenderer v-if="streamingContent" :content="streamingContent" />
               </div>
@@ -983,8 +987,6 @@ watch(selectedModelId, () => {
               font-size: 13px;
               line-height: 1.6;
               color: #909399;
-              font-style: italic;
-              white-space: pre-wrap;
               word-break: break-word;
               max-height: 320px;
               overflow-y: auto;
