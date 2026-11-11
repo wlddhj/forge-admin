@@ -59,6 +59,12 @@
         </vxe-column>
         <vxe-column field="maxTokens" title="最大 Tokens" width="110" />
         <vxe-column field="temperature" title="Temperature" width="100" />
+        <vxe-column title="禁用思考" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.thinkingDisabled === 1" type="danger">已禁用</el-tag>
+            <span v-else>-</span>
+          </template>
+        </vxe-column>
         <vxe-column title="状态" width="90">
           <template #default="{ row }">
             <el-tag v-if="row.status === 1" type="success">正常</el-tag>
