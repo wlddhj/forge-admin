@@ -12,12 +12,15 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -40,6 +43,24 @@ public class OpenAiCompatStreamClient {
      * 流最长挂钟时间（防上游挂起导致线程无限阻塞）：聊天/决策流远达不到该量级
      */
     private static final Duration MAX_STREAM_DURATION = Duration.ofMinutes(10);
+
+    /** 建连超时（每节点） */
+    private static final int CONNECT_TIMEOUT_MS = 10_000;
+
+    /** 流中读超时：帧间隔可达数秒，放宽到 90s */
+    private static final int READ_TIMEOUT_MS = 90_000;
+
+    /** 最多尝试节点数（DNS 多 A 记录逐个探测） */
+    private static final int MAX_NODE_ATTEMPTS = 3;
+
+    private static final javax.net.ssl.SSLSocketFactory SSL_SOCKET_FACTORY =
+            (javax.net.ssl.SSLSocketFactory) javax.net.ssl.SSLSocketFactory.getDefault();
+
+    /**
+     * 进程内记忆最近成功节点：DNS 多 A 记录顺序随机（GA 边缘节点好坏不一），
+     * 粘住好节点避免每次请求掷骰子
+     */
+    private final AtomicReference<String> lastGoodIp = new AtomicReference<>();
 
     public record StreamRequest(String url, String apiKey, String body, Duration headersTimeout) {
 
@@ -71,13 +92,9 @@ public class OpenAiCompatStreamClient {
     }
 
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient;
 
     public OpenAiCompatStreamClient(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
     }
 
     /**
@@ -107,27 +124,279 @@ public class OpenAiCompatStreamClient {
      * 发起 HTTP + 按行解析（包私有读循环供单测复用：readFrames 接收任意 Reader 源）
      */
     void doStream(StreamRequest request, Consumer<StreamFrame> sink) throws IOException, InterruptedException {
-        HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(request.url()))
-                .timeout(request.headersTimeout())
-                .header("Authorization", "Bearer " + request.apiKey())
-                .header("Content-Type", "application/json")
-                .header("Accept", "text/event-stream")
-                .POST(HttpRequest.BodyPublishers.ofString(request.body(), StandardCharsets.UTF_8))
-                .build();
+        URI uri = URI.create(request.url());
+        if (!"https".equalsIgnoreCase(uri.getScheme())) {
+            throw new UpstreamStreamException("仅支持 https 流式端点: " + request.url(), null);
+        }
+        String host = uri.getHost();
+        int port = uri.getPort() > 0 ? uri.getPort() : 443;
+        String path = (uri.getRawPath() == null || uri.getRawPath().isEmpty() ? "/" : uri.getRawPath())
+                + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery());
 
-        HttpResponse<InputStream> response =
-                httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-        if (response.statusCode() != 200) {
-            try (InputStream errorBody = response.body()) {
-                throw new UpstreamStreamException(response.statusCode(), bodySnippet(errorBody));
+        List<InetAddress> candidates = candidateAddresses(host);
+        java.io.IOException last = null;
+        java.util.concurrent.atomic.AtomicInteger sent = new java.util.concurrent.atomic.AtomicInteger();
+        Consumer<StreamFrame> countingSink = f -> {
+            sent.incrementAndGet();
+            sink.accept(f);
+        };
+        for (InetAddress addr : candidates) {
+            try {
+                streamVia(addr, host, port, path, request, countingSink);
+                lastGoodIp.set(addr.getHostAddress());
+                return;
+            } catch (UpstreamStreamException e) {
+                // HTTP 状态错误/流中断：换节点重试同样会失败（认证/模型问题），直接抛出
+                throw e;
+            } catch (java.io.IOException e) {
+                // 已投递过帧的流中途断开：重试会导致帧重复，不再换节点
+                if (sent.get() > 0) {
+                    throw new UpstreamStreamException("上游流式响应中断: " + e.getMessage(), e);
+                }
+                last = e;
+                log.warn("[原生流] 节点 {} 首字节超时或连接失败({})，切换下一候选",
+                        addr.getHostAddress(), e.getClass().getSimpleName());
             }
         }
+        throw new UpstreamStreamException("上游流式连接失败(已尝试全部节点): "
+                + (last == null ? "无可用地址" : last.getMessage()), last);
+    }
 
-        long deadline = System.currentTimeMillis() + MAX_STREAM_DURATION.toMillis();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
+    /**
+     * 直连指定 IP 的 SSE 请求：SNI/Host/证书校验保持域名语义，
+     * 首字节短超时识别坏节点（连上但不回数据），流开始后放宽读超时。
+     */
+    private void streamVia(InetAddress addr, String host, int port, String path,
+                           StreamRequest request, Consumer<StreamFrame> sink) throws IOException {
+        long firstByteTimeout = Math.max(5_000, Math.min(30_000, request.headersTimeout().toMillis()));
+        javax.net.ssl.SSLSocket socket = (javax.net.ssl.SSLSocket)
+                SSL_SOCKET_FACTORY.createSocket();
+        try {
+            socket.connect(new java.net.InetSocketAddress(addr, port), CONNECT_TIMEOUT_MS);
+            javax.net.ssl.SSLParameters params = socket.getSSLParameters();
+            params.setServerNames(List.of(new javax.net.ssl.SNIHostName(host)));
+            socket.setSSLParameters(params);
+            socket.startHandshake();
+            if (!verifyHostInCert(host, socket)) {
+                throw new javax.net.ssl.SSLException(
+                        "证书主机名不匹配: " + addr.getHostAddress() + " → " + host);
+            }
+            socket.setSoTimeout((int) firstByteTimeout);
+
+            String head = "POST " + path + " HTTP/1.1\r\n"
+                    + "Host: " + host + (port == 443 ? "" : ":" + port) + "\r\n"
+                    + "Authorization: Bearer " + request.apiKey() + "\r\n"
+                    + "Content-Type: application/json\r\n"
+                    + "Accept: text/event-stream\r\n"
+                    + "Accept-Encoding: identity\r\n"
+                    + "User-Agent: forge-admin/1.0\r\n"
+                    + "Content-Length: " + request.body().getBytes(StandardCharsets.UTF_8).length + "\r\n"
+                    + "Connection: close\r\n\r\n";
+            java.io.OutputStream out = socket.getOutputStream();
+            out.write(head.getBytes(StandardCharsets.UTF_8));
+            out.write(request.body().getBytes(StandardCharsets.UTF_8));
+            out.flush();
+
+            java.io.InputStream raw = new java.io.BufferedInputStream(socket.getInputStream());
+            String statusLine = readRawLine(raw);
+            if (statusLine == null || !statusLine.contains(" 200 ")) {
+                throw new UpstreamStreamException(statusCodeOf(statusLine), drainSnippet(raw));
+            }
+            boolean chunked = false;
+            String headerLine;
+            while ((headerLine = readRawLine(raw)) != null && !headerLine.isEmpty()) {
+                if (headerLine.toLowerCase().contains("transfer-encoding")
+                        && headerLine.toLowerCase().contains("chunked")) {
+                    chunked = true;
+                }
+            }
+
+            // 流开始后放宽读超时（帧间隔可达数秒）
+            socket.setSoTimeout(READ_TIMEOUT_MS);
+            java.io.InputStream body = chunked ? new DechunkingInputStream(raw) : raw;
+            BufferedReader reader = new BufferedReader(new InputStreamReader(body, StandardCharsets.UTF_8));
+            long deadline = System.currentTimeMillis() + MAX_STREAM_DURATION.toMillis();
             readFrames(reader, sink, deadline);
+        } finally {
+            try {
+                socket.close();
+            } catch (IOException ignored) {
+                // 关闭失败不影响主流程
+            }
+        }
+    }
+
+    /**
+     * 证书 SAN 校验（显式实现）：直连 IP 时 JSSE 的端点识别锚定的是 IP 而非域名，
+     * 默认 HostnameVerifier 对手工会话校验不可靠，故自实现 dNSName 精确/左通配匹配
+     */
+    private static boolean verifyHostInCert(String host, javax.net.ssl.SSLSocket socket) {
+        java.security.cert.Certificate cert;
+        try {
+            cert = socket.getSession().getPeerCertificates()[0];
+        } catch (javax.net.ssl.SSLPeerUnverifiedException e) {
+            return false;
+        }
+        if (!(cert instanceof java.security.cert.X509Certificate x509)) {
+            return false;
+        }
+        java.util.Collection<List<?>> sans;
+        try {
+            sans = x509.getSubjectAlternativeNames();
+        } catch (java.security.cert.CertificateParsingException e) {
+            return false;
+        }
+        if (sans != null) {
+            for (var san : sans) {
+                // type 2 = dNSName
+                if (san.size() >= 2 && Integer.valueOf(2).equals(san.get(0))
+                        && san.get(1) instanceof String dns) {
+                    if (hostnameMatches(dns.toLowerCase(), host.toLowerCase())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /** 精确匹配或左标签单段通配（*.bigmodel.cn 匹配 open.bigmodel.cn） */
+    private static boolean hostnameMatches(String pattern, String host) {
+        if (pattern.equals(host)) {
+            return true;
+        }
+        if (pattern.startsWith("*.")) {
+            String suffix = pattern.substring(1);
+            int dot = host.indexOf('.');
+            return dot > 0 && host.substring(dot).equals(suffix);
+        }
+        return false;
+    }
+
+    /**
+     * 候选节点排序：上次成功 IP 优先（进程内粘住好节点），IPv4 次之
+     */
+    private List<InetAddress> candidateAddresses(String host) {
+        InetAddress[] all;
+        try {
+            all = InetAddress.getAllByName(host);
+        } catch (java.net.UnknownHostException e) {
+            throw new UpstreamStreamException("域名解析失败: " + host, e);
+        }
+        String good = lastGoodIp.get();
+        List<InetAddress> list = new ArrayList<>(Arrays.asList(all));
+        list.sort(Comparator.comparing(a -> a.getAddress().length != 4));
+        if (good != null) {
+            list.sort(Comparator.comparing(a -> !a.getHostAddress().equals(good)));
+        }
+        return list.size() > MAX_NODE_ATTEMPTS ? list.subList(0, MAX_NODE_ATTEMPTS) : list;
+    }
+
+    /**
+     * 原始流按行读（\n 或 \r\n 结尾，8KB 上限）；首行受首字节超时保护（坏节点在此暴露）
+     */
+    private static String readRawLine(java.io.InputStream in) throws IOException {
+        java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream(128);
+        int c;
+        while ((c = in.read()) != -1) {
+            if (c == '\n') {
+                byte[] bytes = buf.toByteArray();
+                int end = bytes.length > 0 && bytes[bytes.length - 1] == '\r' ? bytes.length - 1 : bytes.length;
+                return new String(bytes, 0, end, StandardCharsets.UTF_8);
+            }
+            buf.write(c);
+            if (buf.size() > 8192) {
+                throw new IOException("响应行超长(>8KB)，非正常 HTTP 头");
+            }
+        }
+        return buf.size() == 0 ? null : buf.toString(StandardCharsets.UTF_8);
+    }
+
+    private static int statusCodeOf(String statusLine) {
+        if (statusLine == null) {
+            return 0;
+        }
+        String[] parts = statusLine.split(" ");
+        return parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+    }
+
+    private static String drainSnippet(java.io.InputStream in) {
+        try {
+            return new String(in.readNBytes(512), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return "";
+        }
+    }
+
+    /**
+     * chunked 传输解码：SSE 正文按块传输时逐块剥离 chunk 头（Connection: close 场景多数为
+     * EOF 定界非 chunked，但 keep-alive 上游可能 chunked，两种都兼容）
+     */
+    static class DechunkingInputStream extends java.io.InputStream {
+        private final java.io.InputStream in;
+        private long remaining;
+        private State state = State.SIZE;
+
+        private enum State { SIZE, DATA, DATA_CRLF, DONE }
+
+        DechunkingInputStream(java.io.InputStream in) {
+            this.in = in;
+        }
+
+        @Override
+        public int read() throws IOException {
+            byte[] one = new byte[1];
+            int n = read(one, 0, 1);
+            return n == -1 ? -1 : (one[0] & 0xFF);
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            while (true) {
+                switch (state) {
+                    case DONE -> {
+                        return -1;
+                    }
+                    case SIZE -> {
+                        String sizeLine = readRawLine(in);
+                        if (sizeLine == null) {
+                            state = State.DONE;
+                            return -1;
+                        }
+                        if (sizeLine.isEmpty()) {
+                            continue;
+                        }
+                        int semi = sizeLine.indexOf(';');
+                        String hex = (semi >= 0 ? sizeLine.substring(0, semi) : sizeLine).trim();
+                        remaining = Long.parseLong(hex, 16);
+                        state = remaining == 0 ? State.DONE : State.DATA;
+                    }
+                    case DATA -> {
+                        if (remaining <= 0) {
+                            state = State.DATA_CRLF;
+                            continue;
+                        }
+                        int n = in.read(b, off, (int) Math.min(len, remaining));
+                        if (n == -1) {
+                            state = State.DONE;
+                            return -1;
+                        }
+                        remaining -= n;
+                        if (remaining == 0) {
+                            state = State.DATA_CRLF;
+                        }
+                        return n;
+                    }
+                    case DATA_CRLF -> {
+                        String tail = readRawLine(in);
+                        if (tail == null) {
+                            state = State.DONE;
+                            return -1;
+                        }
+                        state = State.SIZE;
+                    }
+                }
+            }
         }
     }
 
@@ -197,12 +466,6 @@ public class OpenAiCompatStreamClient {
         }
         String text = value.asText();
         return text == null || text.isEmpty() ? null : text;
-    }
-
-    private String bodySnippet(InputStream body) throws IOException {
-        byte[] bytes = body.readNBytes(512);
-        String text = new String(bytes, StandardCharsets.UTF_8);
-        return abbreviate(text);
     }
 
     private String abbreviate(String text) {

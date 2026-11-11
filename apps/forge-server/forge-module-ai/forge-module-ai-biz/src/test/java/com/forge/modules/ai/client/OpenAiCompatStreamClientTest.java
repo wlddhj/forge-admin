@@ -109,4 +109,18 @@ class OpenAiCompatStreamClientTest {
                 StreamFrame.content("a"),
                 StreamFrame.done(null, null));
     }
+
+    @Test
+    @DisplayName("chunked 解码：多块拼接还原 SSE 行")
+    void chunked解码多块拼接() throws Exception {
+        String c1 = "data: {\"a\":1}\n\n";
+        String c2 = "data: {\"a\":2\"}\n\ndata: [DONE]\n\n";
+        String chunked = Integer.toHexString(c1.length()) + "\r\n" + c1 + "\r\n"
+                + Integer.toHexString(c2.length()) + "\r\n" + c2 + "\r\n"
+                + "0\r\n\r\n";
+        java.io.InputStream in = new java.io.ByteArrayInputStream(chunked.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        OpenAiCompatStreamClient.DechunkingInputStream dechunk = new OpenAiCompatStreamClient.DechunkingInputStream(in);
+        String decoded = new String(dechunk.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(decoded).isEqualTo(c1 + c2);
+    }
 }
