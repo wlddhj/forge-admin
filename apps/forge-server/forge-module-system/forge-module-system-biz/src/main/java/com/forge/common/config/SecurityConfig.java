@@ -2,6 +2,7 @@ package com.forge.common.config;
 
 import com.forge.framework.security.config.AppJwtAuthenticationFilter;
 import com.forge.modules.system.auth.security.JwtAuthenticationEntryPoint;
+import jakarta.servlet.DispatcherType;
 import com.forge.modules.system.auth.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -114,7 +115,11 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // Security 7 移除 shouldFilterAllDispatcherTypes（默认只过滤 REQUEST，等价旧值 false）
+                        // Security 7 AuthorizationFilter 默认过滤 ASYNC/ERROR dispatch（6.x 默认只过滤 REQUEST，行为已翻转）：
+                        // SSE/Flux 端点完成时容器回发 ASYNC dispatch，此时 OncePerRequestFilter 类认证过滤器被跳过、无认证上下文，
+                        // 不放行会对已完成鉴权的流式请求（如 /ai/agent/chat/stream）误报 Access Denied。
+                        // dispatch 类型由容器内部设置，外部请求无法伪造，真实鉴权仍在初始 REQUEST dispatch 完成。
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers(ADMIN_WHITE_LIST).permitAll()
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
@@ -156,7 +161,8 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // Security 7 移除 shouldFilterAllDispatcherTypes（默认只过滤 REQUEST，等价旧值 false）
+                        // 同 admin 链：放行 ASYNC/ERROR dispatch，防止 SSE/异步端点完成 dispatch 时误报 Access Denied
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers(APP_WHITE_LIST).permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(appJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
