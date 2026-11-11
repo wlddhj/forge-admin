@@ -21,7 +21,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -155,7 +154,7 @@ public class AiAgentController {
     @Operation(summary = "Agent 对话（SSE 流式，步骤事件 + 最终回答）")
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAuthority('ai:agent:run')")
-    public Flux<ServerSentEvent<String>> chatStream(@Valid @RequestBody AgentChatRequest request) {
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter chatStream(@Valid @RequestBody AgentChatRequest request) {
         if (request.getImages() != null && request.getImages().size() > 3) {
             throw new BusinessException("图片最多 3 张");
         }
@@ -185,8 +184,14 @@ public class AiAgentController {
         final AiAgentConfig finalConfig = config;
         final com.forge.modules.ai.entity.AiAgentTeam finalTeam = team;
 
+        // SseEmitter 手工桥（与 AiChatController 同款）：MVC request(1)×Flux.create 唤醒丢失、
+        // publishOn×高频帧 20s+ 停顿两条坑都绕开，每帧 emitter.send 显式 flush。
         // Agent 专用线程池执行（与 boundedElastic 隔离，防止并发团队任务耗尽公共线程池）
-        return Flux.<ServerSentEvent<String>>create(sink -> {
+        org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter =
+                new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(0L);
+        java.util.concurrent.atomic.AtomicBoolean done = new java.util.concurrent.atomic.AtomicBoolean(false);
+        emitter.onTimeout(() -> completeQuietly(emitter, done));
+        Flux.<String>create(sink -> {
             try {
                 if (finalTeam != null) {
                     graphRunner.runTeamStream(finalTeam, request.getConversationId(), userId, "CONVERSATION",
@@ -204,23 +209,40 @@ public class AiAgentController {
                         Map.of("message", String.valueOf(e.getMessage())))));
                 sink.complete();
             }
-        }).subscribeOn(agentScheduler)
-        // publishOn 解耦 MVC request(1) 消费舞步与 create sink 的跨线程投递
-        // （无此修复时 CONTENT/THOUGHT 增量帧滞留队列直到流结束才倾泻，无打字机效果，
-        // 详见 OpenAiCompatStreamClient 同款修复注释）
-        .publishOn(reactor.core.scheduler.Schedulers.boundedElastic(), 256);
+        }).subscribeOn(agentScheduler).subscribe(
+                frame -> {
+                    try {
+                        emitter.send(frame);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                error -> completeQuietly(emitter, done),
+                () -> completeQuietly(emitter, done));
+        return emitter;
     }
 
-    private ServerSentEvent<String> toFrame(AgentEvents.AgentEvent event) {
+    private void completeQuietly(org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter,
+                                 java.util.concurrent.atomic.AtomicBoolean done) {
+        if (done.compareAndSet(false, true)) {
+            try {
+                emitter.complete();
+            } catch (Exception ignored) {
+                // 重复完成可接受
+            }
+        }
+    }
+
+    private String toFrame(AgentEvents.AgentEvent event) {
         Map<String, Object> frame = new LinkedHashMap<>();
         frame.put("event", event.type().name());
         frame.put("node", event.node());
         frame.put("name", event.name());
         frame.put("data", event.payload());
         try {
-            return ServerSentEvent.builder(objectMapper.writeValueAsString(frame)).build();
+            return objectMapper.writeValueAsString(frame);
         } catch (Exception e) {
-            return ServerSentEvent.builder("{\"event\":\"ERROR\"}").build();
+            return "{\"event\":\"ERROR\"}";
         }
     }
 

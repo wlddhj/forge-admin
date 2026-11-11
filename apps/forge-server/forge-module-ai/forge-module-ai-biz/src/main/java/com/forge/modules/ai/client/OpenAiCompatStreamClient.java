@@ -108,7 +108,12 @@ public class OpenAiCompatStreamClient {
     }
 
     /**
-     * 流式调用：元素为解析后的帧，reasoning 与 content 增量分离透传
+     * 流式调用：元素为解析后的帧，reasoning 与 content 增量分离透传。
+     *
+     * 注意：消费端应使用 unbounded 订阅（SseEmitter 桥/doOnNext 链）。
+     * 不加 publishOn：真机实证高频帧流（~11ms/帧）下 publishOn 反而引入 20s+ 投递停顿；
+     * MVC ReactiveTypeHandler 的 request(1) 消费模式与本链路的唤醒丢失问题由
+     * Controller 层 SseEmitter 手工桥解决（见 AiChatController）
      */
     public Flux<StreamFrame> stream(StreamRequest request) {
         return Flux.<StreamFrame>create(emitter -> {
@@ -122,12 +127,7 @@ public class OpenAiCompatStreamClient {
                     }
                 })
                 // 同步读循环放弹性线程，避免占死订阅线程
-                .subscribeOn(Schedulers.boundedElastic())
-                // 关键修复：MVC ReactiveTypeHandler 以逐条 request(1) 消费，与 Flux.create
-                // 的跨线程投递组合存在唤醒丢失（实测：首帧直达、其余帧滞留队列直到 complete
-                // 才倾泻——即「无打字机效果」根因）。publishOn 插入专职队列+投递线程解耦两端，
-                // 消费端舞步不再穿透到 create sink（最小复现实证 150ms 节奏恢复逐帧）
-                .publishOn(Schedulers.boundedElastic(), 256);
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     /**

@@ -17,10 +17,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -102,12 +100,49 @@ public class AiChatController {
     @Operation(summary = "发送消息（流式响应）")
     @PostMapping(value = "/message/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAuthority('ai:chat:create')")
-    public Flux<ServerSentEvent<String>> sendMessageStream(@Valid @RequestBody ChatRequest request) {
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter sendMessageStream(
+            @Valid @RequestBody ChatRequest request) {
         // 在同步线程中保存用户消息（需要 Security Context）
         aiChatService.prepareStreamChat(request);
-        // 返回纯 Flux 流（不需要 Security Context）
-        return aiChatService.getStreamResponse(request)
-                .map(content -> ServerSentEvent.<String>builder().data(content).build());
+
+        // SseEmitter 手工桥：unbounded 订阅逐帧 send。MVC ReactiveTypeHandler 的 request(1)
+        // 消费与 Flux.create 组合存在唤醒丢失（攒帧），publishOn 修复又会在高频帧流引入
+        // 20s+ 停顿（真机实证）；SseEmitter.send 每帧显式 flush，两条坑都绕开
+        org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter =
+                new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(0L);
+        java.util.concurrent.atomic.AtomicBoolean done = new java.util.concurrent.atomic.AtomicBoolean(false);
+        emitter.onTimeout(() -> completeQuietly(emitter, done));
+        aiChatService.getStreamResponse(request)
+                .subscribe(
+                        frame -> {
+                            try {
+                                emitter.send(frame);
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        },
+                        error -> {
+                            try {
+                                emitter.send("{\"error\":true,\"message\":\"" +
+                                        String.valueOf(error.getMessage()).replace("\"", "'") + "\"}");
+                            } catch (Exception ignored) {
+                                // 发送失败时仅完成
+                            }
+                            completeQuietly(emitter, done);
+                        },
+                        () -> completeQuietly(emitter, done));
+        return emitter;
+    }
+
+    private void completeQuietly(org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter,
+                                 java.util.concurrent.atomic.AtomicBoolean done) {
+        if (done.compareAndSet(false, true)) {
+            try {
+                emitter.complete();
+            } catch (Exception ignored) {
+                // 重复完成可接受
+            }
+        }
     }
 
     @Operation(summary = "保存AI回复消息（含思考内容）")
