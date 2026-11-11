@@ -1,5 +1,6 @@
 package com.forge.modules.ai.agent.kernel;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
@@ -97,7 +98,7 @@ public class AgentGraphRunner {
                                     String triggerType, String input, List<String> images,
                                     Consumer<AgentEvents.AgentEvent> sseEmitter) {
         List<AiAgentTeamMember> members = teamMemberMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiAgentTeamMember>()
+                new LambdaQueryWrapper<AiAgentTeamMember>()
                         .eq(AiAgentTeamMember::getTeamId, team.getId())
                         .orderByAsc(AiAgentTeamMember::getSortOrder));
         if (members.isEmpty()) {

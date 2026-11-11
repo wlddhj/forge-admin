@@ -105,6 +105,9 @@ public class NativeToolCalling {
 
             long timeout = aiModuleConfig.getClient().getDecisionTimeout() == null
                     ? 45000L : aiModuleConfig.getClient().getDecisionTimeout();
+            // 临时诊断：定位 native 决策 45s 超时问题（确认运行时模型配置与工具注入数量）
+            log.info("[native-diag] model={}, thinkingDisabled={}, decisionTimeout={}ms, tools={}",
+                    model.getModelName(), model.getThinkingDisabled(), timeout, callbacks.size());
             StringBuilder content = new StringBuilder();
             AtomicReference<org.springframework.ai.chat.model.ChatResponse> aggregated = new AtomicReference<>();
             MessageAggregator aggregator = new MessageAggregator();

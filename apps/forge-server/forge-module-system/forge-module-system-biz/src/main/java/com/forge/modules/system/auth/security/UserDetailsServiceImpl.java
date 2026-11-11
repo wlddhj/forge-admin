@@ -41,9 +41,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throw new UsernameNotFoundException("用户不存在: " + username);
         }
 
-        log.info("[登录] 用户信息: username={}, status={}, deleted={}, accountType={}",
-                user.getUsername(), user.getStatus(), user.getDeleted(), user.getAccountType());
-        log.info("[登录] 数据库密码hash: {}", user.getPassword());
+//        log.info("[登录] 用户信息: username={}, status={}, deleted={}, accountType={}",
+//                user.getUsername(), user.getStatus(), user.getDeleted(), user.getAccountType());
+//        log.info("[登录] 数据库密码hash: {}", user.getPassword());
 
         if (user.getStatus() != 1) {
             throw new BusinessException(ResultCode.USER_DISABLED);

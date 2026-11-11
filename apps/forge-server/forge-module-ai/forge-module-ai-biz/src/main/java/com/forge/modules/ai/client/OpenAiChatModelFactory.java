@@ -53,6 +53,8 @@ public class OpenAiChatModelFactory {
                     okhttp3.Request newRequest = request.newBuilder()
                             .method(request.method(), okhttp3.RequestBody.create(body.contentType(), rewritten))
                             .build();
+                    // 临时诊断：确认拦截器在流式路径触发（定位 native 决策 45s 超时问题，可降级 log.debug）
+                    log.info("[thinking-disabled] 请求体已改写 ({}字节)", raw.length);
                     return chain.proceed(newRequest);
                 }
             } catch (Exception e) {
@@ -128,7 +130,9 @@ public class OpenAiChatModelFactory {
             options.maxTokens(maxTokens);
         }
 
-        log.info("构建 LLM 模型实例: {} ({})", config.getModelName(), config.getProvider());
+        // 临时诊断：thinkingDisabled 与拦截器挂载状态（定位 native 决策 45s 超时问题）
+        log.info("构建 LLM 模型实例: {} ({}), thinkingDisabled={}, 思考关闭拦截器={}", config.getModelName(),
+                config.getProvider(), config.getThinkingDisabled(), customizers.isEmpty() ? "未挂载" : "已挂载");
         return OpenAiChatModel.builder()
                 .openAiClient(syncClient)
                 .openAiClientAsync(asyncClient)
