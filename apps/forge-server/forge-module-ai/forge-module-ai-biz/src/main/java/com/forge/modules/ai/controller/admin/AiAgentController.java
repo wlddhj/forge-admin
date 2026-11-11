@@ -204,7 +204,11 @@ public class AiAgentController {
                         Map.of("message", String.valueOf(e.getMessage())))));
                 sink.complete();
             }
-        }).subscribeOn(agentScheduler);
+        }).subscribeOn(agentScheduler)
+        // publishOn 解耦 MVC request(1) 消费舞步与 create sink 的跨线程投递
+        // （无此修复时 CONTENT/THOUGHT 增量帧滞留队列直到流结束才倾泻，无打字机效果，
+        // 详见 OpenAiCompatStreamClient 同款修复注释）
+        .publishOn(reactor.core.scheduler.Schedulers.boundedElastic(), 256);
     }
 
     private ServerSentEvent<String> toFrame(AgentEvents.AgentEvent event) {
