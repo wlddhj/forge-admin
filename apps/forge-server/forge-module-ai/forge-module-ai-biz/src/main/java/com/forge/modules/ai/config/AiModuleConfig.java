@@ -61,6 +61,13 @@ public class AiModuleConfig {
          * 模型健康负缓存 TTL（毫秒，近期失败的模型在 failover 中跳过；<=0 按默认 60000）
          */
         private Integer healthCacheTtlMs = 60000;
+
+        /**
+         * 原生流式请求「建连+响应头」超时（毫秒，默认 120s）。
+         * 上游思考模型按 key 排队时响应头会迟到（实测 26~60s+ 可放行），
+         * 60s 默认会误杀本来能成功的请求；决策流另有 decision-timeout 独立收紧不受此值放大影响
+         */
+        private Integer streamHeadersTimeout = 120000;
     }
 
     /**

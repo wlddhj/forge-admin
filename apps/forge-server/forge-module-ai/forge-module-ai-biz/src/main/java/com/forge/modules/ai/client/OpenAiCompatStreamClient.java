@@ -41,13 +41,11 @@ public class OpenAiCompatStreamClient {
      */
     private static final Duration MAX_STREAM_DURATION = Duration.ofMinutes(10);
 
-    /**
-     * 建连+响应头超时（请求级）；流开始后的逐行间隔依赖上游持续输出，
-     * 行间隔层面无读超时（残余风险，见 04 审查记录）
-     */
-    private static final Duration RESPONSE_HEADERS_TIMEOUT = Duration.ofSeconds(60);
+    public record StreamRequest(String url, String apiKey, String body, Duration headersTimeout) {
 
-    public record StreamRequest(String url, String apiKey, String body) {
+        public StreamRequest(String url, String apiKey, String body) {
+            this(url, apiKey, body, Duration.ofSeconds(60));
+        }
     }
 
     /**
@@ -106,7 +104,7 @@ public class OpenAiCompatStreamClient {
     void doStream(StreamRequest request, Consumer<StreamFrame> sink) throws IOException, InterruptedException {
         HttpRequest httpRequest = HttpRequest.newBuilder()
                 .uri(URI.create(request.url()))
-                .timeout(RESPONSE_HEADERS_TIMEOUT)
+                .timeout(request.headersTimeout())
                 .header("Authorization", "Bearer " + request.apiKey())
                 .header("Content-Type", "application/json")
                 .header("Accept", "text/event-stream")

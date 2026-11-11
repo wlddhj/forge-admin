@@ -25,6 +25,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -200,7 +201,8 @@ public class SpringAiLlmClient implements LlmClient {
         }
         String url = chatCompletionsUrl(modelConfig.getApiEndpoint());
         return streamClient
-                .stream(new OpenAiCompatStreamClient.StreamRequest(url, modelConfig.getApiKey(), body))
+                .stream(new OpenAiCompatStreamClient.StreamRequest(url, modelConfig.getApiKey(), body,
+                        streamHeadersTimeout()))
                 .mapNotNull(frame -> switch (frame.type()) {
                     case REASONING -> frame.text() == null || frame.text().isEmpty() ? null : reasoningFrame(frame.text());
                     case CONTENT -> frame.text() == null || frame.text().isEmpty() ? null : contentFrame(frame.text());
@@ -304,7 +306,8 @@ public class SpringAiLlmClient implements LlmClient {
         AtomicReference<StreamFrame> doneRef = new AtomicReference<>();
         String url = chatCompletionsUrl(modelConfig.getApiEndpoint());
         streamClient
-                .stream(new OpenAiCompatStreamClient.StreamRequest(url, modelConfig.getApiKey(), body))
+                .stream(new OpenAiCompatStreamClient.StreamRequest(url, modelConfig.getApiKey(), body,
+                        streamHeadersTimeout()))
                 .doOnNext(frame -> {
                     switch (frame.type()) {
                         case REASONING -> {
@@ -617,8 +620,22 @@ public class SpringAiLlmClient implements LlmClient {
         return base + completionsPath;
     }
 
+    /**
+     * 原生流式「建连+响应头」超时：默认 120s（上游思考模型按 key 排队时响应头会迟到，
+     * 实测 26~60s+ 可放行，60s 会误杀）；决策流另有 decision-timeout 独立收紧不受影响
+     */
+    private Duration streamHeadersTimeout() {
+        Integer timeout = aiModuleConfig.getClient().getStreamHeadersTimeout();
+        return Duration.ofMillis(timeout == null || timeout <= 0 ? 120000L : timeout);
+    }
+
     private String friendlyStreamError(Throwable e) {
         if (e instanceof OpenAiCompatStreamClient.UpstreamStreamException upstream) {
+            // 请求级超时（含上游排队等待）：status=0 且 cause 为 HttpTimeoutException
+            Throwable cause = upstream.getCause();
+            if (upstream.getStatusCode() == 0 && cause instanceof java.net.http.HttpTimeoutException) {
+                return "上游模型排队超时（等待响应头超限），请稍后重试或更换模型";
+            }
             return switch (upstream.getStatusCode()) {
                 case 401, 403 -> "模型 API 密钥无效或无权限，请检查模型配置";
                 case 429 -> "上游模型服务请求过于频繁，请稍后重试";
