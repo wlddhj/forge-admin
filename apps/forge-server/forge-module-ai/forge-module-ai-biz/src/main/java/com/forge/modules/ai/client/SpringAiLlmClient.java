@@ -601,14 +601,20 @@ public class SpringAiLlmClient implements LlmClient {
     }
 
     /**
-     * apiEndpoint 对齐 Spring AI 约定（baseUrl + /chat/completions），容忍尾斜杠
+     * apiEndpoint 对齐 Spring AI 约定（baseUrl + /chat/completions）。
+     * 与 OpenAiChatModelFactory#normalizeBaseUrl 语义一致：存量数据可能存了完整
+     * completions URL，先截去路径后缀再统一拼一次，避免双重后缀 404。
      */
     private String chatCompletionsUrl(String apiEndpoint) {
         String base = apiEndpoint == null ? "" : apiEndpoint.trim();
+        String completionsPath = "/chat/completions";
+        if (base.endsWith(completionsPath)) {
+            base = base.substring(0, base.length() - completionsPath.length());
+        }
         while (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }
-        return base + "/chat/completions";
+        return base + completionsPath;
     }
 
     private String friendlyStreamError(Throwable e) {

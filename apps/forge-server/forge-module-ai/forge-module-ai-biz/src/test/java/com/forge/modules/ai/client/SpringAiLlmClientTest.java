@@ -136,6 +136,19 @@ class SpringAiLlmClientTest {
     }
 
     @Test
+    void stream_存量完整completionsURL不双重拼接() {
+        // 存量数据 api_endpoint 可能存了完整 completions URL（真机 404 根因），须剥后缀再拼一次
+        modelConfig.setApiEndpoint("https://open.bigmodel.cn/api/paas/v4/chat/completions");
+        when(streamClient.stream(any(OpenAiCompatStreamClient.StreamRequest.class))).thenReturn(Flux.empty());
+
+        llmClient.stream(chatRequest(), modelConfig).collectList().block();
+
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(streamClient);
+        inOrder.verify(streamClient).stream(org.mockito.ArgumentMatchers.argThat(req ->
+                "https://open.bigmodel.cn/api/paas/v4/chat/completions".equals(req.url())));
+    }
+
+    @Test
     void chat_成功时填充内容与模型名() {
         org.springframework.ai.chat.model.ChatResponse aiResp = aiResponse("回答内容");
         when(chatModel.call(any(Prompt.class))).thenReturn(aiResp);
