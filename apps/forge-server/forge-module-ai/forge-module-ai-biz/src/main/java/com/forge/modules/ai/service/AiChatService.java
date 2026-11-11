@@ -71,9 +71,9 @@ public interface AiChatService {
     Flux<String> getStreamResponse(ChatRequest request);
 
     /**
-     * 保存 AI 回复消息
+     * 保存 AI 回复消息（含思考内容，思考模型 reasoning_content 可为空）
      */
-    void saveAiMessage(Long conversationId, String content);
+    void saveAiMessage(Long conversationId, String content, String reasoningContent);
 
     /**
      * 获取对话列表（旧接口）

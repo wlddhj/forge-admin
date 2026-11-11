@@ -145,18 +145,32 @@
             </div>
             <div class="message-content">
               <div class="message-bubble">
+                <div v-if="msg.reasoningContent" class="reasoning-block" :class="{ collapsed: !expandedReasoningIds.has(msg.id) }">
+                  <div class="reasoning-header" @click="toggleReasoning(msg.id)">
+                    <el-icon class="caret"><CaretRight /></el-icon>
+                    <span>深度思考</span>
+                  </div>
+                  <div v-show="expandedReasoningIds.has(msg.id)" class="reasoning-body">{{ msg.reasoningContent }}</div>
+                </div>
                 <MarkdownRenderer :content="msg.content" />
               </div>
               <div class="message-time">{{ formatDateTime(msg.createTime) }}</div>
             </div>
           </div>
-          <div v-if="streamingContent" class="message-item assistant streaming">
+          <div v-if="streamingContent || streamingReasoning" class="message-item assistant streaming">
             <div class="message-avatar">
               <el-avatar :size="32" class="ai-avatar">AI</el-avatar>
             </div>
             <div class="message-content">
               <div class="message-bubble">
-                <MarkdownRenderer :content="streamingContent" />
+                <div v-if="streamingReasoning" class="reasoning-block" :class="{ collapsed: !streamingReasoningExpanded, active: reasoningActive }">
+                  <div class="reasoning-header" @click="streamingReasoningExpanded = !streamingReasoningExpanded">
+                    <el-icon class="caret"><CaretRight /></el-icon>
+                    <span>{{ reasoningActive ? `深度思考中 ${reasoningSeconds}s` : `已深度思考 ${reasoningSeconds}s` }}</span>
+                  </div>
+                  <div v-show="streamingReasoningExpanded" class="reasoning-body">{{ streamingReasoning }}</div>
+                </div>
+                <MarkdownRenderer v-if="streamingContent" :content="streamingContent" />
               </div>
             </div>
           </div>
@@ -211,6 +225,51 @@ const inputMessage = ref('')
 const isStreaming = ref(false)
 const streamingContent = ref('')
 const messageContainerRef = ref<HTMLElement | null>(null)
+
+// ========== 思考过程（reasoning_content）流式状态 ==========
+const streamingReasoning = ref('')
+const reasoningActive = ref(false)
+const reasoningSeconds = ref(0)
+const streamingReasoningExpanded = ref(true)
+/** 历史消息中展开思考块的 msg.id 集合（默认折叠） */
+const expandedReasoningIds = ref<Set<number>>(new Set())
+let reasoningTimer: number | null = null
+
+const startThinking = () => {
+  if (reasoningActive.value) return
+  reasoningActive.value = true
+  streamingReasoningExpanded.value = true
+  reasoningSeconds.value = 0
+  reasoningTimer = window.setInterval(() => {
+    if (reasoningActive.value) reasoningSeconds.value++
+  }, 1000)
+}
+
+const stopThinking = () => {
+  if (!reasoningActive.value) return
+  reasoningActive.value = false
+  streamingReasoningExpanded.value = false
+  if (reasoningTimer != null) {
+    clearInterval(reasoningTimer)
+    reasoningTimer = null
+  }
+}
+
+const resetThinking = () => {
+  stopThinking()
+  streamingReasoning.value = ''
+  reasoningSeconds.value = 0
+}
+
+const toggleReasoning = (msgId: number) => {
+  const next = new Set(expandedReasoningIds.value)
+  if (next.has(msgId)) {
+    next.delete(msgId)
+  } else {
+    next.add(msgId)
+  }
+  expandedReasoningIds.value = next
+}
 
 const sseClient = createSSE()
 
@@ -273,6 +332,7 @@ const unsubscribeNotification = onNotification(async (notification) => {
 })
 onUnmounted(() => {
   unsubscribeNotification()
+  if (reasoningTimer != null) clearInterval(reasoningTimer)
 })
 
 onMounted(async () => {
@@ -583,6 +643,7 @@ const handleSend = async () => {
   inputMessage.value = ''
   isStreaming.value = true
   streamingContent.value = ''
+  resetThinking()
 
   // 添加用户消息
   const userMsg: MessageResponse = {
@@ -600,6 +661,11 @@ const handleSend = async () => {
       conversationId: currentConversation.value.id,
       content: content
     }, {
+      onReasoning: (text) => {
+        if (!reasoningActive.value) startThinking()
+        streamingReasoning.value += text
+        scrollToBottom()
+      },
       onMessage: (dataStr) => {
         // 兼容两种格式：JSON { content: "xxx" } 或纯字符串
         const data = parseSSEData<{ content?: string; done?: boolean; error?: boolean; message?: string }>(dataStr)
@@ -608,32 +674,38 @@ const handleSend = async () => {
           ElMessage.error(data.message || 'AI服务暂时不可用')
           isStreaming.value = false
           streamingContent.value = ''
+          resetThinking()
           return
         }
         if (data?.content) {
+          // 正文开始：思考结束，自动折叠
+          stopThinking()
           streamingContent.value += data.content
           scrollToBottom()
         } else if (dataStr && dataStr !== '[DONE]' && !dataStr.startsWith('{')) {
           // 纯字符串格式
+          stopThinking()
           streamingContent.value += dataStr
           scrollToBottom()
         }
       },
       onDone: async () => {
         // 将累积的流式内容作为 AI 回复添加到消息列表
-        if (streamingContent.value) {
+        if (streamingContent.value || streamingReasoning.value) {
           const aiMsg: MessageResponse = {
             id: Date.now(),
             conversationId: currentConversation.value!.id,
             role: 'assistant',
             content: streamingContent.value,
+            reasoningContent: streamingReasoning.value || undefined,
             createTime: new Date().toISOString()
           }
           messageList.value.push(aiMsg)
           // 保存到数据库
-          await saveAiMessage(currentConversation.value!.id, streamingContent.value)
+          await saveAiMessage(currentConversation.value!.id, streamingContent.value, streamingReasoning.value || undefined)
         }
         streamingContent.value = ''
+        resetThinking()
         isStreaming.value = false
         scrollToBottom()
         // 自动聚焦输入框
@@ -643,12 +715,14 @@ const handleSend = async () => {
         ElMessage.error(error.message || '发送失败')
         isStreaming.value = false
         streamingContent.value = ''
+        resetThinking()
       }
     })
   } catch (e) {
     ElMessage.error('发送失败')
     isStreaming.value = false
     streamingContent.value = ''
+    resetThinking()
   }
 }
 
@@ -828,6 +902,64 @@ watch(selectedModelId, () => {
             background: #f0f9eb;
             color: #67c23a;
             font-size: 13px;
+          }
+
+          .reasoning-block {
+            margin-bottom: 8px;
+            border: 1px solid #e4e7ed;
+            border-radius: 6px;
+            background: #fafafa;
+            overflow: hidden;
+
+            .reasoning-header {
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              padding: 6px 10px;
+              font-size: 13px;
+              color: #909399;
+              cursor: pointer;
+              user-select: none;
+
+              .caret {
+                font-size: 12px;
+                transition: transform 0.2s;
+              }
+
+              &:hover {
+                color: #606266;
+              }
+            }
+
+            .reasoning-body {
+              padding: 4px 12px 10px;
+              font-size: 13px;
+              line-height: 1.6;
+              color: #909399;
+              font-style: italic;
+              white-space: pre-wrap;
+              word-break: break-word;
+              max-height: 320px;
+              overflow-y: auto;
+            }
+
+            &.collapsed .reasoning-header .caret {
+              transform: rotate(0deg);
+            }
+
+            &:not(.collapsed) .reasoning-header .caret {
+              transform: rotate(90deg);
+            }
+
+            &.active .reasoning-header span::after {
+              content: ' …';
+              animation: reasoning-blink 1s infinite;
+            }
+          }
+
+          @keyframes reasoning-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.2; }
           }
 
           .message-time {

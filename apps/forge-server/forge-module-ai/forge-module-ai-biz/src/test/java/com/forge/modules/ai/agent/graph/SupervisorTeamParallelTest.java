@@ -231,7 +231,7 @@ class SupervisorTeamParallelTest {
     @Test
     void 二轮调度模型失败_有专家汇报时降级总结不失败() {
         AtomicInteger supervisorCalls = new AtomicInteger();
-        lenient().when(llmClient.chatForDecision(any(), any(), any())).thenAnswer(inv -> {
+        lenient().when(llmClient.chatForDecision(any(), any(), any(), any())).thenAnswer(inv -> {
             ChatRequest request = inv.getArgument(0);
             String content = request.getContent() == null ? "" : request.getContent();
             if (content.contains("团队专家清单")) {
@@ -266,7 +266,7 @@ class SupervisorTeamParallelTest {
      */
     private void stubLlm(CountDownLatch bothInFlight, boolean highRisk) {
         AtomicInteger supervisorCalls = new AtomicInteger();
-        lenient().when(llmClient.chatForDecision(any(), any(), any())).thenAnswer(inv -> {
+        lenient().when(llmClient.chatForDecision(any(), any(), any(), any())).thenAnswer(inv -> {
             ChatRequest request = inv.getArgument(0);
             String content = request.getContent() == null ? "" : request.getContent();
             if (content.contains("团队专家清单")) {

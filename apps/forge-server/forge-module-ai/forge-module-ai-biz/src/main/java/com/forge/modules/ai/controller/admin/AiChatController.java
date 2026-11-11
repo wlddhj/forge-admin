@@ -6,6 +6,7 @@ import com.forge.common.response.Result;
 import com.forge.framework.web.annotation.OperationLog;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.request.CreateConversationRequest;
+import com.forge.modules.ai.dto.request.SaveAiMessageRequest;
 import com.forge.modules.ai.dto.request.UpdateTitleRequest;
 import com.forge.modules.ai.dto.response.ConversationResponse;
 import com.forge.modules.ai.dto.response.MessageResponse;
@@ -109,11 +110,12 @@ public class AiChatController {
                 .map(content -> ServerSentEvent.<String>builder().data(content).build());
     }
 
-    @Operation(summary = "保存AI回复消息")
+    @Operation(summary = "保存AI回复消息（含思考内容）")
     @PostMapping("/message/save-ai")
     @PreAuthorize("hasAuthority('ai:chat:create')")
-    public Result<Void> saveAiMessage(@RequestParam Long conversationId, @RequestBody String content) {
-        aiChatService.saveAiMessage(conversationId, content);
+    public Result<Void> saveAiMessage(@RequestParam Long conversationId,
+                                      @Valid @RequestBody SaveAiMessageRequest request) {
+        aiChatService.saveAiMessage(conversationId, request.getContent(), request.getReasoningContent());
         return Result.success();
     }
 }

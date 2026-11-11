@@ -74,8 +74,8 @@ const steps = computed<TimelineItem[]>(() => {
         running: true,
         timestamp: `#${d.seq ?? ''}`
       })
-    } else if (frame.event === 'THOUGHT') {
-      // 决策思考流:同节点连续增量聚合为一个条目,2000 字符封顶防洪泛
+    } else if (frame.event === 'THOUGHT' || frame.event === 'REASONING') {
+      // 决策思考流(THOUGHT=正文决策增量,REASONING=模型思考增量):同标题连续增量聚合为一个条目,2000 字符封顶防洪泛
       const title = nodeTitle(frame)
       const existing = [...items].reverse().find(i => i.thought && i.running && i.title === title)
       const delta = String(d.delta ?? '')

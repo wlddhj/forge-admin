@@ -18,13 +18,16 @@ public interface LlmClient {
     ChatResponse chat(ChatRequest request, AiModelConfig modelConfig);
 
     /**
-     * 流式对话：元素为 SSE data 帧 JSON 字符串（{"content":"…"} 增量、[DONE] 结束、{"error":true,"message":"…"} 异常）
+     * 流式对话：元素为 SSE data 帧 JSON 字符串（{"content":"…"} 正文增量、{"reasoning":"…"} 思考增量、
+     * [DONE] 结束、{"error":true,"message":"…"} 异常；非思考模型不产生 reasoning 帧）
      */
     Flux<String> stream(ChatRequest request, AiModelConfig modelConfig);
 
     /**
      * 决策类调用：流式聚合为完整响应（独立收紧的 decision-timeout），文本增量经 onDelta 回调
-     * （决策节点用于推送 THOUGHT 事件）；失败时返回 success=false 的响应（由调用方决定重试/降级）
+     * （决策节点用于推送 THOUGHT 事件），思考增量经 onReasoning 回调（推送 REASONING 事件，可传 null）；
+     * 失败时返回 success=false 的响应（由调用方决定重试/降级）
      */
-    ChatResponse chatForDecision(ChatRequest request, AiModelConfig modelConfig, Consumer<String> onDelta);
+    ChatResponse chatForDecision(ChatRequest request, AiModelConfig modelConfig, Consumer<String> onDelta,
+                                 Consumer<String> onReasoning);
 }

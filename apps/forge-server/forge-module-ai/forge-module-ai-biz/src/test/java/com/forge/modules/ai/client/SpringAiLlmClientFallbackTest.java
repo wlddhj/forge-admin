@@ -36,6 +36,8 @@ class SpringAiLlmClientFallbackTest {
     private AiModelConfigMapper modelConfigMapper;
     @Mock
     private SysConfigService sysConfigService;
+    @Mock
+    private OpenAiCompatStreamClient streamClient;
 
     private SpringAiLlmClient client;
 
@@ -48,7 +50,7 @@ class SpringAiLlmClientFallbackTest {
         client = new SpringAiLlmClient(modelFactory, new ObjectMapper(), modelConfigMapper, sysConfigService,
                 aiModuleConfig, java.util.concurrent.Executors.newFixedThreadPool(2),
                 new ModelHealthCache(new com.forge.framework.localcache.LocalCaches(), aiModuleConfig),
-                com.forge.modules.ai.config.TestAiMetrics.noop());
+                com.forge.modules.ai.config.TestAiMetrics.noop(), streamClient);
         lenient().when(sysConfigService.getConfigValueByKey("ai.model.fallback-enabled")).thenReturn("1");
     }
 

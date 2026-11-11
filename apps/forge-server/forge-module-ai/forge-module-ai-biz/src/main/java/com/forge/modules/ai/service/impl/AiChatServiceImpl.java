@@ -296,7 +296,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Override
     @Transactional
-    public void saveAiMessage(Long conversationId, String content) {
+    public void saveAiMessage(Long conversationId, String content, String reasoningContent) {
         AiConversation conversation = conversationMapper.selectById(conversationId);
         if (conversation == null) {
             return;
@@ -307,6 +307,7 @@ public class AiChatServiceImpl implements AiChatService {
         message.setConversationId(conversation.getConversationId());
         message.setRole("assistant");
         message.setContent(content);
+        message.setReasoningContent(reasoningContent);
         message.setStatus(1);
         messageMapper.insert(message);
 
@@ -417,6 +418,7 @@ public class AiChatServiceImpl implements AiChatService {
         response.setId(message.getId());
         response.setRole(message.getRole());
         response.setContent(message.getContent());
+        response.setReasoningContent(message.getReasoningContent());
         response.setInputTokens(message.getInputTokens());
         response.setOutputTokens(message.getOutputTokens());
         response.setCreateTime(message.getCreateTime());

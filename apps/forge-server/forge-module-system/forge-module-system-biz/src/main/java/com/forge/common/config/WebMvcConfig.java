@@ -2,7 +2,10 @@ package com.forge.common.config;
 
 import com.forge.framework.web.config.WebProperties;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -12,9 +15,31 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 @RequiredArgsConstructor
-public class WebMvcConfig implements WebMvcConfigurer {
+public class WebMvcConfig implements WebMvcConfigurer, AsyncConfigurer {
 
     private final WebProperties webProperties;
+
+    /**
+     * MVC 异步执行器：SSE/Flux 流式端点的异步 dispatch 专用。
+     * 不配置时 Spring 退化到 SimpleAsyncTaskExecutor（每请求新建线程、无上限，生产不适合）。
+     */
+    @Override
+    public ThreadPoolTaskExecutor getAsyncExecutor() {
+        return mvcAsyncExecutor();
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    public ThreadPoolTaskExecutor mvcAsyncExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(8);
+        executor.setMaxPoolSize(16);
+        executor.setQueueCapacity(200);
+        executor.setThreadNamePrefix("mvc-async-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
+        executor.initialize();
+        return executor;
+    }
 
     /**
      * 配置路径匹配，自动为Controller添加路径前缀

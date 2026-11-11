@@ -277,7 +277,8 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
         request.setContent(prompt);
         request.setTemperature(0.1);
         ChatResponse response = llmClient.chatForDecision(request, model,
-                delta -> ctx.emit(AgentEvents.Type.THOUGHT, NODE_SUPERVISOR, "调度决策", Map.of("delta", delta)));
+                delta -> ctx.emit(AgentEvents.Type.THOUGHT, NODE_SUPERVISOR, "调度决策", Map.of("delta", delta)),
+                reasoning -> ctx.emit(AgentEvents.Type.REASONING, NODE_SUPERVISOR, "调度思考", Map.of("delta", reasoning)));
         if (!Boolean.TRUE.equals(response.getSuccess())) {
             throw new BusinessException("Supervisor 模型调用失败: " + response.getErrorMessage());
         }
@@ -290,7 +291,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                 retryRequest.setContent(prompt
                         + "\n\n注意：上一次输出无法解析为合法 JSON，请务必只输出一个完整合法的 JSON 对象。");
                 retryRequest.setTemperature(0.1);
-                ChatResponse retryResponse = llmClient.chatForDecision(retryRequest, model, null);
+                ChatResponse retryResponse = llmClient.chatForDecision(retryRequest, model, null, null);
                 if (Boolean.TRUE.equals(retryResponse.getSuccess())) {
                     Map<String, Object> retryDecision = parseSupervisorDecision(index, retryResponse.getContent());
                     if (retryDecision != null) {
@@ -713,6 +714,8 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
 
         Consumer<String> onDelta = delta -> ctx.emit(AgentEvents.Type.THOUGHT, NODE_EXPERT_DECIDE,
                 "[" + agentName + "] 决策", Map.of("delta", delta));
+        Consumer<String> onReasoning = reasoning -> ctx.emit(AgentEvents.Type.REASONING, NODE_EXPERT_DECIDE,
+                "[" + agentName + "] 思考", Map.of("delta", reasoning));
         ChatResponse response = null;
         if (nativeToolCalling.enabled(model)) {
             try {
@@ -728,7 +731,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
             ChatRequest request = new ChatRequest();
             request.setContent(buildExpertPrompt(ctx, state, agent, task, allowedTools));
             request.setTemperature(0.1);
-            response = llmClient.chatForDecision(request, model, onDelta);
+            response = llmClient.chatForDecision(request, model, onDelta, onReasoning);
         }
         if (!Boolean.TRUE.equals(response.getSuccess())) {
             throw new BusinessException("专家决策模型调用失败 [" + agentName + "]: " + response.getErrorMessage());
@@ -740,7 +743,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                 retryRequest.setContent(buildExpertPrompt(ctx, state, agent, task, allowedTools)
                         + "\n\n注意：上一次输出无法解析为合法 JSON，请务必只输出一个完整合法的 JSON 对象。");
                 retryRequest.setTemperature(0.1);
-                ChatResponse retryResponse = llmClient.chatForDecision(retryRequest, model, onDelta);
+                ChatResponse retryResponse = llmClient.chatForDecision(retryRequest, model, onDelta, onReasoning);
                 if (Boolean.TRUE.equals(retryResponse.getSuccess())) {
                     Map<String, Object> retryDecision = decisionJsonParser.parseDecision(retryResponse.getContent());
                     if (retryDecision != null) {

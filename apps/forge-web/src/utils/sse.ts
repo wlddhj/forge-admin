@@ -6,6 +6,8 @@ export type SSEEventType = 'message' | 'error' | 'done'
 // SSE 事件回调
 export interface SSECallbacks {
   onMessage?: (data: string) => void
+  /** 思考模型 reasoning_content 增量帧（{"reasoning":"…"}）；未注册时该帧交由 onMessage 兜底 */
+  onReasoning?: (text: string) => void
   onError?: (error: Error) => void
   onDone?: () => void
 }
@@ -71,7 +73,13 @@ export class SSEClient {
                 callbacks.onDone?.()
                 return
               }
-              callbacks.onMessage?.(dataStr)
+              // 思考帧分发：{"reasoning":"…"} → onReasoning，其余维持 onMessage（向后兼容）
+              const parsed = parseSSEData<{ reasoning?: string }>(dataStr)
+              if (parsed && typeof parsed.reasoning === 'string' && callbacks.onReasoning) {
+                callbacks.onReasoning(parsed.reasoning)
+              } else {
+                callbacks.onMessage?.(dataStr)
+              }
             }
           }
         }

@@ -24,6 +24,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
+/**
+ * LLM 客户端流式契约单测：content/reasoning 帧、[DONE]、转义、空块跳过、错误帧
+ *
+ * 聊天流默认走原生 OpenAI 兼容通路（reasoning 透传），mock OpenAiCompatStreamClient；
+ * chat() 非流式仍走 Spring AI，保留 chatModel 桩。
+ */
 @ExtendWith(MockitoExtension.class)
 class SpringAiLlmClientTest {
 
@@ -35,6 +41,8 @@ class SpringAiLlmClientTest {
     private AiModelConfigMapper modelConfigMapper;
     @Mock
     private SysConfigService sysConfigService;
+    @Mock
+    private OpenAiCompatStreamClient streamClient;
 
     private SpringAiLlmClient llmClient;
     private AiModelConfig modelConfig;
@@ -45,7 +53,7 @@ class SpringAiLlmClientTest {
                 new com.forge.modules.ai.config.AiModuleConfig(), java.util.concurrent.Executors.newFixedThreadPool(2),
                 new ModelHealthCache(new com.forge.framework.localcache.LocalCaches(),
                         new com.forge.modules.ai.config.AiModuleConfig()),
-                com.forge.modules.ai.config.TestAiMetrics.noop());
+                com.forge.modules.ai.config.TestAiMetrics.noop(), streamClient);
         modelConfig = new AiModelConfig();
         modelConfig.setId(1L);
         modelConfig.setModelName("DeepSeek Chat");
@@ -60,16 +68,18 @@ class SpringAiLlmClientTest {
                 List.of(new Generation(new AssistantMessage(text))));
     }
 
-    @Test
-    void stream_产出前端SSE契约帧序列_content帧加DONE() {
-        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
-                aiResponse("你好"),
-                aiResponse("世界")));
-
+    private ChatRequest chatRequest() {
         ChatRequest request = new ChatRequest();
         request.setContent("hi");
+        return request;
+    }
 
-        List<String> frames = llmClient.stream(request, modelConfig).collectList().block();
+    @Test
+    void stream_产出前端SSE契约帧序列_content帧加DONE() {
+        when(streamClient.stream(any(OpenAiCompatStreamClient.StreamRequest.class))).thenReturn(Flux.just(
+                StreamFrame.content("你好"), StreamFrame.content("世界"), StreamFrame.done(null, null)));
+
+        List<String> frames = llmClient.stream(chatRequest(), modelConfig).collectList().block();
 
         assertThat(frames).containsExactly(
                 "{\"content\":\"你好\"}",
@@ -78,46 +88,51 @@ class SpringAiLlmClientTest {
     }
 
     @Test
+    void stream_思考模型产出reasoning帧加content帧() {
+        when(streamClient.stream(any(OpenAiCompatStreamClient.StreamRequest.class))).thenReturn(Flux.just(
+                StreamFrame.reasoning("让我想想"),
+                StreamFrame.content("你好"),
+                StreamFrame.done(3L, 2L)));
+
+        List<String> frames = llmClient.stream(chatRequest(), modelConfig).collectList().block();
+
+        assertThat(frames).containsExactly(
+                "{\"reasoning\":\"让我想想\"}",
+                "{\"content\":\"你好\"}",
+                "[DONE]");
+    }
+
+    @Test
     void stream_换行符正确JSON转义_不破坏SSE帧() {
-        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
-                aiResponse("第一行\n第二行")));
+        when(streamClient.stream(any(OpenAiCompatStreamClient.StreamRequest.class)))
+                .thenReturn(Flux.just(StreamFrame.content("第一行\n第二行"), StreamFrame.done(null, null)));
 
-        ChatRequest request = new ChatRequest();
-        request.setContent("hi");
-
-        List<String> frames = llmClient.stream(request, modelConfig).collectList().block();
+        List<String> frames = llmClient.stream(chatRequest(), modelConfig).collectList().block();
 
         assertThat(frames.get(0)).isEqualTo("{\"content\":\"第一行\\n第二行\"}");
         assertThat(frames).doesNotContain("\n第一行");
     }
 
     @Test
-    void stream_空文本chunk被跳过() {
-        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(
-                aiResponse(""),
-                aiResponse("有效")));
+    void stream_空文本增量被跳过() {
+        when(streamClient.stream(any(OpenAiCompatStreamClient.StreamRequest.class))).thenReturn(Flux.just(
+                StreamFrame.content(""), StreamFrame.content("有效"), StreamFrame.done(null, null)));
 
-        ChatRequest request = new ChatRequest();
-        request.setContent("hi");
-
-        List<String> frames = llmClient.stream(request, modelConfig).collectList().block();
+        List<String> frames = llmClient.stream(chatRequest(), modelConfig).collectList().block();
 
         assertThat(frames).containsExactly("{\"content\":\"有效\"}", "[DONE]");
     }
 
     @Test
     void stream_上游异常输出error帧_无DONE() {
-        when(chatModel.stream(any(Prompt.class)))
-                .thenReturn(Flux.error(new RuntimeException("Connection refused: api.deepseek.com")));
+        when(streamClient.stream(any(OpenAiCompatStreamClient.StreamRequest.class)))
+                .thenReturn(Flux.error(new OpenAiCompatStreamClient.UpstreamStreamException(503, "unavailable")));
 
-        ChatRequest request = new ChatRequest();
-        request.setContent("hi");
-
-        List<String> frames = llmClient.stream(request, modelConfig).collectList().block();
+        List<String> frames = llmClient.stream(chatRequest(), modelConfig).collectList().block();
 
         assertThat(frames).hasSize(1);
         assertThat(frames.get(0)).contains("\"error\":true");
-        assertThat(frames.get(0)).contains("无法连接模型服务端点");
+        assertThat(frames.get(0)).contains("503");
     }
 
     @Test
@@ -125,10 +140,7 @@ class SpringAiLlmClientTest {
         org.springframework.ai.chat.model.ChatResponse aiResp = aiResponse("回答内容");
         when(chatModel.call(any(Prompt.class))).thenReturn(aiResp);
 
-        ChatRequest request = new ChatRequest();
-        request.setContent("hi");
-
-        ChatResponse response = llmClient.chat(request, modelConfig);
+        ChatResponse response = llmClient.chat(chatRequest(), modelConfig);
 
         assertThat(response.getSuccess()).isTrue();
         assertThat(response.getContent()).isEqualTo("回答内容");
@@ -139,10 +151,7 @@ class SpringAiLlmClientTest {
     void chat_异常时返回友好错误() {
         when(chatModel.call(any(Prompt.class))).thenThrow(new RuntimeException("ReadTimeout"));
 
-        ChatRequest request = new ChatRequest();
-        request.setContent("hi");
-
-        ChatResponse response = llmClient.chat(request, modelConfig);
+        ChatResponse response = llmClient.chat(chatRequest(), modelConfig);
 
         assertThat(response.getSuccess()).isFalse();
         assertThat(response.getErrorMessage()).contains("超时");

@@ -17,6 +17,8 @@ export interface MessageResponse {
   conversationId: number
   role: 'user' | 'assistant' | 'system'
   content: string
+  /** 思考内容（思考模型 reasoning_content，仅 assistant 消息携带） */
+  reasoningContent?: string
   createTime: string
 }
 
@@ -64,9 +66,9 @@ export const chatApi = {
   updateTitle: (id: number, title: string) =>
     request.put(`/ai/chat/conversation/${id}/title`, { title }),
 
-  // 保存AI回复消息
-  saveAiMessage: (conversationId: number, content: string) =>
-    request.post(`/ai/chat/message/save-ai?conversationId=${conversationId}`, content, {
+  // 保存AI回复消息（含思考内容）
+  saveAiMessage: (conversationId: number, content: string, reasoningContent?: string) =>
+    request.post(`/ai/chat/message/save-ai?conversationId=${conversationId}`, { content, reasoningContent }, {
       headers: { 'Content-Type': 'application/json' }
     })
 }
@@ -83,5 +85,5 @@ export const sendMessage = (data: MessageSendRequest) =>
   chatApi.send(data).then(res => res.data)
 export const updateConversationTitle = (id: number, title: string) =>
   chatApi.updateTitle(id, title)
-export const saveAiMessage = (conversationId: number, content: string) =>
-  chatApi.saveAiMessage(conversationId, content)
+export const saveAiMessage = (conversationId: number, content: string, reasoningContent?: string) =>
+  chatApi.saveAiMessage(conversationId, content, reasoningContent)

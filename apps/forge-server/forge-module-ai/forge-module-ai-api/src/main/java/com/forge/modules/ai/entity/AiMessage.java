@@ -26,6 +26,11 @@ public class AiMessage {
 
     private String content;
 
+    /**
+     * 思考内容（思考模型 reasoning_content，仅 assistant 消息；历史回看展示）
+     */
+    private String reasoningContent;
+
     private Integer inputTokens;
 
     private Integer outputTokens;

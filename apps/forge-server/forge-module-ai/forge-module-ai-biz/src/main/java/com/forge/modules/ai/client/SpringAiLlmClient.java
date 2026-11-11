@@ -56,6 +56,7 @@ public class SpringAiLlmClient implements LlmClient {
     private final Executor agentExecutor;
     private final ModelHealthCache healthCache;
     private final com.forge.modules.ai.config.AiMetrics aiMetrics;
+    private final OpenAiCompatStreamClient streamClient;
 
     public SpringAiLlmClient(OpenAiChatModelFactory modelFactory,
                              ObjectMapper objectMapper,
@@ -64,7 +65,8 @@ public class SpringAiLlmClient implements LlmClient {
                              AiModuleConfig aiModuleConfig,
                              @Qualifier("agentExecutor") Executor agentExecutor,
                              ModelHealthCache healthCache,
-                             com.forge.modules.ai.config.AiMetrics aiMetrics) {
+                             com.forge.modules.ai.config.AiMetrics aiMetrics,
+                             OpenAiCompatStreamClient streamClient) {
         this.modelFactory = modelFactory;
         this.objectMapper = objectMapper;
         this.modelConfigMapper = modelConfigMapper;
@@ -73,6 +75,7 @@ public class SpringAiLlmClient implements LlmClient {
         this.agentExecutor = agentExecutor;
         this.healthCache = healthCache;
         this.aiMetrics = aiMetrics;
+        this.streamClient = streamClient;
     }
 
     @Override
@@ -189,9 +192,32 @@ public class SpringAiLlmClient implements LlmClient {
 
     @Override
     public Flux<String> stream(ChatRequest request, AiModelConfig modelConfig) {
-        ChatModel chatModel = modelFactory.get(modelConfig);
         Prompt prompt = buildPrompt(request, modelConfig);
+        String body = toOpenAiStreamBody(prompt);
+        if (body == null) {
+            // 含图片等 media：原生通路仅支持纯文本，回退 Spring AI 流（无 reasoning，行为同现状）
+            return springAiStreamFrames(prompt, modelConfig);
+        }
+        String url = chatCompletionsUrl(modelConfig.getApiEndpoint());
+        return streamClient
+                .stream(new OpenAiCompatStreamClient.StreamRequest(url, modelConfig.getApiKey(), body))
+                .mapNotNull(frame -> switch (frame.type()) {
+                    case REASONING -> frame.text() == null || frame.text().isEmpty() ? null : reasoningFrame(frame.text());
+                    case CONTENT -> frame.text() == null || frame.text().isEmpty() ? null : contentFrame(frame.text());
+                    case DONE -> DONE_FRAME;
+                })
+                .onErrorResume(e -> {
+                    String friendly = friendlyStreamError(e);
+                    log.error("LLM 流式调用失败 [{}]: {}", modelConfig.getModelName(), friendly, e);
+                    return Flux.just(errorFrame(friendly));
+                });
+    }
 
+    /**
+     * Spring AI 通路（media 回退用）：仅透传正文增量，不解析 reasoning
+     */
+    private Flux<String> springAiStreamFrames(Prompt prompt, AiModelConfig modelConfig) {
+        ChatModel chatModel = modelFactory.get(modelConfig);
         return chatModel.stream(prompt)
                 .mapNotNull(aiResponse -> {
                     if (aiResponse.getResult() == null || aiResponse.getResult().getOutput() == null) {
@@ -211,64 +237,43 @@ public class SpringAiLlmClient implements LlmClient {
     /**
      * 决策类调用：流式聚合 + decision-timeout 独立收紧 + 失败后备用模型并行竞速（真·首成功即采用）。
      * 主模型近期失败时跳过直接竞速（全被健康预筛过滤时 fail-open 仍尝试主模型）。
-     * 文本增量实时回调 onDelta（决策节点转发 THOUGHT 事件），超时/错误返回 success=false。
+     * 文本增量实时回调 onDelta（决策节点转发 THOUGHT 事件），思考增量回调 onReasoning
+     * （决策节点转发 REASONING 事件，null 表示不关心），超时/错误返回 success=false。
      */
     @Override
-    public ChatResponse chatForDecision(ChatRequest request, AiModelConfig modelConfig, Consumer<String> onDelta) {
+    public ChatResponse chatForDecision(ChatRequest request, AiModelConfig modelConfig, Consumer<String> onDelta,
+                                        Consumer<String> onReasoning) {
         boolean skipPrimary = healthCache.recentlyFailed(modelConfig);
         if (skipPrimary) {
             log.info("主模型 [{}] 近期失败已标记，跳过直接竞速备用模型", modelConfig.getModelName());
         }
-        ChatResponse primary = skipPrimary ? null : doDecisionChat(request, modelConfig, onDelta);
+        ChatResponse primary = skipPrimary ? null : doDecisionChat(request, modelConfig, onDelta, onReasoning);
         if (primary != null && Boolean.TRUE.equals(primary.getSuccess())) {
             return primary;
         }
-        return raceFailover(modelConfig, primary, candidate -> doDecisionChat(request, candidate, onDelta));
+        return raceFailover(modelConfig, primary,
+                candidate -> doDecisionChat(request, candidate, onDelta, onReasoning));
     }
 
-    private ChatResponse doDecisionChat(ChatRequest request, AiModelConfig modelConfig, Consumer<String> onDelta) {
+    private ChatResponse doDecisionChat(ChatRequest request, AiModelConfig modelConfig,
+                                        Consumer<String> onDelta, Consumer<String> onReasoning) {
         ChatResponse response = new ChatResponse();
         long start = System.currentTimeMillis();
         response.setModelName(modelConfig.getModelName());
         try {
-            ChatModel chatModel = modelFactory.get(modelConfig);
             Prompt prompt = buildPrompt(request, modelConfig);
             long timeout = aiModuleConfig.getClient().getDecisionTimeout() == null
                     ? 45000L : aiModuleConfig.getClient().getDecisionTimeout();
 
-            StringBuilder content = new StringBuilder();
-            AtomicReference<org.springframework.ai.chat.model.ChatResponse> aggregated =
-                    new AtomicReference<>();
-            // MessageAggregator 聚合流（含末块 usage），doOnNext 透传文本增量
-            MessageAggregator aggregator = new MessageAggregator();
-            Flux<org.springframework.ai.chat.model.ChatResponse> withDelta =
-                    chatModel.stream(prompt).doOnNext(chunk -> {
-                        String delta = chunk.getResult() == null || chunk.getResult().getOutput() == null
-                                ? null : chunk.getResult().getOutput().getText();
-                        if (delta != null && !delta.isEmpty()) {
-                            content.append(delta);
-                            if (onDelta != null) {
-                                onDelta.accept(delta);
-                            }
-                        }
-                    });
-            org.springframework.ai.chat.model.ChatResponse aiResponse =
-                    aggregator.aggregate(withDelta, aggregated::set)
-                            .blockLast(java.time.Duration.ofMillis(timeout));
-
+            String body = toOpenAiStreamBody(prompt);
+            if (body != null) {
+                completeDecisionNative(modelConfig, body, timeout, onDelta, onReasoning, response);
+            } else {
+                // 含图片等 media：回退 Spring AI 通路（无 reasoning 回调）
+                completeDecisionLegacy(modelConfig, prompt, timeout, onDelta, response);
+            }
             response.setSuccess(true);
             response.setResponseTime(System.currentTimeMillis() - start);
-            String text = content.length() > 0 ? content.toString()
-                    : (aiResponse != null && aiResponse.getResult() != null && aiResponse.getResult().getOutput() != null
-                            ? aiResponse.getResult().getOutput().getText() : "");
-            response.setContent(text == null ? "" : text);
-            org.springframework.ai.chat.model.ChatResponse usageSource =
-                    aggregated.get() != null ? aggregated.get() : aiResponse;
-            if (usageSource != null && usageSource.getMetadata() != null
-                    && usageSource.getMetadata().getUsage() != null) {
-                response.setInputTokens(usageSource.getMetadata().getUsage().getPromptTokens());
-                response.setOutputTokens(usageSource.getMetadata().getUsage().getCompletionTokens());
-            }
         } catch (Exception e) {
             String friendly = friendlyError(e instanceof Exception ex ? ex : new RuntimeException(e));
             String message = String.valueOf(e.getMessage()).toLowerCase();
@@ -287,6 +292,81 @@ public class SpringAiLlmClient implements LlmClient {
         aiMetrics.llmCall("decision", modelConfig.getModelName(),
                 Boolean.TRUE.equals(response.getSuccess()), response.getResponseTime());
         return response;
+    }
+
+    /**
+     * 原生通路聚合：reasoning/content 增量分别回调，usage 取自 DONE 帧
+     */
+    private void completeDecisionNative(AiModelConfig modelConfig, String body, long timeout,
+                                        Consumer<String> onDelta, Consumer<String> onReasoning,
+                                        ChatResponse response) {
+        StringBuilder content = new StringBuilder();
+        AtomicReference<StreamFrame> doneRef = new AtomicReference<>();
+        String url = chatCompletionsUrl(modelConfig.getApiEndpoint());
+        streamClient
+                .stream(new OpenAiCompatStreamClient.StreamRequest(url, modelConfig.getApiKey(), body))
+                .doOnNext(frame -> {
+                    switch (frame.type()) {
+                        case REASONING -> {
+                            if (onReasoning != null) {
+                                onReasoning.accept(frame.text());
+                            }
+                        }
+                        case CONTENT -> {
+                            content.append(frame.text());
+                            if (onDelta != null) {
+                                onDelta.accept(frame.text());
+                            }
+                        }
+                        case DONE -> doneRef.set(frame);
+                    }
+                })
+                .blockLast(java.time.Duration.ofMillis(timeout));
+
+        response.setContent(content.toString());
+        StreamFrame done = doneRef.get();
+        if (done != null) {
+            response.setInputTokens(done.promptTokens() == null ? null : done.promptTokens().intValue());
+            response.setOutputTokens(done.completionTokens() == null ? null : done.completionTokens().intValue());
+        }
+    }
+
+    /**
+     * Spring AI 通路聚合（media 回退用）：MessageAggregator 聚合流（含末块 usage），doOnNext 透传文本增量
+     */
+    private void completeDecisionLegacy(AiModelConfig modelConfig, Prompt prompt, long timeout,
+                                        Consumer<String> onDelta, ChatResponse response) {
+        ChatModel chatModel = modelFactory.get(modelConfig);
+        StringBuilder content = new StringBuilder();
+        AtomicReference<org.springframework.ai.chat.model.ChatResponse> aggregated =
+                new AtomicReference<>();
+        MessageAggregator aggregator = new MessageAggregator();
+        Flux<org.springframework.ai.chat.model.ChatResponse> withDelta =
+                chatModel.stream(prompt).doOnNext(chunk -> {
+                    String delta = chunk.getResult() == null || chunk.getResult().getOutput() == null
+                            ? null : chunk.getResult().getOutput().getText();
+                    if (delta != null && !delta.isEmpty()) {
+                        content.append(delta);
+                        if (onDelta != null) {
+                            onDelta.accept(delta);
+                        }
+                    }
+                });
+        org.springframework.ai.chat.model.ChatResponse aiResponse =
+                aggregator.aggregate(withDelta, aggregated::set)
+                        .blockLast(java.time.Duration.ofMillis(timeout));
+
+        String text = content.length() > 0 ? content.toString()
+                : (aiResponse != null && aiResponse.getResult() != null && aiResponse.getResult().getOutput() != null
+                        ? aiResponse.getResult().getOutput().getText() : "");
+        response.setContent(text == null ? "" : text);
+        org.springframework.ai.chat.model.ChatResponse usageSource =
+                aggregated.get() != null ? aggregated.get() : aiResponse;
+        if (usageSource != null && usageSource.getMetadata() != null
+                && usageSource.getMetadata().getUsage() != null) {
+            response.setInputTokens(usageSource.getMetadata().getUsage().getPromptTokens());
+            response.setOutputTokens(usageSource.getMetadata().getUsage().getCompletionTokens());
+        }
     }
 
     /**
@@ -440,6 +520,13 @@ public class SpringAiLlmClient implements LlmClient {
         return toJson(Map.of("content", text));
     }
 
+    /**
+     * 思考增量帧（新增，向后兼容：旧前端 JSON.parse 后无处理逻辑自动忽略）
+     */
+    private String reasoningFrame(String text) {
+        return toJson(Map.of("reasoning", text));
+    }
+
     private String errorFrame(String message) {
         Map<String, Object> frame = new LinkedHashMap<>();
         frame.put("error", true);
@@ -453,6 +540,88 @@ public class SpringAiLlmClient implements LlmClient {
         } catch (JacksonException e) {
             return "{\"error\":true,\"message\":\"响应序列化失败\"}";
         }
+    }
+
+    // ========== 原生 OpenAI 兼容通路（reasoning 透传） ==========
+
+    /**
+     * 将 Prompt 序列化为 chat/completions 请求体；含 media 或未支持消息类型返回 null（调用方回退 Spring AI 通路）。
+     * 消息与温度/上限均取自 buildPrompt 产物，保证与旧通路请求语义一致。
+     */
+    private String toOpenAiStreamBody(Prompt prompt) {
+        List<Map<String, String>> messages = new ArrayList<>();
+        for (Message message : prompt.getInstructions()) {
+            if (message instanceof org.springframework.ai.chat.messages.UserMessage userMessage
+                    && userMessage.getMedia() != null && !userMessage.getMedia().isEmpty()) {
+                return null;
+            }
+            Map<String, String> item = new LinkedHashMap<>();
+            if (message instanceof org.springframework.ai.chat.messages.SystemMessage systemMessage) {
+                item.put("role", "system");
+                item.put("content", systemMessage.getText());
+            } else if (message instanceof AssistantMessage assistantMessage) {
+                item.put("role", "assistant");
+                item.put("content", assistantMessage.getText());
+            } else if (message instanceof org.springframework.ai.chat.messages.UserMessage userMessage) {
+                item.put("role", "user");
+                item.put("content", userMessage.getText());
+            } else {
+                return null;
+            }
+            if (item.get("content") == null) {
+                return null;
+            }
+            messages.add(item);
+        }
+        if (messages.isEmpty()) {
+            return null;
+        }
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", modelCodeOf(prompt));
+        body.put("messages", messages);
+        body.put("stream", true);
+        body.put("stream_options", Map.of("include_usage", true));
+        if (prompt.getOptions() instanceof OpenAiChatOptions options) {
+            if (options.getTemperature() != null) {
+                body.put("temperature", options.getTemperature());
+            }
+            if (options.getMaxTokens() != null) {
+                body.put("max_tokens", options.getMaxTokens());
+            }
+        }
+        return toJson(body);
+    }
+
+    private String modelCodeOf(Prompt prompt) {
+        if (prompt.getOptions() instanceof OpenAiChatOptions options && options.getModel() != null) {
+            return options.getModel();
+        }
+        throw new IllegalArgumentException("模型编码缺失，无法构造原生流式请求");
+    }
+
+    /**
+     * apiEndpoint 对齐 Spring AI 约定（baseUrl + /chat/completions），容忍尾斜杠
+     */
+    private String chatCompletionsUrl(String apiEndpoint) {
+        String base = apiEndpoint == null ? "" : apiEndpoint.trim();
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + "/chat/completions";
+    }
+
+    private String friendlyStreamError(Throwable e) {
+        if (e instanceof OpenAiCompatStreamClient.UpstreamStreamException upstream) {
+            return switch (upstream.getStatusCode()) {
+                case 401, 403 -> "模型 API 密钥无效或无权限，请检查模型配置";
+                case 429 -> "上游模型服务请求过于频繁，请稍后重试";
+                case 504 -> "上游模型服务响应超时，请稍后重试";
+                case 0 -> "上游模型连接失败: " + e.getMessage();
+                default -> "上游模型服务内部错误(" + upstream.getStatusCode() + ")，请稍后重试";
+            };
+        }
+        return friendlyError(e instanceof Exception ex ? ex : new RuntimeException(e));
     }
 
     // ========== 错误文案（沿用原 PythonServiceErrorHandler 语义） ==========

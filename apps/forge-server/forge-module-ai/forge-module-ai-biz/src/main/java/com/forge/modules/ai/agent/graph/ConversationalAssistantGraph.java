@@ -188,6 +188,8 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         boolean nativeMode = false;
         java.util.function.Consumer<String> onDelta =
                 delta -> ctx.emit(AgentEvents.Type.THOUGHT, NODE_DECISION, "工具决策", Map.of("delta", delta));
+        java.util.function.Consumer<String> onReasoning =
+                reasoning -> ctx.emit(AgentEvents.Type.REASONING, NODE_DECISION, "决策思考", Map.of("delta", reasoning));
         if (!retryUsedNative() && nativeToolCalling.enabled(model)) {
             try {
                 response = nativeToolCalling.call(buildNativeRequest(ctx, state), model,
@@ -207,7 +209,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
             ChatRequest request = new ChatRequest();
             request.setContent(buildDecisionPrompt(ctx, state));
             request.setTemperature(0.1);
-            response = llmClient.chatForDecision(request, model, onDelta);
+            response = llmClient.chatForDecision(request, model, onDelta, onReasoning);
         }
         if (!Boolean.TRUE.equals(response.getSuccess())) {
             throw new BusinessException("决策模型调用失败: " + response.getErrorMessage());
@@ -221,7 +223,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                 retryRequest.setContent(buildDecisionPrompt(ctx, state)
                         + "\n\n注意：上一次输出无法解析为合法 JSON（可能被截断或格式错误），请务必只输出一个完整合法的 JSON 对象。");
                 retryRequest.setTemperature(0.1);
-                ChatResponse retryResponse = llmClient.chatForDecision(retryRequest, model, onDelta);
+                ChatResponse retryResponse = llmClient.chatForDecision(retryRequest, model, onDelta, onReasoning);
                 if (Boolean.TRUE.equals(retryResponse.getSuccess())) {
                     Map<String, Object> retryDecision = decisionJsonParser.parseDecision(retryResponse.getContent());
                     if (retryDecision != null) {
