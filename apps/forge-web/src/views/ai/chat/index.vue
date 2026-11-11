@@ -157,12 +157,16 @@
               <div class="message-time">{{ formatDateTime(msg.createTime) }}</div>
             </div>
           </div>
-          <div v-if="streamingContent || streamingReasoning" class="message-item assistant streaming">
+          <div v-if="streamingContent || streamingReasoning || connectingModel" class="message-item assistant streaming">
             <div class="message-avatar">
               <el-avatar :size="32" class="ai-avatar">AI</el-avatar>
             </div>
             <div class="message-content">
               <div class="message-bubble">
+                <div v-if="connectingModel" class="model-connecting">
+                  <el-icon class="is-loading"><Loading /></el-icon>
+                  正在连接模型，上游排队中…
+                </div>
                 <div v-if="streamingReasoning" class="reasoning-block" :class="{ collapsed: !streamingReasoningExpanded, active: reasoningActive }">
                   <div class="reasoning-header" @click="streamingReasoningExpanded = !streamingReasoningExpanded">
                     <el-icon class="caret"><CaretRight /></el-icon>
@@ -225,6 +229,9 @@ const inputMessage = ref('')
 const isStreaming = ref(false)
 const streamingContent = ref('')
 const messageContainerRef = ref<HTMLElement | null>(null)
+/** 首帧未到时的连接中状态：上游排队/慢网络时给用户"在转"的反馈，而非黑屏干等 */
+const connectingModel = ref(false)
+let connectingTimer: number | null = null
 
 // ========== 思考过程（reasoning_content）流式状态 ==========
 const streamingReasoning = ref('')
@@ -259,6 +266,25 @@ const resetThinking = () => {
   stopThinking()
   streamingReasoning.value = ''
   reasoningSeconds.value = 0
+}
+
+/** 流发起后 2 秒仍无任何帧 → 显示「连接中」；首个 reasoning/content 帧到达即解除 */
+const startConnectingWatch = () => {
+  stopConnectingWatch()
+  connectingModel.value = false
+  connectingTimer = window.setTimeout(() => {
+    if (isStreaming.value && !streamingContent.value && !streamingReasoning.value) {
+      connectingModel.value = true
+    }
+  }, 2000)
+}
+
+const stopConnectingWatch = () => {
+  if (connectingTimer != null) {
+    clearTimeout(connectingTimer)
+    connectingTimer = null
+  }
+  connectingModel.value = false
 }
 
 const toggleReasoning = (msgId: number) => {
@@ -333,6 +359,7 @@ const unsubscribeNotification = onNotification(async (notification) => {
 onUnmounted(() => {
   unsubscribeNotification()
   if (reasoningTimer != null) clearInterval(reasoningTimer)
+  stopConnectingWatch()
 })
 
 onMounted(async () => {
@@ -644,6 +671,7 @@ const handleSend = async () => {
   isStreaming.value = true
   streamingContent.value = ''
   resetThinking()
+  startConnectingWatch()
 
   // 添加用户消息
   const userMsg: MessageResponse = {
@@ -662,6 +690,7 @@ const handleSend = async () => {
       content: content
     }, {
       onReasoning: (text) => {
+        stopConnectingWatch()
         if (!reasoningActive.value) startThinking()
         streamingReasoning.value += text
         scrollToBottom()
@@ -675,15 +704,18 @@ const handleSend = async () => {
           isStreaming.value = false
           streamingContent.value = ''
           resetThinking()
+          stopConnectingWatch()
           return
         }
         if (data?.content) {
           // 正文开始：思考结束，自动折叠
+          stopConnectingWatch()
           stopThinking()
           streamingContent.value += data.content
           scrollToBottom()
         } else if (dataStr && dataStr !== '[DONE]' && !dataStr.startsWith('{')) {
           // 纯字符串格式
+          stopConnectingWatch()
           stopThinking()
           streamingContent.value += dataStr
           scrollToBottom()
@@ -706,6 +738,7 @@ const handleSend = async () => {
         }
         streamingContent.value = ''
         resetThinking()
+        stopConnectingWatch()
         isStreaming.value = false
         scrollToBottom()
         // 自动聚焦输入框
@@ -716,6 +749,7 @@ const handleSend = async () => {
         isStreaming.value = false
         streamingContent.value = ''
         resetThinking()
+        stopConnectingWatch()
       }
     })
   } catch (e) {
@@ -723,6 +757,7 @@ const handleSend = async () => {
     isStreaming.value = false
     streamingContent.value = ''
     resetThinking()
+    stopConnectingWatch()
   }
 }
 
@@ -901,6 +936,18 @@ watch(selectedModelId, () => {
             border-radius: 4px;
             background: #f0f9eb;
             color: #67c23a;
+            font-size: 13px;
+          }
+
+          .model-connecting {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: #f4f4f5;
+            color: #909399;
             font-size: 13px;
           }
 
