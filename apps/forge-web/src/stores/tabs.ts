@@ -14,6 +14,18 @@ export interface TabItem {
 
 const LOCAL_STORAGE_KEY = 'standadmin-tabs'
 
+// 首页固定路径（与 permission.ts 动态路由 / dashboard 对齐）
+const HOME_PATH = '/dashboard'
+
+// 首页固定标签（title/icon/routeName 与 permission.ts 首页路由 meta 保持一致）
+const createHomeTab = (): TabItem => ({
+  path: HOME_PATH,
+  title: '首页',
+  icon: 'HomeFilled',
+  closable: false,
+  routeName: 'Dashboard'
+})
+
 export const useTabsStore = defineStore('tabs', () => {
   // 标签页列表
   const tabs = ref<TabItem[]>([])
@@ -28,6 +40,18 @@ export const useTabsStore = defineStore('tabs', () => {
       .filter((name): name is string => !!name)
   })
 
+  // 首页固定：始终存在于第一位且不可关闭（登录失效重登/刷新/恢复后自动补齐）
+  const ensureHomeTab = () => {
+    const index = tabs.value.findIndex(t => t.path === HOME_PATH)
+    if (index === -1) {
+      tabs.value.unshift(createHomeTab())
+    } else if (index > 0 || tabs.value[index].closable) {
+      // 已存在但位置/属性异常（历史数据可能被写成可关闭），校正为固定首页
+      const [existing] = tabs.value.splice(index, 1)
+      tabs.value.unshift({ ...existing, ...createHomeTab() })
+    }
+  }
+
   // 从 localStorage 加载标签页（刷新时仅保留当前激活标签）
   const loadTabs = () => {
     try {
@@ -37,14 +61,14 @@ export const useTabsStore = defineStore('tabs', () => {
         const active = savedActive || ''
         const activeTabItem = (savedTabs || []).find((t: TabItem) => t.path === active)
         if (activeTabItem) {
-          const homeTab = (savedTabs || []).find((t: TabItem) => t.path === '/dashboard')
-          tabs.value = homeTab && active !== '/dashboard' ? [homeTab, activeTabItem] : [activeTabItem]
+          tabs.value = [activeTabItem]
         }
         activeTab.value = active
       }
     } catch (error) {
       console.error('加载标签页失败:', error)
     }
+    ensureHomeTab()
   }
 
   // 保存标签页到 localStorage
@@ -64,6 +88,11 @@ export const useTabsStore = defineStore('tabs', () => {
 
   // 添加标签页
   const addTab = (tab: TabItem) => {
+    // 添加非首页标签时自动补齐固定首页（覆盖登出清空后重新登录、store 未重建的场景）
+    if (tab.path !== HOME_PATH) {
+      ensureHomeTab()
+    }
+
     // 检查是否已存在
     const existIndex = tabs.value.findIndex(t => t.path === tab.path)
     if (existIndex === -1) {
@@ -96,11 +125,11 @@ export const useTabsStore = defineStore('tabs', () => {
   // 关闭其他标签页
   const closeOtherTabs = (path: string) => {
     const currentTab = tabs.value.find(t => t.path === path)
-    const homeTab = tabs.value.find(t => t.path === '/dashboard')
+    const homeTab = tabs.value.find(t => t.path === HOME_PATH)
 
     if (currentTab) {
       // 如果当前不是首页，需要同时保留首页
-      if (homeTab && path !== '/dashboard') {
+      if (homeTab && path !== HOME_PATH) {
         tabs.value = [homeTab, currentTab]
       } else {
         tabs.value = [currentTab]
@@ -119,10 +148,10 @@ export const useTabsStore = defineStore('tabs', () => {
   // 关闭所有标签页
   const closeAllTabs = () => {
     // 保留首页
-    const homeTab = tabs.value.find(t => t.path === '/dashboard')
+    const homeTab = tabs.value.find(t => t.path === HOME_PATH)
     if (homeTab) {
       tabs.value = [homeTab]
-      activeTab.value = '/dashboard'
+      activeTab.value = HOME_PATH
     } else {
       tabs.value = []
       activeTab.value = ''
@@ -134,7 +163,7 @@ export const useTabsStore = defineStore('tabs', () => {
     const index = tabs.value.findIndex(t => t.path === path)
     if (index > 0) {
       // 确保首页不被关闭
-      const homeIndex = tabs.value.findIndex(t => t.path === '/dashboard')
+      const homeIndex = tabs.value.findIndex(t => t.path === HOME_PATH)
       if (homeIndex >= 0 && homeIndex < index) {
         tabs.value = [tabs.value[homeIndex], ...tabs.value.slice(index)]
       } else {
