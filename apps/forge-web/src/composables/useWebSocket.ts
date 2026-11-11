@@ -1,5 +1,4 @@
 import { ref } from 'vue'
-import SockJS from 'sockjs-client'
 import { Client, IMessage } from '@stomp/stompjs'
 import { useUserStore } from '@/stores/user'
 import { ElNotification } from 'element-plus'
@@ -38,7 +37,8 @@ export function useWebSocket() {
     if (stompClient.value?.connected) return
 
     const client = new Client({
-      webSocketFactory: () => new SockJS('/ws'),
+      // 原生 WebSocket 直连(SockJS 已弃用);WebSocket 构造器要求绝对 URL
+      brokerURL: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`,
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
