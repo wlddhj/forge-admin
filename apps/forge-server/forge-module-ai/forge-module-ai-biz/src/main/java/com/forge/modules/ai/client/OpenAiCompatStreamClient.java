@@ -8,11 +8,37 @@ import reactor.core.scheduler.Schedulers;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.SequenceInputStream;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateParsingException;
+import java.security.cert.X509Certificate;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -60,11 +86,11 @@ public class OpenAiCompatStreamClient {
     private static final long NODE_COOLDOWN_MS = 5 * 60_000L;
 
     /** 节点冷却表：IP → 冷却截止时间戳（epoch ms） */
-    private final java.util.concurrent.ConcurrentHashMap<String, Long> badNodesUntil =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> badNodesUntil =
+            new ConcurrentHashMap<>();
 
-    private static final javax.net.ssl.SSLSocketFactory SSL_SOCKET_FACTORY =
-            (javax.net.ssl.SSLSocketFactory) javax.net.ssl.SSLSocketFactory.getDefault();
+    private static final SSLSocketFactory SSL_SOCKET_FACTORY =
+            (SSLSocketFactory) SSLSocketFactory.getDefault();
 
     /**
      * 进程内记忆最近成功节点：DNS 多 A 记录顺序随机（GA 边缘节点好坏不一），
@@ -144,9 +170,9 @@ public class OpenAiCompatStreamClient {
                 + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery());
 
         List<InetAddress> candidates = candidateAddresses(host);
-        java.io.IOException last = null;
-        java.util.concurrent.atomic.AtomicInteger sent = new java.util.concurrent.atomic.AtomicInteger();
-        java.util.concurrent.atomic.AtomicLong worstGap = new java.util.concurrent.atomic.AtomicLong();
+        IOException last = null;
+        AtomicInteger sent = new AtomicInteger();
+        AtomicLong worstGap = new AtomicLong();
         Consumer<StreamFrame> countingSink = f -> {
             sent.incrementAndGet();
             sink.accept(f);
@@ -172,7 +198,7 @@ public class OpenAiCompatStreamClient {
             } catch (UpstreamStreamException e) {
                 // HTTP 状态错误/流中断：换节点重试同样会失败（认证/模型问题），直接抛出
                 throw e;
-            } catch (java.io.IOException e) {
+            } catch (IOException e) {
                 // 已投递过帧的流中途断开：重试会导致帧重复，不再换节点
                 if (sent.get() > 0) {
                     throw new UpstreamStreamException("上游流式响应中断: " + e.getMessage(), e);
@@ -192,18 +218,18 @@ public class OpenAiCompatStreamClient {
      */
     private void streamVia(InetAddress addr, String host, int port, String path,
                            StreamRequest request, Consumer<StreamFrame> sink,
-                           java.util.concurrent.atomic.AtomicLong worstGap) throws IOException {
+                           AtomicLong worstGap) throws IOException {
         long firstByteTimeout = Math.max(5_000, Math.min(30_000, request.headersTimeout().toMillis()));
-        javax.net.ssl.SSLSocket socket = (javax.net.ssl.SSLSocket)
+        SSLSocket socket = (SSLSocket)
                 SSL_SOCKET_FACTORY.createSocket();
         try {
-            socket.connect(new java.net.InetSocketAddress(addr, port), CONNECT_TIMEOUT_MS);
-            javax.net.ssl.SSLParameters params = socket.getSSLParameters();
-            params.setServerNames(List.of(new javax.net.ssl.SNIHostName(host)));
+            socket.connect(new InetSocketAddress(addr, port), CONNECT_TIMEOUT_MS);
+            SSLParameters params = socket.getSSLParameters();
+            params.setServerNames(List.of(new SNIHostName(host)));
             socket.setSSLParameters(params);
             socket.startHandshake();
             if (!verifyHostInCert(host, socket)) {
-                throw new javax.net.ssl.SSLException(
+                throw new SSLException(
                         "证书主机名不匹配: " + addr.getHostAddress() + " → " + host);
             }
             socket.setSoTimeout((int) firstByteTimeout);
@@ -217,12 +243,12 @@ public class OpenAiCompatStreamClient {
                     + "User-Agent: forge-admin/1.0\r\n"
                     + "Content-Length: " + request.body().getBytes(StandardCharsets.UTF_8).length + "\r\n"
                     + "Connection: close\r\n\r\n";
-            java.io.OutputStream out = socket.getOutputStream();
+            OutputStream out = socket.getOutputStream();
             out.write(head.getBytes(StandardCharsets.UTF_8));
             out.write(request.body().getBytes(StandardCharsets.UTF_8));
             out.flush();
 
-            java.io.InputStream raw = new java.io.BufferedInputStream(socket.getInputStream());
+            InputStream raw = new BufferedInputStream(socket.getInputStream());
             String statusLine = readRawLine(raw);
             if (statusLine == null || !statusLine.contains(" 200 ")) {
                 throw new UpstreamStreamException(statusCodeOf(statusLine), drainSnippet(raw));
@@ -238,7 +264,7 @@ public class OpenAiCompatStreamClient {
 
             // 流开始后放宽读超时（帧间隔可达数秒）
             socket.setSoTimeout(READ_TIMEOUT_MS);
-            java.io.InputStream body = chunked ? new DechunkingInputStream(raw) : raw;
+            InputStream body = chunked ? new DechunkingInputStream(raw) : raw;
             BufferedReader reader = new BufferedReader(new InputStreamReader(body, StandardCharsets.UTF_8));
             long deadline = System.currentTimeMillis() + MAX_STREAM_DURATION.toMillis();
             readFrames(reader, sink, deadline, worstGap);
@@ -255,20 +281,20 @@ public class OpenAiCompatStreamClient {
      * 证书 SAN 校验（显式实现）：直连 IP 时 JSSE 的端点识别锚定的是 IP 而非域名，
      * 默认 HostnameVerifier 对手工会话校验不可靠，故自实现 dNSName 精确/左通配匹配
      */
-    private static boolean verifyHostInCert(String host, javax.net.ssl.SSLSocket socket) {
-        java.security.cert.Certificate cert;
+    private static boolean verifyHostInCert(String host, SSLSocket socket) {
+        Certificate cert;
         try {
             cert = socket.getSession().getPeerCertificates()[0];
-        } catch (javax.net.ssl.SSLPeerUnverifiedException e) {
+        } catch (SSLPeerUnverifiedException e) {
             return false;
         }
-        if (!(cert instanceof java.security.cert.X509Certificate x509)) {
+        if (!(cert instanceof X509Certificate x509)) {
             return false;
         }
-        java.util.Collection<List<?>> sans;
+        Collection<List<?>> sans;
         try {
             sans = x509.getSubjectAlternativeNames();
-        } catch (java.security.cert.CertificateParsingException e) {
+        } catch (CertificateParsingException e) {
             return false;
         }
         if (sans != null) {
@@ -305,7 +331,7 @@ public class OpenAiCompatStreamClient {
         InetAddress[] all;
         try {
             all = InetAddress.getAllByName(host);
-        } catch (java.net.UnknownHostException e) {
+        } catch (UnknownHostException e) {
             throw new UpstreamStreamException("域名解析失败: " + host, e);
         }
         long now = System.currentTimeMillis();
@@ -328,8 +354,8 @@ public class OpenAiCompatStreamClient {
     /**
      * 原始流按行读（\n 或 \r\n 结尾，8KB 上限）；首行受首字节超时保护（坏节点在此暴露）
      */
-    private static String readRawLine(java.io.InputStream in) throws IOException {
-        java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream(128);
+    private static String readRawLine(InputStream in) throws IOException {
+        ByteArrayOutputStream buf = new ByteArrayOutputStream(128);
         int c;
         while ((c = in.read()) != -1) {
             if (c == '\n') {
@@ -353,7 +379,7 @@ public class OpenAiCompatStreamClient {
         return parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
     }
 
-    private static String drainSnippet(java.io.InputStream in) {
+    private static String drainSnippet(InputStream in) {
         try {
             return new String(in.readNBytes(512), StandardCharsets.UTF_8);
         } catch (IOException e) {
@@ -365,14 +391,14 @@ public class OpenAiCompatStreamClient {
      * chunked 传输解码：SSE 正文按块传输时逐块剥离 chunk 头（Connection: close 场景多数为
      * EOF 定界非 chunked，但 keep-alive 上游可能 chunked，两种都兼容）
      */
-    static class DechunkingInputStream extends java.io.InputStream {
-        private final java.io.InputStream in;
+    static class DechunkingInputStream extends InputStream {
+        private final InputStream in;
         private long remaining;
         private State state = State.SIZE;
 
         private enum State { SIZE, DATA, DATA_CRLF, DONE }
 
-        DechunkingInputStream(java.io.InputStream in) {
+        DechunkingInputStream(InputStream in) {
             this.in = in;
         }
 
@@ -445,7 +471,7 @@ public class OpenAiCompatStreamClient {
      * 传 null 表示不统计
      */
     void readFrames(BufferedReader reader, Consumer<StreamFrame> sink, long deadlineMillis,
-                    java.util.concurrent.atomic.AtomicLong worstGap) throws IOException {
+                    AtomicLong worstGap) throws IOException {
         Long promptTokens = null;
         Long completionTokens = null;
         String line;

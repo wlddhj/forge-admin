@@ -28,6 +28,8 @@ import reactor.core.publisher.Flux;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * AI Agent 编排控制器：配置 / 运行历史 / 人工待办 / 对话流式执行
@@ -154,7 +156,7 @@ public class AiAgentController {
     @Operation(summary = "Agent 对话（SSE 流式，步骤事件 + 最终回答）")
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAuthority('ai:agent:run')")
-    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter chatStream(@Valid @RequestBody AgentChatRequest request) {
+    public SseEmitter chatStream(@Valid @RequestBody AgentChatRequest request) {
         if (request.getImages() != null && request.getImages().size() > 3) {
             throw new BusinessException("图片最多 3 张");
         }
@@ -187,9 +189,9 @@ public class AiAgentController {
         // SseEmitter 手工桥（与 AiChatController 同款）：MVC request(1)×Flux.create 唤醒丢失、
         // publishOn×高频帧 20s+ 停顿两条坑都绕开，每帧 emitter.send 显式 flush。
         // Agent 专用线程池执行（与 boundedElastic 隔离，防止并发团队任务耗尽公共线程池）
-        org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter =
-                new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(0L);
-        java.util.concurrent.atomic.AtomicBoolean done = new java.util.concurrent.atomic.AtomicBoolean(false);
+        SseEmitter emitter =
+                new SseEmitter(0L);
+        AtomicBoolean done = new AtomicBoolean(false);
         emitter.onTimeout(() -> completeQuietly(emitter, done));
         Flux.<String>create(sink -> {
             try {
@@ -222,8 +224,8 @@ public class AiAgentController {
         return emitter;
     }
 
-    private void completeQuietly(org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter,
-                                 java.util.concurrent.atomic.AtomicBoolean done) {
+    private void completeQuietly(SseEmitter emitter,
+                                 AtomicBoolean done) {
         if (done.compareAndSet(false, true)) {
             try {
                 emitter.complete();

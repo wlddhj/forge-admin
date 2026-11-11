@@ -4,6 +4,13 @@
 >
 > 配套文档：新模块端到端搭建流程见 [新模块开发向导](./module-development.md)；数据库设计与迁移脚本细节见 [数据库设计规范](./database-design-specification.md)；前端对接见 [前端开发规范](./frontend-development-specification.md)。
 
+## 0. 代码风格总则
+
+- **禁止在代码正文使用类全限定名**（如 `java.util.concurrent.CompletableFuture`、`javax.net.ssl.SSLSocket`、`org.springframework.web.servlet.mvc.method.annotation.SseEmitter`），一律在文件头部 `import` 后使用简名。正文全限定名仅在两种场景可接受：
+  1. 同文件存在**同名类冲突**（如 `tools.jackson` 与 `com.fasterxml` 的 `ObjectMapper` 并存），且冲突处不超过个别行——此时优先考虑换局部变量命名或方法封装规避，仍无法规避才用全限定名并加注释说明；
+  2. 单行一次性工具调用且无碍可读性（少用）。
+- import 分组习惯：第三方/框架 → `java.*`/`javax.*`，组内按包名字典序；禁止 `import xxx.*` 通配（Entity 的 MyBatis-Plus 注解等既有惯例除外）。
+
 ---
 
 ## 1. 模块结构

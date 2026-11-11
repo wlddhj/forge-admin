@@ -11,6 +11,7 @@ import com.forge.modules.ai.mapper.AiModelConfigMapper;
 import com.forge.modules.system.service.SysConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.content.Media;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -32,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -143,6 +146,7 @@ public class SpringAiLlmClient implements LlmClient {
         long start = System.currentTimeMillis();
         try {
             ChatModel chatModel = modelFactory.get(modelConfig);
+            // 全限定名：与本项目 DTO ChatResponse 同名，import 冲突（规范允许的例外）
             org.springframework.ai.chat.model.ChatResponse aiResponse = chatModel.call(buildPrompt(request, modelConfig));
 
             response.setSuccess(true);
@@ -279,8 +283,8 @@ public class SpringAiLlmClient implements LlmClient {
         } catch (Exception e) {
             String friendly = friendlyError(e instanceof Exception ex ? ex : new RuntimeException(e));
             String message = String.valueOf(e.getMessage()).toLowerCase();
-            boolean timeout = e instanceof java.util.concurrent.TimeoutException
-                    || (e.getCause() instanceof java.util.concurrent.TimeoutException)
+            boolean timeout = e instanceof TimeoutException
+                    || (e.getCause() instanceof TimeoutException)
                     || message.contains("timeout");
             log.error("LLM 决策调用失败 [{}] timeout={}: {}", modelConfig.getModelName(), timeout, friendly);
             response.setSuccess(false);
@@ -324,7 +328,7 @@ public class SpringAiLlmClient implements LlmClient {
                         case DONE -> doneRef.set(frame);
                     }
                 })
-                .blockLast(java.time.Duration.ofMillis(timeout));
+                .blockLast(Duration.ofMillis(timeout));
 
         response.setContent(content.toString());
         StreamFrame done = doneRef.get();
@@ -357,7 +361,7 @@ public class SpringAiLlmClient implements LlmClient {
                 });
         org.springframework.ai.chat.model.ChatResponse aiResponse =
                 aggregator.aggregate(withDelta, aggregated::set)
-                        .blockLast(java.time.Duration.ofMillis(timeout));
+                        .blockLast(Duration.ofMillis(timeout));
 
         String text = content.length() > 0 ? content.toString()
                 : (aiResponse != null && aiResponse.getResult() != null && aiResponse.getResult().getOutput() != null
@@ -412,8 +416,8 @@ public class SpringAiLlmClient implements LlmClient {
     private ChatResponse raceBatch(AiModelConfig primary, List<AiModelConfig> batch,
                                    Function<AiModelConfig, ChatResponse> attempt) {
         CompletableFuture<ChatResponse> firstSuccess = new CompletableFuture<>();
-        java.util.concurrent.atomic.AtomicInteger remaining =
-                new java.util.concurrent.atomic.AtomicInteger(batch.size());
+        AtomicInteger remaining =
+                new AtomicInteger(batch.size());
         for (AiModelConfig candidate : batch) {
             CompletableFuture.supplyAsync(() -> attempt.apply(candidate), agentExecutor)
                     .whenComplete((response, error) -> {
@@ -481,12 +485,12 @@ public class SpringAiLlmClient implements LlmClient {
         if (images == null || images.isEmpty()) {
             return new UserMessage(text);
         }
-        List<org.springframework.ai.content.Media> mediaList = new ArrayList<>();
+        List<Media> mediaList = new ArrayList<>();
         for (String image : images) {
             if (image == null || image.isBlank()) {
                 continue;
             }
-            org.springframework.ai.content.Media.Builder builder = org.springframework.ai.content.Media.builder()
+            Media.Builder builder = Media.builder()
                     .mimeType(guessMimeType(image));
             if (image.startsWith("http://") || image.startsWith("https://")) {
                 try {
