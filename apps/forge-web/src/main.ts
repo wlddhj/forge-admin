@@ -8,8 +8,6 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 import 'nprogress/nprogress.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import {VxeUI} from "vxe-pc-ui";
-import jQuery from 'jquery'
-window.$ = window.jQuery = jQuery
 
 import App from './App.vue'
 import router from './router'

@@ -26,16 +26,14 @@ const showModal = async (...html) => {
   show.value = true
   await nextTick()
   setTimeout(() => {
-    const $ = window.jQuery || window.$
     if (!containerRef.value) return
-    if ($) {
-      const $container = $(containerRef.value)
-      $container.empty()
-      $container.html(html)
-    } else {
-      containerRef.value.innerHTML = ''
-      const htmlStr = html.map(h => (typeof h === 'string' ? h : h?.outerHTML || h?.toString?.() || '')).join('')
-      containerRef.value.insertAdjacentHTML('beforeend', htmlStr)
+    containerRef.value.innerHTML = ''
+    // hiprint getHtml 返回 jQuery 集合(类数组)/字符串,纯 DOM 挂载
+    const items = html == null ? [] : Array.from(html)
+    for (const item of items) {
+      const node = item?.nodeType ? item : item?.target?.[0]
+      if (node?.nodeType) { containerRef.value.appendChild(node); continue }
+      if (typeof item === 'string' && item) containerRef.value.insertAdjacentHTML('beforeend', item)
     }
   }, 100)
 }

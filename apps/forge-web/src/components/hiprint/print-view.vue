@@ -43,19 +43,12 @@ export default {
           return
         }
         container.innerHTML = ''
-        const $ = window.jQuery || window.$
-        if ($) {
-          const $container = $(container)
-          $container.empty()
-          $container.html(html)
-        } else {
-          const htmlStr = html.map(h => {
-            if (typeof h === 'string') return h
-            if (h?.outerHTML) return h.outerHTML
-            if (h?.toString?.()) return h.toString()
-            return ''
-          }).join('')
-          container.insertAdjacentHTML('beforeend', htmlStr)
+        // hiprint getHtml 返回 jQuery 集合(类数组)/字符串,纯 DOM 挂载
+        const items = html == null ? [] : Array.from(html)
+        for (const item of items) {
+          const node = item?.nodeType ? item : item?.target?.[0]
+          if (node?.nodeType) { container.appendChild(node); continue }
+          if (typeof item === 'string' && item) container.insertAdjacentHTML('beforeend', item)
         }
         console.log('[print-view] container innerHTML length:', container.innerHTML.length)
       }, 300)

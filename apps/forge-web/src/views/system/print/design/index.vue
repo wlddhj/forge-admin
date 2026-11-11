@@ -73,6 +73,7 @@ import { onMounted, ref, getCurrentInstance } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { hiprint, defaultElementTypeProvider } from 'vue-plugin-hiprint'
+import $ from 'jquery'
 import { provider1 } from './provider1'
 import { provider2 } from './provider2'
 import printData from './printData'
@@ -179,7 +180,6 @@ export default {
     }
 
     const buildLeftElement = () => {
-      const $ = window.jQuery || window.$
       $('#provider-container1').empty()
       hiprint.PrintElementTypeManager.build($('#provider-container1'), 'providerModule1')
       $('#provider-container2').empty()
@@ -189,7 +189,6 @@ export default {
     }
 
     const buildDesigner = () => {
-      const $ = window.jQuery || window.$
       $('#hiprint-printTemplate').empty()
       hiprintTemplate = newHiprintPrintTemplate(TEMPLATE_KEY, {
         template: templateRef.value,
