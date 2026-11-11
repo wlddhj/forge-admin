@@ -53,6 +53,16 @@ public class OpenAiCompatStreamClient {
     /** 最多尝试节点数（DNS 多 A 记录逐个探测） */
     private static final int MAX_NODE_ATTEMPTS = 3;
 
+    /** 帧间隔超过该值视为中段停顿（正常 GLM 帧间隔 <1s，content 切换也 <2s） */
+    private static final long STALL_MARK_MS = 5_000;
+
+    /** 中段停顿节点的冷却时长（期间排序到最后，之后恢复参与） */
+    private static final long NODE_COOLDOWN_MS = 5 * 60_000L;
+
+    /** 节点冷却表：IP → 冷却截止时间戳（epoch ms） */
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> badNodesUntil =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     private static final javax.net.ssl.SSLSocketFactory SSL_SOCKET_FACTORY =
             (javax.net.ssl.SSLSocketFactory) javax.net.ssl.SSLSocketFactory.getDefault();
 
@@ -136,14 +146,28 @@ public class OpenAiCompatStreamClient {
         List<InetAddress> candidates = candidateAddresses(host);
         java.io.IOException last = null;
         java.util.concurrent.atomic.AtomicInteger sent = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicLong worstGap = new java.util.concurrent.atomic.AtomicLong();
         Consumer<StreamFrame> countingSink = f -> {
             sent.incrementAndGet();
             sink.accept(f);
         };
         for (InetAddress addr : candidates) {
             try {
-                streamVia(addr, host, port, path, request, countingSink);
-                lastGoodIp.set(addr.getHostAddress());
+                streamVia(addr, host, port, path, request, countingSink, worstGap);
+                String ip = addr.getHostAddress();
+                if (worstGap.get() > STALL_MARK_MS && sent.get() > 1) {
+                    // 节点可连可流但中段 hold：真机实测 GA 边缘节点存在「流一段→停顿数秒→
+                    // 结束倾泻」形态。冷却该节点（粘住它会让后续请求继续不平滑），
+                    // 下次请求优先其他节点，逐步收敛到稳定节点
+                    badNodesUntil.put(ip, System.currentTimeMillis() + NODE_COOLDOWN_MS);
+                    if (ip.equals(lastGoodIp.get())) {
+                        lastGoodIp.compareAndSet(ip, null);
+                    }
+                    log.warn("[原生流] 节点 {} 中段停顿 {}ms（不平滑），冷却 {}ms",
+                            ip, worstGap.get(), NODE_COOLDOWN_MS);
+                } else {
+                    lastGoodIp.set(ip);
+                }
                 return;
             } catch (UpstreamStreamException e) {
                 // HTTP 状态错误/流中断：换节点重试同样会失败（认证/模型问题），直接抛出
@@ -167,7 +191,8 @@ public class OpenAiCompatStreamClient {
      * 首字节短超时识别坏节点（连上但不回数据），流开始后放宽读超时。
      */
     private void streamVia(InetAddress addr, String host, int port, String path,
-                           StreamRequest request, Consumer<StreamFrame> sink) throws IOException {
+                           StreamRequest request, Consumer<StreamFrame> sink,
+                           java.util.concurrent.atomic.AtomicLong worstGap) throws IOException {
         long firstByteTimeout = Math.max(5_000, Math.min(30_000, request.headersTimeout().toMillis()));
         javax.net.ssl.SSLSocket socket = (javax.net.ssl.SSLSocket)
                 SSL_SOCKET_FACTORY.createSocket();
@@ -216,7 +241,7 @@ public class OpenAiCompatStreamClient {
             java.io.InputStream body = chunked ? new DechunkingInputStream(raw) : raw;
             BufferedReader reader = new BufferedReader(new InputStreamReader(body, StandardCharsets.UTF_8));
             long deadline = System.currentTimeMillis() + MAX_STREAM_DURATION.toMillis();
-            readFrames(reader, sink, deadline);
+            readFrames(reader, sink, deadline, worstGap);
         } finally {
             try {
                 socket.close();
@@ -274,7 +299,7 @@ public class OpenAiCompatStreamClient {
     }
 
     /**
-     * 候选节点排序：上次成功 IP 优先（进程内粘住好节点），IPv4 次之
+     * 候选节点排序：冷却中的节点最后；其余中上次成功 IP 优先；IPv4 次之
      */
     private List<InetAddress> candidateAddresses(String host) {
         InetAddress[] all;
@@ -283,13 +308,21 @@ public class OpenAiCompatStreamClient {
         } catch (java.net.UnknownHostException e) {
             throw new UpstreamStreamException("域名解析失败: " + host, e);
         }
+        long now = System.currentTimeMillis();
         String good = lastGoodIp.get();
         List<InetAddress> list = new ArrayList<>(Arrays.asList(all));
-        list.sort(Comparator.comparing(a -> a.getAddress().length != 4));
-        if (good != null) {
-            list.sort(Comparator.comparing(a -> !a.getHostAddress().equals(good)));
+        list.sort(Comparator
+                .comparing((InetAddress a) -> {
+                    Long until = badNodesUntil.get(a.getHostAddress());
+                    return until != null && until > now;
+                })
+                .thenComparing(a -> !a.getHostAddress().equals(good))
+                .thenComparing(a -> a.getAddress().length != 4));
+        if (list.size() > MAX_NODE_ATTEMPTS) {
+            // 冷却节点排在末尾被截掉时，保留它们参与下一轮（不清表）
+            list = list.subList(0, MAX_NODE_ATTEMPTS);
         }
-        return list.size() > MAX_NODE_ATTEMPTS ? list.subList(0, MAX_NODE_ATTEMPTS) : list;
+        return list;
     }
 
     /**
@@ -404,10 +437,20 @@ public class OpenAiCompatStreamClient {
      * SSE 行解析：data 行 → 帧；usage 附着到 DONE 帧（上游无 [DONE] 以 EOF 收口）
      */
     void readFrames(BufferedReader reader, Consumer<StreamFrame> sink, long deadlineMillis) throws IOException {
+        readFrames(reader, sink, deadlineMillis, null);
+    }
+
+    /**
+     * 带帧间隔统计的读循环：worstGap 记录相邻数据行的最大间隔（节点中段 hold 判定依据），
+     * 传 null 表示不统计
+     */
+    void readFrames(BufferedReader reader, Consumer<StreamFrame> sink, long deadlineMillis,
+                    java.util.concurrent.atomic.AtomicLong worstGap) throws IOException {
         Long promptTokens = null;
         Long completionTokens = null;
         String line;
         boolean done = false;
+        long lastDataAt = 0L;
         while (!done && (line = reader.readLine()) != null) {
             if (System.currentTimeMillis() > deadlineMillis) {
                 throw new UpstreamStreamException("上游流式响应超过最大时长限制，已中断", null);
@@ -418,6 +461,13 @@ public class OpenAiCompatStreamClient {
             String data = line.substring(5).trim();
             if (data.isEmpty()) {
                 continue;
+            }
+            if (worstGap != null) {
+                long now = System.currentTimeMillis();
+                if (lastDataAt > 0) {
+                    worstGap.accumulateAndGet(now - lastDataAt, Math::max);
+                }
+                lastDataAt = now;
             }
             if ("[DONE]".equals(data)) {
                 done = true;
