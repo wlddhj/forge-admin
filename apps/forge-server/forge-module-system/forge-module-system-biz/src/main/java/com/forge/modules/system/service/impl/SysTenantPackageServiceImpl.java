@@ -16,6 +16,7 @@ import com.forge.modules.system.entity.SysTenantPackageMenu;
 import com.forge.modules.system.mapper.SysTenantPackageMapper;
 import com.forge.modules.system.mapper.SysTenantPackageMenuMapper;
 import com.forge.modules.system.service.SysTenantPackageService;
+import com.forge.modules.system.service.UserAuthCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -40,6 +41,7 @@ public class SysTenantPackageServiceImpl extends ServiceImpl<SysTenantPackageMap
     private final SysTenantPackageMapper sysTenantPackageMapper;
     private final SysTenantPackageMenuMapper sysTenantPackageMenuMapper;
     private final CacheManager cacheManager;
+    private final UserAuthCacheService userAuthCacheService;
 
     @Override
     public Page<TenantPackageResponse> pagePackages(TenantPackageQueryRequest request) {
@@ -123,6 +125,8 @@ public class SysTenantPackageServiceImpl extends ServiceImpl<SysTenantPackageMap
             // 保存套餐菜单关联
             savePackageMenus(pkg.getId(), request.getMenuIds());
             evictMenuCache();
+            // 套餐菜单边界变更影响租户内全部用户的权限码，失效认证缓存（提交后生效）
+            userAuthCacheService.evictAll();
         } finally {
             TenantContextHolder.setIgnore(prevIgnore);
         }
@@ -154,6 +158,8 @@ public class SysTenantPackageServiceImpl extends ServiceImpl<SysTenantPackageMap
             sysTenantPackageMenuMapper.deleteByPackageId(pkg.getId());
             savePackageMenus(pkg.getId(), request.getMenuIds());
             evictMenuCache();
+            // 套餐菜单边界变更影响租户内全部用户的权限码，失效认证缓存（提交后生效）
+            userAuthCacheService.evictAll();
         } finally {
             TenantContextHolder.setIgnore(prevIgnore);
         }

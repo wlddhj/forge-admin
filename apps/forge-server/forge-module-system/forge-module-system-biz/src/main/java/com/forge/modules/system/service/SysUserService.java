@@ -71,6 +71,15 @@ public interface SysUserService extends IService<SysUser> {
     List<SimpleGrantedAuthority> getUserPermissions(Long userId);
 
     /**
+     * 获取用户权限（复用已加载的用户实体）
+     *
+     * 套餐过滤直接使用入参 user 判断账户类型与租户，
+     * 消除按 userId 重载内部 tenantIgnoringGetUser 的重复用户查询。
+     * 认证缓存 miss 路径专用。
+     */
+    List<SimpleGrantedAuthority> getUserPermissions(SysUser user);
+
+    /**
      * 获取用户角色编码列表
      */
     List<String> getUserRoleCodes(Long userId);
@@ -79,6 +88,11 @@ public interface SysUserService extends IService<SysUser> {
      * 获取用户权限编码列表
      */
     List<String> getUserPermissionCodes(Long userId);
+
+    /**
+     * 获取用户权限编码列表（复用已加载的用户实体，见 getUserPermissions(SysUser)）
+     */
+    List<String> getUserPermissionCodes(SysUser user);
 
     /**
      * 获取当前登录用户

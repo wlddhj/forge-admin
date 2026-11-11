@@ -47,6 +47,7 @@ public class CacheConfig implements CachingConfigurer {
     private static final long USER_INFO_CACHE_TTL = 1800;      // 用户信息缓存 30 分钟
     private static final long MENU_CACHE_TTL = 3600;           // 菜单缓存 1 小时
     private static final long DEPT_CACHE_TTL = 3600;            // 部门缓存 1 小时
+    private static final long USER_AUTH_CACHE_TTL = 300;       // 用户认证上下文缓存 5 分钟（变更钩子删缓存为主，TTL 兜底）
 
     /**
      * Redis 缓存管理器
@@ -94,10 +95,16 @@ public class CacheConfig implements CachingConfigurer {
         cacheConfigurations.put("menu", defaultConfig.entryTtl(Duration.ofSeconds(MENU_CACHE_TTL)));
         cacheConfigurations.put("dept", defaultConfig.entryTtl(Duration.ofSeconds(DEPT_CACHE_TTL)));
 
+        // 用户认证上下文缓存（JWT 过滤器认证路径）
+        // 必须留在 ignoreCaches：租户前缀由 TenantRedisCacheManager 在缓存首次创建时从
+        // TenantContextHolder 烘焙，而过滤器执行中途会切换租户上下文，走名前缀会跨租户串缓存；
+        // 租户段由 UserAuthCacheService 显式写入 key
+        cacheConfigurations.put("userAuth", defaultConfig.entryTtl(Duration.ofSeconds(USER_AUTH_CACHE_TTL)));
+
         return new TenantRedisCacheManager(
                 RedisCacheWriter.lockingRedisCacheWriter(factory),
                 defaultConfig,
-                Set.of("dictData", "dictType", "sysConfig", "menu", "dept"),  // ignoreCaches
+                Set.of("dictData", "dictType", "sysConfig", "menu", "dept", "userAuth"),  // ignoreCaches
                 cacheConfigurations  // per-cache TTL 配置
         );
     }

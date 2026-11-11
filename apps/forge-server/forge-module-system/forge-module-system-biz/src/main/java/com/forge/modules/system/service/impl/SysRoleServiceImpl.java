@@ -23,6 +23,7 @@ import com.forge.modules.system.mapper.SysRoleMenuMapper;
 import com.forge.modules.system.mapper.SysUserMapper;
 import com.forge.modules.system.mapper.SysUserRoleMapper;
 import com.forge.modules.system.service.SysRoleService;
+import com.forge.modules.system.service.UserAuthCacheService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     private final SysRoleDeptMapper sysRoleDeptMapper;
     private final SysUserMapper sysUserMapper;
     private final com.forge.modules.system.service.SysMenuService sysMenuService;
+    private final UserAuthCacheService userAuthCacheService;
 
     @Override
     public Page<RoleResponse> pageRoles(RoleQueryRequest request) {
@@ -141,6 +143,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         if ("2".equals(request.getDataScope()) && request.getDeptIds() != null && !request.getDeptIds().isEmpty()) {
             saveRoleDepts(role.getId(), request.getDeptIds());
         }
+        // 角色（数据权限）变更影响所有持有该角色的用户，全量失效认证缓存（提交后生效）
+        userAuthCacheService.evictAll();
     }
 
     @Override
@@ -150,6 +154,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         // 这里简化处理，实际需要检查关联
         removeById(id);
         sysRoleMenuMapper.deleteByRoleId(id);
+        userAuthCacheService.evictAll();
     }
 
     @Override
@@ -157,6 +162,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     public void deleteRoles(List<Long> ids) {
         removeByIds(ids);
         ids.forEach(sysRoleMenuMapper::deleteByRoleId);
+        userAuthCacheService.evictAll();
     }
 
     @Override
@@ -167,6 +173,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         }
         role.setStatus(status);
         updateById(role);
+        // 角色启停影响权限码与数据权限，全量失效（提交后生效）
+        userAuthCacheService.evictAll();
     }
 
     @Override
@@ -209,6 +217,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
                     .collect(Collectors.toList());
             sysRoleMenuMapper.batchInsert(roleMenus);
         }
+        // 菜单授权变更影响权限码，全量失效（提交后生效）
+        userAuthCacheService.evictAll();
     }
 
     @Override
@@ -250,6 +260,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
             }).collect(Collectors.toList());
             sysUserRoleMapper.batchInsert(userRoles);
         }
+        // 覆盖式重写会移除旧持有者的角色绑定（无法穷举旧持有者），全量失效（提交后生效）
+        userAuthCacheService.evictAll();
     }
 
     private RoleResponse convertToResponse(SysRole role) {

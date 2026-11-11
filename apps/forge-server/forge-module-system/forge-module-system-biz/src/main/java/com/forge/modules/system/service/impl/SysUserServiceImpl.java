@@ -27,6 +27,7 @@ import com.forge.modules.system.mapper.SysUserRoleMapper;
 import com.forge.modules.system.service.SysDeptService;
 import com.forge.modules.system.service.SysRoleService;
 import com.forge.modules.system.service.SysUserService;
+import com.forge.modules.system.service.UserAuthCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -65,6 +66,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private final com.forge.modules.system.service.SysUserPasswordHistoryService passwordHistoryService;
     private final CryptoUtils cryptoUtils;
     private final com.forge.modules.system.auth.service.LoginAttemptService loginAttemptService;
+    private final UserAuthCacheService userAuthCacheService;
 
     @Override
     @DataPermission(enable = false) // 禁用数据权限，避免循环依赖
@@ -184,6 +186,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (user == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
+        // 记录原用户名：改名时需同时失效新旧两把缓存 key
+        String oldUsername = user.getUsername();
 
         // 跨租户防护：不允许跨租户修改用户（仅平台超管可跨租户）
         Long currentTenantId = UserContext.get().getTenantId();
@@ -217,24 +221,33 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 更新用户岗位关联
         sysUserPositionMapper.deleteByUserId(user.getId());
         saveUserPositions(user.getId(), request.getPositionIds());
+        // 失效认证缓存（提交后生效）：昵称/部门等 UserContext 字段变更 + 角色绑定变更
+        userAuthCacheService.evictUser(user.getTenantId(), oldUsername);
+        userAuthCacheService.evictUser(user.getTenantId(), user.getUsername());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteUser(Long id) {
+        SysUser user = getById(id);
         removeById(id);
         sysUserRoleMapper.deleteByUserId(id);
         sysUserPositionMapper.deleteByUserId(id);
+        if (user != null) {
+            userAuthCacheService.evictUser(user.getTenantId(), user.getUsername());
+        }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteUsers(List<Long> ids) {
+        List<SysUser> users = listByIds(ids);
         removeByIds(ids);
         ids.forEach(id -> {
             sysUserRoleMapper.deleteByUserId(id);
             sysUserPositionMapper.deleteByUserId(id);
         });
+        users.forEach(user -> userAuthCacheService.evictUser(user.getTenantId(), user.getUsername()));
     }
 
     @Override
@@ -252,6 +265,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         checkTenantAccess(user);
         sysUserRoleMapper.deleteByUserId(userId);
         saveUserRoles(userId, roleIds);
+        userAuthCacheService.evictUser(user.getTenantId(), user.getUsername());
     }
 
     @Override
@@ -266,6 +280,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             sysUserRoleMapper.deleteByUserId(user.getId());
             saveUserRoles(user.getId(), request.getRoleIds());
         }
+        users.forEach(user -> userAuthCacheService.evictUser(user.getTenantId(), user.getUsername()));
     }
 
     /**
@@ -288,6 +303,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         user.setStatus(status);
         updateById(user);
+        // 禁用/启用立即生效：失效认证缓存，下一次请求重载后禁用用户不再通过认证
+        userAuthCacheService.evictUser(user.getTenantId(), user.getUsername());
     }
 
     @Override
@@ -333,8 +350,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public List<SimpleGrantedAuthority> getUserPermissions(Long userId) {
-        List<String> permissions = selectPermissionCodes(userId);
-        return permissions.stream()
+        return getUserPermissionCodes(userId).stream()
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<SimpleGrantedAuthority> getUserPermissions(SysUser user) {
+        return getUserPermissionCodes(user).stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
     }
@@ -346,24 +369,31 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public List<String> getUserPermissionCodes(Long userId) {
-        return selectPermissionCodes(userId);
+        return selectPermissionCodes(tenantIgnoringGetUser(userId));
     }
 
-    private List<String> selectPermissionCodes(Long userId) {
-        List<Long> menuIds = getPackageMenuFilter(userId);
+    @Override
+    public List<String> getUserPermissionCodes(SysUser user) {
+        return selectPermissionCodes(user);
+    }
+
+    private List<String> selectPermissionCodes(SysUser user) {
+        if (user == null) {
+            // 用户不存在：无角色即无权限码，与按 userId 查询的空结果语义一致
+            return new ArrayList<>();
+        }
+        List<Long> menuIds = getPackageMenuFilter(user);
         if (menuIds != null && menuIds.isEmpty()) {
             return new ArrayList<>();
         }
-        return sysUserMapper.selectPermissionCodesByUserId(userId, menuIds);
+        return sysUserMapper.selectPermissionCodesByUserId(user.getId(), menuIds);
     }
 
     /**
      * 权限码的租户套餐过滤条件：平台超管返回 null（不过滤）；
      * 普通用户返回套餐允许菜单 ID，套餐未配置时返回空列表（权限码收敛为空）。
      */
-    private List<Long> getPackageMenuFilter(Long userId) {
-        // 按 ID 全局查用户：权限码查询常处于 TenantIgnore 上下文，且目标用户租户可能与当前上下文不同
-        SysUser user = tenantIgnoringGetUser(userId);
+    private List<Long> getPackageMenuFilter(SysUser user) {
         if (user == null || Integer.valueOf(2).equals(user.getAccountType())) {
             return null;
         }
@@ -486,6 +516,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             user.setEmail(request.getEmail());
         }
         updateById(user);
+        userAuthCacheService.evictUser(user.getTenantId(), user.getUsername());
     }
 
     @Override
@@ -571,6 +602,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         user.setAvatar(request.getAvatar());
         updateById(user);
+        userAuthCacheService.evictUser(user.getTenantId(), user.getUsername());
     }
 
     @Override
@@ -647,6 +679,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                     // 更新已有用户
                     BeanUtil.copyProperties(importUser, existUser, "id", "password");
                     updateById(existUser);
+                    userAuthCacheService.evictUser(existUser.getTenantId(), existUser.getUsername());
                     result.getUpdateUsernames().add(importUser.getUsername());
                 } else {
                     result.getFailureUsernames().put(importUser.getUsername(), "用户名已存在");

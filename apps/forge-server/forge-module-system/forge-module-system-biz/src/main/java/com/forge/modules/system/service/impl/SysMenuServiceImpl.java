@@ -14,6 +14,7 @@ import com.forge.modules.system.dto.menu.MenuTreeResponse;
 import com.forge.modules.system.entity.SysMenu;
 import com.forge.modules.system.mapper.SysMenuMapper;
 import com.forge.modules.system.service.SysMenuService;
+import com.forge.modules.system.service.UserAuthCacheService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -40,6 +41,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     private final SysMenuMapper sysMenuMapper;
     private final CacheManager cacheManager;
     private final TenantApi tenantApi;
+    private final UserAuthCacheService userAuthCacheService;
 
     @Override
     public void refreshMenuCache() {
@@ -47,6 +49,8 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
         if (cache != null) {
             cache.clear();
         }
+        // 菜单变更影响权限码，同步失效认证缓存
+        userAuthCacheService.evictAll();
     }
 
     @Override
@@ -136,6 +140,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
         BeanUtil.copyProperties(request, menu);
         resolveExternalFlag(menu);
         save(menu);
+        userAuthCacheService.evictAll();
     }
 
     @Override
@@ -148,6 +153,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
         BeanUtil.copyProperties(request, menu);
         resolveExternalFlag(menu);
         updateById(menu);
+        userAuthCacheService.evictAll();
     }
 
     /**
@@ -168,6 +174,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
             throw new BusinessException(ResultCode.MENU_HAS_CHILDREN);
         }
         removeById(id);
+        userAuthCacheService.evictAll();
     }
 
     private List<MenuTreeResponse> buildMenuTree(List<SysMenu> menus, Long parentId, boolean excludeButtons) {
