@@ -13,12 +13,6 @@ public final class WorkflowSupport {
 
     private WorkflowSupport() {
     }
-
-    /**
-     * LIKE 通配符转义（ESCape 字符 '|'，配合 SQL 侧 ESCAPE '|' 使用）。
-     * null/空白返回 null（调用方按"无过滤条件"跳过拼接）。
-     * 原两份逐字副本位于 WfProcessInstanceServiceImpl/WfTaskServiceImpl（拆分收敛）。
-     */
     /**
      * 候选人策略查询租户解析（评审 §4.5-P1#5 附属收敛）：租户由 ForgeTaskActorProvider
      * 以实例行快照注入上下文，此处读取；无来源时 warn 并返回 null（调用方返回空集走
@@ -34,6 +28,12 @@ public final class WorkflowSupport {
         return tenantId;
     }
 
+
+    /**
+     * LIKE 通配符转义（ESCape 字符 '|'，配合 SQL 侧 ESCAPE '|' 使用）。
+     * null/空白返回 null（调用方按"无过滤条件"跳过拼接）。
+     * 原两份逐字副本位于 WfProcessInstanceServiceImpl/WfTaskServiceImpl（拆分收敛）。
+     */
     public static String escapeLike(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return null;
