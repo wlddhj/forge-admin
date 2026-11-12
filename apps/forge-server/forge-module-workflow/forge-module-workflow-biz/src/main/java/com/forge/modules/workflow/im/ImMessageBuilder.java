@@ -69,6 +69,9 @@ public class ImMessageBuilder {
 
     /**
      * 终态 → 结果文案（与 BusinessCallbackEventListener 终态集一致）
+     * <p>
+     * forceComplete 在 FlowLong 1.2.7 引擎内无发射方（RuntimeServiceImpl 终态仅传
+     * reject/revoke/timeout/complete 等事件），命中 default 兜底文案，不单列 case
      */
     private String stateText(InstanceEventType eventType) {
         return switch (eventType) {
@@ -78,7 +81,6 @@ public class ImMessageBuilder {
             case rejectComplete -> "已被驳回";
             case revokeComplete -> "已被发起人撤销";
             case timeoutComplete -> "已超时结束";
-            case forceComplete -> "已被管理员终止";
             default -> "已结束";
         };
     }

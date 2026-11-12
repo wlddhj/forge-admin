@@ -1,6 +1,6 @@
 -- ========================================
 -- 业务示例模块 forge-module-demo（项目立项接入工作流示例）
--- 存量库升级用（幂等可重跑）；全新安装走 init-project.sql
+-- 存量库升级用：本脚本仅存量库且可重复执行；全新库走 init-project.sql
 -- 对接文档：docs-base/modules/workflow/06.business-integration-guide.md
 -- ========================================
 
@@ -26,9 +26,29 @@ CREATE TABLE IF NOT EXISTS `demo_biz_project` (
     KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='项目立项表（业务示例模块）';
 
--- 存量库补列（首版建表无 process_no；MySQL 不支持 ADD COLUMN IF NOT EXISTS，已补过的库跳过）
-ALTER TABLE `demo_biz_project` ADD COLUMN `process_no` VARCHAR(64) DEFAULT NULL COMMENT '流程编号（发起回写）' AFTER `process_instance_id`;
-ALTER TABLE `demo_biz_project` ADD COLUMN `approve_time` DATETIME DEFAULT NULL COMMENT '审批完成时间（终态事件回写）' AFTER `approve_status`;
+-- 存量库补列（首版建表无 process_no/approve_time）
+-- MySQL 无 ADD COLUMN IF NOT EXISTS，用 information_schema 判列存在的存储过程模式保证幂等可重跑
+DELIMITER $$
+DROP PROCEDURE IF EXISTS `upgrade_20261029_add_demo_project_columns` $$
+CREATE PROCEDURE `upgrade_20261029_add_demo_project_columns`()
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS
+                   WHERE TABLE_SCHEMA = DATABASE()
+                     AND TABLE_NAME = 'demo_biz_project'
+                     AND COLUMN_NAME = 'process_no') THEN
+        ALTER TABLE `demo_biz_project` ADD COLUMN `process_no` VARCHAR(64) DEFAULT NULL COMMENT '流程编号（发起回写）' AFTER `process_instance_id`;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS
+                   WHERE TABLE_SCHEMA = DATABASE()
+                     AND TABLE_NAME = 'demo_biz_project'
+                     AND COLUMN_NAME = 'approve_time') THEN
+        ALTER TABLE `demo_biz_project` ADD COLUMN `approve_time` DATETIME DEFAULT NULL COMMENT '审批完成时间（终态事件回写）' AFTER `approve_status`;
+    END IF;
+END $$
+DELIMITER ;
+
+CALL `upgrade_20261029_add_demo_project_columns`();
+DROP PROCEDURE IF EXISTS `upgrade_20261029_add_demo_project_columns`;
 
 -- 示例模块菜单（id 280-284 空闲段，2026-10-29 核对无占用）
 INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES

@@ -32,24 +32,6 @@ public class FlowLongSchedulerProperties {
     private int reminderCheckInterval = 300;
 
     /**
-     * 提醒提前时间（分钟）
-     * 在任务即将超时前多少分钟发送提醒
-     */
-    private int reminderAdvanceMinutes = 30;
-
-    /**
-     * 是否使用分布式锁
-     * 防止多实例重复执行
-     */
-    private boolean useDistributedLock = true;
-
-    /**
-     * 分布式锁类型
-     * 支持：redis、database
-     */
-    private String lockType = "redis";
-
-    /**
      * 锁超时时间（秒）
      */
     private int lockTimeoutSeconds = 30;

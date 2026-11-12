@@ -3,6 +3,7 @@ package com.forge.modules.demo.controller.admin;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
+import com.forge.framework.web.annotation.OperationLog;
 import com.forge.modules.demo.dto.ProjectResponse;
 import com.forge.modules.demo.dto.ProjectSubmitRequest;
 import com.forge.modules.demo.service.ProjectApprovalService;
@@ -54,6 +55,7 @@ public class ProjectApprovalController {
     @Operation(summary = "提交立项并发起审批流程")
     @PostMapping("/submit")
     @PreAuthorize("hasAuthority('demo:project:add')")
+    @OperationLog(title = "项目立项管理", businessType = OperationLog.BusinessType.INSERT)
     public Result<Long> submit(@Valid @RequestBody ProjectSubmitRequest request) {
         return Result.success(projectService.submitProject(request));
     }
@@ -61,6 +63,7 @@ public class ProjectApprovalController {
     @Operation(summary = "发起人撤销（流程实例撤销，状态由事件回写）")
     @PostMapping("/{id}/cancel")
     @PreAuthorize("hasAuthority('demo:project:edit')")
+    @OperationLog(title = "项目立项管理", businessType = OperationLog.BusinessType.DELETE)
     public Result<Void> cancel(@PathVariable Long id) {
         projectService.cancelProject(id);
         return Result.success();

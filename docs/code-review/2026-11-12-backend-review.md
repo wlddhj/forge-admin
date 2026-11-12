@@ -334,7 +334,7 @@
 **第二批·多租户开闸前置（~2-3 天）**：§3 全部 8 项（事件租户快照 + TtlExecutors + 表治理 + 插件顺序断言）。若近期不开租户可降级，但 §3-3/3-4 的租户串扰在单租户下无感、修复窗口随时可用。
 **第三批·稳定性（~2 天）**：流断连取消感知、竞速门控、chatForDecision 改造（顺手关掉 45s 悬案）、线程池隔离（agentExecutor/workflowExecutor/回调池）、Redis 锁令牌化、各类外部调用超时、无条件更新改 CAS。
 **第四批·上帝类拆分（~3-5 天，可与前三批并行）**：Instance/Task 按既有测试护栏拆（WfProcessModelValidator 先行——现有反射调私有方法的测试可转正）；AI 两 Graph 抽 GraphSupport；DiagramGenerator 表驱动。**每拆一块跑既有 H2 E2E 套件**。
-**第五批·卫生批次（~1-2 天）**：死代码/死配置清理、FQN ArchUnit 守卫、手工 JSON 改 ObjectMapper、@OperationLog 补齐、readOnly 事务、升级脚本幂等修正。
+**第五批·卫生批次（~1-2 天）**：死代码/死配置清理、FQN ArchUnit 守卫、手工 JSON 改 ObjectMapper、@OperationLog 补齐、readOnly 事务、升级脚本幂等修正。——**✅ 已完成（hygiene-batch5，2026-11-12）**：守卫落位且基线 0 违规（存量前三批已清）、死代码五项+死属性三处（forceComplete javap 实证）、@OperationLog 十三接口、手工 JSON 三处（错误帧防泄露）、两脚本幂等化；readOnly 经裁决 no-op（三组件无事务，新增违边界，遗留独立决策）。
 
 **流程建议**：按 FlowNeo 重任务立项分批执行；第一批安全项建议合并为一个"安全加固"任务优先走完五阶段。
 

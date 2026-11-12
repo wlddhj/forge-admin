@@ -3,13 +3,12 @@
 -- 日期：2026-10-27
 -- 说明：业务系统订阅工作流事件（taskCreated/taskCompleted/instanceFinished），
 --       平台向配置 URL 发送 HMAC-SHA256 签名的 HTTP POST（webhook）
--- 注意：dev 库未启用 Flyway，请在 forge_admin 库手工执行本脚本
+-- 注意：dev 库未启用 Flyway，请在 forge_admin 库手工执行本脚本（不写 USE，选库由执行方决定）
+-- 幂等性：CREATE TABLE IF NOT EXISTS，表已存在则跳过且不删任何数据；
+--         如需重置请手工执行对应 DROP 后再跑本脚本（升级脚本不内联 DROP，防误清线上数据）
 -- ============================================================
 
-USE forge_admin;
-
-DROP TABLE IF EXISTS `wf_business_callback`;
-CREATE TABLE `wf_business_callback` (
+CREATE TABLE IF NOT EXISTS `wf_business_callback` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `name` VARCHAR(100) NOT NULL COMMENT '回调名称',
     `url` VARCHAR(500) NOT NULL COMMENT '回调地址（http/https）',
@@ -26,8 +25,7 @@ CREATE TABLE `wf_business_callback` (
     KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='业务回调配置表';
 
-DROP TABLE IF EXISTS `wf_callback_record`;
-CREATE TABLE `wf_callback_record` (
+CREATE TABLE IF NOT EXISTS `wf_callback_record` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `callback_id` BIGINT NOT NULL COMMENT '回调配置ID',
     `callback_name` VARCHAR(100) DEFAULT NULL COMMENT '回调名称（快照）',

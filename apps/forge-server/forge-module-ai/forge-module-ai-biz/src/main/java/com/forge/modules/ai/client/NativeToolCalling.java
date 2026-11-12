@@ -17,8 +17,10 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.MessageAggregator;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -86,7 +88,7 @@ public class NativeToolCalling {
         response.setModelName(model.getModelName());
         try {
             ChatModel chatModel = modelFactory.get(model);
-            List<org.springframework.ai.tool.ToolCallback> callbacks = new ArrayList<>();
+            List<ToolCallback> callbacks = new ArrayList<>();
             for (AgentTool tool : toolRegistry.all()) {
                 if (allowedTools == null || allowedTools.isEmpty() || allowedTools.contains(tool.name())) {
                     callbacks.add(new AgentToolCallback(tool, objectMapper));
@@ -105,13 +107,14 @@ public class NativeToolCalling {
 
             long timeout = aiModuleConfig.getClient().getDecisionTimeout() == null
                     ? 45000L : aiModuleConfig.getClient().getDecisionTimeout();
-            // 临时诊断：定位 native 决策 45s 超时问题（确认运行时模型配置与工具注入数量）
-            log.info("[native-diag] model={}, thinkingDisabled={}, decisionTimeout={}ms, tools={}",
+            // 原生决策调用追踪（debug 级：运行时模型配置与工具注入数量）
+            log.debug("[native-diag] model={}, thinkingDisabled={}, decisionTimeout={}ms, tools={}",
                     model.getModelName(), model.getThinkingDisabled(), timeout, callbacks.size());
             StringBuilder content = new StringBuilder();
-            AtomicReference<org.springframework.ai.chat.model.ChatResponse> aggregated = new AtomicReference<>();
+            // FQN-OK 原因：org.springframework.ai.chat.model.ChatResponse 与 com.forge.modules.ai.dto.response.ChatResponse 同名冲突，无法 import 简名
+            AtomicReference<org.springframework.ai.chat.model.ChatResponse> aggregated = new AtomicReference<>(); // FQN-OK
             MessageAggregator aggregator = new MessageAggregator();
-            org.springframework.ai.chat.model.ChatResponse aiResponse = aggregator.aggregate(
+            org.springframework.ai.chat.model.ChatResponse aiResponse = aggregator.aggregate( // FQN-OK
                             chatModel.stream(prompt).doOnNext(chunk -> {
                                 String delta = chunk.getResult() == null || chunk.getResult().getOutput() == null
                                         ? null : chunk.getResult().getOutput().getText();
@@ -122,9 +125,9 @@ public class NativeToolCalling {
                                     }
                                 }
                             }), aggregated::set)
-                    .blockLast(java.time.Duration.ofMillis(timeout));
+                    .blockLast(Duration.ofMillis(timeout));
 
-            org.springframework.ai.chat.model.ChatResponse source =
+            org.springframework.ai.chat.model.ChatResponse source = // FQN-OK
                     aggregated.get() != null ? aggregated.get() : aiResponse;
             AssistantMessage output = source != null && source.getResult() != null
                     ? source.getResult().getOutput() : null;

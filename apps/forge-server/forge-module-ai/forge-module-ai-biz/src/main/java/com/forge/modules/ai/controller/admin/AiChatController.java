@@ -1,5 +1,6 @@
 package com.forge.modules.ai.controller.admin;
 
+import tools.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
@@ -22,6 +23,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -36,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class AiChatController {
 
     private final AiChatService aiChatService;
+    private final ObjectMapper objectMapper;
 
     @Operation(summary = "创建新对话")
     @PostMapping("/conversation")
@@ -134,9 +137,12 @@ public class AiChatController {
                             }
                         },
                         error -> {
+                            // 详细原因仅记日志（error.getMessage() 可能含内部实现细节，不回传防泄露）；
+                            // 错误帧经 ObjectMapper 序列化（转义天然正确），前端解析字段 error/message 不变
+                            log.warn("AI 流式响应异常: {}", String.valueOf(error.getMessage()));
                             try {
-                                emitter.send("{\"error\":true,\"message\":\"" +
-                                        String.valueOf(error.getMessage()).replace("\"", "'") + "\"}");
+                                emitter.send(objectMapper.writeValueAsString(
+                                        Map.of("error", true, "message", "AI 服务异常，请稍后重试")));
                             } catch (Exception ignored) {
                                 // 发送失败时仅完成
                             }

@@ -1,10 +1,19 @@
 package com.forge.modules.system.quartz.service;
 
+import tools.jackson.databind.ObjectMapper;
 import com.forge.modules.system.entity.SysJob;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -22,6 +31,8 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class JobNotifyService {
+
+    private final ObjectMapper objectMapper;
 
     /**
      * 任务执行完成后发送通知
@@ -60,7 +71,7 @@ public class JobNotifyService {
 
         // 邮件通知
         @SuppressWarnings("unchecked")
-        java.util.List<String> emails = (java.util.List<String>) config.get("emails");
+        List<String> emails = (List<String>) config.get("emails");
         if (emails != null && !emails.isEmpty()) {
             sendEmailNotification(job, message, emails);
         }
@@ -89,7 +100,7 @@ public class JobNotifyService {
      * 发送邮件通知
      * <p>当前为日志占位实现，后续可对接邮件服务。</p>
      */
-    private void sendEmailNotification(SysJob job, String message, java.util.List<String> emails) {
+    private void sendEmailNotification(SysJob job, String message, List<String> emails) {
         // TODO: 对接邮件服务后实现实际发送
         log.info("[任务通知] 邮件通知: to={}, subject=定时任务执行通知 - {}, body={}",
                 emails, job.getJobName(), message);
@@ -103,27 +114,26 @@ public class JobNotifyService {
                                          long duration, String webhookUrl) {
         try {
             // 使用简单的 URL 连接发送，避免引入额外 HTTP 客户端依赖
-            java.net.URL url = java.net.URI.create(webhookUrl).toURL();
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            URL url = URI.create(webhookUrl).toURL();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
             conn.setDoOutput(true);
 
-            String payload = """
-                    {"jobId":%d,"jobName":"%s","status":"%s","duration":%d,"message":"%s","timestamp":"%s"}
-                    """.formatted(
-                    job.getId(),
-                    job.getJobName(),
-                    success ? "SUCCESS" : "FAIL",
-                    duration,
-                    message.replace("\"", "\\\""),
-                    java.time.LocalDateTime.now().toString()
-            );
+            // payload 经 ObjectMapper 序列化（jobName/message 含引号、换行等字符时转义天然正确）
+            Map<String, Object> payloadMap = new LinkedHashMap<>();
+            payloadMap.put("jobId", job.getId());
+            payloadMap.put("jobName", job.getJobName());
+            payloadMap.put("status", success ? "SUCCESS" : "FAIL");
+            payloadMap.put("duration", duration);
+            payloadMap.put("message", message);
+            payloadMap.put("timestamp", LocalDateTime.now().toString());
+            String payload = objectMapper.writeValueAsString(payloadMap);
 
-            try (java.io.OutputStream os = conn.getOutputStream()) {
-                os.write(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(payload.getBytes(StandardCharsets.UTF_8));
             }
 
             int responseCode = conn.getResponseCode();

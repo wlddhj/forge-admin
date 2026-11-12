@@ -3,6 +3,7 @@ package com.forge.modules.workflow.controller.admin;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
+import com.forge.framework.web.annotation.OperationLog;
 import com.forge.modules.workflow.dto.callback.CallbackRecordResponse;
 import com.forge.modules.workflow.dto.callback.CallbackRequest;
 import com.forge.modules.workflow.dto.callback.CallbackResponse;
@@ -49,6 +50,7 @@ public class WfBusinessCallbackController {
     @Operation(summary = "新增回调配置")
     @PostMapping
     @PreAuthorize("hasAuthority('workflow:callback:add')")
+    @OperationLog(title = "业务回调管理", businessType = OperationLog.BusinessType.INSERT)
     public Result<Void> create(@Valid @RequestBody CallbackRequest request) {
         callbackService.createCallback(request);
         return Result.success(null);
@@ -57,6 +59,7 @@ public class WfBusinessCallbackController {
     @Operation(summary = "编辑回调配置")
     @PutMapping
     @PreAuthorize("hasAuthority('workflow:callback:edit')")
+    @OperationLog(title = "业务回调管理", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> update(@Valid @RequestBody CallbackRequest request) {
         callbackService.updateCallback(request);
         return Result.success(null);
@@ -65,6 +68,7 @@ public class WfBusinessCallbackController {
     @Operation(summary = "删除回调配置")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('workflow:callback:delete')")
+    @OperationLog(title = "业务回调管理", businessType = OperationLog.BusinessType.DELETE)
     public Result<Void> delete(@PathVariable Long id) {
         callbackService.deleteCallback(id);
         return Result.success(null);
@@ -84,6 +88,7 @@ public class WfBusinessCallbackController {
     @Operation(summary = "重发失败的投递记录")
     @PostMapping("/record/{recordId}/resend")
     @PreAuthorize("hasAuthority('workflow:callback:edit')")
+    @OperationLog(title = "业务回调管理", businessType = OperationLog.BusinessType.OTHER)
     public Result<Void> resend(@PathVariable Long recordId) {
         callbackService.resendRecord(recordId);
         return Result.success(null);

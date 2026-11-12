@@ -35,7 +35,6 @@ public class AiModuleConfig {
         /**
          * 连接超时时间（毫秒）
          */
-        private Integer connectTimeout = 5000;
 
         /**
          * 读超时时间（毫秒）

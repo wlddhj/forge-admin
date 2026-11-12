@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.modules.workflow.dto.callback.CallbackRecordResponse;
 import com.forge.modules.workflow.dto.callback.CallbackRequest;
 import com.forge.modules.workflow.dto.callback.CallbackResponse;
-import com.forge.modules.workflow.entity.WfCallbackRecord;
 
 /**
  * 业务回调管理服务接口
@@ -42,9 +41,4 @@ public interface WfBusinessCallbackService {
      * 手动重发失败的投递记录（SUCCESS 记录拒绝）
      */
     void resendRecord(Long recordId);
-
-    /**
-     * 内部：按 id 取投递记录实体（重发用）
-     */
-    WfCallbackRecord getRecord(Long recordId);
 }

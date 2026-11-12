@@ -82,24 +82,4 @@ public class BpmTaskCandidateInvoker {
     public List<BpmTaskCandidateStrategy> getStrategyList() {
         return new ArrayList<>(strategyMap.values());
     }
-
-    /**
-     * 将候选人用户ID集合转换为 FlowLong TaskActor 列表
-     *
-     * @param userIds      用户ID集合
-     * @param identityService 身份服务
-     * @return TaskActor 列表
-     */
-    public List<com.aizuda.bpm.engine.entity.FlwTaskActor> convertToTaskActors(Set<Long> userIds,
-                                                                                com.forge.modules.workflow.identity.FlowLongIdentityService identityService) {
-        return userIds.stream()
-                .map(userId -> {
-                    com.aizuda.bpm.engine.entity.FlwTaskActor actor = new com.aizuda.bpm.engine.entity.FlwTaskActor();
-                    actor.setActorId(String.valueOf(userId));
-                    actor.setActorName(identityService.getUserName(userId));
-                    actor.setActorType(0); // 用户类型
-                    return actor;
-                })
-                .collect(Collectors.toList());
-    }
 }

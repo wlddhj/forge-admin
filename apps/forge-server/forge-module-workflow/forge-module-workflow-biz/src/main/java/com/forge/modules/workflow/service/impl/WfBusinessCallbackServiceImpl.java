@@ -133,11 +133,6 @@ public class WfBusinessCallbackServiceImpl implements WfBusinessCallbackService 
                 record.getNodeKey(), record.getPayload());
     }
 
-    @Override
-    public WfCallbackRecord getRecord(Long recordId) {
-        return recordMapper.selectById(recordId);
-    }
-
     private void validateEvents(List<String> events) {
         if (events == null || events.isEmpty()) {
             throw new BusinessException(400, "至少订阅一个事件");

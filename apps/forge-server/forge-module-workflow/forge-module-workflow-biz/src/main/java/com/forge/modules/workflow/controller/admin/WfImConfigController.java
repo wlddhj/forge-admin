@@ -1,6 +1,7 @@
 package com.forge.modules.workflow.controller.admin;
 
 import com.forge.common.response.Result;
+import com.forge.framework.web.annotation.OperationLog;
 import com.forge.modules.workflow.dto.im.ImChannelConfigRequest;
 import com.forge.modules.workflow.dto.im.ImChannelConfigResponse;
 import com.forge.modules.workflow.im.ImChannelConfigService;
@@ -49,6 +50,7 @@ public class WfImConfigController {
     @Operation(summary = "保存渠道配置（upsert，secret 留空=保留原值）")
     @PutMapping
     @PreAuthorize("hasAuthority('workflow:im:config:edit')")
+    @OperationLog(title = "IM通知配置", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> save(@Valid @RequestBody ImChannelConfigRequest request) {
         configService.upsert(request);
         return Result.success();
@@ -57,6 +59,7 @@ public class WfImConfigController {
     @Operation(summary = "删除渠道配置")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('workflow:im:config:delete')")
+    @OperationLog(title = "IM通知配置", businessType = OperationLog.BusinessType.DELETE)
     public Result<Void> delete(@PathVariable Long id) {
         configService.deleteConfig(id);
         return Result.success();

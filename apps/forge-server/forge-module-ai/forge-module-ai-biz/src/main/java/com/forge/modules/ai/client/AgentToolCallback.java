@@ -6,6 +6,8 @@ import com.forge.modules.ai.agent.tools.AgentTool;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -30,21 +32,22 @@ public class AgentToolCallback implements ToolCallback {
     }
 
     /**
-     * parameterSpec（参数名→中文说明）生成 OpenAI tools 兼容的 JSON Schema（object + string 属性）
+     * parameterSpec（参数名→中文说明）生成 OpenAI tools 兼容的 JSON Schema（object + string 属性）。
+     * 经 ObjectMapper 序列化（键/值转义天然正确）；LinkedHashMap 容忍 null 键值且保持字段序。
      */
-    static String fromParameterSpec(Map<String, String> parameterSpec) {
-        StringBuilder sb = new StringBuilder("{\"type\":\"object\",\"properties\":{");
-        boolean first = true;
+    String fromParameterSpec(Map<String, String> parameterSpec) {
+        Map<String, Object> properties = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : parameterSpec.entrySet()) {
-            if (!first) {
-                sb.append(',');
-            }
-            first = false;
-            sb.append("\"").append(entry.getKey()).append("\":{\"type\":\"string\",\"description\":\"")
-                    .append(entry.getValue().replace("\"", "'")).append("\"}");
+            Map<String, Object> property = new LinkedHashMap<>();
+            property.put("type", "string");
+            property.put("description", entry.getValue());
+            properties.put(entry.getKey(), property);
         }
-        sb.append("},\"required\":[]}");
-        return sb.toString();
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", properties);
+        schema.put("required", List.of());
+        return objectMapper.writeValueAsString(schema);
     }
 
     @Override
@@ -62,7 +65,9 @@ public class AgentToolCallback implements ToolCallback {
             Object result = agentTool.execute(args);
             return objectMapper.writeValueAsString(result == null ? Map.of() : result);
         } catch (Exception e) {
-            return "{\"error\":\"" + e.getMessage() + "\"}";
+            // 错误 JSON 同样经 ObjectMapper 序列化（message 转义天然正确）；
+            // String.valueOf 兜底 null message，避免 Map.of 空值 NPE
+            return objectMapper.writeValueAsString(Map.of("error", String.valueOf(e.getMessage())));
         }
     }
 }

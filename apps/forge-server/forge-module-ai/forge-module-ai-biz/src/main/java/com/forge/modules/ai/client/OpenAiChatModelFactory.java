@@ -1,5 +1,6 @@
 package com.forge.modules.ai.client;
 
+import tools.jackson.databind.ObjectMapper;
 import com.forge.framework.localcache.LocalCaches;
 import com.forge.modules.ai.config.AiModuleConfig;
 import com.forge.modules.ai.entity.AiModelConfig;
@@ -8,6 +9,10 @@ import com.openai.client.OpenAIClient;
 import com.openai.client.OpenAIClientAsync;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.Interceptor;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okio.Buffer;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.http.okhttp.OpenAiHttpClientBuilderCustomizer;
@@ -31,30 +36,29 @@ public class OpenAiChatModelFactory {
 
     private static final String DEFAULT_COMPLETIONS_PATH = "/chat/completions";
 
-    private static final tools.jackson.databind.ObjectMapper OBJECT_MAPPER =
-            new tools.jackson.databind.ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
      * 非流式请求 body 注入 thinking.type=disabled（智谱 GLM-4.x 等思考类模型关闭思考，
      * 防止思考耗尽 max_tokens 导致 content 为空）。Spring AI 2.0 走 OkHttp，平移为网络层拦截器。
      */
-    private static final okhttp3.Interceptor THINKING_DISABLED_INTERCEPTOR = chain -> {
-        okhttp3.Request request = chain.request();
-        okhttp3.RequestBody body = request.body();
+    private static final Interceptor THINKING_DISABLED_INTERCEPTOR = chain -> {
+        Request request = chain.request();
+        RequestBody body = request.body();
         if (body != null) {
             try {
-                okio.Buffer buffer = new okio.Buffer();
+                Buffer buffer = new Buffer();
                 body.writeTo(buffer);
                 byte[] raw = buffer.readByteArray();
                 if (raw.length > 0) {
                     Map<String, Object> payload = OBJECT_MAPPER.readValue(raw, Map.class);
                     payload.put("thinking", Map.of("type", "disabled"));
                     byte[] rewritten = OBJECT_MAPPER.writeValueAsBytes(payload);
-                    okhttp3.Request newRequest = request.newBuilder()
-                            .method(request.method(), okhttp3.RequestBody.create(body.contentType(), rewritten))
+                    Request newRequest = request.newBuilder()
+                            .method(request.method(), RequestBody.create(body.contentType(), rewritten))
                             .build();
-                    // 临时诊断：确认拦截器在流式路径触发（定位 native 决策 45s 超时问题，可降级 log.debug）
-                    log.info("[thinking-disabled] 请求体已改写 ({}字节)", raw.length);
+                    // 拦截器触发追踪（debug 级，排查流式请求体改写问题时开启）
+                    log.debug("[thinking-disabled] 请求体已改写 ({}字节)", raw.length);
                     return chain.proceed(newRequest);
                 }
             } catch (Exception e) {
@@ -130,7 +134,7 @@ public class OpenAiChatModelFactory {
             options.maxTokens(maxTokens);
         }
 
-        // 临时诊断：thinkingDisabled 与拦截器挂载状态（定位 native 决策 45s 超时问题）
+        // thinkingDisabled 与拦截器挂载状态（实例构建可观测性）
         log.info("构建 LLM 模型实例: {} ({}), thinkingDisabled={}, 思考关闭拦截器={}", config.getModelName(),
                 config.getProvider(), config.getThinkingDisabled(), customizers.isEmpty() ? "未挂载" : "已挂载");
         return OpenAiChatModel.builder()
