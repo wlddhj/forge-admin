@@ -1,6 +1,6 @@
 package com.forge.modules.workflow.framework.candidate.strategy;
 
-import com.forge.framework.tenant.core.context.TenantContextHolder;
+import com.forge.modules.workflow.framework.WorkflowSupport;
 import com.forge.common.utils.UserContext;
 import com.forge.modules.system.entity.SysDept;
 import com.forge.modules.system.entity.SysUser;
@@ -75,7 +75,7 @@ public class DeptLeaderMultiStrategy implements BpmTaskCandidateStrategy {
             if (dept == null) break;
 
             if (dept.getLeader() != null && !dept.getLeader().isEmpty()) {
-                SysUser leaderUser = sysUserMapper.selectByUsernameSimple(resolveTenantId(), dept.getLeader());
+                SysUser leaderUser = sysUserMapper.selectByUsernameSimple(WorkflowSupport.resolveCandidateTenantId(getClass().getSimpleName()), dept.getLeader());
                 if (leaderUser != null) {
                     leaders.add(leaderUser.getId());
                 }
@@ -88,17 +88,4 @@ public class DeptLeaderMultiStrategy implements BpmTaskCandidateStrategy {
         return leaders;
     }
 
-    /**
-     * 候选人查询租户解析（评审 §4.5-P1#5）：由 ForgeTaskActorProvider 以实例行租户
-     * 快照包裹注入，本方法读上下文；无租户来源时 fail-closed 返回 null（调用方
-     * 返回空集走父类默认兜底，绝不猜租户）。历史形态 UserContext.get().getTenantId()
-     * 在异步链路（AI 审批推进/超时自动办理/AFTER_COMMIT 抄送）为 NPE。
-     */
-    protected Long resolveTenantId() {
-        Long tenantId = TenantContextHolder.getTenantId();
-        if (tenantId == null) {
-            log.warn("候选人查询缺少租户上下文，返回空集: strategy={}", getClass().getSimpleName());
-        }
-        return tenantId;
-    }
 }
