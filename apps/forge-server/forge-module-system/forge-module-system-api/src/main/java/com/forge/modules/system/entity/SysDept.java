@@ -2,6 +2,7 @@ package com.forge.modules.system.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
+import org.dromara.core.trans.vo.TransPojo;
 
 import java.time.LocalDateTime;
 
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("sys_dept")
-public class SysDept {
+public class SysDept implements TransPojo {
 
     @TableId(type = IdType.AUTO)
     private Long id;

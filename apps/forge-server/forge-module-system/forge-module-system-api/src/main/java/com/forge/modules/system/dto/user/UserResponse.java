@@ -1,7 +1,11 @@
 package com.forge.modules.system.dto.user;
 
+import com.forge.modules.system.entity.SysDept;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import org.dromara.core.trans.anno.Trans;
+import org.dromara.core.trans.constant.TransType;
+import org.dromara.core.trans.vo.TransPojo;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,7 +16,7 @@ import java.util.List;
  * @author standadmin
  */
 @Data
-public class UserResponse {
+public class UserResponse implements TransPojo {
 
     private Long id;
     private String username;
@@ -20,6 +24,7 @@ public class UserResponse {
     private String phone;
     private String email;
     private String avatar;
+    @Trans(type = TransType.SIMPLE, target = SysDept.class, fields = {"deptName"}, refs = {"deptName"})
     private Long deptId;
     private String deptName;
     private List<Long> positionIds;

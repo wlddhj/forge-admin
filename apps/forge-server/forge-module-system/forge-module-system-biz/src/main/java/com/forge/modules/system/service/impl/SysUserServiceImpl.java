@@ -440,12 +440,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         UserResponse response = new UserResponse();
         BeanUtil.copyProperties(user, response);
         // 查询并设置部门名称
-        if (user.getDeptId() != null) {
-            SysDept dept = sysDeptService.getById(user.getDeptId());
-            if (dept != null) {
-                response.setDeptName(dept.getDeptName());
-            }
-        }
+//        if (user.getDeptId() != null) {
+//            SysDept dept = sysDeptService.getById(user.getDeptId());
+//            if (dept != null) {
+//                response.setDeptName(dept.getDeptName());
+//            }
+//        }
         // 查询并设置角色名称
         List<String> roleNames = sysUserMapper.selectRoleNamesByUserId(user.getId());
         response.setRoleNames(roleNames);

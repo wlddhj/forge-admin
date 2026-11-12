@@ -1,6 +1,7 @@
 package com.forge.modules.workflow.dto.instance;
 
 import lombok.Data;
+import org.dromara.core.trans.vo.TransPojo;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,7 +12,7 @@ import java.util.List;
  * @author forge-admin
  */
 @Data
-public class ProcessInstanceResponse {
+public class ProcessInstanceResponse implements TransPojo {
 
     /**
      * 流程实例ID
