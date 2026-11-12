@@ -6,35 +6,39 @@ import com.aizuda.bpm.engine.core.enums.TaskEventType;
 import com.aizuda.bpm.engine.entity.FlwInstance;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
-import com.aizuda.bpm.engine.model.NodeModel;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisTaskActorMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwInstanceMapper;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.forge.framework.web.websocket.NotificationMessage;
-import com.forge.framework.web.websocket.NotificationService;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
+import com.forge.modules.workflow.listener.event.TaskNotificationEvent;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Supplier;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * 任务通知补齐单元测试：驳回→发起人、撤回→原处理人、完成→发起人
+ * 任务通知补齐单元测试：驳回→发起人、撤回→原处理人、完成→发起人。
+ * 通知事件化（评审 §4.4-W1-P1#3 扩展）后断言发布的事件字段（AFTER_COMMIT
+ * 监听器 TaskNotifyEventHandler 另有单测）。
  */
 class TaskNotificationListenerTest {
 
-    private NotificationService notificationService;
+    private ApplicationEventPublisher eventPublisher;
     private FlwInstanceMapper instanceMapper;
     private FlwHisTaskActorMapper hisTaskActorMapper;
     private TaskNotificationListener listener;
@@ -47,11 +51,10 @@ class TaskNotificationListenerTest {
 
     @BeforeEach
     void setUp() {
-        notificationService = mock(NotificationService.class);
+        eventPublisher = mock(ApplicationEventPublisher.class);
         instanceMapper = mock(FlwInstanceMapper.class);
         hisTaskActorMapper = mock(FlwHisTaskActorMapper.class);
-        listener = new TaskNotificationListener(notificationService,
-                mock(FlowLongIdentityService.class), mock(ApplicationEventPublisher.class),
+        listener = new TaskNotificationListener(mock(FlowLongIdentityService.class), eventPublisher,
                 instanceMapper, hisTaskActorMapper);
     }
 
@@ -61,6 +64,12 @@ class TaskNotificationListenerTest {
         task.setInstanceId(100L);
         task.setTaskName("部门审批");
         return task;
+    }
+
+    private TaskNotificationEvent capturedEvent() {
+        ArgumentCaptor<TaskNotificationEvent> captor = ArgumentCaptor.forClass(TaskNotificationEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        return captor.getValue();
     }
 
     @Test
@@ -75,8 +84,9 @@ class TaskNotificationListenerTest {
         listener.notify(TaskEventType.reject, () -> task, List.of(), null,
                 new FlowCreator("2", "审批人乙"));
 
-        verify(notificationService).sendToUser(eq(1L), argThat(message ->
-                message != null && message.getContent().contains("审批人乙")));
+        TaskNotificationEvent event = capturedEvent();
+        assertEquals(List.of(1L), event.userIds());
+        assertTrue(event.content().contains("审批人乙"));
     }
 
     @Test
@@ -91,8 +101,8 @@ class TaskNotificationListenerTest {
         listener.notify(TaskEventType.complete, () -> task, List.of(), null,
                 new FlowCreator("2", "审批人乙"));
 
-        verify(notificationService, times(1)).sendToUser(anyLong(), any(NotificationMessage.class));
-        verify(notificationService).sendToUser(eq(1L), any(NotificationMessage.class));
+        TaskNotificationEvent event = capturedEvent();
+        assertEquals(List.of(1L), event.userIds(), "通知发起人而非操作人");
     }
 
     @Test
@@ -109,8 +119,9 @@ class TaskNotificationListenerTest {
         listener.notify(TaskEventType.withdraw, () -> task, null, null,
                 new FlowCreator("1", "发起人"));
 
-        verify(notificationService).sendToUser(eq(5L), argThat(message ->
-                message != null && message.getTitle().contains("撤回")));
+        TaskNotificationEvent event = capturedEvent();
+        assertEquals(List.of(5L), event.userIds());
+        assertTrue(event.title().contains("撤回"));
     }
 
     @Test
@@ -126,8 +137,9 @@ class TaskNotificationListenerTest {
         listener.notify(TaskEventType.delegateResolve, () -> task, List.of(restoredAssignor), null,
                 new FlowCreator("7", "被委派人"));
 
-        verify(notificationService).sendToUser(eq(6L), argThat(message ->
-                message != null && message.getContent().contains("被委派人")));
+        TaskNotificationEvent event = capturedEvent();
+        assertEquals(List.of(6L), event.userIds());
+        assertTrue(event.content().contains("被委派人"));
     }
 
     @Test
@@ -138,6 +150,6 @@ class TaskNotificationListenerTest {
 
         listener.notify(TaskEventType.withdraw, () -> task, null, null, null);
 
-        verify(notificationService, never()).sendToUser(anyLong(), any());
+        verify(eventPublisher, never()).publishEvent(any(TaskNotificationEvent.class));
     }
 }

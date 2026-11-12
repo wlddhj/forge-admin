@@ -60,7 +60,7 @@ class WfTaskServiceUrgeTest {
     private QueryService queryService;
     private FlowLongIdentityService identityService;
     private WfApprovalCommentMapper approvalCommentMapper;
-    private NotificationService notificationService;
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
     private FlowLongSchedulerProperties schedulerProperties;
     private FlwTaskMapper taskMapper;
     private WfUrgeService urgeService;
@@ -82,15 +82,15 @@ class WfTaskServiceUrgeTest {
         queryService = mock(QueryService.class);
         identityService = mock(FlowLongIdentityService.class);
         approvalCommentMapper = mock(WfApprovalCommentMapper.class);
-        notificationService = mock(NotificationService.class);
+        eventPublisher = mock(org.springframework.context.ApplicationEventPublisher.class);
         schedulerProperties = new FlowLongSchedulerProperties();
         schedulerProperties.setUrgeIntervalMinutes(30);
         taskMapper = mock(FlwTaskMapper.class);
 
         // 催办已收敛至 WfUrgeService：同一组 mock 装配真实催办服务，主类经其委托
-        // （断言对象 taskService/taskMapper/notificationService/approvalCommentMapper 均为同一实例）
+        // （断言对象 taskService/taskMapper/eventPublisher/approvalCommentMapper 均为同一实例）
         urgeService = new WfUrgeService(taskService, processService, queryService, identityService,
-                taskMapper, approvalCommentMapper, notificationService, schedulerProperties, new ObjectMapper());
+                taskMapper, approvalCommentMapper, eventPublisher, schedulerProperties, new ObjectMapper());
 
         service = new WfTaskServiceImpl(taskService, mock(RuntimeService.class),
                 queryService, identityService, approvalCommentMapper,
@@ -249,7 +249,7 @@ class WfTaskServiceUrgeTest {
             assertEquals(400, ex.getCode());
             assertTrue(ex.getMessage().contains("催办过于频繁"));
         }
-        verify(notificationService, never()).sendToUser(anyLong(), any());
+        verify(eventPublisher, never()).publishEvent(any(com.forge.modules.workflow.listener.event.TaskNotificationEvent.class));
         verify(approvalCommentMapper, never()).insert(any(WfApprovalComment.class));
     }
 
@@ -279,11 +279,15 @@ class WfTaskServiceUrgeTest {
             service.urgeInstance(String.valueOf(INSTANCE_ID), "今天必须处理");
         }
 
-        // 仅用户参与者收到通知（角色池不直接推送）
-        verify(notificationService).sendToUser(eq(2L), argThat(message ->
-                message != null && message.getTitle().contains("催办")
-                        && message.getContent().contains("今天必须处理")));
-        verify(notificationService, times(1)).sendToUser(anyLong(), any());
+        // 仅用户参与者收到通知（角色池不直接推送）：断言发布的事件字段
+        ArgumentCaptor<com.forge.modules.workflow.listener.event.TaskNotificationEvent> eventCaptor =
+                ArgumentCaptor.forClass(com.forge.modules.workflow.listener.event.TaskNotificationEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        com.forge.modules.workflow.listener.event.TaskNotificationEvent event = eventCaptor.getValue();
+        assertEquals(List.of(2L), event.userIds(), "仅用户参与者进入通知名单（角色池不直接推送）");
+        assertTrue(event.title().contains("催办"));
+        assertTrue(event.content().contains("今天必须处理"));
+        assertEquals(1000L, event.taskId());
 
         ArgumentCaptor<WfApprovalComment> commentCaptor = ArgumentCaptor.forClass(WfApprovalComment.class);
         verify(approvalCommentMapper).insert(commentCaptor.capture());
@@ -349,7 +353,7 @@ class WfTaskServiceUrgeTest {
         }
         // 未重复催办：不写标记、不通知、不留痕
         verify(taskService, never()).updateTaskById(any(), any());
-        verify(notificationService, never()).sendToUser(anyLong(), any());
+        verify(eventPublisher, never()).publishEvent(any(com.forge.modules.workflow.listener.event.TaskNotificationEvent.class));
         verify(approvalCommentMapper, never()).insert(any(WfApprovalComment.class));
     }
 
@@ -409,7 +413,7 @@ class WfTaskServiceUrgeTest {
             assertTrue(ex.getMessage().contains("无待审批任务"));
         }
         verify(taskService, never()).updateTaskById(any(), any());
-        verify(notificationService, never()).sendToUser(anyLong(), any());
+        verify(eventPublisher, never()).publishEvent(any(com.forge.modules.workflow.listener.event.TaskNotificationEvent.class));
         verify(approvalCommentMapper, never()).insert(any(WfApprovalComment.class));
     }
 }

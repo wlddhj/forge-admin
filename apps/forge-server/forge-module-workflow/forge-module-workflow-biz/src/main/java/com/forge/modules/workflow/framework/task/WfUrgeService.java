@@ -16,8 +16,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
 import com.forge.common.utils.UserContext;
-import com.forge.framework.web.websocket.NotificationMessage;
-import com.forge.framework.web.websocket.NotificationService;
 import com.forge.modules.workflow.config.FlowLongSchedulerProperties;
 import com.forge.modules.workflow.entity.WfApprovalComment;
 import com.forge.modules.workflow.framework.ApprovalActionTypeEnum;
@@ -27,6 +25,7 @@ import com.forge.modules.workflow.mapper.WfApprovalCommentMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
@@ -58,7 +57,7 @@ public class WfUrgeService {
     private final FlowLongIdentityService identityService;
     private final FlwTaskMapper taskMapper;
     private final WfApprovalCommentMapper approvalCommentMapper;
-    private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
     private final FlowLongSchedulerProperties schedulerProperties;
     private final ObjectMapper objectMapper;
 
@@ -186,12 +185,11 @@ public class WfUrgeService {
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        for (Long userId : actorUserIds) {
-            try {
-                notificationService.sendToUser(userId, NotificationMessage.workflow(title, content, task.getId()));
-            } catch (Exception e) {
-                log.warn("催办通知发送失败: taskId={}, userId={}", task.getId(), userId, e);
-            }
+        // 通知事件化（评审 §4.4-W1-P1#3）：事务内发布、AFTER_COMMIT 提交后由
+        // TaskNotifyEventHandler 发送——回滚不产生幽灵通知，慢发送不占用事务线程
+        if (!actorUserIds.isEmpty()) {
+            eventPublisher.publishEvent(new com.forge.modules.workflow.listener.event.TaskNotificationEvent(
+                    task.getId(), task.getInstanceId(), List.copyOf(actorUserIds), title, content));
         }
 
         // 审批意见留痕（挂在催办的任务上）

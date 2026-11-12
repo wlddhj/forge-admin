@@ -48,18 +48,15 @@ import java.util.stream.Collectors;
 @Service
 public class TaskNotificationListener {
 
-    private final NotificationService notificationService;
     private final FlowLongIdentityService identityService;
     private final ApplicationEventPublisher eventPublisher;
     private final FlwInstanceMapper instanceMapper;
     private final FlwHisTaskActorMapper hisTaskActorMapper;
 
-    public TaskNotificationListener(NotificationService notificationService,
-                                     FlowLongIdentityService identityService,
+    public TaskNotificationListener(FlowLongIdentityService identityService,
                                      ApplicationEventPublisher eventPublisher,
                                      FlwInstanceMapper instanceMapper,
                                      FlwHisTaskActorMapper hisTaskActorMapper) {
-        this.notificationService = notificationService;
         this.identityService = identityService;
         this.eventPublisher = eventPublisher;
         this.instanceMapper = instanceMapper;
@@ -244,7 +241,9 @@ public class TaskNotificationListener {
                 return;
             }
             Long initiatorId = Long.parseLong(instance.getCreateId());
-            notificationService.sendToUser(initiatorId, NotificationMessage.workflow(title, content, task.getId()));
+            // 通知事件化（与催办同款 AFTER_COMMIT 模式）：事务内发布、提交后发送
+            eventPublisher.publishEvent(new com.forge.modules.workflow.listener.event.TaskNotificationEvent(
+                    task.getId(), task.getInstanceId(), List.of(initiatorId), title, content));
         } catch (NumberFormatException e) {
             log.warn("发起人ID不可解析，跳过通知: instanceId={}", task.getInstanceId());
         } catch (Exception e) {
@@ -288,12 +287,12 @@ public class TaskNotificationListener {
                 return;
             }
 
-            for (Long userId : candidateUserIds) {
-                NotificationMessage message = NotificationMessage.workflow(title, content, task.getId());
-                notificationService.sendToUser(userId, message);
-            }
+            // 通知事件化（与催办同款 AFTER_COMMIT 模式）：事务内发布、提交后由
+            // TaskNotifyEventHandler 逐用户发送
+            eventPublisher.publishEvent(new com.forge.modules.workflow.listener.event.TaskNotificationEvent(
+                    task.getId(), task.getInstanceId(), List.copyOf(candidateUserIds), title, content));
 
-            log.info("发送通知: taskId={}, title={}, recipients={}", task.getId(), title, candidateUserIds);
+            log.info("发送通知事件: taskId={}, title={}, recipients={}", task.getId(), title, candidateUserIds);
         } catch (Exception e) {
             log.error("发送通知失败: taskId={}, error={}", task.getId(), e.getMessage(), e);
         }
