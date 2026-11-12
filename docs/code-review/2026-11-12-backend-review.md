@@ -192,7 +192,7 @@
 - **AI 决策超时三重叠加**（AiApprovalExecutor.java:111、WfAiRoutingServiceImpl.java:135）— 见 §2-10。
 - **RedisDistributedLock 误删他人锁**（RedisDistributedLock.java:88-98）— unlock 只校验共享前缀不校验持有者令牌；Job 跑超 30s 锁过期后 finally 删掉的是别的实例的锁 → 重复自动办理。→ Lua `GET==token then DEL`。
 - **两个 Quartz Job 多租户每轮 NPE**（WorkflowTimeoutJob.java:58-83、WorkflowReminderJob.java:61-86）— 见 §3-2。
-- **4 个候选人策略依赖 Web ThreadLocal（UserContext）**（DeptLeader/StartUserDeptLeader/Expression 等 :52-70,195-339）— 异步链路（AI 审批推进/超时自动办理/AFTER_COMMIT 抄送）NPE 上抛打断流转或静默空集错配。→ tenant 从 TaskContext 传入。
+- **4 个候选人策略依赖 Web ThreadLocal（UserContext）**（DeptLeader/StartUserDeptLeader/Expression 等）— ✅ 已修复（2026-11-12 candidate-strategy-tenant）：Provider 以实例行租户快照包裹全部策略执行+策略取值改 TenantContextHolder fail-closed+异常边界统一空集兜底；连带 P1#6 getStartUserId 发起人修正（第二级起 36/37 号策略错配上一审批人的必现 bug）。原"TaskContext 传入"方案不可行（接口属引擎），改汇聚点注入。
 - **TaskContext.getStartUserId() 返回操作者非发起人**（ForgeTaskActorProvider.java:212-222）— 第二级起"发起人自己(36)/发起人部门负责人(37)/${initiator}"节点全部把上一审批人当发起人。→ 改 `execution.getFlwInstance().getCreateId()`。
 - **审批人自选策略双重失效**（ApproveUserSelectStrategy.java:44、ForgeTaskActorProvider.java:192-194）— 变量全仓无写入方 + `getTaskKey()` 恒 null 拼出 `"NEXT_null_..."` → 功能名存实亡；发起人自选(35)靠引擎旁路侥幸工作。→ 补 nodeKey+提交 API 入参，或删除选项。
 

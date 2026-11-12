@@ -1,5 +1,6 @@
 package com.forge.modules.workflow.framework.candidate.strategy;
 
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import cn.hutool.core.util.StrUtil;
 import com.forge.common.utils.UserContext;
 import com.forge.modules.system.entity.SysDept;
@@ -192,7 +193,7 @@ public class ExpressionCandidateStrategy implements BpmTaskCandidateStrategy {
             return Collections.emptySet();
         }
 
-        SysUser leaderUser = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), dept.getLeader());
+        SysUser leaderUser = sysUserMapper.selectByUsernameSimple(resolveTenantId(), dept.getLeader());
         if (leaderUser != null) {
             log.debug("表达式解析发起人部门负责人: startUserId={}, deptId={}, leaderId={}",
                     startUserId, startUser.getDeptId(), leaderUser.getId());
@@ -282,7 +283,7 @@ public class ExpressionCandidateStrategy implements BpmTaskCandidateStrategy {
                 return Long.parseLong(strValue);
             }
             // 尝试用户名查找
-            SysUser user = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), strValue);
+            SysUser user = sysUserMapper.selectByUsernameSimple(resolveTenantId(), strValue);
             if (user != null) {
                 return user.getId();
             }
@@ -326,7 +327,7 @@ public class ExpressionCandidateStrategy implements BpmTaskCandidateStrategy {
                         userIds.add(Long.parseLong(trimmedPart));
                     } else {
                         // 尝试用户名查找
-                        SysUser user = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), trimmedPart);
+                        SysUser user = sysUserMapper.selectByUsernameSimple(resolveTenantId(), trimmedPart);
                         if (user != null) {
                             userIds.add(user.getId());
                         }
@@ -336,7 +337,7 @@ public class ExpressionCandidateStrategy implements BpmTaskCandidateStrategy {
             }
 
             // 单个用户名
-            SysUser user = sysUserMapper.selectByUsernameSimple(UserContext.get().getTenantId(), strValue);
+            SysUser user = sysUserMapper.selectByUsernameSimple(resolveTenantId(), strValue);
             if (user != null) {
                 return Set.of(user.getId());
             }
@@ -355,5 +356,19 @@ public class ExpressionCandidateStrategy implements BpmTaskCandidateStrategy {
         }
 
         return Collections.emptySet();
+    }
+
+    /**
+     * 候选人查询租户解析（评审 §4.5-P1#5）：由 ForgeTaskActorProvider 以实例行租户
+     * 快照包裹注入，本方法读上下文；无租户来源时 fail-closed 返回 null（调用方
+     * 返回空集走父类默认兜底，绝不猜租户）。历史形态 UserContext.get().getTenantId()
+     * 在异步链路（AI 审批推进/超时自动办理/AFTER_COMMIT 抄送）为 NPE。
+     */
+    protected Long resolveTenantId() {
+        Long tenantId = TenantContextHolder.getTenantId();
+        if (tenantId == null) {
+            log.warn("候选人查询缺少租户上下文，返回空集: strategy={}", getClass().getSimpleName());
+        }
+        return tenantId;
     }
 }

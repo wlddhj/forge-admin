@@ -8,6 +8,7 @@ import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.aizuda.bpm.engine.impl.GeneralTaskActorProvider;
 import com.aizuda.bpm.engine.model.NodeAssignee;
 import com.aizuda.bpm.engine.model.NodeModel;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.framework.candidate.BpmTaskCandidateInvoker;
 import com.forge.modules.workflow.framework.candidate.BpmTaskCandidateStrategy;
@@ -100,22 +101,40 @@ public class ForgeTaskActorProvider extends GeneralTaskActorProvider {
         log.info("候选人策略: strategyCode={}, param={}", strategyCode, param);
 
         if (strategyCode != null) {
-            // 使用候选人策略计算用户
-            BpmTaskCandidateStrategy.TaskContext taskContext = createTaskContext(execution);
-            Set<Long> userIds = candidateInvoker.calculateUsers(strategyCode, param, taskContext);
+            // 使用候选人策略计算用户。
+            // 租户注入（评审 §4.5-P1#5）：策略经 sysUserMapper 按租户查询，此前依赖请求线程
+            // UserContext/租户上下文——AI 审批推进/超时自动办理/AFTER_COMMIT 抄送等异步链路
+            // 无该上下文，NPE 或错配。此处以实例行租户（权威来源）快照包裹全部策略执行，
+            // web 链路（上下文已有租户）为同值 no-op
+            Long instanceTenantId = parseTenantId(execution.getFlwInstance() != null
+                    ? execution.getFlwInstance().getTenantId() : null);
+            Long previousTenantId = TenantContextHolder.getTenantId();
+            if (instanceTenantId != null) {
+                TenantContextHolder.setTenantId(instanceTenantId);
+            }
+            try {
+                BpmTaskCandidateStrategy.TaskContext taskContext = createTaskContext(execution);
+                Set<Long> userIds = candidateInvoker.calculateUsers(strategyCode, param, taskContext);
 
-            log.info("候选人计算结果: userIds={}", userIds);
+                log.info("候选人计算结果: userIds={}", userIds);
 
-            if (!userIds.isEmpty()) {
-                // 转换为 FlowLong 任务参与者
-                List<FlwTaskActor> actors = userIds.stream()
-                        .map(userId -> {
-                            String userName = identityService.getUserName(userId);
-                            return FlwTaskActor.ofFlowCreator(FlowCreatorFactory.user(userId, userName));
-                        })
-                        .collect(Collectors.toList());
-                log.info("生成任务参与者: actors.size={}", actors.size());
-                return actors;
+                if (!userIds.isEmpty()) {
+                    // 转换为 FlowLong 任务参与者
+                    List<FlwTaskActor> actors = userIds.stream()
+                            .map(userId -> {
+                                String userName = identityService.getUserName(userId);
+                                return FlwTaskActor.ofFlowCreator(FlowCreatorFactory.user(userId, userName));
+                            })
+                            .collect(Collectors.toList());
+                    log.info("生成任务参与者: actors.size={}", actors.size());
+                    return actors;
+                }
+            } finally {
+                if (previousTenantId != null) {
+                    TenantContextHolder.setTenantId(previousTenantId);
+                } else {
+                    TenantContextHolder.clear();
+                }
             }
         }
 
@@ -178,6 +197,18 @@ public class ForgeTaskActorProvider extends GeneralTaskActorProvider {
         return null;
     }
 
+    /** 引擎实例行租户为 VARCHAR 数字串，转 Long；null/非数字返回 null（上下文不动） */
+    private Long parseTenantId(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(tenantId.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     /**
      * 创建任务上下文
      */
@@ -210,10 +241,12 @@ public class ForgeTaskActorProvider extends GeneralTaskActorProvider {
 
             @Override
             public Long getStartUserId() {
-                FlowCreator flowCreator = execution.getFlowCreator();
-                if (flowCreator != null && flowCreator.getCreateId() != null) {
+                // 发起人取实例行 createId（评审 §4.5-P1#6）：flowCreator 是"触发本次流转的
+                // 操作者"，仅发起时等于发起人——第二级起"发起人自己(36)/发起人部门负责人(37)/
+                // ${initiator}"节点此前会把上一环节审批人误当发起人
+                if (execution.getFlwInstance() != null && execution.getFlwInstance().getCreateId() != null) {
                     try {
-                        return Long.parseLong(flowCreator.getCreateId());
+                        return Long.parseLong(execution.getFlwInstance().getCreateId());
                     } catch (NumberFormatException e) {
                         return null;
                     }
