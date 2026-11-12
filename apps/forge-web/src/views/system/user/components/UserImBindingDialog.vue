@@ -13,7 +13,7 @@
       show-icon
       style="margin-bottom: 16px"
     />
-    <el-form v-loading="fetching" label-width="110px">
+    <el-form v-loading="fetching" label-width="130px">
       <el-form-item label="企业微信 userid">
         <el-input
           v-model="form.weworkUserid"

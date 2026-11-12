@@ -108,7 +108,10 @@
         <vxe-column field="name" title="模型名称" min-width="180" />
         <!-- 模型标识（桌面端） -->
         <vxe-column v-if="!isMobile" field="key" title="模型标识" min-width="150" />
-
+        <!-- 关联表单 -->
+        <vxe-column v-if="!isMobile" title="关联表单" field="formName" width="120">
+          <template #default="{ row }">{{ row.formName || '-' }}</template>
+        </vxe-column>
         <!-- 分类（显示分类名，未分类显示 -） -->
         <vxe-column v-if="!isMobile" title="分类" width="120">
           <template #default="{ row }">{{ row.categoryName || '-' }}</template>
@@ -125,10 +128,6 @@
           </template>
         </vxe-column>
 
-        <!-- 创建时间（桌面端） -->
-        <vxe-column v-if="!isMobile" field="createTime" title="创建时间" width="180">
-          <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
-        </vxe-column>
 
         <!-- 最后更新时间（桌面端） -->
         <vxe-column v-if="!isMobile" field="lastUpdateTime" title="更新时间" width="180">

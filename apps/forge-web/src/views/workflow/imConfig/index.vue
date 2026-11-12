@@ -105,7 +105,7 @@
 
     <!-- 新增/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px">
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="120px">
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="140px">
         <el-form-item label="渠道">
           <el-tag :type="formData.channel === 'wework' ? 'success' : 'primary'">
             {{ channelLabel(formData.channel) }}
