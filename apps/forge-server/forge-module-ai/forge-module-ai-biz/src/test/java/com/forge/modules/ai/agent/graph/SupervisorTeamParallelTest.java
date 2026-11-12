@@ -5,8 +5,12 @@ import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.ai.agent.AgentEvents;
 import com.forge.modules.ai.agent.AgentProperties;
+import com.forge.modules.ai.agent.kernel.AgentGraphContext;
 import com.forge.modules.ai.agent.kernel.AgentGraphRegistry;
 import com.forge.modules.ai.agent.kernel.AgentGraphRunner;
+import com.forge.modules.ai.agent.kernel.AgentGraphState;
+import com.forge.modules.ai.agent.kernel.MysqlCheckpointSaver;
+import com.forge.modules.ai.agent.kernel.RunScopedCache;
 import com.forge.modules.ai.agent.tools.AgentTool;
 import com.forge.modules.ai.agent.tools.ToolRegistry;
 import com.forge.modules.ai.client.LlmClient;
@@ -20,6 +24,7 @@ import com.forge.modules.ai.entity.AiAgentTeam;
 import com.forge.modules.ai.entity.AiAgentTeamMember;
 import com.forge.modules.ai.entity.AiAgentTodo;
 import com.forge.modules.ai.entity.AiModelConfig;
+import org.bsc.langgraph4j.action.AsyncNodeAction;
 import com.forge.modules.ai.mapper.AiAgentCheckpointMapper;
 import com.forge.modules.ai.mapper.AiAgentConfigMapper;
 import com.forge.modules.ai.mapper.AiAgentRunMapper;
@@ -28,6 +33,7 @@ import com.forge.modules.ai.mapper.AiAgentTeamMapper;
 import com.forge.modules.ai.mapper.AiAgentTeamMemberMapper;
 import com.forge.modules.ai.mapper.AiAgentTodoMapper;
 import com.forge.modules.ai.mapper.AiModelConfigMapper;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,18 +43,24 @@ import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.lang.reflect.Method;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -85,15 +97,19 @@ class SupervisorTeamParallelTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AgentProperties agentProperties = new AgentProperties();
-    private final ExecutorService agentExecutor = Executors.newFixedThreadPool(6);
+    private final ThreadPoolExecutor agentExecutor = new ThreadPoolExecutor(6, 6,
+            0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
     private AiAgentCheckpointMapper checkpointMapper;
     private ToolRegistry toolRegistry;
     private final AtomicInteger echoExecutions = new AtomicInteger();
     private final AtomicInteger riskExecutions = new AtomicInteger();
     private final Map<String, AtomicInteger> expertDecides = new ConcurrentHashMap<>();
+    /** expertPoolNode 提交的池线程上读到的租户（经 checkpoint loadDone 观测——runExpertSubgraph 首个动作） */
+    private final List<Long> expertPoolThreadTenants = new CopyOnWriteArrayList<>();
     private final List<AiAgentTodo> todos = new CopyOnWriteArrayList<>();
 
     private AgentGraphRunner runner;
+    private SupervisorTeamGraph teamGraph;
     private AiAgentTeam team;
     private List<AiAgentTeamMember> members;
 
@@ -113,7 +129,7 @@ class SupervisorTeamParallelTest {
         DecisionJsonParser parser = new DecisionJsonParser(objectMapper);
         MultimodalSupport multimodalSupport = new MultimodalSupport(llmClient, parser, agentProperties,
                 new com.forge.framework.localcache.LocalCaches(), com.forge.modules.ai.config.TestAiMetrics.noop());
-        SupervisorTeamGraph teamGraph = new SupervisorTeamGraph(llmClient, objectMapper, parser,
+        teamGraph = new SupervisorTeamGraph(llmClient, objectMapper, parser,
                 multimodalSupport, tableSchemaInspector,
                 new com.forge.modules.ai.agent.tools.TableColumnSchemaCache(
                         mock(javax.sql.DataSource.class), new com.forge.framework.localcache.LocalCaches()),
@@ -142,7 +158,7 @@ class SupervisorTeamParallelTest {
         lenient().when(modelConfigMapper.selectById(10L)).thenReturn(decisionModel);
         lenient().when(teamMapper.selectById(5L)).thenAnswer(inv -> team);
         lenient().when(teamMemberMapper.selectList(any())).thenAnswer(inv -> members);
-        doAnswer(inv -> {
+        lenient().doAnswer(inv -> {
             AiAgentRun run = inv.getArgument(0);
             run.setId(1L);
             return 1;
@@ -255,6 +271,77 @@ class SupervisorTeamParallelTest {
         assertEquals(AiAgentRun.STATUS_SUCCEEDED, run.getStatus());
         assertEquals("降级总结回答", run.getFinalAnswer());
         assertEquals(1, expertDecides.get("B").get(), "专家应已执行并产出汇报");
+    }
+
+    // ========== 场景 4：租户上下文显式传递（expertPoolNode 提交前快照） ==========
+
+    /**
+     * 节点级直调验证快照语义：node_async 在调用线程同步执行节点体（即"图线程"），
+     * 其租户快照须传递到 supplyAsync 提交的 agentExecutor 池线程（loadDone 在池线程读取），
+     * 任务结束 finally 清理不残留。注：完整运行时 langgraph4j 图驱动经 CompletableFuture.runAsync
+     * 落在 ForkJoinPool.commonPool（不继承调用线程租户），节点体租户由本快照 + 上游 TTL 共同保证。
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void 专家池子线程租户等于图线程租户且不泄漏() throws Exception {
+        TenantContextHolder.clear();
+        // 预热池线程（创建于无租户时）——排除 InheritableThreadLocal 继承假阳性：
+        // 子线程读到的租户只可能来自 expertPoolNode 提交前快照
+        agentExecutor.prestartAllCoreThreads();
+        TenantContextHolder.setTenantId(2L);
+        try {
+            CountDownLatch bothInFlight = new CountDownLatch(2);
+            stubLlm(bothInFlight, false);
+
+            AgentGraphContext ctx = new AgentGraphContext(agent(21L, "expertA", "专家A"),
+                    Map.of(), toolRegistry, event -> {
+                    }, new AtomicInteger());
+            ctx.setTeam(team);
+            ctx.setTeamMembers(members);
+            ctx.setRunId(1L);
+            ctx.setUserId(1L);
+            ctx.setRunCache(new RunScopedCache(agentConfigMapper, modelConfigMapper));
+            ctx.setSubSaverFactory(threadKey -> new MysqlCheckpointSaver(checkpointMapper, 1L, 1, true));
+
+            Map<String, Object> data = new HashMap<>();
+            data.put(AgentGraphState.DISPATCH_QUEUE, new ArrayList<>(List.of(
+                    dispatchOf(21L, "expertA", "任务A"), dispatchOf(22L, "expertB", "任务B"))));
+            data.put(AgentGraphState.EXPERT_ROUND, 1);
+            data.put(AgentGraphState.EXPERT_APPROVAL, "");
+            data.put(AgentGraphState.AGENT_REPORTS, new ArrayList<>());
+
+            Method node = SupervisorTeamGraph.class
+                    .getDeclaredMethod("expertPoolNode", AgentGraphContext.class);
+            node.setAccessible(true);
+            AsyncNodeAction<AgentGraphState> action =
+                    (AsyncNodeAction<AgentGraphState>) node.invoke(teamGraph, ctx);
+            Map<String, Object> update = action.apply(new AgentGraphState(data)).get(30, TimeUnit.SECONDS);
+
+            assertNotNull(update, "expertPoolNode 应正常返回更新");
+            assertEquals(2, ((List<?>) update.get(AgentGraphState.AGENT_REPORTS)).size(), "两专家均应产出汇报");
+            // 图线程（本测试线程）租户 2 经 expertPoolNode 快照传递到提交的池线程：
+            // runExpertSubgraph 首个动作 loadDone 在池线程读到 2
+            assertEquals(2, expertPoolThreadTenants.size(), "两个专家池线程均应执行 loadDone");
+            assertTrue(expertPoolThreadTenants.stream().allMatch(t -> Objects.equals(2L, t)),
+                    "专家池线程租户应等于图线程租户 2，实际: " + expertPoolThreadTenants);
+            // 泄漏检查：专家子图结束后，同池无上下文任务必须读到 null
+            assertNull(agentExecutor.submit(TenantContextHolder::getTenantId).get(10, TimeUnit.SECONDS),
+                    "池线程不得残留专家子图租户");
+        } finally {
+            TenantContextHolder.clear();
+        }
+    }
+
+    /** 构造与 addDispatch 同构的分派条目 */
+    private Map<String, Object> dispatchOf(Long agentId, String agentCode, String task) {
+        Map<String, Object> dispatch = new LinkedHashMap<>();
+        dispatch.put("agentId", agentId);
+        dispatch.put("agentCode", agentCode);
+        dispatch.put("agentName", agentCode);
+        dispatch.put("task", task);
+        dispatch.put("maxSteps", 4);
+        dispatch.put("allowedTools", List.of("echo_tool", "risk_tool"));
+        return dispatch;
     }
 
     // ========== LLM 桩 ==========
@@ -420,6 +507,8 @@ class SupervisorTeamParallelTest {
             return rows;
         });
         lenient().when(mapper.selectOne(any(Wrapper.class))).thenAnswer(inv -> {
+            // loadDone 仅由 runExpertSubgraph 在 expertPoolNode 提交的池线程调用——捕获该线程租户
+            expertPoolThreadTenants.add(TenantContextHolder.getTenantId());
             Wrapper<AiAgentCheckpoint> wrapper = inv.getArgument(0);
             return table.getOrDefault(threadIdOf(wrapper), List.of()).stream()
                     .filter(r -> "expert-done".equals(r.getCheckpointId()))

@@ -23,8 +23,12 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -50,11 +54,20 @@ public class CacheConfig implements CachingConfigurer {
     private static final long USER_AUTH_CACHE_TTL = 300;       // 用户认证上下文缓存 5 分钟（变更钩子删缓存为主，TTL 兜底）
 
     /**
+     * 默认不做租户前缀的缓存名（跨租户共享数据/共享表）：
+     * dictData/dictType/sysConfig/menu/dept 为全局共享配置；userAuth 必须共享（见下方注释）；
+     * fileConfig 对应 sys_file_config 共享表（在 tenant ignore-tables），前缀化会串出"首租户独占"
+     */
+    private static final Set<String> DEFAULT_IGNORE_CACHES =
+            Set.of("dictData", "dictType", "sysConfig", "menu", "dept", "userAuth", "fileConfig");
+
+    /**
      * Redis 缓存管理器
      * 使用专门的 ObjectMapper 配置类型信息，解决缓存反序列化问题
      */
     @Bean
-    public CacheManager cacheManager(RedisConnectionFactory factory) {
+    public CacheManager cacheManager(RedisConnectionFactory factory,
+                                     @Value("${forge.tenant.ignore-caches:}") List<String> configuredIgnoreCaches) {
         // 创建专门用于 Redis 缓存的 Jackson 3 Mapper（java.time 内建，无需 JavaTimeModule）
         PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
                 .allowIfBaseType(Object.class)
@@ -104,9 +117,21 @@ public class CacheConfig implements CachingConfigurer {
         return new TenantRedisCacheManager(
                 RedisCacheWriter.lockingRedisCacheWriter(factory),
                 defaultConfig,
-                Set.of("dictData", "dictType", "sysConfig", "menu", "dept", "userAuth"),  // ignoreCaches
+                resolveIgnoreCaches(configuredIgnoreCaches),
                 cacheConfigurations  // per-cache TTL 配置
         );
+    }
+
+    /**
+     * ignoreCaches = 默认共享清单 ∪ yml 配置（forge.tenant.ignore-caches，逗号分隔可增配）
+     */
+    static Set<String> resolveIgnoreCaches(List<String> configuredIgnoreCaches) {
+        Set<String> ignoreCaches = new HashSet<>(DEFAULT_IGNORE_CACHES);
+        configuredIgnoreCaches.stream()
+                .filter(name -> !name.isBlank())
+                .map(String::trim)
+                .forEach(ignoreCaches::add);
+        return ignoreCaches;
     }
 
     /**

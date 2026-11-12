@@ -24,4 +24,9 @@ public interface TenantApi {
      * 获取租户套餐的菜单ID列表
      */
     List<Long> getTenantPackageMenuIds(Long tenantId);
+
+    /**
+     * 获取启用的租户 ID 列表，供定时任务按租户遍历
+     */
+    List<Long> getTenantIds();
 }

@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS wf_approval_comment (
 
 CREATE TABLE IF NOT EXISTS wf_event_audit (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id BIGINT DEFAULT 1,
     event_type VARCHAR(50) NOT NULL,
     instance_id BIGINT,
     task_id BIGINT,
@@ -240,6 +241,7 @@ CREATE TABLE IF NOT EXISTS wf_ai_route_record (
 
 CREATE TABLE IF NOT EXISTS wf_process_ext (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id BIGINT DEFAULT 1,
     process_id BIGINT,
     process_key VARCHAR(100),
     process_name VARCHAR(255),
@@ -289,6 +291,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
 );
 CREATE TABLE IF NOT EXISTS sys_role (
     id BIGINT PRIMARY KEY,
+    tenant_id BIGINT DEFAULT 1,
     role_name VARCHAR(50),
     role_code VARCHAR(50),
     status INT DEFAULT 1,
@@ -313,6 +316,7 @@ CREATE TABLE IF NOT EXISTS sys_dept (
 -- 社交账号绑定（IM 推送 userid 解析：wework/dingtalk_corp 直读，dingtalk 走 unionId 转换）
 CREATE TABLE IF NOT EXISTS sys_social_user (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id BIGINT DEFAULT 1,
     user_id BIGINT NOT NULL,
     source VARCHAR(32) NOT NULL,
     open_id VARCHAR(128) NOT NULL,

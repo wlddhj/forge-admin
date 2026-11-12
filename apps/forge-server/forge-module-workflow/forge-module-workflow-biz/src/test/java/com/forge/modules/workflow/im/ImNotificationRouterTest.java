@@ -68,6 +68,18 @@ class ImNotificationRouterTest {
     }
 
     @Test
+    void dispatch_NoTenantSource_FailClosedNoOp() {
+        // resolveTenantId 返回 null（事件未携带且线程上下文为空）→ 不发送、不抛异常
+        when(configService.resolveTenantId()).thenReturn(null);
+
+        assertDoesNotThrow(() -> router.dispatch(message, List.of(1L)));
+        verify(wework, never()).enabled(any());
+        verify(dingtalk, never()).enabled(any());
+        verify(wework, never()).sendToUser(any(), any(), any());
+        verify(dingtalk, never()).sendToUser(any(), any(), any());
+    }
+
+    @Test
     void dispatch_EmptyUsers_NoOp() {
         when(wework.enabled(TENANT_ID)).thenReturn(true);
         assertDoesNotThrow(() -> router.dispatch(message, List.of()));

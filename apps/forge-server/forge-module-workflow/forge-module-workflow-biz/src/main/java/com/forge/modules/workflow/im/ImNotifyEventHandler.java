@@ -9,6 +9,8 @@ import com.aizuda.bpm.engine.entity.FlwInstance;
 import com.aizuda.bpm.engine.entity.FlwProcess;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
+import com.forge.framework.tenant.config.TenantProperties;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.workflow.framework.event.ReliableEventConsumer;
 import com.forge.modules.workflow.listener.event.WorkflowInstanceEvent;
 import com.forge.modules.workflow.listener.event.WorkflowTaskEvent;
@@ -28,12 +30,18 @@ import java.util.Set;
  * <p>
  * 事件范围（02 设计定稿）：task create/recreate（新待办→审批人）、task timeout（超时提醒→审批人）、
  * 实例 7 终态（结果→发起人）。中间过程事件（complete/reject/transfer 等）不推，避免噪音。
+ * <p>
+ * 租户来源（事件优先，fail-closed）：事件发布时刻快照 getTenantId() 优先，缺失退回当前线程上下文；
+ * 两者皆无（旧事件/极端无上下文发布）直接 warn 跳过——绝不兜底猜租户，防止跨租户串扰。
  *
  * @author forge-admin
  */
 @Slf4j
 @Component
 public class ImNotifyEventHandler {
+
+    /** 关闸（单租户部署）无上下文时的兜底租户，与 FlowCreatorFactory.currentTenantId() 的回落口径一致 */
+    private static final Long DEFAULT_TENANT_ID_WHEN_DISABLED = 1L;
 
     /**
      * 实例终态集合（与 BusinessCallbackEventListener.TERMINAL 同集）
@@ -48,17 +56,20 @@ public class ImNotifyEventHandler {
     private final ImMessageBuilder messageBuilder;
     private final ProcessService processService;
     private final QueryService queryService;
+    private final TenantProperties tenantProperties;
 
     public ImNotifyEventHandler(ReliableEventConsumer consumer,
                                 ImNotificationRouter router,
                                 ImMessageBuilder messageBuilder,
                                 ProcessService processService,
-                                QueryService queryService) {
+                                QueryService queryService,
+                                TenantProperties tenantProperties) {
         this.consumer = consumer;
         this.router = router;
         this.messageBuilder = messageBuilder;
         this.processService = processService;
         this.queryService = queryService;
+        this.tenantProperties = tenantProperties;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
@@ -68,17 +79,23 @@ public class ImNotifyEventHandler {
         if (type != TaskEventType.create && type != TaskEventType.recreate && type != TaskEventType.timeout) {
             return;
         }
-        consumer.consume("ImNotifyEventHandler:task", event.getInstanceId(), () -> {
-            List<Long> userIds = extractUserIds(event.getTaskActors());
-            if (userIds.isEmpty()) {
-                return;
-            }
-            FlwTask task = event.getTask();
-            FlwProcess process = resolveProcessForTask(task);
-            String processKey = process != null ? process.getProcessKey() : null;
-            String processName = process != null ? process.getProcessName() : null;
-            router.dispatch(messageBuilder.buildTaskMessage(type, task, processKey, processName), userIds);
-        });
+        Long tenantId = resolveEventTenantId(event.getTenantId());
+        if (tenantId == null) {
+            log.warn("IM 推送缺少租户来源，跳过: instanceId={}", event.getInstanceId());
+            return;
+        }
+        consumer.consume("ImNotifyEventHandler:task", event.getInstanceId(), () ->
+                runInTenant(tenantId, () -> {
+                    List<Long> userIds = extractUserIds(event.getTaskActors());
+                    if (userIds.isEmpty()) {
+                        return;
+                    }
+                    FlwTask task = event.getTask();
+                    FlwProcess process = resolveProcessForTask(task);
+                    String processKey = process != null ? process.getProcessKey() : null;
+                    String processName = process != null ? process.getProcessName() : null;
+                    router.dispatch(messageBuilder.buildTaskMessage(type, task, processKey, processName), userIds);
+                }));
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
@@ -87,18 +104,59 @@ public class ImNotifyEventHandler {
         if (!TERMINAL_INSTANCE_EVENTS.contains(event.getEventType())) {
             return;
         }
-        consumer.consume("ImNotifyEventHandler:instance", event.getInstanceId(), () -> {
-            Long initiatorId = parseUserId(event.getInstance() != null ? event.getInstance().getCreateId() : null);
-            if (initiatorId == null) {
-                log.info("IM结果通知跳过：发起人不可解析, instanceId={}", event.getInstanceId());
-                return;
+        Long tenantId = resolveEventTenantId(event.getTenantId());
+        if (tenantId == null) {
+            log.warn("IM 推送缺少租户来源，跳过: instanceId={}", event.getInstanceId());
+            return;
+        }
+        consumer.consume("ImNotifyEventHandler:instance", event.getInstanceId(), () ->
+                runInTenant(tenantId, () -> {
+                    Long initiatorId = parseUserId(event.getInstance() != null ? event.getInstance().getCreateId() : null);
+                    if (initiatorId == null) {
+                        log.info("IM结果通知跳过：发起人不可解析, instanceId={}", event.getInstanceId());
+                        return;
+                    }
+                    FlwProcess process = resolveProcess(event.getProcessId());
+                    String processKey = process != null ? process.getProcessKey() : null;
+                    String processName = process != null ? process.getProcessName() : null;
+                    router.dispatch(messageBuilder.buildInstanceMessage(event.getEventType(), event.getInstance(),
+                            processKey, processName), List.of(initiatorId));
+                }));
+    }
+
+    /**
+     * 租户来源解析：事件发布时刻快照优先（异步消费线程上下文可能失真），缺失退回当前线程上下文
+     */
+    private Long resolveEventTenantId(Long eventTenantId) {
+        if (eventTenantId != null) {
+            return eventTenantId;
+        }
+        Long contextTenantId = TenantContextHolder.getTenantId();
+        if (contextTenantId != null) {
+            return contextTenantId;
+        }
+        // 关闸（tenant.enable=false，上下文链路不装配）单租户部署：保持历史行为按默认租户推送；
+        // 开闸则 fail-closed（无来源不发送，绝不猜租户）
+        return tenantProperties != null && !Boolean.TRUE.equals(tenantProperties.getEnable())
+                ? DEFAULT_TENANT_ID_WHEN_DISABLED : null;
+    }
+
+    /**
+     * 以事件租户包裹处理段（dispatch 内渠道配置查询自动按租户过滤），
+     * 结束恢复线程原上下文（无则清空），避免污染 workflowExecutor 池线程
+     */
+    private void runInTenant(Long tenantId, Runnable action) {
+        Long previous = TenantContextHolder.getTenantId();
+        TenantContextHolder.setTenantId(tenantId);
+        try {
+            action.run();
+        } finally {
+            if (previous != null) {
+                TenantContextHolder.setTenantId(previous);
+            } else {
+                TenantContextHolder.clear();
             }
-            FlwProcess process = resolveProcess(event.getProcessId());
-            String processKey = process != null ? process.getProcessKey() : null;
-            String processName = process != null ? process.getProcessName() : null;
-            router.dispatch(messageBuilder.buildInstanceMessage(event.getEventType(), event.getInstance(),
-                    processKey, processName), List.of(initiatorId));
-        });
+        }
     }
 
     /**

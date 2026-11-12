@@ -4,6 +4,7 @@ import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.Result;
 import com.forge.framework.security.utils.SecurityHelper;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.framework.web.annotation.OperationLog;
 import com.forge.modules.ai.agent.AgentEvents;
 import com.forge.modules.ai.agent.kernel.AgentGraphRunner;
@@ -185,6 +186,8 @@ public class AiAgentController {
         Long userId = SecurityHelper.getCurrentUserId();
         final AiAgentConfig finalConfig = config;
         final com.forge.modules.ai.entity.AiAgentTeam finalTeam = team;
+        // agentScheduler 池线程不继承请求线程租户上下文，图内查询依赖它——提交前快照传递
+        final Long tenantSnapshot = TenantContextHolder.getTenantId();
 
         // SseEmitter 手工桥（与 AiChatController 同款）：MVC request(1)×Flux.create 唤醒丢失、
         // publishOn×高频帧 20s+ 停顿两条坑都绕开，每帧 emitter.send 显式 flush。
@@ -194,6 +197,10 @@ public class AiAgentController {
         AtomicBoolean done = new AtomicBoolean(false);
         emitter.onTimeout(() -> completeQuietly(emitter, done));
         Flux.<String>create(sink -> {
+            // 池线程回放请求线程租户快照（与 ConversationalAssistantGraph.toolsNode 同款），结束清理防池线程污染
+            if (tenantSnapshot != null) {
+                TenantContextHolder.setTenantId(tenantSnapshot);
+            }
             try {
                 if (finalTeam != null) {
                     graphRunner.runTeamStream(finalTeam, request.getConversationId(), userId, "CONVERSATION",
@@ -210,6 +217,10 @@ public class AiAgentController {
                 sink.next(toFrame(new AgentEvents.AgentEvent(AgentEvents.Type.ERROR, null, "run",
                         Map.of("message", String.valueOf(e.getMessage())))));
                 sink.complete();
+            } finally {
+                if (tenantSnapshot != null) {
+                    TenantContextHolder.clear();
+                }
             }
         }).subscribeOn(agentScheduler).subscribe(
                 frame -> {

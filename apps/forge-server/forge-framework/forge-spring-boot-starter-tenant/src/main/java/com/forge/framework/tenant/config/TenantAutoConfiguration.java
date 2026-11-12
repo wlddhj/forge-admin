@@ -14,7 +14,11 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import com.baomidou.mybatisplus.extension.plugins.inner.InnerInterceptor;
 import org.springframework.context.annotation.Bean;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @AutoConfiguration
 @ConditionalOnProperty(prefix = "forge.tenant", value = "enable", havingValue = "true", matchIfMissing = true)
@@ -45,7 +49,13 @@ public class TenantAutoConfiguration {
     public TenantLineInnerInterceptor tenantLineInnerInterceptor(TenantDatabaseInterceptor handler,
                                                                   MybatisPlusInterceptor interceptor) {
         TenantLineInnerInterceptor inner = new TenantLineInnerInterceptor(handler);
-        interceptor.addInnerInterceptor(inner);
+        // MP 官方要求 TenantLine 插件必须先于分页/数据权限插件注册（先做租户改写再 count/分页），
+        // 而 MybatisPlusConfig 已按 DataPermission→Pagination→OptimisticLocker 建链；
+        // addInnerInterceptor 只能追加尾部且 getInterceptors() 返回不可变视图，
+        // 故重建链表把 TenantLine 置于链首后整体写回
+        List<InnerInterceptor> chain = new ArrayList<>(interceptor.getInterceptors());
+        chain.add(0, inner);
+        interceptor.setInterceptors(chain);
         return inner;
     }
 

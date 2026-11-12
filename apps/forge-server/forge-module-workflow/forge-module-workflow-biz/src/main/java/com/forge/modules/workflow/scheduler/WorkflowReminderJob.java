@@ -7,8 +7,10 @@ import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.aizuda.bpm.engine.model.ProcessModel;
 import com.forge.framework.redis.lock.DistributedLock;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.framework.web.websocket.NotificationMessage;
 import com.forge.framework.web.websocket.NotificationService;
+import com.forge.modules.system.api.tenant.TenantApi;
 import com.forge.modules.workflow.config.FlowLongSchedulerProperties;
 import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import lombok.extern.slf4j.Slf4j;
@@ -63,6 +65,7 @@ public class WorkflowReminderJob implements Job {
         FlowLongEngine flowLongEngine = applicationContext.getBean(FlowLongEngine.class);
         TaskService taskService = flowLongEngine.taskService();
         NotificationService notificationService = applicationContext.getBean(NotificationService.class);
+        TenantApi tenantApi = applicationContext.getBean(TenantApi.class);
 
         // 检查是否启用
         if (!properties.isEnabled()) {
@@ -80,7 +83,32 @@ public class WorkflowReminderJob implements Job {
         }
 
         try {
-            doReminderCheck(taskService, flowLongEngine, notificationService, properties);
+            // 多租户遍历：逐租户绑定租户上下文后处理，全表扫描在上下文下自动按租户过滤
+            List<Long> tenantIds = tenantApi.getTenantIds();
+            if (tenantIds == null || tenantIds.isEmpty()) {
+                log.info("无启用租户，跳过本轮提醒检查");
+                return;
+            }
+            for (Long tenantId : tenantIds) {
+                Long previousTenantId = TenantContextHolder.getTenantId();
+                if (tenantId != null) {
+                    TenantContextHolder.setTenantId(tenantId);
+                }
+                try {
+                    // 工作时段判断随处理体逐租户执行（时段是全局时钟，重复判断无害）
+                    doReminderCheck(taskService, flowLongEngine, notificationService, properties);
+                } catch (Exception e) {
+                    log.error("租户 {} 处理失败，继续下一租户", tenantId, e);
+                } finally {
+                    if (tenantId != null) {
+                        if (previousTenantId != null) {
+                            TenantContextHolder.setTenantId(previousTenantId);
+                        } else {
+                            TenantContextHolder.clear();
+                        }
+                    }
+                }
+            }
         } finally {
             distributedLock.unlock(LOCK_KEY);
         }

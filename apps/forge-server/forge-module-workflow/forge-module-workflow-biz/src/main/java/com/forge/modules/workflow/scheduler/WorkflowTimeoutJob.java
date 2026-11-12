@@ -7,6 +7,8 @@ import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.aizuda.bpm.engine.model.ProcessModel;
 import com.forge.framework.redis.lock.DistributedLock;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
+import com.forge.modules.system.api.tenant.TenantApi;
 import com.forge.modules.workflow.config.FlowLongSchedulerProperties;
 import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.framework.reminder.TaskReminderHandler;
@@ -60,6 +62,7 @@ public class WorkflowTimeoutJob implements Job {
         FlowLongEngine flowLongEngine = applicationContext.getBean(FlowLongEngine.class);
         TaskService taskService = flowLongEngine.taskService();
         TaskReminderHandler reminderHandler = applicationContext.getBean(TaskReminderHandler.class);
+        TenantApi tenantApi = applicationContext.getBean(TenantApi.class);
 
         // 检查是否启用
         if (!properties.isEnabled()) {
@@ -77,7 +80,31 @@ public class WorkflowTimeoutJob implements Job {
         }
 
         try {
-            doTimeoutCheck(taskService, flowLongEngine, reminderHandler, properties);
+            // 多租户遍历：逐租户绑定租户上下文后处理，全表扫描在上下文下自动按租户过滤
+            List<Long> tenantIds = tenantApi.getTenantIds();
+            if (tenantIds == null || tenantIds.isEmpty()) {
+                log.info("无启用租户，跳过本轮超时检查");
+                return;
+            }
+            for (Long tenantId : tenantIds) {
+                Long previousTenantId = TenantContextHolder.getTenantId();
+                if (tenantId != null) {
+                    TenantContextHolder.setTenantId(tenantId);
+                }
+                try {
+                    doTimeoutCheck(taskService, flowLongEngine, reminderHandler, properties);
+                } catch (Exception e) {
+                    log.error("租户 {} 处理失败，继续下一租户", tenantId, e);
+                } finally {
+                    if (tenantId != null) {
+                        if (previousTenantId != null) {
+                            TenantContextHolder.setTenantId(previousTenantId);
+                        } else {
+                            TenantContextHolder.clear();
+                        }
+                    }
+                }
+            }
         } finally {
             distributedLock.unlock(LOCK_KEY);
         }

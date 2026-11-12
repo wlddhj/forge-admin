@@ -3,6 +3,7 @@ package com.forge.modules.workflow.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.exception.BusinessException;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.workflow.callback.CallbackDispatcher;
 import com.forge.modules.workflow.callback.CallbackEventType;
 import com.forge.modules.workflow.dto.callback.CallbackRecordResponse;
@@ -63,6 +64,8 @@ public class WfBusinessCallbackServiceImpl implements WfBusinessCallbackService 
         validateEvents(request.getEvents());
         WfBusinessCallback entity = new WfBusinessCallback();
         applyRequest(entity, request);
+        // 显式归属当前租户；上下文为空（关闸）时保持 null，由租户拦截器注入/库默认值兜底
+        entity.setTenantId(TenantContextHolder.getTenantId());
         entity.setCreateTime(LocalDateTime.now());
         entity.setUpdateTime(LocalDateTime.now());
         callbackMapper.insert(entity);
@@ -80,6 +83,8 @@ public class WfBusinessCallbackServiceImpl implements WfBusinessCallbackService 
         }
         validateEvents(request.getEvents());
         applyRequest(entity, request);
+        // 显式归属当前租户；上下文为空时置 null 使该列不进 SET 子句，保留库中原归属
+        entity.setTenantId(TenantContextHolder.getTenantId());
         entity.setUpdateTime(LocalDateTime.now());
         callbackMapper.updateById(entity);
         log.info("更新业务回调: id={}", entity.getId());

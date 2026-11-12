@@ -91,6 +91,10 @@ public class DingTalkChannel extends AbstractTokenChannel {
 
     @Override
     public ImSendResult sendToUser(Long tenantId, String corpUserid, ImNotificationMessage message) {
+        if (tenantId == null) {
+            // fail-closed：无租户来源不发送，绝不兜底猜租户
+            return ImSendResult.fail("渠道未配置或未启用");
+        }
         WfImChannelConfig config = configService.configOf(tenantId, channel());
         if (!isReady(config)) {
             return ImSendResult.fail("渠道未配置或未启用");

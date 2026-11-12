@@ -26,6 +26,11 @@ public class WfBusinessCallback {
     private Long id;
 
     /**
+     * 租户ID（非租户模式视作租户 1）
+     */
+    private Long tenantId;
+
+    /**
      * 回调名称
      */
     private String name;

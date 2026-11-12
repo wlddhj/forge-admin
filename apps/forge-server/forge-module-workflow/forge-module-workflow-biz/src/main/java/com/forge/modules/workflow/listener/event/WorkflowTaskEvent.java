@@ -5,6 +5,7 @@ import com.aizuda.bpm.engine.core.enums.TaskEventType;
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.aizuda.bpm.engine.model.NodeModel;
+import com.forge.framework.tenant.core.context.TenantContextHolder;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
@@ -45,14 +46,28 @@ public class WorkflowTaskEvent extends ApplicationEvent implements Serializable 
      */
     private final FlowCreator flowCreator;
 
+    /**
+     * 发布时刻的租户快照：AFTER_COMMIT 异步消费线程不再依赖（可能失真的）上下文，
+     * 消费端以此显式传参/重建租户；关闸时为 null
+     */
+    private final Long tenantId;
+
     public WorkflowTaskEvent(Object source, TaskEventType eventType, FlwTask task,
                               List<FlwTaskActor> taskActors, NodeModel nodeModel, FlowCreator flowCreator) {
+        // 旧签名内聚烘焙：所有既有发布点自动携带发布时刻租户
+        this(source, eventType, task, taskActors, nodeModel, flowCreator, TenantContextHolder.getTenantId());
+    }
+
+    public WorkflowTaskEvent(Object source, TaskEventType eventType, FlwTask task,
+                              List<FlwTaskActor> taskActors, NodeModel nodeModel, FlowCreator flowCreator,
+                              Long tenantId) {
         super(source);
         this.eventType = eventType;
         this.task = task;
         this.taskActors = taskActors;
         this.nodeModel = nodeModel;
         this.flowCreator = flowCreator;
+        this.tenantId = tenantId;
     }
 
     /**

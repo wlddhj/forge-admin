@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * IM 渠道配置服务单测：upsert 语义（唯一性/secret 空保留/校验）、出参脱敏、租户解析兜底
+ * IM 渠道配置服务单测：upsert 语义（唯一性/secret 空保留/校验）、出参脱敏、租户解析 fail-closed
  */
 class ImChannelConfigServiceTest {
 
@@ -174,6 +174,13 @@ class ImChannelConfigServiceTest {
         assertTrue(service.runnable(1L, "wework"));
     }
 
+    @Test
+    void runnable_NullTenant_FailClosedWithoutQuery() {
+        // 无租户来源：渠道直接视为不可用（fail-closed 不发送），且不查库
+        assertFalse(service.runnable(null, "wework"));
+        verify(mapper, never()).selectOne(any());
+    }
+
     // ========== resolveTenantId ==========
 
     @Test
@@ -183,8 +190,9 @@ class ImChannelConfigServiceTest {
     }
 
     @Test
-    void resolveTenantId_NoContextDefaultsTo1() {
+    void resolveTenantId_NoContextReturnsNull() {
+        // 去掉默认租户兜底：无上下文返回 null，由调用方 fail-closed
         TenantContextHolder.clear();
-        assertEquals(1L, service.resolveTenantId());
+        assertNull(service.resolveTenantId());
     }
 }

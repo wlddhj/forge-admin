@@ -48,6 +48,12 @@ public class ImNotificationRouter {
             return;
         }
         Long tenantId = configService.resolveTenantId();
+        if (tenantId == null) {
+            // fail-closed：无租户来源（事件未携带且线程上下文为空）不发送，绝不兜底猜租户
+            log.warn("IM 推送缺少租户来源，跳过: eventType={}, instanceId={}",
+                    message.eventType(), message.instanceId());
+            return;
+        }
         List<ImNotificationChannel> enabled = channels.stream()
                 .filter(channel -> channel.enabled(tenantId))
                 .toList();

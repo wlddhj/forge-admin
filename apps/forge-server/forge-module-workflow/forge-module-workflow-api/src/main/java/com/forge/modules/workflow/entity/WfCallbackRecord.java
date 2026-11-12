@@ -22,6 +22,11 @@ public class WfCallbackRecord {
     private Long id;
 
     /**
+     * 租户ID（非租户模式视作租户 1）
+     */
+    private Long tenantId;
+
+    /**
      * 回调配置ID
      */
     private Long callbackId;

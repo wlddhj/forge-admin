@@ -45,7 +45,13 @@ public class TenantDatabaseInterceptor implements TenantLineHandler {
 
     @Override
     public boolean ignoreInsert(List<Column> columns, String tenantIdColumn) {
-        // 平台超管调用 setIgnore(true) 时，跳过 INSERT 自动填 tenantId
-        return TenantContextHolder.isIgnore();
+        // 平台超管调用 setIgnore(true) 时，跳过 INSERT 自动填 tenantId；
+        // INSERT 列清单已显式携带租户列时同样跳过——FlowLong 引擎表自带的 tenant_id 显式插入
+        // 若被二次追加会 Duplicate column（开租户实测暴露），保留调用方显式值
+        if (TenantContextHolder.isIgnore()) {
+            return true;
+        }
+        return columns != null && columns.stream()
+                .anyMatch(column -> tenantIdColumn.equalsIgnoreCase(column.getColumnName()));
     }
 }

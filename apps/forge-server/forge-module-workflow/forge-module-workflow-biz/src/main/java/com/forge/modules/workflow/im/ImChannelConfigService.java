@@ -22,8 +22,9 @@ import java.util.Set;
  * IM 渠道配置服务（按租户维度）
  * <p>
  * 访问模型：全部数据方法 {@code @TenantIgnore} + 显式 tenant_id 条件——推送链路运行在
- * 异步线程（无可靠租户上下文，见 workflowExecutor TTL 限制），显式过滤保证确定性，
- * 不依赖 MyBatis 租户拦截器。非租户模式（TENANT_ENABLE=false）统一视作租户 1。
+ * 异步线程，显式过滤保证确定性，不依赖 MyBatis 租户拦截器。租户来源 = 事件携带租户或
+ * 线程上下文（{@link #resolveTenantId()} 可能返回 null），无租户来源时渠道一律视为
+ * 不可用（fail-closed 不发送），不再兜底默认租户，防止跨租户串扰。
  *
  * @author forge-admin
  */
@@ -34,19 +35,14 @@ public class ImChannelConfigService {
 
     static final Set<String> SUPPORTED_CHANNELS = Set.of("wework", "dingtalk");
 
-    /**
-     * 非租户模式下的默认租户
-     */
-    static final long DEFAULT_TENANT_ID = 1L;
-
     private final WfImChannelConfigMapper configMapper;
 
     /**
-     * 推送链路租户解析：上下文有值用之（异步线程继承，best-effort），缺失兜底租户 1
+     * 推送链路租户解析：返回当前线程租户上下文（可能 null——事件未携带且线程无上下文时），
+     * 调用方须对 null 判定 fail-closed（该渠道视为不可用，不发送）
      */
     public Long resolveTenantId() {
-        Long tenantId = TenantContextHolder.getTenantId();
-        return tenantId != null ? tenantId : DEFAULT_TENANT_ID;
+        return TenantContextHolder.getTenantId();
     }
 
     /**
@@ -60,10 +56,14 @@ public class ImChannelConfigService {
     }
 
     /**
-     * 渠道在该租户下是否可推送（行存在 + 启用 + 凭据完整）
+     * 渠道在该租户下是否可推送（行存在 + 启用 + 凭据完整）；
+     * 无租户来源（tenantId=null）直接视为不可用——fail-closed 不发送
      */
     @TenantIgnore
     public boolean runnable(Long tenantId, String channel) {
+        if (tenantId == null) {
+            return false;
+        }
         WfImChannelConfig config = configOf(tenantId, channel);
         return config != null && config.getEnabled() != null && config.getEnabled() == 1
                 && isCredentialComplete(config);

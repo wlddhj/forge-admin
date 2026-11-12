@@ -48,6 +48,8 @@
 
 ## 3. 多租户开闸前置清单（TENANT_ENABLE=true 前必须修复）
 
+> **修复状态（2026-11-12）**：FlowNeo 任务 `tenant-enable-prereq` 已完成 8 项中的全部实质项 + 实测新增 2 项：①~⑧ 见下表逐条；编码期 E2E 实测**新增发现第 9 坑并已修**——FlowLong 引擎 INSERT 自带 tenant_id 列被租户插件二次追加导致 Duplicate column（`TenantDatabaseInterceptor.ignoreInsert` 已按"列已含租户列跳过注入"修复，评审静态分析未捕获、开租户 E2E 才暴露）；另修复关闸回归两处（IM/回调 fail-closed 改造在 `tenant.enable=false` 时会停发，已按闸态兜底默认租户 1）。**误报修正**：⑦ 的 screen 四表与 ai 旧表经核实已被 `upgrade-20261025-tenant-full.sql` 治理（建表/init 脚本缺列但升级脚本已补），无需新改动。配套：开租户 E2E 基建（TenantEnabledTestBase + 全链冒烟 + UNION 分页断言）已建，`TENANT_ENABLE=true` 真机验证仍建议在部署前执行一轮（升级 SQL `sql/upgrade-20261112-tenant-wf-event-audit.sql` 须手工执行）。
+
 当前默认 `tenant.enable=false` 掩盖了以下全部问题，**开启租户即炸**：
 
 | # | 位置 | 后果 | 置信度 |

@@ -444,10 +444,15 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
             int parallelism = Math.max(1, agentProperties.getExpertParallelism());
             Semaphore permits = new Semaphore(parallelism);
             List<CompletableFuture<SubResult>> futures = new ArrayList<>();
+            // 子线程不继承 ThreadLocal 租户上下文，专家子图内查询依赖它——提交前快照传递
+            Long tenantSnapshot = TenantContextHolder.getTenantId();
             for (int i = 0; i < queue.size(); i++) {
                 Map<?, ?> dispatch = (Map<?, ?>) queue.get(i);
                 String threadKey = subThreadId(ctx.getRunId(), round, i);
                 futures.add(CompletableFuture.supplyAsync(() -> {
+                    if (tenantSnapshot != null) {
+                        TenantContextHolder.setTenantId(tenantSnapshot);
+                    }
                     try {
                         permits.acquire();
                         return runExpertSubgraph(ctx, dispatch, threadKey, approval, state);
@@ -459,6 +464,9 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                         return new SubResult(degradedReport(dispatch, "专家执行异常: " + e.getMessage()), null);
                     } finally {
                         permits.release();
+                        if (tenantSnapshot != null) {
+                            TenantContextHolder.clear();
+                        }
                     }
                 }, agentExecutor));
             }
