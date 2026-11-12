@@ -1,5 +1,11 @@
 package com.forge.modules.workflow.service.impl;
 
+import com.forge.modules.workflow.framework.task.WfUrgeService;
+
+import com.forge.modules.workflow.framework.task.TaskResponseAssembler;
+
+import com.forge.modules.workflow.framework.task.WfTaskQueryService;
+
 import com.aizuda.bpm.engine.FlowLongEngine;
 import com.aizuda.bpm.engine.ProcessService;
 import com.aizuda.bpm.engine.QueryService;
@@ -99,13 +105,13 @@ class WfTaskServiceOwnershipTest {
         identityService = mock(FlowLongIdentityService.class);
 
         // 用真实访问策略验证归属语义（直系参与者/候选组/管理员豁免）
-        service = new WfTaskServiceImpl(taskService, mock(ProcessService.class), runtimeService,
+        service = new WfTaskServiceImpl(taskService, runtimeService,
                 queryService, identityService, mock(WfApprovalCommentMapper.class),
-                mock(FlwTaskMapper.class), hisTaskMapper, mock(FlwTaskActorMapper.class),
-                hisTaskActorMapper, instanceMapper, mock(com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper.class),
-                mock(FlwHisInstanceMapper.class), flowLongEngine, mock(SysAttachmentService.class),
-                mock(NotificationService.class), new FlowLongSchedulerProperties(), new ObjectMapper(),
-                new ForgeTaskAccessStrategy(identityService));
+                hisTaskMapper, hisTaskActorMapper, instanceMapper,
+                flowLongEngine, mock(SysAttachmentService.class), new ObjectMapper(),
+                new ForgeTaskAccessStrategy(identityService),
+                mock(WfTaskQueryService.class), new TaskResponseAssembler(queryService, identityService),
+                mock(WfUrgeService.class));
     }
 
     @AfterEach

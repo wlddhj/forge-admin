@@ -2,6 +2,7 @@ package com.forge.modules.workflow.test;
 
 import com.aizuda.bpm.engine.entity.FlwTask;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.forge.common.utils.UserContext;
 import com.forge.framework.security.utils.SecurityHelper;
 import com.forge.modules.workflow.dto.task.TaskQueryRequest;
 import com.aizuda.bpm.engine.entity.FlwInstance;
@@ -145,6 +146,64 @@ class E2eTitleSearchTest extends WorkflowIntegrationTestBase {
             miss.setPageSize(10);
             miss.setProcessDefinitionName("不存在的流程");
             assertEquals(0, taskService.getTodoTasks(miss).getRecords().size());
+        }
+    }
+
+    @Test
+    @DisplayName("可认领标题搜索：候选池任务按 __title 命中/不命中（此 claimable 静默丢弃 title 入参的存量缺口）")
+    void titleSearch_claimableTasksFilter() {
+        // setType=3 角色候选节点：任务参与者为角色池，用户 2 经角色 30 进入可认领范围
+        String model = """
+                {"name":"可认领标题流程","key":"e2e_title_claimable",
+                 "nodeConfig":{"nodeName":"发起人","nodeKey":"start","type":0,
+                   "childNode":{"nodeName":"部门审批","nodeKey":"ap1","type":1,"setType":3,"examineMode":3,
+                     "nodeAssigneeList":[{"id":"30","name":"经理角色"}]}}}
+                """;
+        Long processId = deploy(model);
+
+        // 一例带标题，一例无标题
+        flowLongEngine.startInstanceById(processId, user(1L, "发起人甲"),
+                Map.of("__title", "候选池标题实例"));
+        flowLongEngine.startInstanceById(processId, user(1L, "发起人甲"),
+                (java.util.Map<String, Object>) null);
+
+        // 候选池身份：JWT 过滤器装载的 UserContext 角色集（claimable 角色维度取此口径）
+        UserContext context = new UserContext();
+        context.setUserId(2L);
+        UserContext.DataScopeRoleInfo role = new UserContext.DataScopeRoleInfo();
+        role.setRoleId(30L);
+        context.setRoles(List.of(role));
+
+        try (MockedStatic<SecurityHelper> security = mockStatic(SecurityHelper.class)) {
+            security.when(SecurityHelper::getCurrentUserId).thenReturn(2L);
+            UserContext.set(context);
+            try {
+                // 标题命中：带标题实例的候选任务唯一命中
+                TaskQueryRequest hit = new TaskQueryRequest();
+                hit.setPageNum(1);
+                hit.setPageSize(10);
+                hit.setTitle("候选池标题");
+                assertEquals(1, taskService.getClaimableTasks(hit).getRecords().size(),
+                        "可认领按标题过滤命中 1 条");
+
+                // 标题不命中：快速空页
+                TaskQueryRequest miss = new TaskQueryRequest();
+                miss.setPageNum(1);
+                miss.setPageSize(10);
+                miss.setTitle("不存在的标题");
+                assertEquals(0, taskService.getClaimableTasks(miss).getRecords().size(),
+                        "标题不命中返回空");
+
+                // 通配符按字面匹配：输入 % 不误匹配全部（与待办同口径）
+                TaskQueryRequest literal = new TaskQueryRequest();
+                literal.setPageNum(1);
+                literal.setPageSize(10);
+                literal.setTitle("%");
+                assertEquals(0, taskService.getClaimableTasks(literal).getRecords().size(),
+                        "通配符字面匹配，不命中任何标题");
+            } finally {
+                UserContext.clear();
+            }
         }
     }
 }

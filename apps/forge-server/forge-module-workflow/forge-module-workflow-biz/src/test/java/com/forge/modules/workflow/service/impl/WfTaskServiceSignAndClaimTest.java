@@ -1,5 +1,13 @@
 package com.forge.modules.workflow.service.impl;
 
+import com.forge.modules.workflow.framework.task.WfUrgeService;
+
+import com.forge.modules.workflow.framework.task.TaskResponseAssembler;
+
+import com.forge.modules.workflow.framework.task.TaskBatchLoader;
+
+import com.forge.modules.workflow.framework.task.WfTaskQueryService;
+
 import com.aizuda.bpm.engine.FlowLongEngine;
 import com.aizuda.bpm.engine.ProcessService;
 import com.aizuda.bpm.engine.QueryService;
@@ -73,13 +81,22 @@ class WfTaskServiceSignAndClaimTest {
         taskActorMapper = mock(FlwTaskActorMapper.class);
         flowLongEngine = mock(FlowLongEngine.class);
 
-        service = new WfTaskServiceImpl(taskService, mock(ProcessService.class), mock(RuntimeService.class),
+        // 可签收/列表用例走真实查询组件（共享 taskMapper/taskActorMapper/queryService 桩）
+        TaskResponseAssembler assembler = new TaskResponseAssembler(queryService, identityService);
+        TaskBatchLoader batchLoader = new TaskBatchLoader(taskMapper, mock(FlwHisTaskMapper.class),
+                mock(FlwInstanceMapper.class), mock(FlwHisInstanceMapper.class),
+                mock(ProcessService.class), identityService, mock(WfApprovalCommentMapper.class));
+        WfTaskQueryService taskQueryService = new WfTaskQueryService(taskMapper, mock(FlwHisTaskMapper.class),
+                taskActorMapper, mock(FlwHisTaskActorMapper.class), mock(FlwInstanceMapper.class),
+                mock(FlwHisInstanceMapper.class), mock(com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper.class),
+                queryService, identityService, batchLoader, assembler);
+
+        service = new WfTaskServiceImpl(taskService, mock(RuntimeService.class),
                 queryService, identityService, mock(WfApprovalCommentMapper.class),
-                taskMapper, mock(FlwHisTaskMapper.class), taskActorMapper,
-                mock(FlwHisTaskActorMapper.class), mock(FlwInstanceMapper.class),
-                mock(com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper.class), mock(FlwHisInstanceMapper.class), flowLongEngine, mock(SysAttachmentService.class),
-                mock(NotificationService.class), new FlowLongSchedulerProperties(), new ObjectMapper(),
-                permissiveAccessStrategy());
+                mock(FlwHisTaskMapper.class), mock(FlwHisTaskActorMapper.class),
+                mock(FlwInstanceMapper.class), flowLongEngine, mock(SysAttachmentService.class),
+                new ObjectMapper(), permissiveAccessStrategy(),
+                taskQueryService, assembler, mock(WfUrgeService.class));
     }
 
     /** 归属校验放行桩：本测试类聚焦加签/签收行为，参与者判定恒通过 */

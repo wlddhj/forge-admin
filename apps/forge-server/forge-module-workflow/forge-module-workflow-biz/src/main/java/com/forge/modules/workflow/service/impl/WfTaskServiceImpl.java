@@ -1,40 +1,38 @@
 package com.forge.modules.workflow.service.impl;
 
+import com.forge.modules.workflow.framework.task.WfUrgeService;
+
+import com.forge.modules.workflow.framework.task.TaskResponseAssembler;
+
+import com.forge.modules.workflow.framework.task.TaskBatchLoader;
+
+import com.forge.modules.workflow.framework.task.WfTaskQueryService;
+
 import cn.hutool.core.util.StrUtil;
 import com.aizuda.bpm.engine.*;
 import com.aizuda.bpm.engine.core.FlowCreator;
-import com.aizuda.bpm.engine.core.FlowLongEngineImpl;
 import com.aizuda.bpm.engine.core.enums.ActorType;
 import com.aizuda.bpm.engine.core.enums.AgentType;
 import com.aizuda.bpm.engine.core.enums.PerformType;
-import com.aizuda.bpm.engine.core.enums.TaskState;
 import com.aizuda.bpm.engine.core.enums.TaskType;
 import com.aizuda.bpm.engine.entity.*;
 import com.aizuda.bpm.engine.model.ModelHelper;
 import com.aizuda.bpm.engine.model.NodeAssignee;
 import com.aizuda.bpm.engine.model.NodeModel;
 import com.aizuda.bpm.mybatisplus.mapper.FlwInstanceMapper;
-import com.aizuda.bpm.mybatisplus.mapper.FlwHisInstanceMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisTaskActorMapper;
 import com.aizuda.bpm.mybatisplus.mapper.FlwHisTaskMapper;
-import com.aizuda.bpm.mybatisplus.mapper.FlwTaskActorMapper;
-import com.aizuda.bpm.mybatisplus.mapper.FlwTaskMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
-import com.forge.common.utils.UserContext;
-import com.forge.framework.web.websocket.NotificationMessage;
-import com.forge.framework.web.websocket.NotificationService;
 import com.forge.modules.system.entity.SysAttachment;
 import com.forge.modules.system.service.SysAttachmentService;
-import com.forge.modules.workflow.config.FlowLongSchedulerProperties;
 import com.forge.modules.workflow.dto.task.*;
 import com.forge.modules.workflow.entity.WfApprovalComment;
 import com.forge.modules.workflow.framework.ApprovalActionTypeEnum;
 import com.forge.modules.workflow.framework.FlowCreatorFactory;
 import com.forge.modules.workflow.framework.actor.ForgeTaskAccessStrategy;
-import com.forge.modules.workflow.framework.title.InstanceTitleRenderer;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import com.forge.modules.workflow.mapper.WfApprovalCommentMapper;
 import com.forge.modules.workflow.service.WfTaskService;
@@ -50,6 +48,10 @@ import java.util.stream.Collectors;
 
 /**
  * 工作流任务管理服务实现 - FlowLong 版本
+ * <p>
+ * 上帝类拆分第四批后的门面：动作方法群（审批/驳回/签收/委派/转办/退回/加减签/抄送/撤回/拿回）
+ * 与归属校验保留本类；四列表查询委托 {@link WfTaskQueryService}，批量预取委托 {@link TaskBatchLoader}，
+ * 响应组装委托 {@link TaskResponseAssembler}，催办委托 {@link WfUrgeService}。
  *
  * @author forge-admin
  */
@@ -59,512 +61,46 @@ import java.util.stream.Collectors;
 public class WfTaskServiceImpl implements WfTaskService {
 
     private final TaskService taskService;
-    private final ProcessService processService;
     private final RuntimeService runtimeService;
     private final QueryService queryService;
     private final FlowLongIdentityService identityService;
     private final WfApprovalCommentMapper approvalCommentMapper;
-    private final FlwTaskMapper taskMapper;
     private final FlwHisTaskMapper hisTaskMapper;
-    private final FlwTaskActorMapper taskActorMapper;
     private final FlwHisTaskActorMapper hisTaskActorMapper;
     private final FlwInstanceMapper instanceMapper;
-    private final com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper processMapper;
-    private final FlwHisInstanceMapper hisInstanceMapper;
     private final FlowLongEngine flowLongEngine;
     private final SysAttachmentService sysAttachmentService;
-    private final NotificationService notificationService;
-    private final FlowLongSchedulerProperties schedulerProperties;
     private final ObjectMapper objectMapper;
     private final ForgeTaskAccessStrategy taskAccessStrategy;
+    private final WfTaskQueryService wfTaskQueryService;
+    private final TaskResponseAssembler taskResponseAssembler;
+    private final WfUrgeService wfUrgeService;
 
     private static final String COMMENT_ATTACHMENT_BIZ_TYPE = "wf_comment";
 
     @Override
     public Page<TaskResponse> getTodoTasks(TaskQueryRequest request) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        if (currentUserId == null) {
-            throw new BusinessException(401, "未获取到当前用户信息");
-        }
-
-        String userIdStr = String.valueOf(currentUserId);
-
-        // 查询当前用户作为参与者的待办任务
-        // 1. 先查询 flw_task_actor 表，找到当前用户参与的 taskId
-        LambdaQueryWrapper<FlwTaskActor> actorWrapper = new LambdaQueryWrapper<>();
-        actorWrapper.eq(FlwTaskActor::getActorId, userIdStr);
-        List<FlwTaskActor> taskActors = taskActorMapper.selectList(actorWrapper);
-
-        if (taskActors.isEmpty()) {
-            Page<TaskResponse> emptyPage = new Page<>();
-            emptyPage.setCurrent(request.getPageNum());
-            emptyPage.setSize(request.getPageSize());
-            emptyPage.setTotal(0);
-            emptyPage.setRecords(Collections.emptyList());
-            return emptyPage;
-        }
-
-        // 2. 获取所有 taskId
-        Set<Long> taskIds = taskActors.stream()
-                .map(FlwTaskActor::getTaskId)
-                .collect(Collectors.toSet());
-
-        // 3. 查询 flw_task 表，筛选活动任务
-        LambdaQueryWrapper<FlwTask> taskWrapper = new LambdaQueryWrapper<>();
-        taskWrapper.in(FlwTask::getId, taskIds);
-
-        // 任务名称筛选
-        if (StrUtil.isNotBlank(request.getName())) {
-            taskWrapper.like(FlwTask::getTaskName, request.getName());
-        }
-
-        // 流程名称过滤两步式：圈流程→实例（待办实例必在活动表），再 in 任务
-        if (StrUtil.isNotBlank(request.getProcessDefinitionName())) {
-            List<Long> nameInstanceIds = instanceIdsByProcessName(
-                    request.getProcessDefinitionName(), false);
-            if (nameInstanceIds.isEmpty()) {
-                return emptyTaskPage(request);
-            }
-            taskWrapper.in(FlwTask::getInstanceId, nameInstanceIds);
-        }
-
-        // 标题过滤两步式：先按 __title 圈实例，再 in 任务（顶层谓词避 EXISTS 方言差异）
-        String titleKeyword = escapeLike(request.getTitle());
-        if (titleKeyword != null) {
-            List<Long> titleInstanceIds = instanceMapper.selectList(new LambdaQueryWrapper<FlwInstance>()
-                            .select(FlwInstance::getId)
-                            .apply("variable LIKE CONCAT('%\"__title\":\"%', {0}, '%') ESCAPE '|'", titleKeyword))
-                    .stream().map(FlwInstance::getId).toList();
-            if (titleInstanceIds.isEmpty()) {
-                return emptyTaskPage(request);
-            }
-            taskWrapper.in(FlwTask::getInstanceId, titleInstanceIds);
-        }
-
-        taskWrapper.orderByDesc(FlwTask::getCreateTime);
-
-        Page<FlwTask> pageParam = new Page<>(request.getPageNum(), request.getPageSize());
-        Page<FlwTask> taskPage = taskMapper.selectPage(pageParam, taskWrapper);
-
-        // 本人从候选组（角色/部门）签收的任务标记，供前端展示“取消签收”
-        Set<Long> claimedFromGroupTaskIds = taskActors.stream()
-                .filter(a -> AgentType.claimRole.eq(a.getAgentType()) || AgentType.claimDepartment.eq(a.getAgentType()))
-                .map(FlwTaskActor::getTaskId)
-                .collect(Collectors.toSet());
-
-        // 4. 批量预取实例/流程/发起人（去 N+1：每页 3 次批量替代逐行 3N 次）
-        BatchContext ctx = preloadBatch(taskPage.getRecords(), false);
-        List<TaskResponse> records = taskPage.getRecords().stream()
-                .map(task -> {
-                    TaskResponse response = convertTaskToResponseWithProcess(task, ctx);
-                    response.setClaimedFromGroup(claimedFromGroupTaskIds.contains(task.getId()));
-                    return response;
-                })
-                .collect(Collectors.toList());
-
-        Page<TaskResponse> resultPage = new Page<>();
-        resultPage.setCurrent(taskPage.getCurrent());
-        resultPage.setSize(taskPage.getSize());
-        resultPage.setTotal(taskPage.getTotal());
-        resultPage.setRecords(records);
-        return resultPage;
+        return wfTaskQueryService.getTodoTasks(request);
     }
 
     @Override
     public Page<TaskResponse> getClaimableTasks(TaskQueryRequest request) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        if (currentUserId == null) {
-            throw new BusinessException(401, "未获取到当前用户信息");
-        }
-
-        // 用户经角色/部门候选池可见的任务：actor 记录的角色/部门 ID ∈ 用户隶属集
-        // 角色直接取 JWT 过滤器装载的 UserContext（免 DB 查询）；部门另查用户主表
-        Set<String> groupIds = new HashSet<>();
-        UserContext context = UserContext.get();
-        if (context != null && context.getRoles() != null) {
-            context.getRoles().forEach(role -> {
-                if (role.getRoleId() != null) {
-                    groupIds.add(String.valueOf(role.getRoleId()));
-                }
-            });
-        }
-        Long deptId = identityService.getUserDeptId(currentUserId);
-        if (deptId != null) {
-            groupIds.add(String.valueOf(deptId));
-        }
-        if (groupIds.isEmpty()) {
-            return emptyPage(request);
-        }
-
-        LambdaQueryWrapper<FlwTaskActor> actorWrapper = new LambdaQueryWrapper<>();
-        actorWrapper.in(FlwTaskActor::getActorId, groupIds);
-        actorWrapper.in(FlwTaskActor::getActorType, List.of(ActorType.role.getValue(), ActorType.department.getValue()));
-        List<FlwTaskActor> groupActors = taskActorMapper.selectList(actorWrapper);
-        if (groupActors.isEmpty()) {
-            return emptyPage(request);
-        }
-
-        Map<Long, List<FlwTaskActor>> actorsByTask = groupActors.stream()
-                .collect(Collectors.groupingBy(FlwTaskActor::getTaskId));
-
-        LambdaQueryWrapper<FlwTask> taskWrapper = new LambdaQueryWrapper<>();
-        taskWrapper.in(FlwTask::getId, actorsByTask.keySet());
-        if (StrUtil.isNotBlank(request.getName())) {
-            taskWrapper.like(FlwTask::getTaskName, request.getName());
-        }
-        taskWrapper.orderByDesc(FlwTask::getCreateTime);
-
-        Page<FlwTask> pageParam = new Page<>(request.getPageNum(), request.getPageSize());
-        Page<FlwTask> taskPage = taskMapper.selectPage(pageParam, taskWrapper);
-
-        BatchContext claimCtx = preloadBatch(taskPage.getRecords(), false);
-        List<TaskResponse> records = taskPage.getRecords().stream()
-                .map(task -> {
-                    TaskResponse response = convertTaskToResponseWithProcess(task, claimCtx);
-                    response.setCandidate(true);
-                    response.setCandidateUsers(actorsByTask.getOrDefault(task.getId(), Collections.emptyList()).stream()
-                            .map(FlwTaskActor::getActorName)
-                            .distinct()
-                            .collect(Collectors.toList()));
-                    return response;
-                })
-                .collect(Collectors.toList());
-
-        Page<TaskResponse> resultPage = new Page<>();
-        resultPage.setCurrent(taskPage.getCurrent());
-        resultPage.setSize(taskPage.getSize());
-        resultPage.setTotal(taskPage.getTotal());
-        resultPage.setRecords(records);
-        return resultPage;
-    }
-
-    /**
-     * 批量预取上下文：一次查询实例/流程/发起人名，替代转换链逐行查询
-     */
-    private static class BatchContext {
-        final Map<Long, FlwInstance> instanceMap = new HashMap<>();
-        final Map<Long, FlwHisInstance> hisInstanceMap = new HashMap<>();
-        final Map<Long, FlwProcess> processMap = new HashMap<>();
-        final Map<Long, String> userNameMap = new HashMap<>();
-        // his 转换专用（已办/抄送）
-        final Map<Long, WfApprovalComment> latestCommentByTask = new HashMap<>();
-        final Map<Long, List<FlwHisTask>> hisTasksByInstance = new HashMap<>();
-        final Map<Long, List<FlwTask>> activeByParentTask = new HashMap<>();
-    }
-
-    @SuppressWarnings("unchecked")
-    private BatchContext preloadBatch(List<? extends FlwTask> tasks, boolean his) {
-        BatchContext ctx = new BatchContext();
-        if (tasks == null || tasks.isEmpty()) return ctx;
-
-        Set<Long> instanceIds = tasks.stream().map(FlwTask::getInstanceId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Set<Long> processIds = new HashSet<>();
-        Set<Long> userIds = new HashSet<>();
-
-        if (!instanceIds.isEmpty()) {
-            if (his) {
-                List<FlwHisInstance> instances = hisInstanceMapper.selectBatchIds(instanceIds);
-                instances.forEach(i -> {
-                    ctx.hisInstanceMap.put(i.getId(), i);
-                    if (i.getProcessId() != null) processIds.add(i.getProcessId());
-                    if (i.getCreateId() != null) {
-                        try { userIds.add(Long.parseLong(i.getCreateId())); } catch (NumberFormatException ignored) {}
-                    }
-                });
-            } else {
-                List<FlwInstance> instances = instanceMapper.selectBatchIds(instanceIds);
-                instances.forEach(i -> {
-                    ctx.instanceMap.put(i.getId(), i);
-                    if (i.getProcessId() != null) processIds.add(i.getProcessId());
-                    if (i.getCreateId() != null) {
-                        try { userIds.add(Long.parseLong(i.getCreateId())); } catch (NumberFormatException ignored) {}
-                    }
-                });
-            }
-        }
-        if (!processIds.isEmpty()) {
-            processIds.forEach(pid -> {
-                FlwProcess process = processService.getProcessById(pid);
-                if (process != null) ctx.processMap.put(pid, process);
-            });
-        }
-        if (!userIds.isEmpty()) {
-            ctx.userNameMap.putAll(identityService.getUserNames(userIds));
-        }
-        return ctx;
-    }
-
-    /**
-     * 已办/抄送列表批量预取：实例/流程/发起人 + 意见(按任务取最新) + 实例任务序(算下一节点) + 拿回后继
-     */
-    private BatchContext preloadHisBatch(List<FlwHisTask> hisTasks) {
-        BatchContext ctx = new BatchContext();
-        if (hisTasks == null || hisTasks.isEmpty()) return ctx;
-
-        // 1. 批量实例/流程/发起人（与活动侧同一套填充逻辑）
-        fillInstanceProcessUser(ctx, hisTasks.stream().map(FlwHisTask::getInstanceId).collect(Collectors.toSet()));
-
-        // 2. 实例内全部历史任务（升序）→ 下一节点名与意见任务分组共用
-        Set<Long> instanceIds = ctx.hisInstanceMap.keySet();
-        if (!instanceIds.isEmpty()) {
-            LambdaQueryWrapper<FlwHisTask> hisWrapper = new LambdaQueryWrapper<>();
-            hisWrapper.in(FlwHisTask::getInstanceId, instanceIds).orderByAsc(FlwHisTask::getCreateTime);
-            hisTaskMapper.selectList(hisWrapper).forEach(t ->
-                    ctx.hisTasksByInstance.computeIfAbsent(t.getInstanceId(), k -> new ArrayList<>()).add(t));
-        }
-
-        // 3. 意见：按任务 ID 分组，升序遍历后写覆盖 → 保留每任务最新一条
-        if (!instanceIds.isEmpty()) {
-            LambdaQueryWrapper<WfApprovalComment> commentWrapper = new LambdaQueryWrapper<>();
-            commentWrapper.in(WfApprovalComment::getProcessInstanceId, instanceIds)
-                    .orderByAsc(WfApprovalComment::getCreateTime);
-            for (WfApprovalComment comment : approvalCommentMapper.selectList(commentWrapper)) {
-                if (comment.getTaskId() != null) {
-                    ctx.latestCommentByTask.put(comment.getTaskId(), comment);
-                }
-            }
-        }
-
-        // 4. 拿回后继：一次查全部 parentTaskId 命中的活动任务 + 运行中实例集合
-        Set<Long> hisTaskIds = hisTasks.stream().map(FlwHisTask::getId).collect(Collectors.toSet());
-        if (!hisTaskIds.isEmpty()) {
-            LambdaQueryWrapper<FlwTask> activeWrapper = new LambdaQueryWrapper<>();
-            activeWrapper.in(FlwTask::getParentTaskId, hisTaskIds);
-            taskMapper.selectList(activeWrapper).forEach(t ->
-                    ctx.activeByParentTask.computeIfAbsent(t.getParentTaskId(), k -> new ArrayList<>()).add(t));
-            Set<Long> runningIds = hisTasks.stream().map(FlwHisTask::getInstanceId)
-                    .filter(Objects::nonNull).collect(Collectors.toSet());
-            if (!runningIds.isEmpty()) {
-                LambdaQueryWrapper<FlwInstance> runningWrapper = new LambdaQueryWrapper<>();
-                runningWrapper.in(FlwInstance::getId, runningIds);
-                instanceMapper.selectList(runningWrapper).forEach(i -> ctx.instanceMap.put(i.getId(), i));
-            }
-        }
-        return ctx;
-    }
-
-    /** 实例/流程/发起人批量填充（活动与历史侧共用） */
-    private void fillInstanceProcessUser(BatchContext ctx, Set<Long> instanceIds) {
-        if (instanceIds.isEmpty()) return;
-        Set<Long> processIds = new HashSet<>();
-        Set<Long> userIds = new HashSet<>();
-        List<FlwHisInstance> hisInstances = hisInstanceMapper.selectBatchIds(instanceIds);
-        hisInstances.forEach(i -> {
-            ctx.hisInstanceMap.put(i.getId(), i);
-            if (i.getProcessId() != null) processIds.add(i.getProcessId());
-            if (StrUtil.isNotBlank(i.getCreateId())) {
-                try { userIds.add(Long.parseLong(i.getCreateId())); } catch (NumberFormatException ignored) {}
-            }
-        });
-        processIds.forEach(pid -> {
-            FlwProcess process = processService.getProcessById(pid);
-            if (process != null) ctx.processMap.put(pid, process);
-        });
-        if (!userIds.isEmpty()) {
-            ctx.userNameMap.putAll(identityService.getUserNames(userIds));
-        }
-    }
-
-    /**
-     * 已办/抄送转换（批量上下文版：零逐行查询）
-     */
-    private TaskResponse convertHisTaskToResponseWithProcess(FlwHisTask hisTask, BatchContext ctx) {
-        TaskResponse response = convertHisTaskToResponse(hisTask);
-
-        FlwHisInstance hisInstance = ctx.hisInstanceMap.get(hisTask.getInstanceId());
-        if (hisInstance != null) {
-            response.setProcessInstanceId(String.valueOf(hisInstance.getId()));
-            response.setUrgent(hisInstance.getUrgent());
-            response.setInstanceTitle(InstanceTitleRenderer.extractTitle(hisInstance.getVariable()));
-            FlwProcess process = ctx.processMap.get(hisInstance.getProcessId());
-            if (process != null) {
-                response.setProcessDefinitionId(String.valueOf(process.getId()));
-                response.setProcessDefinitionName(process.getProcessName());
-                response.setProcessDefinitionKey(process.getProcessKey());
-            }
-            if (StrUtil.isNotBlank(hisInstance.getCreateId())) {
-                response.setStartUserId(hisInstance.getCreateId());
-                try {
-                    Long startUserId = Long.parseLong(hisInstance.getCreateId());
-                    response.setStartUserName(ctx.userNameMap.getOrDefault(startUserId, hisInstance.getCreateBy()));
-                } catch (NumberFormatException e) {
-                    response.setStartUserName(hisInstance.getCreateBy());
-                }
-            }
-            response.setStartTime(hisInstance.getCreateTime());
-            response.setProcessNo(hisInstance.getInstanceNo());
-        }
-
-        // 审批意见（预取 Map，每任务最新一条）
-        WfApprovalComment approvalComment = ctx.latestCommentByTask.get(hisTask.getId());
-        if (approvalComment != null) {
-            response.setActionType(approvalComment.getActionType());
-            response.setCommentText(approvalComment.getCommentText());
-            if (approvalComment.getCreateTime() != null) {
-                response.setEndTime(Date.from(approvalComment.getCreateTime()
-                        .atZone(java.time.ZoneId.systemDefault()).toInstant()));
-            }
-        }
-
-        response.setWithdrawn(
-                hisTask.getTaskType().equals(TaskType.withdraw.getValue())
-                || hisTask.getTaskType().equals(TaskType.saveAsDraft.getValue())
-                || ApprovalActionTypeEnum.WITHDRAW.getCode().equals(response.getActionType())
-        );
-
-        // 下一节点名：实例任务升序列表中找 createTime 晚于本任务 finishTime 的第一条
-        if (hisTask.getFinishTime() != null) {
-            List<FlwHisTask> sequence = ctx.hisTasksByInstance.getOrDefault(hisTask.getInstanceId(), Collections.emptyList());
-            for (FlwHisTask candidate : sequence) {
-                if (candidate.getCreateTime() != null && candidate.getCreateTime().after(hisTask.getFinishTime())) {
-                    response.setNextActivityName(candidate.getTaskName());
-                    break;
-                }
-            }
-        }
-
-        // 拿回标记：实例运行中且后继待人审批任务存在
-        if (isHumanApprovalTask(hisTask.getTaskType()) && ctx.instanceMap.containsKey(hisTask.getInstanceId())) {
-            List<FlwTask> successors = ctx.activeByParentTask.getOrDefault(hisTask.getId(), Collections.emptyList());
-            response.setCanReclaim(successors.stream().anyMatch(this::isHumanApprovalTaskByType));
-        }
-
-        return response;
-    }
-
-    private boolean isHumanApprovalTaskByType(FlwTask task) {
-        return isHumanApprovalTask(task.getTaskType());
-    }
-
-    /**
-     * 转换任务响应（使用批量预取上下文，无逐行查询）
-     */
-    private TaskResponse convertTaskToResponseWithProcess(FlwTask task, BatchContext ctx) {
-        TaskResponse response = convertTaskToResponse(task);
-        FlwInstance instance = ctx.instanceMap.get(task.getInstanceId());
-        if (instance != null) {
-            response.setProcessInstanceId(String.valueOf(instance.getId()));
-            response.setUrgent(instance.getUrgent());
-            response.setInstanceTitle(InstanceTitleRenderer.extractTitle(instance.getVariable()));
-            FlwProcess process = ctx.processMap.get(instance.getProcessId());
-            if (process != null) {
-                response.setProcessDefinitionId(String.valueOf(process.getId()));
-                response.setProcessDefinitionName(process.getProcessName());
-                response.setProcessDefinitionKey(process.getProcessKey());
-            }
-            if (StrUtil.isNotBlank(instance.getCreateId())) {
-                response.setStartUserId(instance.getCreateId());
-                try {
-                    Long startUserId = Long.parseLong(instance.getCreateId());
-                    response.setStartUserName(ctx.userNameMap.getOrDefault(startUserId, instance.getCreateBy()));
-                } catch (NumberFormatException e) {
-                    response.setStartUserName(instance.getCreateBy());
-                }
-            }
-            response.setStartTime(instance.getCreateTime());
-            response.setProcessNo(instance.getInstanceNo());
-        }
-        return response;
-    }
-
-    private Page<TaskResponse> emptyPage(TaskQueryRequest request) {
-        Page<TaskResponse> emptyPage = new Page<>();
-        emptyPage.setCurrent(request.getPageNum());
-        emptyPage.setSize(request.getPageSize());
-        emptyPage.setTotal(0);
-        emptyPage.setRecords(Collections.emptyList());
-        return emptyPage;
+        return wfTaskQueryService.getClaimableTasks(request);
     }
 
     @Override
     public Page<TaskResponse> getDoneTasks(TaskQueryRequest request) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        if (currentUserId == null) {
-            throw new BusinessException(401, "未获取到当前用户信息");
-        }
+        return wfTaskQueryService.getDoneTasks(request);
+    }
 
-        String userIdStr = String.valueOf(currentUserId);
+    @Override
+    public Page<TaskResponse> getCcTasks(TaskQueryRequest request) {
+        return wfTaskQueryService.getCcTasks(request);
+    }
 
-        // 查询当前用户作为参与者的历史任务
-        // 1. 先查询 flw_his_task_actor 表，找到当前用户参与的历史 taskId
-        LambdaQueryWrapper<FlwHisTaskActor> actorWrapper = new LambdaQueryWrapper<>();
-        actorWrapper.eq(FlwHisTaskActor::getActorId, userIdStr);
-        List<FlwHisTaskActor> hisTaskActors = hisTaskActorMapper.selectList(actorWrapper);
-
-        if (hisTaskActors.isEmpty()) {
-            Page<TaskResponse> emptyPage = new Page<>();
-            emptyPage.setCurrent(request.getPageNum());
-            emptyPage.setSize(request.getPageSize());
-            emptyPage.setTotal(0);
-            emptyPage.setRecords(Collections.emptyList());
-            return emptyPage;
-        }
-
-        // 2. 获取所有历史 taskId
-        Set<Long> hisTaskIds = hisTaskActors.stream()
-                .map(FlwHisTaskActor::getTaskId)
-                .collect(Collectors.toSet());
-
-        // 3. 查询 flw_his_task 表，筛选已完成的任务
-        LambdaQueryWrapper<FlwHisTask> taskWrapper = new LambdaQueryWrapper<>();
-        taskWrapper.in(FlwHisTask::getId, hisTaskIds);
-        // 只查询已完成的任务（task_state > 0 表示已完成）
-        taskWrapper.gt(FlwHisTask::getTaskState, 0);
-        // 排除发起节点的发起人任务（taskType=0），已办只展示真实审批记录
-        taskWrapper.ne(FlwHisTask::getTaskType, 0);
-
-        // 任务名称筛选
-        if (StrUtil.isNotBlank(request.getName())) {
-            taskWrapper.like(FlwHisTask::getTaskName, request.getName());
-        }
-
-        // 流程名称过滤两步式：已办实例可能在途（活动表）或已结束（历史表），两侧并集
-        if (StrUtil.isNotBlank(request.getProcessDefinitionName())) {
-            List<Long> nameInstanceIds = instanceIdsByProcessName(
-                    request.getProcessDefinitionName(), true);
-            if (nameInstanceIds.isEmpty()) {
-                return emptyTaskPage(request);
-            }
-            taskWrapper.in(FlwHisTask::getInstanceId, nameInstanceIds);
-        }
-
-        // 标题过滤两步式：先按 __title 圈实例。流程可能仍在运行（实例在活动表）或已结束（在历史表），
-        // 已办任务两态并存，故两侧并集
-        String titleKeyword = escapeLike(request.getTitle());
-        if (titleKeyword != null) {
-            Set<Long> titleInstanceIds = new java.util.HashSet<>(instanceMapper.selectList(
-                            new LambdaQueryWrapper<FlwInstance>()
-                                    .select(FlwInstance::getId)
-                                    .apply("variable LIKE CONCAT('%\"__title\":\"%', {0}, '%') ESCAPE '|'", titleKeyword))
-                    .stream().map(FlwInstance::getId).toList());
-            titleInstanceIds.addAll(hisInstanceMapper.selectList(
-                            new LambdaQueryWrapper<FlwHisInstance>()
-                                    .select(FlwHisInstance::getId)
-                                    .apply("variable LIKE CONCAT('%\"__title\":\"%', {0}, '%') ESCAPE '|'", titleKeyword))
-                    .stream().map(FlwHisInstance::getId).toList());
-            if (titleInstanceIds.isEmpty()) {
-                return emptyTaskPage(request);
-            }
-            taskWrapper.in(FlwHisTask::getInstanceId, titleInstanceIds);
-        }
-
-        taskWrapper.orderByDesc(FlwHisTask::getFinishTime);
-
-        Page<FlwHisTask> pageParam = new Page<>(request.getPageNum(), request.getPageSize());
-        Page<FlwHisTask> taskPage = hisTaskMapper.selectPage(pageParam, taskWrapper);
-
-        // 4. 转换为响应对象，补充流程信息
-        BatchContext hisCtx = preloadHisBatch(taskPage.getRecords());
-        List<TaskResponse> records = taskPage.getRecords().stream()
-                .map(t -> convertHisTaskToResponseWithProcess(t, hisCtx))
-                .collect(Collectors.toList());
-
-        Page<TaskResponse> resultPage = new Page<>();
-        resultPage.setCurrent(taskPage.getCurrent());
-        resultPage.setSize(taskPage.getSize());
-        resultPage.setTotal(taskPage.getTotal());
-        resultPage.setRecords(records);
-        return resultPage;
+    @Override
+    public List<TaskResponse> getCcTasksByInstanceId(String processInstanceId) {
+        return wfTaskQueryService.getCcTasksByInstanceId(parseTaskId(processInstanceId));
     }
 
     @Override
@@ -576,9 +112,9 @@ public class WfTaskServiceImpl implements WfTaskService {
             if (hisTask == null) {
                 throw new BusinessException(404, "任务不存在");
             }
-            return convertHisTaskToResponse(hisTask);
+            return taskResponseAssembler.convertHisTaskToResponse(hisTask);
         }
-        return convertTaskToResponse(task);
+        return taskResponseAssembler.convertTaskToResponse(task);
     }
 
     @Override
@@ -653,8 +189,6 @@ public class WfTaskServiceImpl implements WfTaskService {
         }
         return restored;
     }
-
-
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -1060,184 +594,8 @@ public class WfTaskServiceImpl implements WfTaskService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void urgeInstance(String processInstanceId, String comment) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        if (currentUserId == null) {
-            throw new BusinessException(401, "未获取到当前用户信息");
-        }
-        Long instanceId;
-        try {
-            instanceId = Long.parseLong(processInstanceId);
-        } catch (NumberFormatException e) {
-            throw new BusinessException(400, "流程实例ID格式错误");
-        }
-
-        FlwInstance instance = queryService.getInstance(instanceId);
-        if (instance == null) {
-            throw new BusinessException(400, "流程已结束，无法催办");
-        }
-
-        boolean isInitiator = String.valueOf(currentUserId).equals(instance.getCreateId());
-        if (!isInitiator && !hasWorkflowAdminRole()) {
-            throw new BusinessException(403, "只有流程发起人或工作流管理员才能催办");
-        }
-
-        // 按 id 升序固定加锁顺序：并发催办同实例多任务时防互相持锁等待死锁
-        List<FlwTask> approvalTasks = queryService.getTasksByInstanceId(instanceId).stream()
-                .filter(t -> isHumanApprovalTask(t.getTaskType()))
-                .sorted(Comparator.comparing(FlwTask::getId))
-                .toList();
-        if (approvalTasks.isEmpty()) {
-            throw new BusinessException(400, "当前无待审批任务，无需催办");
-        }
-
-        FlwProcess process = processService.getProcessById(instance.getProcessId());
-        String processName = process != null ? process.getProcessName() : instance.getCurrentNodeName();
-        String urgerName = identityService.getUserName(currentUserId);
-        long now = System.currentTimeMillis();
-        long throttleMillis = Math.max(1, schedulerProperties.getUrgeIntervalMinutes()) * 60_000L;
-
-        int urged = 0;
-        long earliestRetryMillis = Long.MAX_VALUE;
-        for (FlwTask task : approvalTasks) {
-            // 节流判定与标记写入须串行化：先取行锁（FOR UPDATE 当前读，持有至事务结束），
-            // 再基于锁内最新 variable 判节流并合并写回——列表快照上判定会被并发催办双穿透、
-            // 整体覆写 variable 会丢更新
-            FlwTask lockedTask = lockTaskForUrge(task.getId());
-            if (lockedTask == null) {
-                // 列表加载到取锁之间任务已办结（移入历史表），无需催办
-                continue;
-            }
-            Long lastUrgeTime = readLastUrgeTime(lockedTask);
-            if (lastUrgeTime != null && now - lastUrgeTime < throttleMillis) {
-                earliestRetryMillis = Math.min(earliestRetryMillis, throttleMillis - (now - lastUrgeTime));
-                continue;
-            }
-            urgeSingleTask(lockedTask, processName, urgerName, comment, now, currentUserId);
-            urged++;
-        }
-
-        if (urged == 0) {
-            if (earliestRetryMillis == Long.MAX_VALUE) {
-                // 没有任何任务命中节流：说明待审批任务在取锁前已全部办结
-                throw new BusinessException(400, "当前无待审批任务，无需催办");
-            }
-            long retryMinutes = Math.max(1, (earliestRetryMillis + 60_000 - 1) / 60_000);
-            throw new BusinessException(400, "催办过于频繁，请约 " + retryMinutes + " 分钟后再试");
-        }
-        log.info("流程催办完成: instanceId={}, operator={}, urged={}/{}, comment={}",
-                instanceId, currentUserId, urged, approvalTasks.size(), comment);
-    }
-
-    /**
-     * 催办前锁定任务行：SELECT ... FOR UPDATE（H2/MySQL 均支持），返回锁内最新任务行；
-     * 任务已不存在（并发办结）返回 null。须在事务内调用，行锁随事务提交/回滚释放。
-     */
-    private FlwTask lockTaskForUrge(Long taskId) {
-        return taskMapper.selectOne(new LambdaQueryWrapper<FlwTask>()
-                .eq(FlwTask::getId, taskId)
-                .last("FOR UPDATE"));
-    }
-
-    /**
-     * 催办单个任务：写节流标记 + 通知处理人 + 审批意见留痕
-     * <p>
-     * task 须为 {@link #lockTaskForUrge} 取得的锁内最新行：节流标记在其 variable 上合并后写回，
-     * 行锁保证读-改-写期间无并发催办覆写。
-     */
-    private void urgeSingleTask(FlwTask task, String processName, String urgerName,
-                                String comment, long now, Long operatorUserId) {
-        // 节流标记写任务变量（不影响流程变量，仅任务列 variable）
-        FlwTask update = new FlwTask();
-        update.setId(task.getId());
-        Map<String, Object> variableMap = task.variableMap();
-        if (variableMap == null) {
-            variableMap = new HashMap<>();
-        }
-        variableMap.put("lastUrgeTime", now);
-        try {
-            update.setVariable(objectMapper.writeValueAsString(variableMap));
-        } catch (Exception e) {
-            log.warn("序列化催办标记失败，跳过节流写入: taskId={}", task.getId());
-        }
-        taskService.updateTaskById(update, FlowCreatorFactory.system("催办"));
-
-        // 通知该任务全部用户参与者
-        long waitingMinutes = task.getCreateTime() == null ? 0
-                : Math.max(1, (now - task.getCreateTime().getTime()) / 60_000);
-        String title = "【催办】待办任务处理提醒";
-        String content = StrUtil.format("{} 催办流程「{}」，任务「{}」已等待约 {} 分钟，请及时处理。",
-                urgerName, processName, task.getTaskName(), waitingMinutes);
-        if (StrUtil.isNotBlank(comment)) {
-            content = content + " 催办留言：" + comment;
-        }
-        List<FlwTaskActor> actors = queryService.getTaskActorsByTaskId(task.getId());
-        Set<Long> actorUserIds = actors.stream()
-                .filter(a -> ActorType.user.eq(a.getActorType()))
-                .map(a -> {
-                    try {
-                        return Long.parseLong(a.getActorId());
-                    } catch (NumberFormatException e) {
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        for (Long userId : actorUserIds) {
-            try {
-                notificationService.sendToUser(userId, NotificationMessage.workflow(title, content, task.getId()));
-            } catch (Exception e) {
-                log.warn("催办通知发送失败: taskId={}, userId={}", task.getId(), userId, e);
-            }
-        }
-
-        // 审批意见留痕（挂在催办的任务上）
-        saveApprovalComment(task, operatorUserId, urgerName,
-                ApprovalActionTypeEnum.URGE.getCode(),
-                StrUtil.isNotBlank(comment) ? "催办：" + comment : "催办任务「" + task.getTaskName() + "」");
-    }
-
-    /**
-     * 是否需要人处理的审批任务（催办目标/抄送锚点共用判定）
-     * 覆盖：审批(1)、条件审批(3，设计器条件审批节点独立使用时引擎按审批处理)、
-     * 转办(10)、委派(11)——转办/委派后任务行 taskType 会被引擎改写但仍是待人审批；
-     * 排除：发起人待重新提交(major)、抄送(cc，仅存历史表)、定时器/触发器/子流程等待、暂存
-     */
-    public static boolean isHumanApprovalTask(Integer taskType) {
-        return TaskType.approval.eq(taskType)
-                || TaskType.conditionNode.eq(taskType)
-                || TaskType.transfer.eq(taskType)
-                || TaskType.delegate.eq(taskType);
-    }
-
-    private Long readLastUrgeTime(FlwTask task) {
-        Map<String, Object> variableMap = task.variableMap();
-        if (variableMap == null) {
-            return null;
-        }
-        Object value = variableMap.get("lastUrgeTime");
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value instanceof String str && str.matches("\\d+")) {
-            return Long.parseLong(str);
-        }
-        return null;
-    }
-
-    private boolean hasWorkflowAdminRole() {
-        UserContext context = UserContext.get();
-        if (context == null) {
-            return false;
-        }
-        if (context.isAdmin()) {
-            return true;
-        }
-        if (context.getRoles() == null) {
-            return false;
-        }
-        return context.getRoles().stream()
-                .map(role -> role.getRoleCode() == null ? "" : role.getRoleCode().toLowerCase())
-                .anyMatch(code -> "admin".equals(code) || "workflow_admin".equals(code));
+        // 催办（含 FOR UPDATE 行锁节流/通知/留痕）已收敛至 WfUrgeService
+        wfUrgeService.urgeInstance(processInstanceId, comment);
     }
 
     @Override
@@ -1274,99 +632,16 @@ public class WfTaskServiceImpl implements WfTaskService {
         log.info("任务拿回成功：taskId={}, userId={}", taskId, currentUserId);
     }
 
-    @Override
-    public Page<TaskResponse> getCcTasks(TaskQueryRequest request) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        if (currentUserId == null) {
-            throw new BusinessException(401, "未获取到当前用户信息");
-        }
-
-        String userIdStr = String.valueOf(currentUserId);
-
-        // 查询当前用户作为抄送人的历史任务参与者记录
-        // 抄送人通过 weight = 6 来标识
-        LambdaQueryWrapper<FlwHisTaskActor> actorWrapper = new LambdaQueryWrapper<>();
-        actorWrapper.eq(FlwHisTaskActor::getActorId, userIdStr);
-        actorWrapper.eq(FlwHisTaskActor::getWeight, 6); // 抄送人标识
-        List<FlwHisTaskActor> ccTaskActors = hisTaskActorMapper.selectList(actorWrapper);
-
-        if (ccTaskActors.isEmpty()) {
-            Page<TaskResponse> emptyPage = new Page<>();
-            emptyPage.setCurrent(request.getPageNum());
-            emptyPage.setSize(request.getPageSize());
-            emptyPage.setTotal(0);
-            emptyPage.setRecords(Collections.emptyList());
-            return emptyPage;
-        }
-
-        // 获取所有抄送 taskId
-        Set<Long> ccTaskIds = ccTaskActors.stream()
-                .map(FlwHisTaskActor::getTaskId)
-                .collect(Collectors.toSet());
-
-        // 查询历史抄送任务
-        LambdaQueryWrapper<FlwHisTask> taskWrapper = new LambdaQueryWrapper<>();
-        taskWrapper.in(FlwHisTask::getId, ccTaskIds);
-        taskWrapper.eq(FlwHisTask::getTaskType, TaskType.cc.getValue()); // 抄送任务类型
-
-        // 任务名称筛选
-        if (StrUtil.isNotBlank(request.getName())) {
-            taskWrapper.like(FlwHisTask::getTaskName, request.getName());
-        }
-
-        taskWrapper.orderByDesc(FlwHisTask::getCreateTime);
-
-        Page<FlwHisTask> pageParam = new Page<>(request.getPageNum(), request.getPageSize());
-        Page<FlwHisTask> taskPage = hisTaskMapper.selectPage(pageParam, taskWrapper);
-
-        // 转换为响应对象，补充流程信息
-        BatchContext hisCtx = preloadHisBatch(taskPage.getRecords());
-        List<TaskResponse> records = taskPage.getRecords().stream()
-                .map(t -> convertHisTaskToResponseWithProcess(t, hisCtx))
-                .collect(Collectors.toList());
-
-        Page<TaskResponse> resultPage = new Page<>();
-        resultPage.setCurrent(taskPage.getCurrent());
-        resultPage.setSize(taskPage.getSize());
-        resultPage.setTotal(taskPage.getTotal());
-        resultPage.setRecords(records);
-        return resultPage;
-    }
-
-    @Override
-    public List<TaskResponse> getCcTasksByInstanceId(String processInstanceId) {
-        Long instanceId = parseTaskId(processInstanceId);
-
-        // 使用 FlowLong 的查询服务获取流程实例的抄送任务参与者
-        Optional<List<FlwHisTaskActor>> ccTaskActorsOpt = queryService.getCcTaskActorsByInstanceId(instanceId);
-
-        if (ccTaskActorsOpt.isEmpty() || ccTaskActorsOpt.get().isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<FlwHisTaskActor> ccTaskActors = ccTaskActorsOpt.get();
-
-        // 获取所有抄送 taskId
-        Set<Long> ccTaskIds = ccTaskActors.stream()
-                .map(FlwHisTaskActor::getTaskId)
-                .collect(Collectors.toSet());
-
-        // 查询历史抄送任务
-        LambdaQueryWrapper<FlwHisTask> taskWrapper = new LambdaQueryWrapper<>();
-        taskWrapper.in(FlwHisTask::getId, ccTaskIds);
-        taskWrapper.eq(FlwHisTask::getTaskType, TaskType.cc.getValue());
-        taskWrapper.orderByDesc(FlwHisTask::getCreateTime);
-
-        List<FlwHisTask> ccTasks = hisTaskMapper.selectList(taskWrapper);
-
-        // 转换为响应对象
-        BatchContext ccCtx = preloadHisBatch(ccTasks);
-        return ccTasks.stream()
-                .map(t -> convertHisTaskToResponseWithProcess(t, ccCtx))
-                .collect(Collectors.toList());
-    }
-
     // ========== 私有方法 ==========
+
+    /**
+     * 是否需要人处理的审批任务（催办目标/抄送锚点共用判定）。
+     * 实现已收敛至 {@link TaskResponseAssembler#isHumanApprovalTask}；
+     * WfProcessInstanceCopyServiceImpl 等外部调用方仍经本入口静态引用，保留契约。
+     */
+    public static boolean isHumanApprovalTask(Integer taskType) {
+        return TaskResponseAssembler.isHumanApprovalTask(taskType);
+    }
 
     private Long parseTaskId(String taskId) {
         try {
@@ -1454,155 +729,5 @@ public class WfTaskServiceImpl implements WfTaskService {
                     .and(w -> w.isNull(SysAttachment::getBizId).or().eq(SysAttachment::getBizId, comment.getId()))
                     .update();
         }
-    }
-
-    private TaskResponse convertTaskToResponse(FlwTask task) {
-        TaskResponse response = new TaskResponse();
-        response.setId(String.valueOf(task.getId()));
-        response.setName(task.getTaskName());
-        response.setTaskDefinitionKey(task.getTaskKey());
-        response.setProcessInstanceId(String.valueOf(task.getInstanceId()));
-
-        // 受理人以实际参与者为准（转办/并行加签不更新任务创建人字段，
-        // 直接读 create_by 会显示转办前的处理人）；多参与人时回退为待认领+名单展示
-        List<FlwTaskActor> actors = queryService.getTaskActorsByTaskId(task.getId());
-        List<FlwTaskActor> userActors = actors.stream()
-                .filter(a -> ActorType.user.eq(a.getActorType()))
-                .toList();
-        if (userActors.size() == 1) {
-            response.setAssignee(userActors.get(0).getActorId());
-            response.setAssigneeName(userActors.get(0).getActorName());
-        } else {
-            // 多用户参与（或签/并行加签后）或角色部门候选池：待认领 + 参与者名单
-            response.setCandidate(true);
-            response.setCandidateUsers(actors.stream()
-                    .map(FlwTaskActor::getActorName)
-                    .distinct()
-                    .collect(Collectors.toList()));
-            if (!userActors.isEmpty()) {
-                response.setAssignee(userActors.get(0).getActorId());
-                response.setAssigneeName(userActors.get(0).getActorName());
-            } else if (task.getCreateId() != null) {
-                response.setAssignee(task.getCreateId());
-                response.setAssigneeName(task.getCreateBy());
-            }
-        }
-
-        response.setCreateTime(task.getCreateTime());
-        return response;
-    }
-
-    /**
-     * 转换任务响应（包含流程信息）
-     */
-    private TaskResponse convertTaskToResponseWithProcess(FlwTask task) {
-        TaskResponse response = convertTaskToResponse(task);
-
-        // 补充流程实例信息
-        FlwInstance instance = instanceMapper.selectById(task.getInstanceId());
-        if (instance != null) {
-            response.setProcessInstanceId(String.valueOf(instance.getId()));
-            response.setUrgent(instance.getUrgent());
-            response.setInstanceTitle(InstanceTitleRenderer.extractTitle(instance.getVariable()));
-
-            // 补充流程定义信息
-            FlwProcess process = processService.getProcessById(instance.getProcessId());
-            if (process != null) {
-                response.setProcessDefinitionId(String.valueOf(process.getId()));
-                response.setProcessDefinitionName(process.getProcessName());
-                response.setProcessDefinitionKey(process.getProcessKey());
-            }
-
-            // 发起人信息
-            if (StrUtil.isNotBlank(instance.getCreateId())) {
-                response.setStartUserId(instance.getCreateId());
-                try {
-                    Long startUserId = Long.parseLong(instance.getCreateId());
-                    response.setStartUserName(identityService.getUserName(startUserId));
-                } catch (NumberFormatException e) {
-                    response.setStartUserName(instance.getCreateBy());
-                }
-            }
-
-            response.setStartTime(instance.getCreateTime());
-
-            // 流程编号
-            response.setProcessNo(instance.getInstanceNo());
-        }
-
-        return response;
-    }
-
-    private TaskResponse convertHisTaskToResponse(FlwHisTask hisTask) {
-        TaskResponse response = new TaskResponse();
-        response.setId(String.valueOf(hisTask.getId()));
-        response.setName(hisTask.getTaskName());
-        response.setTaskDefinitionKey(hisTask.getTaskKey());
-        response.setProcessInstanceId(String.valueOf(hisTask.getInstanceId()));
-
-        if (hisTask.getCreateId() != null) {
-            try {
-                response.setAssignee(hisTask.getCreateId());
-                response.setAssigneeName(identityService.getUserName(Long.parseLong(hisTask.getCreateId())));
-            } catch (NumberFormatException ignored) {}
-        }
-
-        response.setCreateTime(hisTask.getCreateTime());
-        response.setEndTime(hisTask.getFinishTime());
-        return response;
-    }
-
-    /**
-     * 转换历史任务响应（包含流程信息）
-     */
-
-    /**
-     * 按流程名称模糊圈实例 ID：先圈流程再圈实例（includeHis=已办场景实例可能在途或已结束，两侧并集）
-     */
-    private List<Long> instanceIdsByProcessName(String processName, boolean includeHis) {
-        Set<Long> processIds = processMapper.selectList(new LambdaQueryWrapper<com.aizuda.bpm.engine.entity.FlwProcess>()
-                        .select(com.aizuda.bpm.engine.entity.FlwProcess::getId)
-                        .like(com.aizuda.bpm.engine.entity.FlwProcess::getProcessName, processName))
-                .stream().map(com.aizuda.bpm.engine.entity.FlwProcess::getId)
-                .collect(java.util.stream.Collectors.toSet());
-        if (processIds.isEmpty()) {
-            return List.of();
-        }
-        Set<Long> instanceIds = new java.util.HashSet<>(instanceMapper.selectList(
-                        new LambdaQueryWrapper<FlwInstance>()
-                                .select(FlwInstance::getId)
-                                .in(FlwInstance::getProcessId, processIds))
-                .stream().map(FlwInstance::getId).toList());
-        if (includeHis) {
-            instanceIds.addAll(hisInstanceMapper.selectList(
-                            new LambdaQueryWrapper<FlwHisInstance>()
-                                    .select(FlwHisInstance::getId)
-                                    .in(FlwHisInstance::getProcessId, processIds))
-                    .stream().map(FlwHisInstance::getId).toList());
-        }
-        return List.copyOf(instanceIds);
-    }
-
-    /**
-     * 标题过滤无命中的空页快速返回
-     */
-    private Page<TaskResponse> emptyTaskPage(TaskQueryRequest request) {
-        Page<TaskResponse> empty = new Page<>(request.getPageNum(), request.getPageSize());
-        empty.setTotal(0);
-        empty.setRecords(Collections.emptyList());
-        return empty;
-    }
-
-    /**
-     * 标题/模糊关键字转义：以 | 为转义符（MySQL/H2 双兼容），% _ 按字面匹配；空白返回 null
-     */
-    private String escapeLike(String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            return null;
-        }
-        return keyword.trim()
-                .replace("|", "||")
-                .replace("%", "|%")
-                .replace("_", "|_");
     }
 }

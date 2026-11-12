@@ -69,6 +69,8 @@
 
 ## 4. 分模块问题清单
 
+> **第四批拆分状态（2026-11-12）**：§4.4 两大上帝类已拆（Instance 1592→709，Task 1608→733，方案五件/四件落地于 framework/{validator,instance,task}）；§4.2 两 Graph 重复收敛（GraphSupport 单一实现+ToolParallelExecutor 单 Agent 接线，ConvGraph 530→469）；DiagramGenerator 14 段 else-if → NodeKind 样式表（651→601）；claimable 过滤缺陷（§4.4-W1-P2#12）已修。行为零变化（全量回归除 Docker IT 外 0 失败）。团队图工具块保留（白名单逐 call 拒绝路径与组件接口不匹配，04 裁决）。
+
 > 每条格式：**[级别] 标题**（位置）— 问题与影响 → 修复方向。（置信度省略处均为实证；疑似已单独标注）
 
 ### 4.1 AI 模块 — client 层（13 条）

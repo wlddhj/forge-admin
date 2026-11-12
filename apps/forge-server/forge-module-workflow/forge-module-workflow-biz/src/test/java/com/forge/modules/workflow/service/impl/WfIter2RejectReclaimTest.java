@@ -1,5 +1,11 @@
 package com.forge.modules.workflow.service.impl;
 
+import com.forge.modules.workflow.framework.task.WfUrgeService;
+
+import com.forge.modules.workflow.framework.task.TaskResponseAssembler;
+
+import com.forge.modules.workflow.framework.task.WfTaskQueryService;
+
 import com.aizuda.bpm.engine.FlowLongEngine;
 import com.aizuda.bpm.engine.ProcessService;
 import com.aizuda.bpm.engine.QueryService;
@@ -53,12 +59,13 @@ class WfIter2RejectReclaimTest {
         hisTaskMapper = mock(FlwHisTaskMapper.class);
         hisTaskActorMapper = mock(FlwHisTaskActorMapper.class);
 
-        service = new WfTaskServiceImpl(taskService, mock(ProcessService.class), mock(RuntimeService.class),
+        service = new WfTaskServiceImpl(taskService, mock(RuntimeService.class),
                 queryService, mock(FlowLongIdentityService.class), mock(WfApprovalCommentMapper.class),
-                mock(FlwTaskMapper.class), hisTaskMapper, mock(FlwTaskActorMapper.class),
-                hisTaskActorMapper, mock(FlwInstanceMapper.class), mock(com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper.class), mock(FlwHisInstanceMapper.class),
-                flowLongEngine, mock(SysAttachmentService.class), mock(NotificationService.class),
-                new FlowLongSchedulerProperties(), new ObjectMapper(), permissiveAccessStrategy());
+                hisTaskMapper, hisTaskActorMapper, mock(FlwInstanceMapper.class),
+                flowLongEngine, mock(SysAttachmentService.class),
+                new ObjectMapper(), permissiveAccessStrategy(),
+                mock(WfTaskQueryService.class), new TaskResponseAssembler(queryService, mock(FlowLongIdentityService.class)),
+                mock(WfUrgeService.class));
     }
 
     /** 归属校验放行桩：本测试类聚焦驳回策略/拿回语义，参与者判定恒通过 */

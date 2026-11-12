@@ -1,5 +1,11 @@
 package com.forge.modules.workflow.service.impl;
 
+import com.forge.modules.workflow.framework.task.WfUrgeService;
+
+import com.forge.modules.workflow.framework.task.TaskResponseAssembler;
+
+import com.forge.modules.workflow.framework.task.WfTaskQueryService;
+
 import com.aizuda.bpm.engine.FlowLongEngine;
 import com.aizuda.bpm.engine.ProcessService;
 import com.aizuda.bpm.engine.QueryService;
@@ -57,6 +63,7 @@ class WfTaskServiceUrgeTest {
     private NotificationService notificationService;
     private FlowLongSchedulerProperties schedulerProperties;
     private FlwTaskMapper taskMapper;
+    private WfUrgeService urgeService;
     private WfTaskServiceImpl service;
 
     @BeforeAll
@@ -80,13 +87,17 @@ class WfTaskServiceUrgeTest {
         schedulerProperties.setUrgeIntervalMinutes(30);
         taskMapper = mock(FlwTaskMapper.class);
 
-        service = new WfTaskServiceImpl(taskService, processService, mock(RuntimeService.class),
+        // 催办已收敛至 WfUrgeService：同一组 mock 装配真实催办服务，主类经其委托
+        // （断言对象 taskService/taskMapper/notificationService/approvalCommentMapper 均为同一实例）
+        urgeService = new WfUrgeService(taskService, processService, queryService, identityService,
+                taskMapper, approvalCommentMapper, notificationService, schedulerProperties, new ObjectMapper());
+
+        service = new WfTaskServiceImpl(taskService, mock(RuntimeService.class),
                 queryService, identityService, approvalCommentMapper,
-                taskMapper, mock(FlwHisTaskMapper.class),
-                mock(FlwTaskActorMapper.class), mock(FlwHisTaskActorMapper.class),
-                mock(FlwInstanceMapper.class), mock(com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper.class), mock(FlwHisInstanceMapper.class),
-                mock(FlowLongEngine.class), mock(SysAttachmentService.class),
-                notificationService, schedulerProperties, new ObjectMapper(), permissiveAccessStrategy());
+                mock(FlwHisTaskMapper.class), mock(FlwHisTaskActorMapper.class),
+                mock(FlwInstanceMapper.class), mock(FlowLongEngine.class), mock(SysAttachmentService.class),
+                new ObjectMapper(), permissiveAccessStrategy(),
+                mock(WfTaskQueryService.class), mock(TaskResponseAssembler.class), urgeService);
     }
 
     /**

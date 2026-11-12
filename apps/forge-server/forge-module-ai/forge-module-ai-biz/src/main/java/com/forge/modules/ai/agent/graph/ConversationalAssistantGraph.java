@@ -53,6 +53,8 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
     private final java.util.concurrent.Executor agentExecutor;
     /** 工具并行专用池（与图执行隔离，防池内互等死锁；见 AgentExecutorConfig） */
     private final java.util.concurrent.Executor toolExecutor;
+    /** 工具并行执行骨架（两图共享，第四批抽取） */
+    private final ToolParallelExecutor toolParallelExecutor;
     private final com.forge.modules.ai.config.AiModuleConfig aiModuleConfig;
 
     public ConversationalAssistantGraph(LlmClient llmClient,
@@ -67,6 +69,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                                         java.util.concurrent.Executor agentExecutor,
                                         @org.springframework.beans.factory.annotation.Qualifier("toolExecutor")
                                         java.util.concurrent.Executor toolExecutor,
+                                        ToolParallelExecutor toolParallelExecutor,
                                         com.forge.modules.ai.config.AiModuleConfig aiModuleConfig) {
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
@@ -78,6 +81,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         this.nativeToolCalling = nativeToolCalling;
         this.agentExecutor = agentExecutor;
         this.toolExecutor = toolExecutor;
+        this.toolParallelExecutor = toolParallelExecutor;
         this.aiModuleConfig = aiModuleConfig;
     }
 
@@ -131,30 +135,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
      */
     @SuppressWarnings("unchecked")
     private String describePendingCalls(AgentGraphState state) {
-        Object decisionObj = state.value(AgentGraphState.DECISION).orElse(null);
-        if (!(decisionObj instanceof Map<?, ?> decision)) {
-            return "（决策信息缺失）";
-        }
-        Object callsObj = decision.get("calls");
-        if (!(callsObj instanceof List<?> calls) || calls.isEmpty()) {
-            return "（无调用明细）";
-        }
-        StringBuilder sb = new StringBuilder();
-        for (Object call : calls) {
-            if (call instanceof Map<?, ?> c) {
-                sb.append("工具: ").append(c.get("tool"));
-                Object args = c.get("args");
-                if (args != null) {
-                    try {
-                        sb.append("\n参数: ").append(objectMapper.writeValueAsString(args));
-                    } catch (Exception ignored) {
-                        sb.append("\n参数: ").append(args);
-                    }
-                }
-                sb.append("\n\n");
-            }
-        }
-        return sb.toString().trim();
+        return GraphSupport.describePendingCalls(state, objectMapper);
     }
 
     // ========== 决策节点（LLM + 工具循环） ==========
@@ -375,55 +356,9 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                 return Map.of();
             }
             long start = System.currentTimeMillis();
-            List<Map<String, Object>> newHistory = new ArrayList<>();
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-            for (Object raw : calls) {
-                Map<?, ?> call = (Map<?, ?>) raw;
-                String toolName = String.valueOf(call.get("tool"));
-                @SuppressWarnings("unchecked")
-                Map<String, Object> args = call.get("args") == null
-                        ? Map.of() : (Map<String, Object>) call.get("args");
-                int callSeq = ctx.nextSeq();
-                ctx.emit(AgentEvents.Type.TOOL_CALL, NODE_TOOLS, toolName, Map.of("seq", callSeq, "args", args));
-                // 子线程不继承 ThreadLocal 租户上下文，工具执行(SqlTenantRewriter 等)依赖它——提交前快照传递
-                Long tenantSnapshot = TenantContextHolder.getTenantId();
-                futures.add(CompletableFuture.runAsync(() -> {
-                    if (tenantSnapshot != null) {
-                        TenantContextHolder.setTenantId(tenantSnapshot);
-                    }
-                    try {
-                    long toolStart = System.currentTimeMillis();
-                    Map<String, Object> record = new LinkedHashMap<>();
-                    record.put("tool", toolName);
-                    record.put("args", args);
-                    try {
-                        Object result = ctx.getToolRegistry().execute(toolName, args,
-                                com.forge.modules.ai.agent.tools.ToolExecutionContext.of(ctx.getUserId()));
-                        record.put("result", decisionJsonParser.truncate(String.valueOf(result)));
-                        record.put("status", "SUCCESS");
-                        ctx.emit(AgentEvents.Type.TOOL_RESULT, NODE_TOOLS, toolName, Map.of(
-                                "seq", callSeq, "status", "SUCCESS", "output", decisionJsonParser.truncate(String.valueOf(result)),
-                                "durationMs", System.currentTimeMillis() - toolStart));
-                    } catch (Exception e) {
-                        record.put("error", e.getMessage());
-                        record.put("status", "FAILED");
-                        ctx.emit(AgentEvents.Type.TOOL_RESULT, NODE_TOOLS, toolName, Map.of(
-                                "seq", callSeq, "status", "FAILED", "error", e.getMessage(),
-                                "durationMs", System.currentTimeMillis() - toolStart));
-                    }
-                    synchronized (newHistory) {
-                        newHistory.add(record);
-                    }
-                    } finally {
-                        if (tenantSnapshot != null) {
-                            TenantContextHolder.clear();
-                        }
-                    }
-                }, toolExecutor));
-            }
-            // 等待上限：工具组最坏多轮外部调用，5 分钟兜底防永久挂起（超时=节点失败走既有降级）
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .orTimeout(TOOL_WAIT_MINUTES, java.util.concurrent.TimeUnit.MINUTES).join();
+            List<Map<String, Object>> newHistory = toolParallelExecutor.runParallel(ctx, NODE_TOOLS, calls,
+                    com.forge.modules.ai.agent.tools.ToolExecutionContext.of(ctx.getUserId()), null, null,
+                    ctx::nextSeq, decisionJsonParser::truncate, TOOL_WAIT_MINUTES);
             history.addAll(newHistory);
             ctx.emit(AgentEvents.Type.STEP_END, NODE_TOOLS, "工具执行", Map.of(
                     "seq", ctx.nextSeq(), "status", "SUCCESS",
@@ -521,28 +456,14 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
      * 从 LlmClient 的 SSE 帧字符串（{"content":"…"} / [DONE] / {"error":…}）提取文本增量
      */
     private String extractContentDelta(String frame) {
-        if (frame == null || "[DONE]".equals(frame.trim())) {
-            return null;
-        }
-        try {
-            JsonNode node = objectMapper.readTree(frame);
-            if (node.has("error") && node.path("error").asBoolean(false)) {
-                throw new BusinessException("流式总结失败: " + node.path("message").asText());
-            }
-            return node.path("content").asText("");
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            return null;
-        }
+        return GraphSupport.extractContentDelta(frame, objectMapper);
     }
 
     private long summaryTimeoutMs() {
-        Integer timeout = aiModuleConfig.getClient().getSummaryTimeout();
-        return timeout == null || timeout <= 0 ? 60000L : timeout;
+        return GraphSupport.summaryTimeoutMs(aiModuleConfig.getClient().getSummaryTimeout());
     }
 
     private int nullToZero(Integer value) {
-        return value == null ? 0 : value;
+        return GraphSupport.nullToZero(value);
     }
 }

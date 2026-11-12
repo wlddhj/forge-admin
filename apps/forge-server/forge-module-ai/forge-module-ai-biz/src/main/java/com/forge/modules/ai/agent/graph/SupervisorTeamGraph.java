@@ -914,26 +914,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
     }
 
     private String describePendingCalls(AgentGraphState state) {
-        Object decisionObj = state.value(AgentGraphState.DECISION).orElse(null);
-        if (!(decisionObj instanceof Map<?, ?> decision)
-                || !(decision.get("calls") instanceof List<?> calls) || calls.isEmpty()) {
-            return "（无调用明细）";
-        }
-        StringBuilder sb = new StringBuilder();
-        for (Object call : calls) {
-            if (call instanceof Map<?, ?> c) {
-                sb.append("工具: ").append(c.get("tool"));
-                if (c.get("args") != null) {
-                    try {
-                        sb.append("\n参数: ").append(objectMapper.writeValueAsString(c.get("args")));
-                    } catch (Exception ignored) {
-                        sb.append("\n参数: ").append(c.get("args"));
-                    }
-                }
-                sb.append("\n\n");
-            }
-        }
-        return sb.toString().trim();
+        return GraphSupport.describePendingCalls(state, objectMapper);
     }
 
     // ========== 专家工具执行节点（子图内，白名单校验 + 并行执行） ==========
@@ -1163,29 +1144,15 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
     }
 
     private String extractContentDelta(String frame) {
-        if (frame == null || "[DONE]".equals(frame.trim())) {
-            return null;
-        }
-        try {
-            JsonNode node = objectMapper.readTree(frame);
-            if (node.has("error") && node.path("error").asBoolean(false)) {
-                throw new BusinessException("流式总结失败: " + node.path("message").asText());
-            }
-            return node.path("content").asText("");
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            return null;
-        }
+        return GraphSupport.extractContentDelta(frame, objectMapper);
     }
 
     private long summaryTimeoutMs() {
-        Integer timeout = aiModuleConfig.getClient().getSummaryTimeout();
-        return timeout == null || timeout <= 0 ? 60000L : timeout;
+        return GraphSupport.summaryTimeoutMs(aiModuleConfig.getClient().getSummaryTimeout());
     }
 
     private int nullToZero(Integer value) {
-        return value == null ? 0 : value;
+        return GraphSupport.nullToZero(value);
     }
 
     /** Map<?,?> 安全取字符串（getOrDefault 与通配符类型不兼容） */

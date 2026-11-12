@@ -165,7 +165,7 @@ public class FlowLongDiagramGenerator {
             for (Point terminal : terminalPoints) {
                 drawConnection(svg, terminal, endPoint, null, false);
             }
-            drawEndNode(svg, endPoint.x, endPoint.y, "结束", "");
+            NodeKind.END.painter.draw(svg, endPoint.x, endPoint.y, "结束", "", NodeKind.END.fill, NodeKind.END.stroke);
         }
 
         svg.append("</svg>");
@@ -431,62 +431,124 @@ public class FlowLongDiagramGenerator {
     }
 
     /**
-     * 绘制节点
+     * 节点样式表（评审修复第四批表驱动重构：14 段同签名 else-if 收敛）。
+     * 特殊形态（start/end 圆、diamond、route 双三角、callProcess 内框、autoPass 勾、
+     * autoReject 叉）由各自 painter 绘制；普通节点走 rect 通用绘制（fill/stroke 参数化）。
      */
-    private void drawNode(StringBuilder svg, NodeModel node, int x, int y, boolean isActive) {
-        Integer type = node.getType();
-        if (type == null) type = TaskType.approval.getValue();
+    private enum NodeKind {
+        START((svg, x, y, name, active, fill, stroke) -> Holder.INSTANCE.drawStart(svg, x, y, name, active), "#e6f7ff", COLOR_START),
+        END((svg, x, y, name, active, fill, stroke) -> Holder.INSTANCE.drawEnd(svg, x, y, name, active), COLOR_END, COLOR_END),
+        APPROVAL(rect(), "#fff", COLOR_APPROVAL),
+        CC(rect(), "#f6ffed", COLOR_CC),
+        CONDITION((svg, x, y, name, active, fill, stroke) -> Holder.INSTANCE.drawCondition(svg, x, y, name, active, fill, stroke), "#f9f0ff", COLOR_CONDITION),
+        PARALLEL_BRANCH(rect(), "#e6fffb", COLOR_PARALLEL),
+        INCLUSIVE_BRANCH(rect(), "#fff0f6", COLOR_INCLUSIVE),
+        CALL_PROCESS((svg, x, y, name, active, fill, stroke) -> Holder.INSTANCE.drawCallProcessInner(svg, x, y, name, active, fill, stroke), "#f0f5ff", COLOR_CALL_PROCESS),
+        TIMER((svg, x, y, name, active, fill, stroke) -> Holder.INSTANCE.drawTimer(svg, x, y, name, active, fill, stroke), "#fffbe6", COLOR_TIMER),
+        TRIGGER((svg, x, y, name, active, fill, stroke) -> Holder.INSTANCE.drawRectSmallText(svg, x, y, name, active, fill, stroke), "#fcffe6", COLOR_TRIGGER),
+        ROUTE_BRANCH((svg, x, y, name, active, fill, stroke) -> Holder.INSTANCE.drawRouteArrows(svg, x, y, name, active, fill, stroke), "#e6f7ff", COLOR_ROUTE),
+        AUTO_PASS((svg, x, y, name, active, fill, stroke) -> Holder.INSTANCE.drawAutoPassMark(svg, x, y, name, active, fill, stroke), "#f6ffed", COLOR_AUTO_PASS),
+        AUTO_REJECT((svg, x, y, name, active, fill, stroke) -> Holder.INSTANCE.drawAutoRejectMark(svg, x, y, name, active, fill, stroke), "#fff2f0", COLOR_AUTO_REJECT),
+        GENERIC(rect(), "#fafafa", "#d9d9d9");
 
-        String activeClass = isActive ? " node-active" : "";
+        final Painter painter;
+        final String fill;
+        final String stroke;
 
-        if (TaskType.major.eq(type)) {
-            // 发起人节点（开始）
-            drawStartNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.end.eq(type)) {
-            // 结束节点
-            drawEndNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.approval.eq(type)) {
-            // 审批节点
-            drawApprovalNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.cc.eq(type)) {
-            // 抄送节点
-            drawCcNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.conditionBranch.eq(type) || TaskType.conditionNode.eq(type)) {
-            // 条件分支节点
-            drawConditionNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.parallelBranch.eq(type)) {
-            // 并行分支节点
-            drawParallelNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.inclusiveBranch.eq(type)) {
-            // 包容分支节点
-            drawInclusiveNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.callProcess.eq(type)) {
-            // 子流程节点
-            drawCallProcessNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.timer.eq(type)) {
-            // 定时器节点
-            drawTimerNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.trigger.eq(type)) {
-            // 触发器节点
-            drawTriggerNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.routeBranch.eq(type)) {
-            // 路由分支节点
-            drawRouteNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.autoPass.eq(type)) {
-            // 自动通过节点
-            drawAutoPassNode(svg, x, y, node.getNodeName(), activeClass);
-        } else if (TaskType.autoReject.eq(type)) {
-            // 自动拒绝节点
-            drawAutoRejectNode(svg, x, y, node.getNodeName(), activeClass);
-        } else {
-            // 默认节点
-            drawGenericNode(svg, x, y, node.getNodeName(), activeClass);
+        NodeKind(Painter painter, String fill, String stroke) {
+            this.painter = painter;
+            this.fill = fill;
+            this.stroke = stroke;
+        }
+
+        /** 普通 rect 节点（fill/stroke 由常量表下发） */
+        private static Painter rect() {
+            return (svg, x, y, name, active, fill, stroke) ->
+                    Holder.INSTANCE.drawRectNode(svg, x, y, name, active, fill, stroke, "node-text");
         }
     }
 
-    // ========== 节点绘制方法 ==========
+    /** 单节点 SVG 绘制签名（fill/stroke 由样式表下发；特殊形态按需取用） */
+    private interface Painter {
+        void draw(StringBuilder svg, int x, int y, String name, String activeClass, String fill, String stroke);
+    }
 
-    private void drawStartNode(StringBuilder svg, int x, int y, String name, String activeClass) {
+    /** 绘制实例惰性持有（enum 静态初始化早于外部类静态字段，直引会 NPE） */
+    private static final class Holder {
+        private static final FlowLongDiagramGenerator INSTANCE = new FlowLongDiagramGenerator(new ObjectMapper());
+    }
+
+    /**
+     * 绘制节点：查表分发（原 14 段 else-if 收敛为 kindOf + painter 绘制）
+     */
+    private void drawNode(StringBuilder svg, NodeModel node, int x, int y, boolean isActive) {
+        String activeClass = isActive ? " node-active" : "";
+        NodeKind kind = kindOf(node.getType());
+        kind.painter.draw(svg, x, y, node.getNodeName(), activeClass, kind.fill, kind.stroke);
+    }
+
+    /** 通用矩形节点：fill/stroke 由样式表驱动（替代 8 个仅颜色差异的 drawXxxNode） */
+    private void drawRectNode(StringBuilder svg, int x, int y, String name, String activeClass,
+                              String fill, String stroke, String textClass) {
+        svg.append(String.format(
+                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"%s\" stroke=\"%s\" class=\"node-box%s\"/>\n",
+                x, y, NODE_WIDTH, NODE_HEIGHT, fill, stroke, activeClass));
+        int ty = "node-desc".equals(textClass) ? y + NODE_HEIGHT + 12 : y + NODE_HEIGHT / 2 + 4;
+        svg.append(String.format(
+                "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"%s\">%s</text>\n",
+                x + NODE_WIDTH / 2, ty, textClass, escapeText(name)));
+    }
+
+    /** TaskType → 样式表（含条件分支双键与默认 GENERIC） */
+    private NodeKind kindOf(Integer type) {
+        if (type == null) {
+            return NodeKind.GENERIC;
+        }
+        if (TaskType.major.eq(type)) {
+            return NodeKind.START;
+        }
+        if (TaskType.end.eq(type)) {
+            return NodeKind.END;
+        }
+        if (TaskType.approval.eq(type)) {
+            return NodeKind.APPROVAL;
+        }
+        if (TaskType.cc.eq(type)) {
+            return NodeKind.CC;
+        }
+        if (TaskType.conditionBranch.eq(type) || TaskType.conditionNode.eq(type)) {
+            return NodeKind.CONDITION;
+        }
+        if (TaskType.parallelBranch.eq(type)) {
+            return NodeKind.PARALLEL_BRANCH;
+        }
+        if (TaskType.inclusiveBranch.eq(type)) {
+            return NodeKind.INCLUSIVE_BRANCH;
+        }
+        if (TaskType.callProcess.eq(type)) {
+            return NodeKind.CALL_PROCESS;
+        }
+        if (TaskType.timer.eq(type)) {
+            return NodeKind.TIMER;
+        }
+        if (TaskType.trigger.eq(type)) {
+            return NodeKind.TRIGGER;
+        }
+        if (TaskType.routeBranch.eq(type)) {
+            return NodeKind.ROUTE_BRANCH;
+        }
+        if (TaskType.autoPass.eq(type)) {
+            return NodeKind.AUTO_PASS;
+        }
+        if (TaskType.autoReject.eq(type)) {
+            return NodeKind.AUTO_REJECT;
+        }
+        return NodeKind.GENERIC;
+    }
+
+    // ========== 形态绘制实现（原 drawXxxNode 方法体平移，fill/stroke 参数化） ==========
+
+    private void drawStart(StringBuilder svg, int x, int y, String name, String activeClass) {
         int cx = x + NODE_WIDTH / 2;
         int cy = y + START_END_RADIUS + 5;
         svg.append(String.format(
@@ -497,7 +559,7 @@ public class FlowLongDiagramGenerator {
                 cx, cy + 4, escapeText(name)));
     }
 
-    private void drawEndNode(StringBuilder svg, int x, int y, String name, String activeClass) {
+    private void drawEnd(StringBuilder svg, int x, int y, String name, String activeClass) {
         int cx = x + NODE_WIDTH / 2;
         int cy = y + START_END_RADIUS + 5;
         svg.append(String.format(
@@ -508,141 +570,97 @@ public class FlowLongDiagramGenerator {
                 cx, cy + 4, escapeText(name)));
     }
 
-    private void drawApprovalNode(StringBuilder svg, int x, int y, String name, String activeClass) {
+    private void drawRectSmallText(StringBuilder svg, int x, int y, String name, String activeClass, String fill, String stroke) {
         svg.append(String.format(
-                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"#fff\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                x, y, NODE_WIDTH, NODE_HEIGHT, COLOR_APPROVAL, activeClass));
+                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"%s\" stroke=\"%s\" class=\"node-box%s\"/>\n",
+                x, y, NODE_WIDTH, NODE_HEIGHT, fill, stroke, activeClass));
         svg.append(String.format(
-                "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-text\">%s</text>\n",
+                "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-text\" font-size=\"11\">%s</text>\n",
                 x + NODE_WIDTH / 2, y + NODE_HEIGHT / 2 + 4, escapeText(name)));
     }
 
-    private void drawCcNode(StringBuilder svg, int x, int y, String name, String activeClass) {
-        svg.append(String.format(
-                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"#f6ffed\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                x, y, NODE_WIDTH, NODE_HEIGHT, COLOR_CC, activeClass));
-        svg.append(String.format(
-                "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-text\">%s</text>\n",
-                x + NODE_WIDTH / 2, y + NODE_HEIGHT / 2 + 4, escapeText(name)));
-    }
-
-    private void drawConditionNode(StringBuilder svg, int x, int y, String name, String activeClass) {
+    private void drawCondition(StringBuilder svg, int x, int y, String name, String activeClass, String fill, String stroke) {
         int cx = x + NODE_WIDTH / 2;
         int cy = y + NODE_HEIGHT / 2;
         svg.append(String.format(
-                "<polygon points=\"%d,%d %d,%d %d,%d %d,%d\" fill=\"#f9f0ff\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                cx, y + 3, x + NODE_WIDTH - 3, cy, cx, y + NODE_HEIGHT - 3, x + 3, cy, COLOR_CONDITION, activeClass));
+                "<polygon points=\"%d,%d %d,%d %d,%d %d,%d\" fill=\"%s\" stroke=\"%s\" class=\"node-box%s\"/>\n",
+                cx, y + 3, x + NODE_WIDTH - 3, cy, cx, y + NODE_HEIGHT - 3, x + 3, cy, fill, stroke, activeClass));
         svg.append(String.format(
                 "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-text\" font-size=\"11\">%s</text>\n",
                 cx, cy + 3, escapeText(name)));
     }
 
-    private void drawParallelNode(StringBuilder svg, int x, int y, String name, String activeClass) {
+    private void drawCallProcessInner(StringBuilder svg, int x, int y, String name, String activeClass, String fill, String stroke) {
         svg.append(String.format(
-                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"#e6fffb\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                x, y, NODE_WIDTH, NODE_HEIGHT, COLOR_PARALLEL, activeClass));
-        svg.append(String.format(
-                "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-text\">%s</text>\n",
-                x + NODE_WIDTH / 2, y + NODE_HEIGHT / 2 + 4, escapeText(name)));
-    }
-
-    private void drawInclusiveNode(StringBuilder svg, int x, int y, String name, String activeClass) {
-        svg.append(String.format(
-                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"#fff0f6\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                x, y, NODE_WIDTH, NODE_HEIGHT, COLOR_INCLUSIVE, activeClass));
-        svg.append(String.format(
-                "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-text\">%s</text>\n",
-                x + NODE_WIDTH / 2, y + NODE_HEIGHT / 2 + 4, escapeText(name)));
-    }
-
-    private void drawCallProcessNode(StringBuilder svg, int x, int y, String name, String activeClass) {
-        svg.append(String.format(
-                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"#f0f5ff\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                x, y, NODE_WIDTH, NODE_HEIGHT, COLOR_CALL_PROCESS, activeClass));
+                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"%s\" stroke=\"%s\" class=\"node-box%s\"/>\n",
+                x, y, NODE_WIDTH, NODE_HEIGHT, fill, stroke, activeClass));
         svg.append(String.format(
                 "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" fill=\"none\" stroke=\"%s\" stroke-dasharray=\"3,3\"/>\n",
-                x + 5, y + 5, NODE_WIDTH - 10, NODE_HEIGHT - 10, COLOR_CALL_PROCESS));
+                x + 5, y + 5, NODE_WIDTH - 10, NODE_HEIGHT - 10, stroke));
         svg.append(String.format(
                 "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-text\" font-size=\"11\">%s</text>\n",
                 x + NODE_WIDTH / 2, y + NODE_HEIGHT / 2 + 4, escapeText(name)));
     }
 
-    private void drawTimerNode(StringBuilder svg, int x, int y, String name, String activeClass) {
+    private void drawTimer(StringBuilder svg, int x, int y, String name, String activeClass, String fill, String stroke) {
         int cx = x + NODE_WIDTH / 2;
         int cy = y + NODE_HEIGHT / 2;
         int r = NODE_HEIGHT / 2 - 5;
         svg.append(String.format(
-                "<circle cx=\"%d\" cy=\"%d\" r=\"%d\" fill=\"#fffbe6\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                cx, cy, r, COLOR_TIMER, activeClass));
+                "<circle cx=\"%d\" cy=\"%d\" r=\"%d\" fill=\"%s\" stroke=\"%s\" class=\"node-box%s\"/>\n",
+                cx, cy, r, fill, stroke, activeClass));
         svg.append(String.format(
                 "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-text\" font-size=\"11\">%s</text>\n",
                 cx, cy + 4, escapeText(name)));
     }
 
-    private void drawTriggerNode(StringBuilder svg, int x, int y, String name, String activeClass) {
-        svg.append(String.format(
-                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"#fcffe6\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                x, y, NODE_WIDTH, NODE_HEIGHT, COLOR_TRIGGER, activeClass));
-        svg.append(String.format(
-                "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-text\" font-size=\"11\">%s</text>\n",
-                x + NODE_WIDTH / 2, y + NODE_HEIGHT / 2 + 4, escapeText(name)));
-    }
-
-    private void drawRouteNode(StringBuilder svg, int x, int y, String name, String activeClass) {
+    private void drawRouteArrows(StringBuilder svg, int x, int y, String name, String activeClass, String fill, String stroke) {
         int cx = x + NODE_WIDTH / 2;
         int cy = y + NODE_HEIGHT / 2;
         svg.append(String.format(
-                "<polygon points=\"%d,%d %d,%d %d,%d\" fill=\"#e6f7ff\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                x + 8, cy, cx, y + 3, x + NODE_WIDTH - 8, cy, COLOR_ROUTE, activeClass));
+                "<polygon points=\"%d,%d %d,%d %d,%d\" fill=\"%s\" stroke=\"%s\" class=\"node-box%s\"/>\n",
+                x + 8, cy, cx, y + 3, x + NODE_WIDTH - 8, cy, fill, stroke, activeClass));
         svg.append(String.format(
-                "<polygon points=\"%d,%d %d,%d %d,%d\" fill=\"#e6f7ff\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                cx, y + NODE_HEIGHT - 3, x + 8, cy, x + NODE_WIDTH - 8, cy, COLOR_ROUTE, activeClass));
+                "<polygon points=\"%d,%d %d,%d %d,%d\" fill=\"%s\" stroke=\"%s\" class=\"node-box%s\"/>\n",
+                cx, y + NODE_HEIGHT - 3, x + 8, cy, x + NODE_WIDTH - 8, cy, fill, stroke, activeClass));
         svg.append(String.format(
                 "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-text\" font-size=\"10\">%s</text>\n",
                 cx, cy + 3, escapeText(name)));
     }
 
-    private void drawAutoPassNode(StringBuilder svg, int x, int y, String name, String activeClass) {
+    private void drawAutoPassMark(StringBuilder svg, int x, int y, String name, String activeClass, String fill, String stroke) {
         svg.append(String.format(
-                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"#f6ffed\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                x, y, NODE_WIDTH, NODE_HEIGHT, COLOR_AUTO_PASS, activeClass));
+                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"%s\" stroke=\"%s\" class=\"node-box%s\"/>\n",
+                x, y, NODE_WIDTH, NODE_HEIGHT, fill, stroke, activeClass));
         int cx = x + NODE_WIDTH / 2;
         int cy = y + NODE_HEIGHT / 2;
         svg.append(String.format(
                 "<path d=\"M %d %d L %d %d L %d %d\" stroke=\"%s\" stroke-width=\"2\" fill=\"none\"/>\n",
-                cx - 8, cy, cx - 2, cy + 5, cx + 8, cy - 5, COLOR_AUTO_PASS));
+                cx - 8, cy, cx - 2, cy + 5, cx + 8, cy - 5, stroke));
         svg.append(String.format(
                 "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-desc\">%s</text>\n",
                 x + NODE_WIDTH / 2, y + NODE_HEIGHT + 12, escapeText(name)));
     }
 
-    private void drawAutoRejectNode(StringBuilder svg, int x, int y, String name, String activeClass) {
+    private void drawAutoRejectMark(StringBuilder svg, int x, int y, String name, String activeClass, String fill, String stroke) {
         svg.append(String.format(
-                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"#fff2f0\" stroke=\"%s\" class=\"node-box%s\"/>\n",
-                x, y, NODE_WIDTH, NODE_HEIGHT, COLOR_AUTO_REJECT, activeClass));
+                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"%s\" stroke=\"%s\" class=\"node-box%s\"/>\n",
+                x, y, NODE_WIDTH, NODE_HEIGHT, fill, stroke, activeClass));
         int cx = x + NODE_WIDTH / 2;
         int cy = y + NODE_HEIGHT / 2;
         svg.append(String.format(
                 "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"%s\" stroke-width=\"2\"/>\n",
-                cx - 7, cy - 7, cx + 7, cy + 7, COLOR_AUTO_REJECT));
+                cx - 7, cy - 7, cx + 7, cy + 7, stroke));
         svg.append(String.format(
                 "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"%s\" stroke-width=\"2\"/>\n",
-                cx + 7, cy - 7, cx - 7, cy + 7, COLOR_AUTO_REJECT));
+                cx + 7, cy - 7, cx - 7, cy + 7, stroke));
         svg.append(String.format(
                 "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-desc\">%s</text>\n",
                 x + NODE_WIDTH / 2, y + NODE_HEIGHT + 12, escapeText(name)));
     }
 
-    private void drawGenericNode(StringBuilder svg, int x, int y, String name, String activeClass) {
-        svg.append(String.format(
-                "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" rx=\"3\" fill=\"#fafafa\" stroke=\"#d9d9d9\" class=\"node-box%s\"/>\n",
-                x, y, NODE_WIDTH, NODE_HEIGHT, activeClass));
-        svg.append(String.format(
-                "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" class=\"node-text\">%s</text>\n",
-                x + NODE_WIDTH / 2, y + NODE_HEIGHT / 2 + 4, escapeText(name)));
-    }
-
     private String escapeText(String text) {
+
         if (text == null) return "";
         return text.replace("&", "&amp;")
                 .replace("<", "&lt;")

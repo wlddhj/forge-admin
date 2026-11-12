@@ -16,9 +16,7 @@ import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.UserContext;
 import com.forge.framework.security.utils.SecurityHelper;
-import com.forge.modules.system.service.SysAttachmentService;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
-import com.forge.modules.workflow.mapper.WfApprovalCommentMapper;
 import com.forge.modules.workflow.framework.diagram.FlowLongDiagramGenerator;
 import com.forge.modules.workflow.framework.timeline.ApprovalTimelineBuilder;
 import com.forge.modules.workflow.mapper.WfProcessExtMapper;
@@ -28,11 +26,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -60,13 +55,16 @@ class WfIter2ResumeAndValidationTest {
         service = new WfProcessInstanceServiceImpl(
                 mock(RuntimeService.class), processService, queryService, mock(TaskService.class),
                 mock(FlwInstanceMapper.class), mock(FlwHisInstanceMapper.class), mock(FlwHisTaskMapper.class),
-                mock(FlwTaskActorMapper.class), mock(FlowLongDiagramGenerator.class),
-                mock(FlowLongIdentityService.class), mock(WfApprovalCommentMapper.class),
+                mock(FlowLongDiagramGenerator.class),
+                mock(FlowLongIdentityService.class),
                 mock(com.forge.modules.workflow.mapper.WfAiRouteRecordMapper.class),
                 mock(com.forge.modules.workflow.mapper.WfAiApprovalRecordMapper.class),
-                mock(com.forge.modules.workflow.mapper.WfInstanceQueryMapper.class),
-                mock(SysAttachmentService.class), processExtMapper,
-                mock(ProcessNoGenerator.class), mock(ApprovalTimelineBuilder.class), new ObjectMapper());
+                processExtMapper,
+                mock(ProcessNoGenerator.class), mock(ApprovalTimelineBuilder.class), new ObjectMapper(),
+                mock(com.forge.modules.workflow.framework.validator.WfProcessModelValidator.class),
+                mock(com.forge.modules.workflow.framework.instance.WfInstanceQueryService.class),
+                mock(com.forge.modules.workflow.framework.instance.ProcessInstanceAssembler.class),
+                mock(com.forge.modules.workflow.framework.instance.WfApprovalCommentService.class));
         ReflectionTestUtils.setField(service, "flowLongEngine", flowLongEngine);
     }
 
@@ -189,22 +187,11 @@ class WfIter2ResumeAndValidationTest {
         }
     }
 
-    // ========== 新节点模型校验（反射调私有方法） ==========
+    // ========== 新节点模型校验（校验器公共方法直调，反射测试转正） ==========
 
     private void validate(NodeModel root) {
-        try {
-            Method method = WfProcessInstanceServiceImpl.class
-                    .getDeclaredMethod("checkNodeModelWithDynamicAssignee", NodeModel.class, Set.class);
-            method.setAccessible(true);
-            method.invoke(service, root, Collections.emptySet());
-        } catch (InvocationTargetException e) {
-            if (e.getCause() instanceof BusinessException businessException) {
-                throw businessException;
-            }
-            throw new RuntimeException(e.getCause());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        new com.forge.modules.workflow.framework.validator.WfProcessModelValidator(processService)
+                .checkNodeModelWithDynamicAssignee(root, Collections.emptySet());
     }
 
     private NodeModel node(String key, String name, int type) {
