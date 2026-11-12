@@ -121,14 +121,14 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
                 .collect(Collectors.toSet());
 
         Map<Long, WfProcessExt> extMap = getProcessExtMap(processIds);
-        Set<Long> categoryIds = extMap.values().stream()
-                .map(WfProcessExt::getCategoryId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Map<Long, String> categoryNameMap = getCategoryNameMap(new ArrayList<>(categoryIds));
+//        Set<Long> categoryIds = extMap.values().stream()
+//                .map(WfProcessExt::getCategoryId)
+//                .filter(Objects::nonNull)
+//                .collect(Collectors.toSet());
+//        Map<Long, String> categoryNameMap = getCategoryNameMap(new ArrayList<>(categoryIds));
 
         List<ProcessDefinitionResponse> records = processPage.getRecords().stream()
-                .map(process -> convertToResponse(process, extMap.get(process.getId()), categoryNameMap))
+                .map(process -> convertToResponse(process, extMap.get(process.getId())))
                 .collect(Collectors.toList());
 
         Page<ProcessDefinitionResponse> resultPage = new Page<>();
@@ -165,12 +165,12 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
         }
 
         WfProcessExt processExt = getProcessExtByProcessId(id);
-        Map<Long, String> categoryNameMap = Collections.emptyMap();
-        if (processExt != null && processExt.getCategoryId() != null) {
-            categoryNameMap = getCategoryNameMap(List.of(processExt.getCategoryId()));
-        }
+//        Map<Long, String> categoryNameMap = Collections.emptyMap();
+//        if (processExt != null && processExt.getCategoryId() != null) {
+//            categoryNameMap = getCategoryNameMap(List.of(processExt.getCategoryId()));
+//        }
 
-        return convertToResponse(process, processExt, categoryNameMap);
+        return convertToResponse(process, processExt);
     }
 
     @Override
@@ -520,9 +520,7 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
     /**
      * 转换为响应对象
      */
-    private ProcessDefinitionResponse convertToResponse(FlwProcess process,
-                                                         WfProcessExt ext,
-                                                         Map<Long, String> categoryNameMap) {
+    private ProcessDefinitionResponse convertToResponse(FlwProcess process, WfProcessExt ext) {
         ProcessDefinitionResponse response = new ProcessDefinitionResponse();
         response.setId(String.valueOf(process.getId()));
         response.setKey(process.getProcessKey());
@@ -545,10 +543,6 @@ public class WfProcessDefinitionServiceImpl implements WfProcessDefinitionServic
             response.setUseScopeUsers(ext.getUseScopeUsers());
             if (ext.getCreateTime() != null) {
                 response.setCreateTime(ext.getCreateTime());
-            }
-            // 设置分类名称
-            if (ext.getCategoryId() != null && categoryNameMap.containsKey(ext.getCategoryId())) {
-                response.setCategoryName(categoryNameMap.get(ext.getCategoryId()));
             }
         }
 

@@ -34,7 +34,7 @@
         <alibaba.transmittable-thread-local.version>2.14.3</alibaba.transmittable-thread-local.version>
         <guava.version>33.4.8-jre</guava.version>
         <archunit.version>1.5.1</archunit.version>
-
+        <easy-trans.version>4.0.2</easy-trans.version>
         <!-- 内部模块版本 -->
         <forge.version>1.0.0</forge.version>
     </properties>
@@ -97,7 +97,7 @@
                 <artifactId>forge-module-workflow-biz</artifactId>
                 <version>${forge.version}</version>
             </dependency>
- <dependency>
+            <dependency>
                 <groupId>com.forge</groupId>
                 <artifactId>forge-module-demo</artifactId>
                 <version>${forge.version}</version>
@@ -168,7 +168,32 @@
                 <artifactId>jsqlparser</artifactId>
                 <version>${jsqlparser.version}</version>
             </dependency>
-
+            <!-- VO 数据翻译 -->
+            <dependency>
+                <groupId>org.dromara</groupId>
+                <artifactId>easy-trans-spring-boot-starter</artifactId>
+                <version>${easy-trans.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.springframework</groupId>
+                        <artifactId>spring-context</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.springframework.cloud</groupId>
+                        <artifactId>spring-cloud-commons</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.dromara</groupId>
+                <artifactId>easy-trans-mybatis-plus-extend</artifactId>
+                <version>${easy-trans.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.dromara</groupId>
+                <artifactId>easy-trans-anno</artifactId>
+                <version>${easy-trans.version}</version>
+            </dependency>
             <!-- JWT -->
             <dependency>
                 <groupId>io.jsonwebtoken</groupId>

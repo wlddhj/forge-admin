@@ -1,6 +1,11 @@
 package com.forge.modules.workflow.dto.model;
 
+import com.forge.modules.workflow.entity.WfCategory;
+import com.forge.modules.workflow.entity.WfForm;
 import lombok.Data;
+import org.dromara.core.trans.anno.Trans;
+import org.dromara.core.trans.constant.TransType;
+import org.dromara.core.trans.vo.TransPojo;
 
 import java.time.LocalDateTime;
 
@@ -10,7 +15,7 @@ import java.time.LocalDateTime;
  * @author forge-admin
  */
 @Data
-public class ModelResponse {
+public class ModelResponse implements TransPojo {
 
     /**
      * 模型ID
@@ -30,6 +35,7 @@ public class ModelResponse {
     /**
      * 分类ID
      */
+    @Trans(type = TransType.SIMPLE, target = WfCategory.class, fields = {"categoryCode", "categoryName"}, refs = {"category", "categoryName"})
     private Long categoryId;
 
     /**
@@ -80,7 +86,9 @@ public class ModelResponse {
     /**
      * 关联表单ID
      */
+    @Trans(type = TransType.SIMPLE, target = WfForm.class, fields = "name", ref = "formName")
     private Long formId;
+    private String formName;
 
     /**
      * 自动抄送策略

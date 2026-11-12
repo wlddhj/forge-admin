@@ -39,5 +39,9 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.dromara</groupId> <!-- VO 数据翻译 -->
+            <artifactId>easy-trans-anno</artifactId> <!-- 默认引入的原因，方便 xxx-module-api 包使用 -->
+        </dependency>
     </dependencies>
 </project>

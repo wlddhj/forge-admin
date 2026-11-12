@@ -265,6 +265,21 @@ springdoc:
       paths-to-match: '/**'
       packages-to-scan: com.forge.modules
 
+# VO 转换（数据翻译）相关
+easy-trans:
+  #启用redis缓存 如果不用redis请设置为false
+  is-enable-redis: true
+  #启用全局翻译(拦截所有responseBody进行自动翻译)，如果关闭需要手动调用翻译方法或者方法加注解，具体看文档
+  is-enable-global: true
+  #启用平铺模式
+  is-enable-tile: true
+  #字典缓存放到redis 微服务模式请开启
+  dict-use-redis: true
+  # ruoyi相关的请开启
+  is-enable-map-result: true
+  # MP为 3.5.3.2版本以上的3.x 版本请设置为true，否则可能会出现找不到对应方法的问题
+  mp-new: false
+
 # JWT配置
 jwt:
   # 无默认值：未提供 JWT_SECRET 时启动即失败（fail-fast）；开发环境的专用值见 application-dev.yml

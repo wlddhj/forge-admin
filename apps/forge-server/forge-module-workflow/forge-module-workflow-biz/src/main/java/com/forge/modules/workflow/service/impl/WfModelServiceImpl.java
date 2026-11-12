@@ -370,17 +370,8 @@ public class WfModelServiceImpl implements WfModelService {
         response.setId(String.valueOf(ext.getId()));
         response.setName(ext.getProcessName());
         response.setKey(ext.getProcessKey());
-
         // 分类信息
-        if (ext.getCategoryId() != null) {
-            response.setCategoryId(ext.getCategoryId());
-            WfCategory category = categoryMapper.selectById(ext.getCategoryId());
-            if (category != null) {
-                response.setCategoryName(category.getCategoryName());
-                response.setCategory(category.getCategoryCode());
-            }
-        }
-
+        response.setCategoryId(ext.getCategoryId());
         response.setDescription(ext.getDescription());
         response.setFormType(ext.getFormType());
         response.setFormId(ext.getFormId());

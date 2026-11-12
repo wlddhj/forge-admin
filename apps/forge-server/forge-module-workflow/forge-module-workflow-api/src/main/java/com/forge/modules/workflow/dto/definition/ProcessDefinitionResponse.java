@@ -1,6 +1,10 @@
 package com.forge.modules.workflow.dto.definition;
 
+import com.forge.modules.workflow.entity.WfCategory;
 import lombok.Data;
+import org.dromara.core.trans.anno.Trans;
+import org.dromara.core.trans.constant.TransType;
+import org.dromara.core.trans.vo.TransPojo;
 
 import java.time.LocalDateTime;
 
@@ -10,7 +14,7 @@ import java.time.LocalDateTime;
  * @author forge-admin
  */
 @Data
-public class ProcessDefinitionResponse {
+public class ProcessDefinitionResponse implements TransPojo {
 
     /**
      * 流程定义ID
@@ -35,6 +39,7 @@ public class ProcessDefinitionResponse {
     /**
      * 分类ID
      */
+    @Trans(type = TransType.SIMPLE, target = WfCategory.class, fields = {"categoryName"}, refs = {"categoryName"})
     private Long categoryId;
 
     /**
