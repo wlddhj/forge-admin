@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -41,6 +42,10 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
     public Map<String, Object> pageRuns(Long agentId, String status, String triggerType, Long conversationId,
                                          int pageNum, int pageSize) {
         LambdaQueryWrapper<AiAgentRun> wrapper = new LambdaQueryWrapper<>();
+        // 运行记录含用户 prompt 摘要与工具入出参：非管理员仅可见本人运行
+        if (!SecurityHelper.isAdmin()) {
+            wrapper.eq(AiAgentRun::getUserId, SecurityHelper.getCurrentUserId());
+        }
         wrapper.eq(agentId != null, AiAgentRun::getAgentId, agentId);
         wrapper.eq(status != null && !status.isBlank(), AiAgentRun::getStatus, status);
         wrapper.eq(triggerType != null && !triggerType.isBlank(), AiAgentRun::getTriggerType, triggerType);
@@ -98,6 +103,8 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
 
     @Override
     public List<AiAgentRunStep> getSteps(Long runId) {
+        // 步骤含工具调用入参/出参（可含 SQL 查询结果）：随运行记录一并做归属校验
+        requireOwnedRun(runId);
         return runStepMapper.selectList(new LambdaQueryWrapper<AiAgentRunStep>()
                 .eq(AiAgentRunStep::getRunId, runId)
                 .orderByAsc(AiAgentRunStep::getId));
@@ -105,11 +112,22 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
 
     @Override
     public AiAgentRun getRun(Long id) {
-        AiAgentRun run = runMapper.selectById(id);
-        if (run == null) {
-            throw new BusinessException("运行记录不存在");
-        }
+        AiAgentRun run = requireOwnedRun(id);
         fillTeamNames(List.of(run));
+        return run;
+    }
+
+    /**
+     * 运行记录归属校验：非管理员仅可查看本人运行；不存在/无权统一按 404 拒绝。
+     * （待办审批页 pageTodos 保持管理员语义不变）
+     */
+    private AiAgentRun requireOwnedRun(Long runId) {
+        AiAgentRun run = runMapper.selectById(runId);
+        if (run == null
+                || !(SecurityHelper.isAdmin()
+                        || Objects.equals(run.getUserId(), SecurityHelper.getCurrentUserId()))) {
+            throw new BusinessException(404, "运行记录不存在");
+        }
         return run;
     }
 

@@ -161,6 +161,8 @@ forge:
   wx:
     mini-app-id: ${WX_MINI_APP_ID:}
     mini-app-secret: ${WX_MINI_APP_SECRET:}
+    # Mock 登录（appId 未配置时以模拟 openId 建号）：默认关闭；生产漏配 appId 直接登录失败，防认证后门
+    mock-enabled: ${WX_MOCK_ENABLED:false}
   sms:
     code-length: 6
     code-ttl-seconds: 300
@@ -184,7 +186,7 @@ forge:
       history-size: 5
       expire-days: 90
       bcrypt-strength: 12
-      aes-key: ${APP_AES_KEY:default-aes-key-change-in-prod-32bytes!}
+      aes-key: ${APP_AES_KEY}
       random-password-length: 12
     login:
       max-fail-count: 5
@@ -265,7 +267,8 @@ springdoc:
 
 # JWT配置
 jwt:
-  secret: ${JWT_SECRET:standadmin-jwt-secret-key-must-be-at-least-256-bits-long}
+  # 无默认值：未提供 JWT_SECRET 时启动即失败（fail-fast）；开发环境的专用值见 application-dev.yml
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:7200000} # 2小时
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7天
   header: Authorization

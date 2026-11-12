@@ -3,6 +3,7 @@ package com.forge.modules.ai.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.forge.common.exception.BusinessException;
 import com.forge.framework.security.utils.SecurityHelper;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.request.DocumentQueryRequest;
@@ -28,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -140,10 +142,7 @@ public class AiDocumentServiceImpl implements AiDocumentService {
     @Override
     @Transactional
     public DocumentResponse generateSummary(Long documentId) {
-        AiDocument document = documentMapper.selectById(documentId);
-        if (document == null) {
-            throw new RuntimeException("文档不存在");
-        }
+        AiDocument document = requireOwnedDocument(documentId);
         if (document.getContent() == null || document.getContent().isEmpty()) {
             throw new RuntimeException("文档内容为空，无法生成摘要");
         }
@@ -183,8 +182,9 @@ public class AiDocumentServiceImpl implements AiDocumentService {
                 request.getText(), request.getStyle(), request.getMaxLength(), modelConfig);
 
         if (response.getStatus() != null && response.getStatus() == 1) {
-            AiDocument document = documentMapper.selectById(request.getDocumentId());
-            if (document != null) {
+            if (request.getDocumentId() != null) {
+                // 指定文档回写摘要须归属正确（不存在/他人文档一律 404）
+                AiDocument document = requireOwnedDocument(request.getDocumentId());
                 document.setSummary(response.getSummary());
                 document.setModelName(modelConfig.getModelName());
                 documentMapper.updateById(document);
@@ -197,8 +197,7 @@ public class AiDocumentServiceImpl implements AiDocumentService {
 
     @Override
     public DocumentResponse getDocument(Long documentId) {
-        AiDocument document = documentMapper.selectById(documentId);
-        if (document == null) return null;
+        AiDocument document = requireOwnedDocument(documentId);
 
         SysAttachment attachment = null;
         if (document.getAttachmentId() != null) {
@@ -210,13 +209,24 @@ public class AiDocumentServiceImpl implements AiDocumentService {
     @Override
     @Transactional
     public void deleteDocument(Long documentId) {
-        AiDocument document = documentMapper.selectById(documentId);
-        if (document != null) {
-            if (document.getAttachmentId() != null) {
-                attachmentService.deleteAttachments(List.of(document.getAttachmentId()));
-            }
-            documentMapper.deleteById(documentId);
+        AiDocument document = requireOwnedDocument(documentId);
+        if (document.getAttachmentId() != null) {
+            attachmentService.deleteAttachments(List.of(document.getAttachmentId()));
         }
+        documentMapper.deleteById(documentId);
+    }
+
+    /**
+     * 文档归属校验：非管理员仅可读/删/摘要本人上传的文档；不存在/无权统一按 404 拒绝。
+     */
+    private AiDocument requireOwnedDocument(Long documentId) {
+        AiDocument document = documentMapper.selectById(documentId);
+        if (document == null
+                || !(SecurityHelper.isAdmin()
+                        || Objects.equals(document.getUserId(), SecurityHelper.getCurrentUserId()))) {
+            throw new BusinessException(404, "文档不存在");
+        }
+        return document;
     }
 
     private void applyParseResult(AiDocument document, byte[] bytes) {

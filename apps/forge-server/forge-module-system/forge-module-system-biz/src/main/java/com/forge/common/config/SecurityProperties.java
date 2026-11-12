@@ -22,8 +22,12 @@ public class SecurityProperties {
     private PasswordPolicyProperties password = new PasswordPolicyProperties();
     private LoginPolicyProperties login = new LoginPolicyProperties();
     private UploadPolicyProperties upload = new UploadPolicyProperties();
-    /** CORS 允许的源 */
-    private List<String> corsAllowedOrigins = List.of("*");
+    /**
+     * CORS 允许的源（显式白名单）。
+     * 默认空=未配置：dev 环境回退本机前端地址，其余环境不注册任何跨域源；
+     * 配置 "*" 视同未配置处理（杜绝 allowCredentials 与通配源的组合）
+     */
+    private List<String> corsAllowedOrigins = List.of();
     /** 敏感字段脱敏开关 */
     private boolean sensitiveDataMasking = true;
 }

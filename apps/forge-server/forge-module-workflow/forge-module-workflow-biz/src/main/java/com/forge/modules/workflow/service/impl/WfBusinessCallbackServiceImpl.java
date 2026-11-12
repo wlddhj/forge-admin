@@ -32,6 +32,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class WfBusinessCallbackServiceImpl implements WfBusinessCallbackService {
 
+    /**
+     * 密文前缀（与 CryptoUtils 一致）：用户输入带此前缀时按投毒透传拦截，
+     * 剥离后当明文交由 EncryptTypeHandler 重新加密（写侧对密文透传是框架幂等行为）
+     */
+    private static final String ENCRYPTED_PREFIX = "ENCv1:";
+
     private final WfBusinessCallbackMapper callbackMapper;
     private final WfCallbackRecordMapper recordMapper;
     private final CallbackDispatcher dispatcher;
@@ -142,12 +148,28 @@ public class WfBusinessCallbackServiceImpl implements WfBusinessCallbackService 
     private void applyRequest(WfBusinessCallback entity, CallbackRequest request) {
         entity.setName(request.getName());
         entity.setUrl(request.getUrl());
-        entity.setSecret(request.getSecret());
+        entity.setSecret(normalizeSecret(request.getSecret(), entity.getSecret()));
         entity.setEvents(String.join(",", request.getEvents()));
         entity.setProcessKey(blankToNull(request.getProcessKey()));
         entity.setIncludeVariables(request.getIncludeVariables() == null ? 0 : request.getIncludeVariables());
         entity.setEnabled(request.getEnabled() == null ? 1 : request.getEnabled());
         entity.setTimeoutMs(request.getTimeoutMs() == null ? 5000 : request.getTimeoutMs());
+    }
+
+    /**
+     * secret 归一：留空 → 保留原值（更新语义，创建时原值为 null 即不签名）；
+     * 有值 → 剥离 ENCv1: 前缀后当明文保存，由 EncryptTypeHandler 写侧重新加密，
+     * 防止用户提交密文形态被 TypeHandler 透传落库（投毒）。
+     */
+    private String normalizeSecret(String input, String current) {
+        if (input == null || input.isBlank()) {
+            return current;
+        }
+        String value = input.trim();
+        if (value.startsWith(ENCRYPTED_PREFIX)) {
+            value = value.substring(ENCRYPTED_PREFIX.length());
+        }
+        return value;
     }
 
     private String blankToNull(String s) {
@@ -159,7 +181,7 @@ public class WfBusinessCallbackServiceImpl implements WfBusinessCallbackService 
         response.setId(entity.getId());
         response.setName(entity.getName());
         response.setUrl(entity.getUrl());
-        response.setSecret(entity.getSecret());
+        response.setHasSecret(entity.getSecret() != null && !entity.getSecret().isBlank());
         response.setEvents(entity.getEvents() == null ? List.of()
                 : Arrays.asList(entity.getEvents().split(",")));
         response.setProcessKey(entity.getProcessKey());

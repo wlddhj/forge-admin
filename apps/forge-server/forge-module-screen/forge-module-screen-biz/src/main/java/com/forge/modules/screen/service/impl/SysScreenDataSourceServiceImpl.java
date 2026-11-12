@@ -16,6 +16,7 @@ import com.forge.modules.screen.executor.HttpDataSourceExecutor;
 import com.forge.modules.screen.executor.SqlDataSourceExecutor;
 import com.forge.modules.screen.fault.DataSourceCircuitBreaker;
 import com.forge.modules.screen.mapper.SysScreenDataSourceMapper;
+import com.forge.modules.screen.safety.SqlSafetyException;
 import com.forge.modules.screen.service.SysScreenDataSourceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -130,6 +131,11 @@ public class SysScreenDataSourceServiceImpl implements SysScreenDataSourceServic
         } catch (Exception e) {
             breaker.recordFailure(dataSourceId);
             log.error("数据源执行失败 id={}", dataSourceId, e);
+            // SQL 安全闸门异常先行原样上抛：走 ScreenExceptionHandler 的 400 映射，
+            // 不包成 BusinessException（否则 400 语义不可达，S2-P3#32）
+            if (e instanceof SqlSafetyException) {
+                throw (SqlSafetyException) e;
+            }
             // 已是 BusinessException 时直接向上抛，避免双层包装
             if (e instanceof BusinessException) {
                 throw (BusinessException) e;

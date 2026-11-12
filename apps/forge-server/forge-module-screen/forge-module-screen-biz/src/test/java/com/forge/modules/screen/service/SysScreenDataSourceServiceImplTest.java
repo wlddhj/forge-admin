@@ -1,5 +1,6 @@
 package com.forge.modules.screen.service;
 
+import com.forge.common.exception.BusinessException;
 import com.forge.modules.screen.cache.DataSourceCacheService;
 import com.forge.modules.screen.dto.DataSourceExecuteRequest;
 import com.forge.modules.screen.dto.DataSourceExecuteResponse;
@@ -8,6 +9,7 @@ import com.forge.modules.screen.executor.HttpDataSourceExecutor;
 import com.forge.modules.screen.executor.SqlDataSourceExecutor;
 import com.forge.modules.screen.fault.DataSourceCircuitBreaker;
 import com.forge.modules.screen.mapper.SysScreenDataSourceMapper;
+import com.forge.modules.screen.safety.SqlSafetyException;
 import com.forge.modules.screen.service.impl.SysScreenDataSourceServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -136,6 +138,38 @@ class SysScreenDataSourceServiceImplTest {
         assertThatThrownBy(() -> service.execute(1L, req))
             .isInstanceOf(RuntimeException.class)
             .hasMessageContaining("数据源执行失败");
+        verify(breaker).recordFailure(1L);
+        verify(breaker, never()).recordSuccess(any());
+    }
+
+    /**
+     * SQL 安全闸门异常（SqlSafetyException）原样上抛、不包成 BusinessException，
+     * 使 ScreenExceptionHandler 的 400 映射可达（安全堵口第一批 #10 顺手修）。
+     */
+    @Test
+    void execute_rethrows_sql_safety_exception_without_business_wrapping() {
+        SysScreenDataSource ds = new SysScreenDataSource();
+        ds.setId(1L);
+        ds.setType("SQL");
+        ds.setCacheSeconds(0);
+        ds.setConfig("{\"sqlTemplate\":\"SELECT * FROM sys_forbidden LIMIT 1\"}");
+        when(mapper.selectById(1L)).thenReturn(ds);
+        when(breaker.isTripped(1L)).thenReturn(false);
+        when(cache.cacheKey(any(), anyString())).thenReturn("k3");
+        when(cache.getOrLoad(eq("k3"), eq(0), any()))
+            .thenAnswer(inv -> {
+                Supplier<?> loader = inv.getArgument(2);
+                return loader.get();
+            });
+        when(sqlExecutor.execute(anyString(), anyMap(), anyInt()))
+            .thenThrow(new SqlSafetyException("表不在白名单: forge_admin.sys_forbidden"));
+
+        DataSourceExecuteRequest req = new DataSourceExecuteRequest();
+        assertThatThrownBy(() -> service.execute(1L, req))
+            .isInstanceOf(SqlSafetyException.class)
+            .isNotInstanceOf(BusinessException.class)
+            .hasMessageContaining("不在白名单");
+        // 安全拦截同样计入熔断统计
         verify(breaker).recordFailure(1L);
         verify(breaker, never()).recordSuccess(any());
     }

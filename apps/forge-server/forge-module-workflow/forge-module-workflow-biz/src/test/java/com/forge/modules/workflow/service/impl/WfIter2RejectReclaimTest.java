@@ -58,7 +58,15 @@ class WfIter2RejectReclaimTest {
                 mock(FlwTaskMapper.class), hisTaskMapper, mock(FlwTaskActorMapper.class),
                 hisTaskActorMapper, mock(FlwInstanceMapper.class), mock(com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper.class), mock(FlwHisInstanceMapper.class),
                 flowLongEngine, mock(SysAttachmentService.class), mock(NotificationService.class),
-                new FlowLongSchedulerProperties(), new ObjectMapper());
+                new FlowLongSchedulerProperties(), new ObjectMapper(), permissiveAccessStrategy());
+    }
+
+    /** 归属校验放行桩：本测试类聚焦驳回策略/拿回语义，参与者判定恒通过 */
+    private com.forge.modules.workflow.framework.actor.ForgeTaskAccessStrategy permissiveAccessStrategy() {
+        com.forge.modules.workflow.framework.actor.ForgeTaskAccessStrategy strategy =
+                mock(com.forge.modules.workflow.framework.actor.ForgeTaskAccessStrategy.class);
+        when(strategy.isAllowed(anyString(), any())).thenReturn(new com.aizuda.bpm.engine.entity.FlwTaskActor());
+        return strategy;
     }
 
     private FlwTask approvalTask() {

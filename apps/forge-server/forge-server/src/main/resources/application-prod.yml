@@ -40,15 +40,15 @@ spring:
           max-active: 20
           max-wait: 5s
 
-  # 生产环境关闭 actuator 不必要的端点
-  management:
-    endpoints:
-      web:
-        exposure:
-          include: health,info
-    endpoint:
-      health:
-        show-details: never
+# 生产环境关闭 actuator 不必要的端点（management 为顶级键，误缩进到 spring: 下会静默失效）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
 
 # 文件存储配置（生产环境应使用云存储）
 file:

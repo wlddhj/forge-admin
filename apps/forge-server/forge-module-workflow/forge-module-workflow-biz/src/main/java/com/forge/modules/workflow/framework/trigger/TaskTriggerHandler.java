@@ -4,30 +4,34 @@ import com.aizuda.bpm.engine.TaskTrigger;
 import com.aizuda.bpm.engine.core.Execution;
 import com.aizuda.bpm.engine.exception.FlowLongException;
 import com.aizuda.bpm.engine.model.NodeModel;
+import com.forge.common.exception.BusinessException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeansException;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.expression.BeanFactoryResolver;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
 /**
  * 任务触发器处理器
  *
- * <p>支持 4 种业务模式,通过 {@code extendConfig.triggerType} 路由:</p>
+ * <p>支持 3 种业务模式,通过 {@code extendConfig.triggerType} 路由:</p>
  * <ul>
- *   <li>{@code expression} — SpEL 求值,返回 boolean</li>
+ *   <li>{@code expression} — SpEL 求值,返回 boolean（SimpleEvaluationContext 只读安全上下文）</li>
  *   <li>{@code bean} — Spring 容器拿 Bean,反射调方法</li>
- *   <li>{@code class} — 反射 .forName().newInstance(),调方法</li>
  *   <li>{@code delegateExpression} — SpEL 求出 Bean 名,再走 bean 路径</li>
  * </ul>
+ *
+ * <p>已下线:{@code class} 反射实例化模式（RCE 面）——配置该模式直接抛 BusinessException,
+ * 请改用 {@code @FlowLongTrigger} Bean 模式。</p>
+ *
+ * <p>SpEL 安全收敛:expression/delegateExpression 求值统一使用
+ * {@link SimpleEvaluationContext#forReadOnlyDataBinding()}——只读属性、无类型解析（{@code T(...)} 不可用）、
+ * 无 Bean 解析（{@code @bean} 不可用）、禁止构造器/方法调用/赋值;既有变量比较、逻辑运算、
+ * 三元与字符串拼接等合法条件表达式不受影响。</p>
  *
  * <p>两个语义分层:</p>
  * <ul>
@@ -47,14 +51,11 @@ public class TaskTriggerHandler implements TaskTrigger {
     public static final String MODE_DELEGATE_EXPRESSION = "delegateExpression";
 
     private final ExpressionParser expressionParser = new SpelExpressionParser();
-    private final ApplicationContext applicationContext;
     private final TriggerBeanRegistry triggerBeanRegistry;
     private final TriggerInvoker triggerInvoker;
 
-    public TaskTriggerHandler(ApplicationContext applicationContext,
-                              TriggerBeanRegistry triggerBeanRegistry,
+    public TaskTriggerHandler(TriggerBeanRegistry triggerBeanRegistry,
                               TriggerInvoker triggerInvoker) {
-        this.applicationContext = applicationContext;
         this.triggerBeanRegistry = triggerBeanRegistry;
         this.triggerInvoker = triggerInvoker;
     }
@@ -98,6 +99,10 @@ public class TaskTriggerHandler implements TaskTrigger {
             if (e instanceof FlowLongException) {
                 throw (FlowLongException) e;
             }
+            if (e instanceof BusinessException) {
+                // 业务配置类错误（如 class 模式已下线）原样上抛,保留业务语义
+                throw (BusinessException) e;
+            }
             throw new FlowLongException("Trigger execution failed: " + e.getMessage(), e);
         }
     }
@@ -115,10 +120,8 @@ public class TaskTriggerHandler implements TaskTrigger {
                         asString(extendConfig.get("triggerMethod")),
                         nodeModel, execution);
             case MODE_CLASS:
-                return executeClass(
-                        asString(extendConfig.get("triggerClass")),
-                        asString(extendConfig.get("triggerMethod")),
-                        nodeModel, execution);
+                // class 反射实例化模式已下线（RCE 面）,保留分支仅用于给出明确报错
+                throw new BusinessException("class 模式触发器已不再支持，请使用 @FlowLongTrigger Bean 模式");
             case MODE_DELEGATE_EXPRESSION:
                 return executeDelegateExpression(
                         asString(extendConfig.get("triggerExpression")),
@@ -131,7 +134,7 @@ public class TaskTriggerHandler implements TaskTrigger {
     }
 
     /**
-     * expression 模式: SpEL 求值
+     * expression 模式: SpEL 求值（SimpleEvaluationContext 只读安全上下文）
      */
     private boolean executeExpression(String expression, Execution execution) {
         if (expression == null || expression.trim().isEmpty()) {
@@ -139,14 +142,7 @@ public class TaskTriggerHandler implements TaskTrigger {
         }
         log.debug("执行 SpEL 表达式: {}", expression);
 
-        StandardEvaluationContext context = new StandardEvaluationContext();
-        context.setBeanResolver(new BeanFactoryResolver(applicationContext));
-        Map<String, Object> args = execution.getArgs();
-        if (args != null) {
-            context.setVariables(args);
-        }
-        context.setVariable("execution", execution);
-        context.setVariable("instance", execution.getFlwInstance());
+        SimpleEvaluationContext context = buildEvaluationContext(execution);
         context.setVariable("task", execution.getFlwTask());
 
         try {
@@ -157,13 +153,28 @@ public class TaskTriggerHandler implements TaskTrigger {
             }
             log.debug("表达式返回非布尔结果, 视为成功: {}", result);
             return true;
-        } catch (BeansException e) {
-            log.error("SpEL 调用 Bean 失败: {}, error: {}", expression, e.getMessage());
-            return false;
         } catch (Exception e) {
-            log.error("SpEL 执行失败: {}, error: {}", expression, e.getMessage());
-            return false;
+            // SimpleEvaluationContext 下 T(...) 静态引用、@bean 引用、new 实例化、方法调用
+            // 一律求值抛错——转为明确错误信息抛出,由 execute 统一受 continueOnError 控制
+            log.error("SpEL 表达式求值失败（T()/@bean/方法调用等语法不受支持会被拒绝）: {}, error: {}",
+                    expression, e.getMessage());
+            throw new FlowLongException("SpEL 表达式求值失败: " + expression + " (" + e.getMessage() + ")", e);
         }
+    }
+
+    /**
+     * 构建只读安全求值上下文:流程变量 + execution/instance 以 SpEL 变量（#name）暴露。
+     * SimpleEvaluationContext 无类型解析、无 Bean 解析、禁止构造器/方法调用/赋值。
+     */
+    private SimpleEvaluationContext buildEvaluationContext(Execution execution) {
+        SimpleEvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
+        Map<String, Object> args = execution.getArgs();
+        if (args != null) {
+            args.forEach(context::setVariable);
+        }
+        context.setVariable("execution", execution);
+        context.setVariable("instance", execution.getFlwInstance());
+        return context;
     }
 
     /**
@@ -186,22 +197,6 @@ public class TaskTriggerHandler implements TaskTrigger {
     }
 
     /**
-     * class 模式: 反射 .forName().newInstance(),调方法
-     */
-    private boolean executeClass(String className, String methodName, NodeModel nodeModel, Execution execution) throws Exception {
-        if (className == null || className.isEmpty()) {
-            throw new IllegalArgumentException("class 模式: triggerClass 不能为空");
-        }
-        if (methodName == null || methodName.isEmpty()) {
-            throw new IllegalArgumentException("class 模式: triggerMethod 不能为空");
-        }
-        Class<?> clazz = Class.forName(className);
-        Object instance = clazz.getDeclaredConstructor().newInstance();
-        Object result = triggerInvoker.invoke(instance, methodName, nodeModel, execution);
-        return interpretResult(result, "class[" + className + "#" + methodName + "]");
-    }
-
-    /**
      * delegateExpression 模式: SpEL 求出 Bean 名 → 走 bean 路径
      */
     private boolean executeDelegateExpression(String expression, String methodName, NodeModel nodeModel, Execution execution) throws Exception {
@@ -211,15 +206,8 @@ public class TaskTriggerHandler implements TaskTrigger {
         if (methodName == null || methodName.isEmpty()) {
             throw new IllegalArgumentException("delegateExpression 模式: triggerMethod 不能为空");
         }
-        // SpEL 求值
-        StandardEvaluationContext context = new StandardEvaluationContext();
-        context.setBeanResolver(new BeanFactoryResolver(applicationContext));
-        Map<String, Object> args = execution.getArgs();
-        if (args != null) {
-            context.setVariables(args);
-        }
-        context.setVariable("execution", execution);
-        context.setVariable("instance", execution.getFlwInstance());
+        // SpEL 求值（仅支持变量/运算,求 Bean 名场景足够;T()/@bean 等高危语法被拒绝）
+        SimpleEvaluationContext context = buildEvaluationContext(execution);
 
         Object beanNameResult = expressionParser.parseExpression(expression).getValue(context);
         if (beanNameResult == null) {

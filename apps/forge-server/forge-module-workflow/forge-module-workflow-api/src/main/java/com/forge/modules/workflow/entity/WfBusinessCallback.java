@@ -5,17 +5,21 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.forge.framework.mybatis.handler.EncryptTypeHandler;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 /**
  * 业务回调配置实体（业务系统订阅工作流事件）
+ * <p>
+ * secret 经 EncryptTypeHandler AES-256-GCM 加密存储、读取自动解密；
+ * 管理接口出参不回显明文（仅 hasSecret），沿 wf_im_channel_config 先例。
  *
  * @author forge-admin
  */
 @Data
-@TableName("wf_business_callback")
+@TableName(value = "wf_business_callback", autoResultMap = true)
 public class WfBusinessCallback {
 
     @TableId(type = IdType.AUTO)
@@ -32,8 +36,9 @@ public class WfBusinessCallback {
     private String url;
 
     /**
-     * 签名密钥（HMAC-SHA256，空则不签名）
+     * 签名密钥（HMAC-SHA256，空则不签名；AES-256-GCM 加密存储，读取自动解密）
      */
+    @TableField(typeHandler = EncryptTypeHandler.class)
     private String secret;
 
     /**

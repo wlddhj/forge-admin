@@ -304,7 +304,8 @@ export interface BusinessCallback {
   id: number
   name: string
   url: string
-  secret: string | null
+  /** 签名密钥是否已配置（secret 加密存储，不回显明文） */
+  hasSecret: boolean
   events: string[]
   processKey: string | null
   includeVariables: number

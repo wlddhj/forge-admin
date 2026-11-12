@@ -2,6 +2,7 @@ package com.forge.modules.screen.executor;
 
 import com.forge.modules.screen.constant.ScreenConstants;
 import com.forge.modules.screen.mapper.DynamicSqlMapper;
+import com.forge.modules.screen.safety.GuardResult;
 import com.forge.modules.screen.safety.SqlSafetyException;
 import com.forge.modules.screen.safety.SqlSafetyGuard;
 import com.forge.modules.screen.util.SqlParamBinder;
@@ -11,6 +12,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -97,7 +100,7 @@ class SqlDataSourceExecutorUnitTest {
 
     /**
      * C5 闭合：当 SQL 用 {@code LIMIT ?}（占位符）规避静态 AST 上限校验时，
-     * 运行时由 {@code enforceBoundLimit} 拦截超限的 LIMIT/OFFSET 实参。
+     * 运行时由 {@code enforceBoundLimit} 按 limitParamNames 精确匹配拦截超限实参。
      */
     @Test
     void executor_rejects_bound_limit_above_max() throws Exception {
@@ -105,7 +108,8 @@ class SqlDataSourceExecutorUnitTest {
         DynamicSqlMapper mapper = mock(DynamicSqlMapper.class);
         Statement stubStmt = CCJSqlParserUtil.parse(
             "SELECT id FROM sys_user LIMIT ?");
-        when(guard.guard(anyString(), anyMap())).thenReturn(stubStmt);
+        when(guard.guard(anyString(), anyMap()))
+            .thenReturn(new GuardResult(stubStmt, Set.of("limit")));
 
         SqlDataSourceExecutor executor = new SqlDataSourceExecutor(guard, mapper);
 
@@ -122,6 +126,82 @@ class SqlDataSourceExecutorUnitTest {
     }
 
     /**
+     * 闸C 精确匹配：LIMIT 参数名不含 limit/offset 字样（如 {@code :n}）时，
+     * 只要它在 limitParamNames 中且实参超上限即被拒（旧版"名字包含"匹配会漏掉）。
+     */
+    @Test
+    void executor_rejects_named_limit_param_without_limit_keyword() throws Exception {
+        SqlSafetyGuard guard = mock(SqlSafetyGuard.class);
+        DynamicSqlMapper mapper = mock(DynamicSqlMapper.class);
+        Statement stubStmt = CCJSqlParserUtil.parse(
+            "SELECT id FROM sys_user LIMIT ?");
+        when(guard.guard(anyString(), anyMap()))
+            .thenReturn(new GuardResult(stubStmt, Set.of("n")));
+
+        SqlDataSourceExecutor executor = new SqlDataSourceExecutor(guard, mapper);
+
+        assertThatThrownBy(() -> executor.execute(
+            "SELECT id FROM sys_user LIMIT :n",
+            Map.of("n", ScreenConstants.SQL_MAX_ROWS + 1),
+            5000))
+            .isInstanceOf(SqlSafetyException.class)
+            .hasMessageContaining("n");
+
+        verify(mapper, never()).executeDynamicSql(anyString(), anyMap());
+    }
+
+    /**
+     * 闸C 精确匹配语义变化：名字含 limit 字样但未出现在 LIMIT 子句的业务参数
+     * 不再被误伤（不在 limitParamNames 中即不做上限校验）。
+     */
+    @Test
+    void executor_skips_limit_check_for_param_not_in_limit_clause() throws Exception {
+        SqlSafetyGuard guard = mock(SqlSafetyGuard.class);
+        DynamicSqlMapper mapper = mock(DynamicSqlMapper.class);
+        Statement stubStmt = CCJSqlParserUtil.parse(
+            "SELECT id FROM sys_user WHERE status = ? LIMIT 1");
+        when(guard.guard(anyString(), anyMap()))
+            .thenReturn(new GuardResult(stubStmt, Set.of()));
+        when(mapper.executeDynamicSql(anyString(), anyMap()))
+            .thenReturn(List.of(Map.of("id", 1L)));
+
+        SqlDataSourceExecutor executor = new SqlDataSourceExecutor(guard, mapper);
+        List<Map<String, Object>> rows = executor.execute(
+            "SELECT id FROM sys_user WHERE status = :limitStatus LIMIT 1",
+            Map.of("limitStatus", 5000),
+            5000);
+
+        // 名字含 limit 但非 LIMIT 子句参数：正常执行，不再误拒
+        assertThat(rows).hasSize(1);
+        verify(mapper).executeDynamicSql(anyString(), anyMap());
+    }
+
+    /**
+     * setMaxRows 等价兜底：无论 SQL 形态，返回行数被钳制在
+     * {@link ScreenConstants#SQL_MAX_ROWS} 内（MyBatis 路径拿不到 Statement 句柄，
+     * 以结果截断实现同等防护）。
+     */
+    @Test
+    void executor_caps_result_rows_to_max_rows() throws Exception {
+        SqlSafetyGuard guard = mock(SqlSafetyGuard.class);
+        DynamicSqlMapper mapper = mock(DynamicSqlMapper.class);
+        Statement stubStmt = CCJSqlParserUtil.parse(
+            "SELECT id FROM sys_user LIMIT 1");
+        when(guard.guard(anyString(), anyMap()))
+            .thenReturn(new GuardResult(stubStmt, Set.of()));
+        List<Map<String, Object>> oversized = IntStream.rangeClosed(1, ScreenConstants.SQL_MAX_ROWS + 5)
+            .mapToObj(i -> Map.<String, Object>of("id", (long) i))
+            .toList();
+        when(mapper.executeDynamicSql(anyString(), anyMap())).thenReturn(oversized);
+
+        SqlDataSourceExecutor executor = new SqlDataSourceExecutor(guard, mapper);
+        List<Map<String, Object>> rows = executor.execute(
+            "SELECT id FROM sys_user LIMIT 1", Map.of(), 5000);
+
+        assertThat(rows).hasSize(ScreenConstants.SQL_MAX_ROWS);
+    }
+
+    /**
      * 正常路径：guard 通过 + LIMIT 在上限内 + 原始模板通过 mapper 执行
      * （C3 修复后由 DynamicSqlMapper 接管，不再走 JdbcTemplate）。
      *
@@ -134,7 +214,8 @@ class SqlDataSourceExecutorUnitTest {
         DynamicSqlMapper mapper = mock(DynamicSqlMapper.class);
         Statement stubStmt = CCJSqlParserUtil.parse(
             "SELECT id FROM sys_user LIMIT 1");
-        when(guard.guard(anyString(), anyMap())).thenReturn(stubStmt);
+        when(guard.guard(anyString(), anyMap()))
+            .thenReturn(new GuardResult(stubStmt, Set.of()));
         when(mapper.executeDynamicSql(anyString(), anyMap()))
             .thenReturn(List.of(Map.of("id", 1L)));
 

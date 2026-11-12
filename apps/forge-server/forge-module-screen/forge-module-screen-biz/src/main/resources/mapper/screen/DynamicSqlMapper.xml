@@ -4,9 +4,11 @@
 
     <!--
       动态 SQL 执行（C3 修复）。
-      ${sql} 中的 SQL 文本已经过 SqlSafetyGuard.guard() deparse 与白名单校验，
-      原 :name 占位符已由 SqlParamBinder 转换为 ?，再由 toMybatisPlaceholders
-      转换为 #{p0}, #{p1}, ...，由 MyBatis 标准参数绑定机制走 PreparedStatement。
+      ${sql} 中的 SQL 文本基于原始模板生成（SqlParamBinder 把 :name 转换为 ?，
+      再由 toMybatisPlaceholders 转换为 #{p0}, #{p1}, ...），不使用 deparse 结果 ——
+      JSqlParser deparse 会把 :name 规范化为 ? 导致漏绑定；模板本身已经过
+      SqlSafetyGuard.guard() 全量校验（注释硬拒 + AST 规则 + 表/列白名单），
+      参数由 MyBatis 标准参数绑定机制走 PreparedStatement。
       DataPermission 注解使 DataPermissionInterceptor 自动按表名注入部门/用户过滤条件。
     -->
     <select id="executeDynamicSql" resultType="java.util.LinkedHashMap">

@@ -20,6 +20,7 @@ import org.bsc.langgraph4j.action.AsyncNodeAction;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -331,7 +332,9 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
             int steps = state.value(AgentGraphState.STEPS).map(v -> (Integer) v).orElse(0);
             int maxSteps = ctx.getAgentConfig().getMaxSteps() == null ? 8 : ctx.getAgentConfig().getMaxSteps();
             String action = String.valueOf(decision.get("action"));
-            boolean approved = state.value(AgentGraphState.APPROVAL).isPresent();
+            // 精确匹配 APPROVED：残留的 REJECTED/已消费的旧结论不得放行后续高危调用
+            boolean approved = "APPROVED".equals(state.value(AgentGraphState.APPROVAL)
+                    .map(String::valueOf).orElse(""));
             if ("tool".equals(action) && steps < maxSteps) {
                 List<?> calls = (List<?>) decision.get("calls");
                 List<String> toolNames = calls == null ? List.of() : calls.stream()
@@ -415,7 +418,12 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
             ctx.emit(AgentEvents.Type.STEP_END, NODE_TOOLS, "工具执行", Map.of(
                     "seq", ctx.nextSeq(), "status", "SUCCESS",
                     "calls", newHistory.size(), "durationMs", System.currentTimeMillis() - start));
-            return Map.of(AgentGraphState.TOOL_HISTORY, history);
+            // 审批结论一次性消费：本次批准仅覆盖本轮调用，执行完成后清空 APPROVAL，
+            // 后续高危调用须重新人工确认（杜绝"一次批准、全程放行"；REJECTED 残留亦不再被当作已批准）
+            Map<String, Object> update = new HashMap<>();
+            update.put(AgentGraphState.TOOL_HISTORY, history);
+            update.put(AgentGraphState.APPROVAL, null);
+            return update;
         });
     }
 

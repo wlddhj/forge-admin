@@ -72,7 +72,15 @@ class WfTaskServiceUrgeTest {
                 mock(FlwTaskActorMapper.class), mock(FlwHisTaskActorMapper.class),
                 mock(FlwInstanceMapper.class), mock(com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper.class), mock(FlwHisInstanceMapper.class),
                 mock(FlowLongEngine.class), mock(SysAttachmentService.class),
-                notificationService, schedulerProperties, new ObjectMapper());
+                notificationService, schedulerProperties, new ObjectMapper(), permissiveAccessStrategy());
+    }
+
+    /** 归属校验放行桩：本测试类聚焦催办行为，参与者判定恒通过 */
+    private com.forge.modules.workflow.framework.actor.ForgeTaskAccessStrategy permissiveAccessStrategy() {
+        com.forge.modules.workflow.framework.actor.ForgeTaskAccessStrategy strategy =
+                mock(com.forge.modules.workflow.framework.actor.ForgeTaskAccessStrategy.class);
+        when(strategy.isAllowed(anyString(), any())).thenReturn(new com.aizuda.bpm.engine.entity.FlwTaskActor());
+        return strategy;
     }
 
     private FlwInstance runningInstance() {

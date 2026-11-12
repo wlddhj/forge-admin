@@ -2,6 +2,7 @@ package com.forge.modules.ai.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.forge.common.exception.BusinessException;
 import com.forge.framework.security.utils.SecurityHelper;
 import com.forge.modules.ai.client.LlmClient;
 import com.forge.modules.ai.dto.request.ChatRequest;
@@ -63,6 +64,10 @@ public class AiChatServiceImpl implements AiChatService {
     @Override
     public Page<ConversationResponse> pageConversationList(Integer pageNum, Integer pageSize, Long modelId) {
         LambdaQueryWrapper<AiConversation> wrapper = new LambdaQueryWrapper<>();
+        // 会话按用户隔离：非管理员仅见本人会话
+        if (!SecurityHelper.isAdmin()) {
+            wrapper.eq(AiConversation::getUserId, SecurityHelper.getCurrentUserId());
+        }
         wrapper.eq(modelId != null, AiConversation::getModelId, modelId)
                .orderByDesc(AiConversation::getUpdateTime);
 
@@ -75,10 +80,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Override
     public ConversationResponse getConversation(Long conversationId) {
-        AiConversation conversation = conversationMapper.selectById(conversationId);
-        if (conversation == null) {
-            return null;
-        }
+        AiConversation conversation = requireOwnedConversation(conversationId);
         ConversationResponse response = toConversationResponse(conversation);
 
         // 获取消息列表
@@ -93,10 +95,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Override
     public List<MessageResponse> getMessages(Long conversationId) {
-        AiConversation conversation = conversationMapper.selectById(conversationId);
-        if (conversation == null) {
-            return Collections.emptyList();
-        }
+        AiConversation conversation = requireOwnedConversation(conversationId);
 
         LambdaQueryWrapper<AiMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AiMessage::getConversationId, conversation.getConversationId())
@@ -109,11 +108,9 @@ public class AiChatServiceImpl implements AiChatService {
     @Override
     @Transactional
     public void updateTitle(Long conversationId, String title) {
-        AiConversation conversation = conversationMapper.selectById(conversationId);
-        if (conversation != null) {
-            conversation.setTitle(title);
-            conversationMapper.updateById(conversation);
-        }
+        AiConversation conversation = requireOwnedConversation(conversationId);
+        conversation.setTitle(title);
+        conversationMapper.updateById(conversation);
     }
 
     /** 标题生成提示词：短中文标题，直接输出文本，禁止装饰符号 */
@@ -219,16 +216,14 @@ public class AiChatServiceImpl implements AiChatService {
     @Override
     @Transactional
     public void deleteConversation(Long conversationId) {
-        AiConversation conversation = conversationMapper.selectById(conversationId);
-        if (conversation != null) {
-            // 删除消息
-            LambdaQueryWrapper<AiMessage> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(AiMessage::getConversationId, conversation.getConversationId());
-            messageMapper.delete(wrapper);
+        AiConversation conversation = requireOwnedConversation(conversationId);
+        // 删除消息
+        LambdaQueryWrapper<AiMessage> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AiMessage::getConversationId, conversation.getConversationId());
+        messageMapper.delete(wrapper);
 
-            // 删除对话
-            conversationMapper.deleteById(conversationId);
-        }
+        // 删除对话
+        conversationMapper.deleteById(conversationId);
     }
 
     @Override
@@ -253,8 +248,9 @@ public class AiChatServiceImpl implements AiChatService {
             conversationMapper.insert(conversation);
             conversationId = conversation.getId();
         } else {
-            conversation = conversationMapper.selectById(conversationId);
-            conversationIdStr = conversation != null ? conversation.getConversationId() : UUID.randomUUID().toString();
+            // 指定会话发送：校验归属（不存在/他人会话一律 404，不再静默生成孤儿会话 ID）
+            conversation = requireOwnedConversation(conversationId);
+            conversationIdStr = conversation.getConversationId();
         }
 
         // 保存用户消息
@@ -339,8 +335,8 @@ public class AiChatServiceImpl implements AiChatService {
     @Override
     public void prepareStreamChat(ChatRequest request) {
         if (request.getConversationId() != null && request.getModelName() == null) {
-            AiConversation conversation = conversationMapper.selectById(request.getConversationId());
-            if (conversation != null && conversation.getModelId() != null) {
+            AiConversation conversation = requireOwnedConversation(request.getConversationId());
+            if (conversation.getModelId() != null) {
                 AiModelConfig modelConfig = modelConfigMapper.selectById(conversation.getModelId());
                 if (modelConfig != null) {
                     request.setModelName(modelConfig.getModelName());
@@ -398,10 +394,8 @@ public class AiChatServiceImpl implements AiChatService {
     @Override
     @Transactional
     public void saveAiMessage(Long conversationId, String content, String reasoningContent) {
-        AiConversation conversation = conversationMapper.selectById(conversationId);
-        if (conversation == null) {
-            return;
-        }
+        // 前端回传落库同样受归属约束：禁止向他人会话伪造 assistant 消息
+        AiConversation conversation = requireOwnedConversation(conversationId);
 
         AiMessage message = new AiMessage();
         message.setMessageId(UUID.randomUUID().toString());
@@ -419,12 +413,32 @@ public class AiChatServiceImpl implements AiChatService {
     @Override
     public List<ConversationResponse> getConversationList() {
         LambdaQueryWrapper<AiConversation> wrapper = new LambdaQueryWrapper<>();
+        // 遗留全量接口同样按用户隔离：非管理员仅返回本人会话
+        if (!SecurityHelper.isAdmin()) {
+            wrapper.eq(AiConversation::getUserId, SecurityHelper.getCurrentUserId());
+        }
         wrapper.orderByDesc(AiConversation::getCreateTime);
         List<AiConversation> conversations = conversationMapper.selectList(wrapper);
         return conversations.stream().map(this::toConversationResponse).collect(Collectors.toList());
     }
 
     // ========== 私有方法 ==========
+
+    /**
+     * 会话归属校验：非管理员仅可操作本人会话；不存在/无权统一按 404 拒绝（不泄露存在性）。
+     */
+    private AiConversation requireOwnedConversation(Long conversationId) {
+        AiConversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation == null || !isConversationOwner(conversation)) {
+            throw new BusinessException(404, "会话不存在");
+        }
+        return conversation;
+    }
+
+    private boolean isConversationOwner(AiConversation conversation) {
+        return SecurityHelper.isAdmin()
+                || Objects.equals(conversation.getUserId(), SecurityHelper.getCurrentUserId());
+    }
 
     private void saveUserMessage(ChatRequest request) {
         String conversationIdStr;
@@ -441,8 +455,8 @@ public class AiChatServiceImpl implements AiChatService {
             request.setConversationId(conversation.getId());
             conversationIdStr = conversation.getConversationId();
         } else {
-            AiConversation conversation = conversationMapper.selectById(request.getConversationId());
-            conversationIdStr = conversation != null ? conversation.getConversationId() : UUID.randomUUID().toString();
+            AiConversation conversation = requireOwnedConversation(request.getConversationId());
+            conversationIdStr = conversation.getConversationId();
         }
 
         AiMessage message = new AiMessage();

@@ -59,6 +59,13 @@
         <vxe-column title="流程过滤" width="120">
           <template #default="{ row }">{{ row.processKey || '全部流程' }}</template>
         </vxe-column>
+        <vxe-column title="签名密钥" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.hasSecret ? 'success' : 'info'" size="small">
+              {{ row.hasSecret ? '已配置' : '未配置' }}
+            </el-tag>
+          </template>
+        </vxe-column>
         <vxe-column field="enabled" title="状态" width="80">
           <template #default="{ row }">
             <el-tag :type="row.enabled === 1 ? 'success' : 'danger'" size="small">
@@ -103,7 +110,11 @@
           <el-input v-model="formData.processKey" placeholder="流程标识，留空订阅全部流程" />
         </el-form-item>
         <el-form-item label="签名密钥">
-          <el-input v-model="formData.secret" placeholder="留空不签名" show-password />
+          <el-input
+            v-model="formData.secret"
+            :placeholder="formData.id ? '留空保留原值，输入则更新' : '留空不签名'"
+            show-password
+          />
         </el-form-item>
         <el-form-item label="携带流程变量">
           <el-switch v-model="formData.includeVariables" :active-value="1" :inactive-value="0" />
@@ -243,7 +254,8 @@ const handleEdit = (row: BusinessCallback) => {
     url: row.url,
     events: [...row.events],
     processKey: row.processKey || '',
-    secret: row.secret || '',
+    // secret 不回填（后端仅回传 hasSecret，留空提交保留原值）
+    secret: '',
     includeVariables: row.includeVariables,
     enabled: row.enabled,
     timeoutMs: row.timeoutMs

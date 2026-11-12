@@ -197,6 +197,27 @@ class SqlSafetyValidatorTest {
             .isInstanceOf(SqlSafetyException.class);
     }
 
+    /**
+     * 闸C 配套 — 命名占位符 {@code LIMIT :n} 与 {@code ?} 同等放行：
+     * 实参值静态不可知，交由 T11 运行时按 limitParamNames 精确校验上限。
+     */
+    @Test
+    void accept_named_placeholder_limit() {
+        assertThatCode(() -> validator.validate(parse(
+            "SELECT id FROM sys_user LIMIT :n")))
+            .doesNotThrowAnyException();
+    }
+
+    /**
+     * 闸C 配套 — 独立 OFFSET 子句的命名占位符同样放行（运行时校验）。
+     */
+    @Test
+    void accept_named_placeholder_offset() {
+        assertThatCode(() -> validator.validate(parse(
+            "SELECT id FROM sys_user LIMIT 10 OFFSET :off")))
+            .doesNotThrowAnyException();
+    }
+
     // ============ 额外防御性测试（reviewer probe variants） ============
 
     /**

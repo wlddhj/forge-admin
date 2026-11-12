@@ -33,6 +33,7 @@ import com.forge.modules.workflow.dto.task.*;
 import com.forge.modules.workflow.entity.WfApprovalComment;
 import com.forge.modules.workflow.framework.ApprovalActionTypeEnum;
 import com.forge.modules.workflow.framework.FlowCreatorFactory;
+import com.forge.modules.workflow.framework.actor.ForgeTaskAccessStrategy;
 import com.forge.modules.workflow.framework.title.InstanceTitleRenderer;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import com.forge.modules.workflow.mapper.WfApprovalCommentMapper;
@@ -75,6 +76,7 @@ public class WfTaskServiceImpl implements WfTaskService {
     private final NotificationService notificationService;
     private final FlowLongSchedulerProperties schedulerProperties;
     private final ObjectMapper objectMapper;
+    private final ForgeTaskAccessStrategy taskAccessStrategy;
 
     private static final String COMMENT_ATTACHMENT_BIZ_TYPE = "wf_comment";
 
@@ -684,6 +686,7 @@ public class WfTaskServiceImpl implements WfTaskService {
 
         Long id = parseTaskId(taskId);
         FlwTask task = validateTask(id);
+        assertTaskOperable(task, currentUserId);
 
         saveApprovalComment(task, currentUserId, userName, ApprovalActionTypeEnum.REJECT.getCode(), request.getComment(), request.getAttachmentIds());
 
@@ -743,6 +746,7 @@ public class WfTaskServiceImpl implements WfTaskService {
 
         Long id = parseTaskId(taskId);
         FlwTask task = validateTask(id);
+        assertTaskOperable(task, currentUserId);
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
         FlowCreator delegateCreator = createFlowCreator(request.getDelegateUserId());
@@ -765,6 +769,7 @@ public class WfTaskServiceImpl implements WfTaskService {
 
         Long id = parseTaskId(taskId);
         FlwTask task = validateTask(id);
+        assertTaskOperable(task, currentUserId);
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
         FlowCreator transferCreator = createFlowCreator(request.getTransferUserId());
@@ -787,6 +792,7 @@ public class WfTaskServiceImpl implements WfTaskService {
 
         Long id = parseTaskId(taskId);
         FlwTask task = validateTask(id);
+        assertTaskOperable(task, currentUserId);
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
 
@@ -874,6 +880,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         Long id = parseTaskId(taskId);
         FlwTask task = validateTask(id);
+        assertTaskOperable(task, currentUserId);
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
         String userNames = request.getUserIds().stream()
@@ -952,6 +959,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         Long id = parseTaskId(taskId);
         FlwTask task = validateTask(id);
+        assertTaskOperable(task, currentUserId);
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
         taskService.removeTaskActor(id, Collections.singletonList(request.getActorId()), flowCreator);
@@ -971,6 +979,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         Long id = parseTaskId(taskId);
         FlwTask task = validateTask(id);
+        assertTaskOperable(task, currentUserId);
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
 
@@ -1012,6 +1021,7 @@ public class WfTaskServiceImpl implements WfTaskService {
         if (activeInstance == null) {
             throw new BusinessException(400, "流程已结束，无法撤回");
         }
+        assertHisTaskOperable(hisTask, currentUserId);
 
         FlowCreator flowCreator = createFlowCreator(currentUserId);
         taskService.withdrawTask(id, flowCreator);
@@ -1345,6 +1355,30 @@ public class WfTaskServiceImpl implements WfTaskService {
             throw new BusinessException(404, "任务不存在或已完成");
         }
         return task;
+    }
+
+    /**
+     * 校验当前用户有权操作该活动任务：直系参与者/候选组隶属者本人，工作流管理员豁免。
+     * 引擎侧 reject/退回/撤回/加减签/抄送/委派/转办等路径不做参与者校验（isAllowed 仅覆盖 complete 系），
+     * 服务层必须统一把关，防止越权操作他人任务。
+     */
+    private void assertTaskOperable(FlwTask task, Long currentUserId) {
+        List<FlwTaskActor> actors = queryService.getTaskActorsByTaskId(task.getId());
+        if (taskAccessStrategy.isAllowed(String.valueOf(currentUserId), actors) == null) {
+            throw new BusinessException(403, "无权操作该任务");
+        }
+    }
+
+    /**
+     * 撤回场景校验：历史任务的处理人本人（历史参与者表），工作流管理员豁免
+     */
+    private void assertHisTaskOperable(FlwHisTask hisTask, Long currentUserId) {
+        List<FlwHisTaskActor> hisActors = hisTaskActorMapper.selectList(
+                new LambdaQueryWrapper<FlwHisTaskActor>().eq(FlwHisTaskActor::getTaskId, hisTask.getId()));
+        List<FlwTaskActor> actors = hisActors == null ? List.of() : new ArrayList<>(hisActors);
+        if (taskAccessStrategy.isAllowed(String.valueOf(currentUserId), actors) == null) {
+            throw new BusinessException(403, "无权操作该任务");
+        }
     }
 
     private FlowCreator createFlowCreator(Long userId) {

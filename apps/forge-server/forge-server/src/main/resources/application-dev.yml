@@ -52,3 +52,13 @@ forge:
   security:
     captcha:
       enabled: false  # 临时关闭做集成测试，生产环境必须开启
+    password:
+      # 开发专用密钥（仅 dev profile 生效）；生产必须经 APP_AES_KEY 环境变量注入，基础配置无默认值
+      aes-key: dev-only-aes-key-32bytes-do-not-use-prod!
+  wx:
+    # 开发环境允许 Mock 登录（appId 未配置时以模拟 openId 建号）；生产走默认 false，漏配直接失败
+    mock-enabled: true
+
+# 开发专用 JWT 密钥（仅 dev profile 生效）；生产必须经 JWT_SECRET 环境变量注入，基础配置无默认值
+jwt:
+  secret: dev-only-jwt-secret-key-256-bits-minimum-ok!

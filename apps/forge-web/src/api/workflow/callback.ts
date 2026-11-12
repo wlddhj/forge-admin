@@ -6,6 +6,7 @@ export interface CallbackRequest {
   id?: number
   name: string
   url: string
+  /** 签名密钥（编辑时空串/不传 = 保留原值，后端不回显明文） */
   secret?: string
   events: string[]
   processKey?: string

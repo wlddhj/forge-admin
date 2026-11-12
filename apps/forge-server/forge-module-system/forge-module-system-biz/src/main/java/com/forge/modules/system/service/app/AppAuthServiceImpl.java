@@ -45,6 +45,13 @@ public class AppAuthServiceImpl implements AppAuthService {
     @Value("${forge.wx.mini-app-secret:}")
     private String appSecret;
 
+    /**
+     * Mock 登录开关：默认关闭。开启时 appId 未配置仍可用模拟 openId（仅限开发环境，
+     * 生产漏配 appId 必须直接失败，防止无凭证建号拿 JWT 的认证后门）
+     */
+    @Value("${forge.wx.mock-enabled:false}")
+    private boolean wxMockEnabled;
+
     private static final String REFRESH_TOKEN_PREFIX = "app_refresh_token:";
     private static final String SESSION_PREFIX = "app_session:";
     private static final String USER_SESSIONS_PREFIX = "app_user_sessions:";
@@ -84,6 +91,10 @@ public class AppAuthServiceImpl implements AppAuthService {
                         .build();
                 appUserService.createAppUser(user);
             } else {
+                // 已存在用户须处于启用状态，禁用账号不得再次登录换取新 token
+                if (user.getStatus() == null || user.getStatus() != 1) {
+                    throw new BusinessException("账号已被禁用，无法登录");
+                }
                 appUserService.updateLastLoginTime(user.getId());
             }
 
@@ -187,11 +198,15 @@ public class AppAuthServiceImpl implements AppAuthService {
     }
 
     private String getWxOpenId(String code) {
-        // Mock 模式：如果 appId 未配置（空白字符串），返回模拟 openId 用于开发测试
+        // appId 未配置：仅显式开启 Mock（开发环境）时返回模拟 openId；否则直接失败，
+        // 防止生产漏配凭据时凭任意 code 建号签发合法 JWT
         log.debug("wxLogin appId value: '{}', length: {}, isEmpty: {}, isBlank: {}",
             appId, appId == null ? "null" : appId.length(), appId == null, appId != null && appId.isBlank());
         if (appId == null || appId.isBlank()) {
-            log.info("微信小程序 appId 未配置，使用 Mock 模式，code: {}", code);
+            if (!wxMockEnabled) {
+                throw new BusinessException("微信登录未配置（缺少 mini-app-id），请联系管理员");
+            }
+            log.info("微信小程序 appId 未配置，使用 Mock 模式（wx.mock-enabled），code: {}", code);
             return "mock_openid_" + code.hashCode();
         }
         try {

@@ -3,11 +3,14 @@ package com.forge.common.config;
 import com.forge.framework.security.config.AppJwtAuthenticationFilter;
 import com.forge.modules.system.auth.security.JwtAuthenticationEntryPoint;
 import jakarta.servlet.DispatcherType;
+import lombok.extern.slf4j.Slf4j;
 import com.forge.modules.system.auth.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -31,6 +34,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -38,11 +42,17 @@ public class SecurityConfig {
 
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final UserDetailsService userDetailsService;
+    private final SecurityProperties securityProperties;
+    private final Environment environment;
 
     public SecurityConfig(JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-                          @Lazy UserDetailsService userDetailsService) {
+                          @Lazy UserDetailsService userDetailsService,
+                          SecurityProperties securityProperties,
+                          Environment environment) {
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
         this.userDetailsService = userDetailsService;
+        this.securityProperties = securityProperties;
+        this.environment = environment;
     }
 
     private static final String[] ADMIN_WHITE_LIST = {
@@ -81,7 +91,10 @@ public class SecurityConfig {
             "/app-api/uploads/**",
             "/ws/info/**",
             "/topic/**",
-            "/error"
+            "/error",
+            // 健康探针（K8s/负载均衡）：仅健康端点匿名可达，其余 actuator 端点默认要求认证
+            "/actuator/health",
+            "/actuator/health/**",
     };
 
     private static final String[] APP_WHITE_LIST = {
@@ -176,24 +189,49 @@ public class SecurityConfig {
                 .securityMatcher("/**")
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                // fail-closed：未匹配到 admin/app/其他链的路径（/actuator/**、swagger、
+                // 以及未来新增但漏配前缀规则的 Controller）一律要求认证，绝不默认放行
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(GLOBAL_WHITE_LIST).permitAll()
-                        .anyRequest().permitAll());
+                        .anyRequest().authenticated());
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        List<String> origins = resolveAllowedOrigins();
+        if (origins.isEmpty()) {
+            // 非 dev 且未配置白名单：不注册任何跨域源（同源部署不受影响，跨域一律拒绝）
+            return source;
+        }
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    /**
+     * 跨域源解析：显式白名单优先；未配置/配置 * 时 dev 默认本机前端，其余环境不放行任何跨域
+     * （allowCredentials=true 与通配 * 的组合由此杜绝——通配配置视同未配置处理）
+     */
+    private List<String> resolveAllowedOrigins() {
+        List<String> configured = securityProperties.getCorsAllowedOrigins();
+        boolean wildcard = configured == null || configured.isEmpty()
+                || configured.stream().anyMatch("*"::equals);
+        if (wildcard) {
+            if (environment != null && environment.acceptsProfiles(Profiles.of("dev"))) {
+                return List.of("http://localhost:3000");
+            }
+            log.warn("未配置 forge.security.cors-allowed-origins 且非 dev 环境：不注册任何跨域源（同源部署不受影响）");
+            return List.of();
+        }
+        return configured;
     }
 
     @Bean

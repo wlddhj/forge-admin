@@ -3,6 +3,8 @@ package com.forge.modules.screen.safety;
 import com.forge.modules.screen.constant.ScreenConstants;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.Function;
+import net.sf.jsqlparser.expression.JdbcNamedParameter;
+import net.sf.jsqlparser.expression.JdbcParameter;
 import net.sf.jsqlparser.expression.LongValue;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
@@ -342,8 +344,8 @@ public class SqlSafetyValidator {
      *   <li>{@code LIMIT 5 + 5} — rowCount 是表达式，按 fail-closed 拒绝</li>
      * </ul>
      *
-     * <p>对 JDBC 占位符 {@code ?} 仍允许通过（交由 T11 运行时绑定校验），
-     * 其他非常量表达式（Addition/函数等）一律拒绝。
+     * <p>对 JDBC 占位符（{@code ?} 与命名占位符 {@code :name}）仍允许通过
+     * （交由 T11 运行时绑定校验），其他非常量表达式（Addition/函数等）一律拒绝。
      */
     public void assertLimitWithinMax(Statement stmt) {
         if (!(stmt instanceof Select select)) {
@@ -415,8 +417,9 @@ public class SqlSafetyValidator {
      * <ul>
      *   <li>{@code null} 入参 → 返回 null（该子句未出现）</li>
      *   <li>{@link LongValue} → 直接取值</li>
-     *   <li>JDBC 占位符（{@code ?}）→ 返回 null，交由 T11 运行时校验</li>
-     *   <li>其他非数字表达式（Addition、BindParameter 等）→ 抛 {@link SqlSafetyException}（fail-closed）</li>
+     *   <li>JDBC 占位符（{@code ?} 与命名占位符 {@code :name}）→ 返回 null，
+     *       交由 T11 运行时校验（{@code SqlDataSourceExecutor} 按 limitParamNames 精确匹配）</li>
+     *   <li>其他非数字表达式（Addition 等）→ 抛 {@link SqlSafetyException}（fail-closed）</li>
      * </ul>
      *
      * @param clauseName 用于错误信息的子句名（"LIMIT 行数" / "OFFSET"）
@@ -428,7 +431,10 @@ public class SqlSafetyValidator {
         if (expr instanceof LongValue lv) {
             return lv.getValue();
         }
-        // 占位符：deparse 后是 "?"，留给运行时绑定校验
+        // 占位符（? / :name）：留给运行时绑定校验（闸C limitParamNames 语义）
+        if (expr instanceof JdbcParameter || expr instanceof JdbcNamedParameter) {
+            return null;
+        }
         String text = deparse(expr);
         if (text == null || text.equals("?") || text.isEmpty()) {
             return null;
