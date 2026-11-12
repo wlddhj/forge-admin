@@ -3,9 +3,13 @@ package com.forge.framework.redis.lock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -59,6 +63,20 @@ public class RedisDistributedLock implements DistributedLock {
      */
     private static final String LOCK_VALUE_PREFIX = "forge-admin:";
 
+    /**
+     * 原子释放脚本：仅当锁值等于本持有者令牌才删除。
+     * 旧实现 unlock 只校验共享前缀——持锁超过锁时长后（锁已自动过期、他人持新锁），
+     * 旧持有者 finally 释放会误删他人锁，导致第三方并发执行同一批任务（重复自动办理/提醒）。
+     */
+    private static final RedisScript<Long> UNLOCK_SCRIPT = new DefaultRedisScript<>(
+            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+            Long.class);
+
+    /**
+     * 本线程持有的锁令牌栈（tryLock 入栈、unlock 出栈；同线程嵌套多把锁按 LIFO 配对）
+     */
+    private static final ThreadLocal<ArrayDeque<String>> TOKEN_STACK = new ThreadLocal<>();
+
     @Override
     public boolean tryLock(String lockKey, Duration timeout) {
         String key = LOCK_PREFIX + lockKey;
@@ -69,6 +87,12 @@ public class RedisDistributedLock implements DistributedLock {
                     .setIfAbsent(key, value, timeout);
 
             if (Boolean.TRUE.equals(success)) {
+                ArrayDeque<String> stack = TOKEN_STACK.get();
+                if (stack == null) {
+                    stack = new ArrayDeque<>();
+                    TOKEN_STACK.set(stack);
+                }
+                stack.offerLast(value);
                 log.debug("获取分布式锁成功: key={}, value={}, timeout={}", key, value, timeout);
                 return true;
             }
@@ -85,16 +109,22 @@ public class RedisDistributedLock implements DistributedLock {
     public void unlock(String lockKey) {
         String key = LOCK_PREFIX + lockKey;
 
+        ArrayDeque<String> stack = TOKEN_STACK.get();
+        String token = stack == null ? null : stack.pollLast();
+        if (stack != null && stack.isEmpty()) {
+            TOKEN_STACK.remove();
+        }
+        if (token == null) {
+            log.warn("释放分布式锁失败: 本线程未持有锁令牌（非配对 unlock）: key={}", key);
+            return;
+        }
+
         try {
-            // 检查锁是否属于当前实例
-            String value = redisTemplate.opsForValue().get(key);
-            if (value != null && value.startsWith(LOCK_VALUE_PREFIX)) {
-                redisTemplate.delete(key);
+            Long removed = redisTemplate.execute(UNLOCK_SCRIPT, List.of(key), token);
+            if (removed != null && removed == 1L) {
                 log.debug("释放分布式锁成功: key={}", key);
-            } else if (value != null) {
-                log.warn("锁不属于当前实例，跳过释放: key={}, actualValue={}", key, value);
             } else {
-                log.debug("锁已不存在，无需释放: key={}", key);
+                log.warn("锁已过期被他人持有或令牌不匹配，跳过释放: key={}", key);
             }
         } catch (Exception e) {
             log.error("释放分布式锁异常: key={}, error={}", key, e.getMessage());

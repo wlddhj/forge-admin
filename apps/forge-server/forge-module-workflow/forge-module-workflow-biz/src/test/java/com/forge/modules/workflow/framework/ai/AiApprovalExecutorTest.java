@@ -49,7 +49,8 @@ class AiApprovalExecutorTest {
         aiApprovalRecordMapper = mock(WfAiApprovalRecordMapper.class);
         when(flowLongEngine.queryService()).thenReturn(queryService);
         executor = new AiApprovalExecutor(aiApprovalService, flowLongEngine,
-                aiApprovalRecordMapper, mock(WfApprovalCommentMapper.class), new ObjectMapper());
+                aiApprovalRecordMapper, mock(WfApprovalCommentMapper.class), new ObjectMapper(),
+                java.util.concurrent.Executors.newSingleThreadExecutor());
     }
 
     private AiApprovalConfig enabledConfig() {

@@ -52,4 +52,28 @@ public class AgentExecutorConfig {
         ExecutorService service = TtlExecutors.getTtlExecutorService(agentExecutor.getThreadPoolExecutor());
         return Schedulers.fromExecutorService(service, "agent-sched");
     }
+
+    /**
+     * 工具并行/竞速专用池（SynchronousQueue：提交即派发，max 真实生效）。
+     * 与 agentExecutor（图执行/专家子图）隔离——历史死锁形态：图执行线程在
+     * agentExecutor 内 join 等待本池任务，当池线程全被"图执行+join"占满时
+     * 工具任务永远排队（旧池 queue=200 使 max 永不扩容，并发 ≥core 即互等死锁）。
+     * CallerRuns 兜底：池满时回退提交线程执行（图线程慢化但不死锁）。
+     */
+    @Bean("toolExecutor")
+    public ThreadPoolTaskExecutor toolExecutor() {
+        AgentProperties.Executor props = agentProperties.getExecutor();
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(Math.max(2, props.getCore() / 2));
+        executor.setMaxPoolSize(Math.max(4, props.getMax()));
+        // 0 = SynchronousQueue：无排队，按需扩到 max
+        executor.setQueueCapacity(0);
+        executor.setThreadNamePrefix("agent-tool-");
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setTaskDecorator(TtlRunnable::get);
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
+        executor.initialize();
+        return executor;
+    }
 }

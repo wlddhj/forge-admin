@@ -42,7 +42,8 @@ class WfAiRoutingServiceImplTest {
         llmClient = mock(LlmClient.class);
         modelResolver = mock(AiModelResolver.class);
         routeRecordMapper = mock(WfAiRouteRecordMapper.class);
-        service = new WfAiRoutingServiceImpl(llmClient, modelResolver, objectMapper, routeRecordMapper);
+        service = new WfAiRoutingServiceImpl(llmClient, modelResolver, objectMapper, routeRecordMapper,
+                java.util.concurrent.Executors.newSingleThreadExecutor());
 
         AiModelConfig modelConfig = new AiModelConfig();
         modelConfig.setProvider("deepseek");
@@ -75,7 +76,7 @@ class WfAiRoutingServiceImplTest {
         response.setSuccess(true);
         response.setContent(content);
         response.setModelName("test-model");
-        when(llmClient.chat(any(ChatRequest.class), any(AiModelConfig.class))).thenReturn(response);
+        when(llmClient.chatForDecision(any(ChatRequest.class), any(AiModelConfig.class), any(), any())).thenReturn(response);
     }
 
     @Test
@@ -205,7 +206,7 @@ class WfAiRoutingServiceImplTest {
         ChatResponse response = new ChatResponse();
         response.setSuccess(false);
         response.setErrorMessage("上游不可用");
-        when(llmClient.chat(any(ChatRequest.class), any(AiModelConfig.class))).thenReturn(response);
+        when(llmClient.chatForDecision(any(ChatRequest.class), any(AiModelConfig.class), any(), any())).thenReturn(response);
 
         RoutingDecision decision = assertDoesNotThrow(() ->
                 service.decide(gatewayNode(new HashMap<>()), candidates(), false, 100L, Map.of()));
@@ -276,7 +277,7 @@ class WfAiRoutingServiceImplTest {
                 Map.of("amount", 50000, "password", "should-not-appear"));
 
         ArgumentCaptor<ChatRequest> captor = ArgumentCaptor.forClass(ChatRequest.class);
-        verify(llmClient).chat(captor.capture(), any());
+        verify(llmClient).chatForDecision(captor.capture(), any(), any(), any());
         ChatRequest request = captor.getValue();
         assertTrue(request.getContent().contains("金额大于1万走大额审批"));
         assertTrue(request.getContent().contains("flk_branch_a"));

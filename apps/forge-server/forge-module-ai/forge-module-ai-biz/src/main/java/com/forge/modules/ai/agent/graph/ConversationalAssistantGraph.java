@@ -39,6 +39,9 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
     public static final String NODE_TOOLS = "tools";
     public static final String NODE_SUMMARY = "summary";
 
+    /** 工具组并行执行等待上限（分钟）：兜底防外部工具悬挂导致 run 永久 RUNNING */
+    private static final long TOOL_WAIT_MINUTES = 5;
+
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
     private final DecisionJsonParser decisionJsonParser;
@@ -48,6 +51,8 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
     private final PromptBudgeter promptBudgeter;
     private final com.forge.modules.ai.client.NativeToolCalling nativeToolCalling;
     private final java.util.concurrent.Executor agentExecutor;
+    /** 工具并行专用池（与图执行隔离，防池内互等死锁；见 AgentExecutorConfig） */
+    private final java.util.concurrent.Executor toolExecutor;
     private final com.forge.modules.ai.config.AiModuleConfig aiModuleConfig;
 
     public ConversationalAssistantGraph(LlmClient llmClient,
@@ -60,6 +65,8 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                                         com.forge.modules.ai.client.NativeToolCalling nativeToolCalling,
                                         @org.springframework.beans.factory.annotation.Qualifier("agentExecutor")
                                         java.util.concurrent.Executor agentExecutor,
+                                        @org.springframework.beans.factory.annotation.Qualifier("toolExecutor")
+                                        java.util.concurrent.Executor toolExecutor,
                                         com.forge.modules.ai.config.AiModuleConfig aiModuleConfig) {
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
@@ -70,6 +77,7 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
         this.promptBudgeter = promptBudgeter;
         this.nativeToolCalling = nativeToolCalling;
         this.agentExecutor = agentExecutor;
+        this.toolExecutor = toolExecutor;
         this.aiModuleConfig = aiModuleConfig;
     }
 
@@ -411,9 +419,11 @@ public class ConversationalAssistantGraph implements AgentGraphDefinition {
                             TenantContextHolder.clear();
                         }
                     }
-                }, agentExecutor));
+                }, toolExecutor));
             }
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            // 等待上限：工具组最坏多轮外部调用，5 分钟兜底防永久挂起（超时=节点失败走既有降级）
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .orTimeout(TOOL_WAIT_MINUTES, java.util.concurrent.TimeUnit.MINUTES).join();
             history.addAll(newHistory);
             ctx.emit(AgentEvents.Type.STEP_END, NODE_TOOLS, "工具执行", Map.of(
                     "seq", ctx.nextSeq(), "status", "SUCCESS",

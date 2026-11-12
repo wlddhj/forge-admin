@@ -34,8 +34,10 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -58,6 +60,8 @@ public class SpringAiLlmClient implements LlmClient {
     private final SysConfigService sysConfigService;
     private final AiModuleConfig aiModuleConfig;
     private final Executor agentExecutor;
+    /** 竞速专用池：与图执行隔离（agentExecutor 池内 join 等待竞速任务是历史死锁形态之一） */
+    private final Executor toolExecutor;
     private final ModelHealthCache healthCache;
     private final com.forge.modules.ai.config.AiMetrics aiMetrics;
     private final OpenAiCompatStreamClient streamClient;
@@ -68,6 +72,7 @@ public class SpringAiLlmClient implements LlmClient {
                              SysConfigService sysConfigService,
                              AiModuleConfig aiModuleConfig,
                              @Qualifier("agentExecutor") Executor agentExecutor,
+                             @Qualifier("toolExecutor") Executor toolExecutor,
                              ModelHealthCache healthCache,
                              com.forge.modules.ai.config.AiMetrics aiMetrics,
                              OpenAiCompatStreamClient streamClient) {
@@ -77,6 +82,7 @@ public class SpringAiLlmClient implements LlmClient {
         this.sysConfigService = sysConfigService;
         this.aiModuleConfig = aiModuleConfig;
         this.agentExecutor = agentExecutor;
+        this.toolExecutor = toolExecutor;
         this.healthCache = healthCache;
         this.aiMetrics = aiMetrics;
         this.streamClient = streamClient;
@@ -253,16 +259,27 @@ public class SpringAiLlmClient implements LlmClient {
         if (skipPrimary) {
             log.info("主模型 [{}] 近期失败已标记，跳过直接竞速备用模型", modelConfig.getModelName());
         }
-        ChatResponse primary = skipPrimary ? null : doDecisionChat(request, modelConfig, onDelta, onReasoning);
+        // 竞速门控：首成功（settle）后，仍在跑的输家不再向下游推增量帧（防 SSE 事件时间线交错污染），
+        // 其最终失败也不再写健康负缓存（防误伤刚被其他候选验证过的模型）；线程占用以 decision-timeout 为自然上限
+        AtomicBoolean settled = new AtomicBoolean();
+        Consumer<String> gatedDelta = onDelta == null ? null
+                : delta -> { if (!settled.get()) { onDelta.accept(delta); } };
+        Consumer<String> gatedReasoning = onReasoning == null ? null
+                : delta -> { if (!settled.get()) { onReasoning.accept(delta); } };
+        ChatResponse primary = skipPrimary ? null
+                : doDecisionChat(request, modelConfig, gatedDelta, gatedReasoning, () -> false);
         if (primary != null && Boolean.TRUE.equals(primary.getSuccess())) {
+            settled.set(true);
             return primary;
         }
         return raceFailover(modelConfig, primary,
-                candidate -> doDecisionChat(request, candidate, onDelta, onReasoning));
+                candidate -> doDecisionChat(request, candidate, gatedDelta, gatedReasoning, settled::get),
+                settled);
     }
 
     private ChatResponse doDecisionChat(ChatRequest request, AiModelConfig modelConfig,
-                                        Consumer<String> onDelta, Consumer<String> onReasoning) {
+                                        Consumer<String> onDelta, Consumer<String> onReasoning,
+                                        BooleanSupplier abandoned) {
         ChatResponse response = new ChatResponse();
         long start = System.currentTimeMillis();
         response.setModelName(modelConfig.getModelName());
@@ -294,7 +311,13 @@ public class SpringAiLlmClient implements LlmClient {
                     : friendly);
             response.setResponseTime(System.currentTimeMillis() - start);
         }
-        recordHealth(modelConfig, response);
+        // 竞速输家（胜者已定）且本调用失败：跳过健康负缓存——该失败多因放弃/超时，
+        // 不代表模型不可用，写入会误伤刚被胜者验证过的候选
+        if (abandoned.getAsBoolean() && !Boolean.TRUE.equals(response.getSuccess())) {
+            log.info("LLM 决策竞速输家失败不记健康负缓存 [{}]", modelConfig.getModelName());
+        } else {
+            recordHealth(modelConfig, response);
+        }
         aiMetrics.llmCall("decision", modelConfig.getModelName(),
                 Boolean.TRUE.equals(response.getSuccess()), response.getResponseTime());
         return response;
@@ -381,7 +404,7 @@ public class SpringAiLlmClient implements LlmClient {
      * 任一成功即返回，全败进入下一批；开关关闭/无候选/全败返回主模型原始失败。
      */
     private ChatResponse raceFailover(AiModelConfig primary, ChatResponse primaryResponse,
-                                      Function<AiModelConfig, ChatResponse> attempt) {
+                                      Function<AiModelConfig, ChatResponse> attempt, AtomicBoolean settled) {
         try {
             if (!fallbackEnabled()) {
                 return finalResponse(primary, primaryResponse);
@@ -397,7 +420,7 @@ public class SpringAiLlmClient implements LlmClient {
             for (int start = 0; start < candidates.size(); start += parallelism) {
                 List<AiModelConfig> batch = candidates.subList(start,
                         Math.min(candidates.size(), start + parallelism));
-                ChatResponse outcome = raceBatch(primary, batch, attempt);
+                ChatResponse outcome = raceBatch(primary, batch, attempt, settled);
                 if (outcome != null) {
                     return outcome;
                 }
@@ -414,14 +437,16 @@ public class SpringAiLlmClient implements LlmClient {
      * 全部失败返回 null（进入下一批）。其余未完成 future 不再等待（结果丢弃，竞速成本已接受）。
      */
     private ChatResponse raceBatch(AiModelConfig primary, List<AiModelConfig> batch,
-                                   Function<AiModelConfig, ChatResponse> attempt) {
+                                   Function<AiModelConfig, ChatResponse> attempt, AtomicBoolean settled) {
         CompletableFuture<ChatResponse> firstSuccess = new CompletableFuture<>();
         AtomicInteger remaining =
                 new AtomicInteger(batch.size());
         for (AiModelConfig candidate : batch) {
-            CompletableFuture.supplyAsync(() -> attempt.apply(candidate), agentExecutor)
+            CompletableFuture.supplyAsync(() -> attempt.apply(candidate), toolExecutor)
                     .whenComplete((response, error) -> {
                         if (error == null && response != null && Boolean.TRUE.equals(response.getSuccess())) {
+                            // 首成功即刻 settle：门控后续输家的帧回调与健康负缓存写入
+                            settled.compareAndSet(false, true);
                             firstSuccess.complete(response);
                         } else if (remaining.decrementAndGet() == 0 && !firstSuccess.isDone()) {
                             firstSuccess.complete(null);

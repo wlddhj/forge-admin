@@ -14,6 +14,9 @@ import com.aizuda.bpm.engine.entity.FlwTask;
 import com.aizuda.bpm.engine.entity.FlwTaskActor;
 import com.aizuda.bpm.mybatisplus.mapper.*;
 import com.aizuda.bpm.spring.adaptive.FlowJacksonHandler;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import tools.jackson.databind.ObjectMapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.UserContext;
@@ -24,6 +27,8 @@ import com.forge.modules.workflow.config.FlowLongSchedulerProperties;
 import com.forge.modules.workflow.entity.WfApprovalComment;
 import com.forge.modules.workflow.identity.FlowLongIdentityService;
 import com.forge.modules.workflow.mapper.WfApprovalCommentMapper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,7 +43,7 @@ import static org.mockito.Mockito.*;
 /**
  * 手动催办单元测试
  *
- * 覆盖：权限校验、无审批任务、节流窗口、通知与留痕
+ * 覆盖：权限校验、无审批任务、行锁读（FOR UPDATE）、节流窗口、通知与留痕
  */
 class WfTaskServiceUrgeTest {
 
@@ -51,7 +56,15 @@ class WfTaskServiceUrgeTest {
     private WfApprovalCommentMapper approvalCommentMapper;
     private NotificationService notificationService;
     private FlowLongSchedulerProperties schedulerProperties;
+    private FlwTaskMapper taskMapper;
     private WfTaskServiceImpl service;
+
+    @BeforeAll
+    static void initTableInfo() {
+        // MP 3.5.18：纯单测下 LambdaQueryWrapper 渲染（getSqlSegment）需要实体 TableInfo 缓存
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, FlwTask.class);
+    }
 
     @BeforeEach
     void setUp() {
@@ -65,14 +78,26 @@ class WfTaskServiceUrgeTest {
         notificationService = mock(NotificationService.class);
         schedulerProperties = new FlowLongSchedulerProperties();
         schedulerProperties.setUrgeIntervalMinutes(30);
+        taskMapper = mock(FlwTaskMapper.class);
 
         service = new WfTaskServiceImpl(taskService, processService, mock(RuntimeService.class),
                 queryService, identityService, approvalCommentMapper,
-                mock(FlwTaskMapper.class), mock(FlwHisTaskMapper.class),
+                taskMapper, mock(FlwHisTaskMapper.class),
                 mock(FlwTaskActorMapper.class), mock(FlwHisTaskActorMapper.class),
                 mock(FlwInstanceMapper.class), mock(com.aizuda.bpm.mybatisplus.mapper.FlwProcessMapper.class), mock(FlwHisInstanceMapper.class),
                 mock(FlowLongEngine.class), mock(SysAttachmentService.class),
                 notificationService, schedulerProperties, new ObjectMapper(), permissiveAccessStrategy());
+    }
+
+    /**
+     * 行锁读桩：对将催办任务先 FOR UPDATE 当前读，按调用顺序返回锁内任务行
+     * （与列表快照独立——锁内行才是节流判定依据）
+     */
+    private void stubLockedTasks(FlwTask... lockedTasks) {
+        var stubbing = when(taskMapper.selectOne(any()));
+        for (FlwTask locked : lockedTasks) {
+            stubbing = stubbing.thenReturn(locked);
+        }
     }
 
     /** 归属校验放行桩：本测试类聚焦催办行为，参与者判定恒通过 */
@@ -105,6 +130,7 @@ class WfTaskServiceUrgeTest {
         return task;
     }
 
+    /** 桩实例/流程/任务列表；锁内行缺省与列表快照一致（无并发改动），需要差异时再 stubLockedTasks 覆盖 */
     private void stubApprovalTasks(FlwTask... tasks) {
         FlwInstance instance = runningInstance();
         when(queryService.getInstance(INSTANCE_ID)).thenReturn(instance);
@@ -113,6 +139,7 @@ class WfTaskServiceUrgeTest {
         process.setProcessName("请假流程");
         when(processService.getProcessById(10L)).thenReturn(process);
         when(queryService.getTasksByInstanceId(INSTANCE_ID)).thenReturn(List.of(tasks));
+        stubLockedTasks(tasks);
     }
 
     @Test
@@ -179,6 +206,7 @@ class WfTaskServiceUrgeTest {
         when(queryService.getTasksByInstanceId(INSTANCE_ID)).thenReturn(List.of(transferred, condition));
         when(queryService.getTaskActorsByTaskId(1001L)).thenReturn(List.of());
         when(queryService.getTaskActorsByTaskId(1002L)).thenReturn(List.of());
+        stubLockedTasks(transferred, condition);
 
         try (var securityMock = mockStatic(SecurityHelper.class);
              var userContextMock = mockStatic(UserContext.class)) {
@@ -256,5 +284,121 @@ class WfTaskServiceUrgeTest {
                         update != null && update.getId().equals(1000L)
                                 && update.getVariable() != null && update.getVariable().contains("lastUrgeTime")),
                 any());
+    }
+
+    @Test
+    @DisplayName("催办前置行锁读：SELECT ... FOR UPDATE 锁定该任务行")
+    void urge_shouldLockTaskRowForUpdate() {
+        FlwTask task = approvalTask(null);
+        stubApprovalTasks(task);
+
+        try (var securityMock = mockStatic(SecurityHelper.class);
+             var userContextMock = mockStatic(UserContext.class)) {
+            securityMock.when(SecurityHelper::getCurrentUserId).thenReturn(1L);
+            userContextMock.when(() -> UserContext.get()).thenReturn(null);
+
+            service.urgeInstance(String.valueOf(INSTANCE_ID), null);
+        }
+
+        ArgumentCaptor<LambdaQueryWrapper<FlwTask>> wrapperCaptor =
+                ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(taskMapper).selectOne(wrapperCaptor.capture());
+        // 当前读行锁：SQL 尾部拼 FOR UPDATE，条件锁定目标任务行
+        String sqlSegment = wrapperCaptor.getValue().getSqlSegment();
+        assertTrue(sqlSegment.endsWith("FOR UPDATE"), "锁读 SQL 须带 FOR UPDATE，实际: " + sqlSegment);
+        assertTrue(wrapperCaptor.getValue().getParamNameValuePairs().containsValue(1000L),
+                "锁读条件须命中目标任务");
+    }
+
+    @Test
+    @DisplayName("并发催办双穿透防护：列表快照无标记但锁内最新行已被催办——按锁内值节流")
+    void urge_shouldThrottleByLockedRowNotSnapshot() {
+        // 列表快照：无 lastUrgeTime（并发另一请求的写入尚未反映在该快照）
+        FlwTask snapshot = approvalTask(null);
+        // 锁内当前读：另一催办 5 分钟前已写节流标记
+        FlwTask locked = approvalTask("{\"lastUrgeTime\":" + (System.currentTimeMillis() - 5 * 60_000L) + "}");
+        FlwInstance instance = runningInstance();
+        when(queryService.getInstance(INSTANCE_ID)).thenReturn(instance);
+        FlwProcess process = new FlwProcess();
+        process.setId(10L);
+        process.setProcessName("请假流程");
+        when(processService.getProcessById(10L)).thenReturn(process);
+        when(queryService.getTasksByInstanceId(INSTANCE_ID)).thenReturn(List.of(snapshot));
+        stubLockedTasks(locked);
+
+        try (var securityMock = mockStatic(SecurityHelper.class);
+             var userContextMock = mockStatic(UserContext.class)) {
+            securityMock.when(SecurityHelper::getCurrentUserId).thenReturn(1L);
+            userContextMock.when(() -> UserContext.get()).thenReturn(null);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> service.urgeInstance(String.valueOf(INSTANCE_ID), null));
+            assertEquals(400, ex.getCode());
+            assertTrue(ex.getMessage().contains("催办过于频繁"));
+        }
+        // 未重复催办：不写标记、不通知、不留痕
+        verify(taskService, never()).updateTaskById(any(), any());
+        verify(notificationService, never()).sendToUser(anyLong(), any());
+        verify(approvalCommentMapper, never()).insert(any(WfApprovalComment.class));
+    }
+
+    @Test
+    @DisplayName("节流标记基于锁内 variable 合并写回：不丢并发写入的其他变量键")
+    void urge_shouldMergeMarkerIntoLockedVariable() {
+        FlwTask snapshot = approvalTask(null);
+        FlwTask locked = approvalTask("{\"foo\":\"bar\"}");
+        FlwInstance instance = runningInstance();
+        when(queryService.getInstance(INSTANCE_ID)).thenReturn(instance);
+        FlwProcess process = new FlwProcess();
+        process.setId(10L);
+        process.setProcessName("请假流程");
+        when(processService.getProcessById(10L)).thenReturn(process);
+        when(queryService.getTasksByInstanceId(INSTANCE_ID)).thenReturn(List.of(snapshot));
+        stubLockedTasks(locked);
+        when(identityService.getUserName(1L)).thenReturn("发起人");
+        when(queryService.getTaskActorsByTaskId(1000L)).thenReturn(List.of());
+
+        try (var securityMock = mockStatic(SecurityHelper.class);
+             var userContextMock = mockStatic(UserContext.class)) {
+            securityMock.when(SecurityHelper::getCurrentUserId).thenReturn(1L);
+            userContextMock.when(() -> UserContext.get()).thenReturn(null);
+
+            service.urgeInstance(String.valueOf(INSTANCE_ID), null);
+        }
+
+        // 写回的 variable 同时含既有键 foo 与新 lastUrgeTime（锁内行整体合并，非快照覆写）
+        verify(taskService).updateTaskById(argThat(update ->
+                update != null && update.getVariable() != null
+                        && update.getVariable().contains("\"foo\":\"bar\"")
+                        && update.getVariable().contains("lastUrgeTime")), any());
+    }
+
+    @Test
+    @DisplayName("取锁时任务已办结（锁内读为空）：视同无待审批任务，不催办不写标记")
+    void urge_shouldSkipTaskVanishedBeforeLock() {
+        FlwTask snapshot = approvalTask(null);
+        FlwInstance instance = runningInstance();
+        when(queryService.getInstance(INSTANCE_ID)).thenReturn(instance);
+        FlwProcess process = new FlwProcess();
+        process.setId(10L);
+        process.setProcessName("请假流程");
+        when(processService.getProcessById(10L)).thenReturn(process);
+        when(queryService.getTasksByInstanceId(INSTANCE_ID)).thenReturn(List.of(snapshot));
+        // 行锁读未命中：加载到取锁之间任务已被办理移入历史表
+        stubLockedTasks((FlwTask) null);
+
+        try (var securityMock = mockStatic(SecurityHelper.class);
+             var userContextMock = mockStatic(UserContext.class)) {
+            securityMock.when(SecurityHelper::getCurrentUserId).thenReturn(1L);
+            userContextMock.when(() -> UserContext.get()).thenReturn(null);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> service.urgeInstance(String.valueOf(INSTANCE_ID), null));
+            assertEquals(400, ex.getCode());
+            assertTrue(ex.getMessage().contains("无待审批任务"));
+        }
+        verify(taskService, never()).updateTaskById(any(), any());
+        verify(notificationService, never()).sendToUser(anyLong(), any());
+        verify(approvalCommentMapper, never()).insert(any(WfApprovalComment.class));
     }
 }

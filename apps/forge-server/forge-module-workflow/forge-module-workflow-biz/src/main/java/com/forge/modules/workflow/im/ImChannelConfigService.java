@@ -1,6 +1,7 @@
 package com.forge.modules.workflow.im;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.UserContext;
 import com.forge.framework.tenant.core.aop.TenantIgnore;
@@ -11,6 +12,7 @@ import com.forge.modules.workflow.entity.WfImChannelConfig;
 import com.forge.modules.workflow.mapper.WfImChannelConfigMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -81,7 +83,8 @@ public class ImChannelConfigService {
     }
 
     /**
-     * upsert：(tenantId, channel) 唯一，重复保存更新已有行；secret 空串语义 = 保留原值
+     * upsert：(tenantId, channel) 唯一，重复保存更新已有行；secret 空串语义 = 保留原值。
+     * 并发首次保存由 uk_tenant_channel 兜底：撞唯一键方重查存量转更新，幂等收敛为单行
      */
     @TenantIgnore
     public void upsert(ImChannelConfigRequest request) {
@@ -110,9 +113,21 @@ public class ImChannelConfigService {
             entity.setCreateBy(operator);
             entity.setUpdateBy(operator);
             entity.setDeleted(0);
-            configMapper.insert(entity);
-            log.info("新增IM渠道配置: tenantId={}, channel={}", request.getTenantId(), request.getChannel());
-            return;
+            try {
+                configMapper.insert(entity);
+                log.info("新增IM渠道配置: tenantId={}, channel={}", request.getTenantId(), request.getChannel());
+                return;
+            } catch (DuplicateKeyException e) {
+                // 并发保存双双判空、双双 insert：输家撞 uk_tenant_channel，
+                // 重查赢家落库的存量行转更新（幂等收敛双行为单行）
+                existing = configOf(request.getTenantId(), request.getChannel());
+                if (existing == null) {
+                    // 唯一键冲突却查无此行：非常规异常（如连接故障），按原语义抛出
+                    throw e;
+                }
+                log.info("并发新增撞唯一索引，转更新已有行: tenantId={}, channel={}",
+                        request.getTenantId(), request.getChannel());
+            }
         }
         existing.setEnabled(request.getEnabled());
         existing.setCorpId(corpId);
@@ -135,9 +150,16 @@ public class ImChannelConfigService {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
+    /**
+     * 逻辑删除墓碑惯用法：deleted 置本行 id 而非 1——
+     * uk_tenant_channel(tenant_id, channel, deleted) 下同键允许多条墓碑共存，
+     * "删除-重建-再删除"不撞唯一索引（配合升级脚本 upgrade-20261112）
+     */
     @TenantIgnore
     public void deleteConfig(Long id) {
-        configMapper.deleteById(id);
+        configMapper.update(null, new LambdaUpdateWrapper<WfImChannelConfig>()
+                .eq(WfImChannelConfig::getId, id)
+                .set(WfImChannelConfig::getDeleted, id));
         log.info("删除IM渠道配置: id={}", id);
     }
 

@@ -78,7 +78,11 @@ public class AgentProperties {
     public static class Executor {
         private int core = 8;
         private int max = 16;
-        private int queue = 200;
+        /**
+         * 图执行/专家子图池排队容量。旧默认 200 会使 max 永不扩容（JDK 池队列满才扩），
+         * 并发图执行 ≥core 即互相 join 等待形成死锁；调小让 max 尽早生效（工具/竞速已隔离到 toolExecutor）
+         */
+        private int queue = 50;
     }
 
     @Data

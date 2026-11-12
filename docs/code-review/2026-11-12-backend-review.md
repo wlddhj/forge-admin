@@ -41,8 +41,8 @@
 6. **大屏 SQL 三道闸被击穿三处（P1×3，实证）** — `SqlDataSourceExecutor.java:71-92` 执行层用**原始模板**而非 deparsed SQL（`/*! ... */` MySQL 执行注释可绕过表/列白名单，SqlSafetyGuard 自己的 Javadoc 契约被违背）；`SqlSafetyGuard.java:92-121` JOIN 表与 WHERE/ORDER BY 列完全不做白名单校验（`ORDER BY SLEEP(1)` 也不在危险函数扫描内）；`SqlDataSourceExecutor.java:116-139` LIMIT 占位符改名（`:n`）即无界拉取可 OOM。→ 执行改 deparsed SQL / 全树表列提取 / LIMIT 参数名 AST 级绑定 + `setMaxRows` 兜底。
 7. **回调 secret 明文回传 + 空 secret 静默不签名（P1，实证）** — `WfBusinessCallbackServiceImpl.java:162`：secret 原样进 Response 返回前端（持 `workflow:callback:list` 即可读出 HMAC 密钥伪造回调签名）；明文落库（IM 侧已用 AES-256-GCM，双标）；update 漏传 secret 即置 null → 投递静默降级为无签名。→ 照抄 `ImChannelConfigResponse.hasSecret` 模式 + EncryptTypeHandler + 空=保留原值。
 8. **demo 范本状态伪造（P1，实证）** — `ProjectWorkflowEventHandler.java:40-80` + 通用发起端点 `businessKey` 无校验：持 `workflow:instance:start` 的用户可用伪造 `businessKey=project:{id}` 发起可控流程并走到终态，把他人/已驳回的立项翻转为 APPROVED 或 CANCELED。范本会被复制，坏示范扩散最快。→ 回写校验 instanceId 一致 + `eq(approveStatus, APPROVING)` CAS。
-9. **流式资源泄漏 + 竞速输家污染 SSE（P1×2，实证）** — `OpenAiCompatStreamClient.java:144-157/473-482` 下游断连后同步读循环无取消感知，socket+boundedElastic 线程最坏挂 10 分钟（批量断连耗尽线程池）；`SpringAiLlmClient.java:416-440` 决策竞速输家不取消且共享 onDelta 回调，胜者已推进后输家持续向前端推交错事件。→ `emitter.onCancel` 置位 + 读循环检查；竞速加"胜者已定"门控。
-10. **AI 决策 45s 超时根因（P1，实证——即线上未定案问题的代码面答案）** — `AiApprovalExecutor.java:111`、`WfAiRoutingServiceImpl.java:135`：`supplyAsync` 走 **commonPool** + `future.cancel(true)` 对 CompletableFuture 不中断底层线程 + 底层用**无超时 `chat()`** 而非自带 decision-timeout 的 `chatForDecision`——每笔 30s 超时都在 commonPool 留一个烧到 45s+ 的线程。→ 改用 `chatForDecision` + 显式 executor。
+9. **流式资源泄漏 + 竞速输家污染 SSE（P1×2，实证）** — ✅ 已修复（第三批，2026-11-12）：`CancelGuard`（onCancel/onDispose 置位+帧投递点检查）即时终止读循环释放 socket/线程；竞速 `settled` 门控（首成功后输家帧回调静默、失败不写健康负缓存）。
+10. **AI 决策 45s 超时根因（P1，实证——即线上未定案问题的代码面答案）** — ✅ 已修复（第三批，2026-11-12）：审批/路由底层换 `chatForDecision`（自带 decision-timeout+failover）+ 专用 `decisionExecutor`（不再 commonPool，Abort 策略走既有降级）。连带交付：toolExecutor 池隔离（互等死锁根治）+ join orTimeout、Redis 锁令牌化（Lua GET==token）、外部调用超时三处（微信/大屏/回调池化调度）、CAS 四处（催办行锁/待办抢占/IM 唯一约束/标题乐观锁）。
 
 ---
 

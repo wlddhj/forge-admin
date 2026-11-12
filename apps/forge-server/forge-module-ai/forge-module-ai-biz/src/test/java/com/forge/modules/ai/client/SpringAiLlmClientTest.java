@@ -50,7 +50,7 @@ class SpringAiLlmClientTest {
     @BeforeEach
     void setUp() {
         llmClient = new SpringAiLlmClient(modelFactory, new ObjectMapper(), modelConfigMapper, sysConfigService,
-                new com.forge.modules.ai.config.AiModuleConfig(), java.util.concurrent.Executors.newFixedThreadPool(2),
+                new com.forge.modules.ai.config.AiModuleConfig(), java.util.concurrent.Executors.newFixedThreadPool(2), java.util.concurrent.Executors.newFixedThreadPool(2),
                 new ModelHealthCache(new com.forge.framework.localcache.LocalCaches(),
                         new com.forge.modules.ai.config.AiModuleConfig()),
                 com.forge.modules.ai.config.TestAiMetrics.noop(), streamClient);

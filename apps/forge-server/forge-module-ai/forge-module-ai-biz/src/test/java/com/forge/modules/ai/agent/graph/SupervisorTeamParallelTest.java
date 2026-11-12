@@ -134,7 +134,7 @@ class SupervisorTeamParallelTest {
                 new com.forge.modules.ai.agent.tools.TableColumnSchemaCache(
                         mock(javax.sql.DataSource.class), new com.forge.framework.localcache.LocalCaches()),
                 promptBudgeter, nativeToolCalling,
-                agentProperties, agentExecutor, new com.forge.modules.ai.config.AiModuleConfig());
+                agentProperties, agentExecutor, agentExecutor, new com.forge.modules.ai.config.AiModuleConfig());
         AgentGraphRegistry registry = new AgentGraphRegistry(List.of(teamGraph));
 
         runner = new AgentGraphRunner(registry, toolRegistry, agentProperties, null,

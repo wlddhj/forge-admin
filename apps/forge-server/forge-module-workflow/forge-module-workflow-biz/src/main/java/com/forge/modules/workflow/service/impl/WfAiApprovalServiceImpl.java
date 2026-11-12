@@ -58,7 +58,9 @@ public class WfAiApprovalServiceImpl implements WfAiApprovalService {
 
             // 3. 执行AI调用
             AiModelConfig modelConfig = modelResolver.resolve(chatRequest);
-            ChatResponse chatResponse = modelConfig != null ? llmClient.chat(chatRequest, modelConfig) : null;
+            // 决策入口：自带 decision-timeout 与备用模型竞速（旧 chat() 无超时，外层 future 超时后底层调用仍白烧）
+            ChatResponse chatResponse = modelConfig != null
+                    ? llmClient.chatForDecision(chatRequest, modelConfig, null, null) : null;
 
             // 4. 解析AI响应
             if (chatResponse != null && Boolean.TRUE.equals(chatResponse.getSuccess())) {

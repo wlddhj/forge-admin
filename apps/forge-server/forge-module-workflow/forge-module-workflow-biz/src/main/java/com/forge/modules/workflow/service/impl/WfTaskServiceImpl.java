@@ -1081,8 +1081,10 @@ public class WfTaskServiceImpl implements WfTaskService {
             throw new BusinessException(403, "只有流程发起人或工作流管理员才能催办");
         }
 
+        // 按 id 升序固定加锁顺序：并发催办同实例多任务时防互相持锁等待死锁
         List<FlwTask> approvalTasks = queryService.getTasksByInstanceId(instanceId).stream()
                 .filter(t -> isHumanApprovalTask(t.getTaskType()))
+                .sorted(Comparator.comparing(FlwTask::getId))
                 .toList();
         if (approvalTasks.isEmpty()) {
             throw new BusinessException(400, "当前无待审批任务，无需催办");
@@ -1097,16 +1099,28 @@ public class WfTaskServiceImpl implements WfTaskService {
         int urged = 0;
         long earliestRetryMillis = Long.MAX_VALUE;
         for (FlwTask task : approvalTasks) {
-            Long lastUrgeTime = readLastUrgeTime(task);
+            // 节流判定与标记写入须串行化：先取行锁（FOR UPDATE 当前读，持有至事务结束），
+            // 再基于锁内最新 variable 判节流并合并写回——列表快照上判定会被并发催办双穿透、
+            // 整体覆写 variable 会丢更新
+            FlwTask lockedTask = lockTaskForUrge(task.getId());
+            if (lockedTask == null) {
+                // 列表加载到取锁之间任务已办结（移入历史表），无需催办
+                continue;
+            }
+            Long lastUrgeTime = readLastUrgeTime(lockedTask);
             if (lastUrgeTime != null && now - lastUrgeTime < throttleMillis) {
                 earliestRetryMillis = Math.min(earliestRetryMillis, throttleMillis - (now - lastUrgeTime));
                 continue;
             }
-            urgeSingleTask(task, processName, urgerName, comment, now, currentUserId);
+            urgeSingleTask(lockedTask, processName, urgerName, comment, now, currentUserId);
             urged++;
         }
 
         if (urged == 0) {
+            if (earliestRetryMillis == Long.MAX_VALUE) {
+                // 没有任何任务命中节流：说明待审批任务在取锁前已全部办结
+                throw new BusinessException(400, "当前无待审批任务，无需催办");
+            }
             long retryMinutes = Math.max(1, (earliestRetryMillis + 60_000 - 1) / 60_000);
             throw new BusinessException(400, "催办过于频繁，请约 " + retryMinutes + " 分钟后再试");
         }
@@ -1115,7 +1129,20 @@ public class WfTaskServiceImpl implements WfTaskService {
     }
 
     /**
+     * 催办前锁定任务行：SELECT ... FOR UPDATE（H2/MySQL 均支持），返回锁内最新任务行；
+     * 任务已不存在（并发办结）返回 null。须在事务内调用，行锁随事务提交/回滚释放。
+     */
+    private FlwTask lockTaskForUrge(Long taskId) {
+        return taskMapper.selectOne(new LambdaQueryWrapper<FlwTask>()
+                .eq(FlwTask::getId, taskId)
+                .last("FOR UPDATE"));
+    }
+
+    /**
      * 催办单个任务：写节流标记 + 通知处理人 + 审批意见留痕
+     * <p>
+     * task 须为 {@link #lockTaskForUrge} 取得的锁内最新行：节流标记在其 variable 上合并后写回，
+     * 行锁保证读-改-写期间无并发催办覆写。
      */
     private void urgeSingleTask(FlwTask task, String processName, String urgerName,
                                 String comment, long now, Long operatorUserId) {

@@ -60,7 +60,7 @@ class E2eAiRoutingTest extends WorkflowIntegrationTestBase {
         response.setSuccess(true);
         response.setContent(content);
         response.setModelName("test-model");
-        when(llmClient.chat(any(ChatRequest.class), any(AiModelConfig.class))).thenReturn(response);
+        when(llmClient.chatForDecision(any(ChatRequest.class), any(AiModelConfig.class), any(), any())).thenReturn(response);
     }
 
     private void stubLlmFailure() {
@@ -68,7 +68,7 @@ class E2eAiRoutingTest extends WorkflowIntegrationTestBase {
         ChatResponse response = new ChatResponse();
         response.setSuccess(false);
         response.setErrorMessage("上游不可用");
-        when(llmClient.chat(any(ChatRequest.class), any(AiModelConfig.class))).thenReturn(response);
+        when(llmClient.chatForDecision(any(ChatRequest.class), any(AiModelConfig.class), any(), any())).thenReturn(response);
     }
 
     /**

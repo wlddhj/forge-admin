@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.io.BufferedReader;
@@ -143,8 +144,14 @@ public class OpenAiCompatStreamClient {
      */
     public Flux<StreamFrame> stream(StreamRequest request) {
         return Flux.<StreamFrame>create(emitter -> {
+                    // 下游取消感知：读循环是同步阻塞实现，订阅取消（客户端断开/dispose）后
+                    // 原实现无感知，socket 与 boundedElastic 线程会持续占用到流自然结束（最坏 10 分钟）。
+                    // 在帧投递点检查取消标志，置位即抛异常走既有节点失败链（finally 关 socket、线程释放）
+                    CancelGuard guard = new CancelGuard(emitter);
+                    emitter.onCancel(guard::cancel);
+                    emitter.onDispose(guard::cancel);
                     try {
-                        doStream(request, emitter::next);
+                        doStream(request, guard);
                         emitter.complete();
                     } catch (UpstreamStreamException e) {
                         emitter.error(e);
@@ -154,6 +161,35 @@ public class OpenAiCompatStreamClient {
                 })
                 // 同步读循环放弹性线程，避免占死订阅线程
                 .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * 帧投递取消闸：下游取消后首个帧投递点抛出，终止同步读循环
+     * （包私有供单测直证：未取消透传、已取消抛 UpstreamStreamException）
+     */
+    static final class CancelGuard implements Consumer<StreamFrame> {
+        private final FluxSink<StreamFrame> emitter;
+        private final AtomicBoolean cancelled = new AtomicBoolean();
+
+        CancelGuard(FluxSink<StreamFrame> emitter) {
+            this.emitter = emitter;
+        }
+
+        void cancel() {
+            cancelled.set(true);
+        }
+
+        boolean isCancelled() {
+            return cancelled.get();
+        }
+
+        @Override
+        public void accept(StreamFrame frame) {
+            if (cancelled.get()) {
+                throw new UpstreamStreamException("下游已取消，终止流读取", null);
+            }
+            emitter.next(frame);
+        }
     }
 
     /**

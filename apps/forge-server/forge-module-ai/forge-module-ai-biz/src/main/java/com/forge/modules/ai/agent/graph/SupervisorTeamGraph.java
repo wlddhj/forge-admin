@@ -57,6 +57,11 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
     public static final String NODE_EXPERT_POOL = "expert_pool";
     public static final String NODE_EXPERT_DECIDE = "expert_decide";
     public static final String NODE_EXPERT_APPROVAL = "expert_approval";
+
+    /** 专家工具组并行等待上限（分钟） */
+    private static final long EXPERT_TOOL_WAIT_MINUTES = 5;
+    /** 专家子图整图等待上限（分钟，含多轮 LLM/工具） */
+    private static final long EXPERT_SUBGRAPH_WAIT_MINUTES = 10;
     public static final String NODE_EXPERT_TOOLS = "expert_tools";
     public static final String NODE_EXPERT_REPORT = "expert_report";
     public static final String NODE_SUMMARY = "summary";
@@ -79,6 +84,8 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
     private final NativeToolCalling nativeToolCalling;
     private final com.forge.modules.ai.agent.AgentProperties agentProperties;
     private final Executor agentExecutor;
+    /** 工具并行专用池（与图执行隔离，防池内互等死锁；见 AgentExecutorConfig） */
+    private final Executor toolExecutor;
     private final com.forge.modules.ai.config.AiModuleConfig aiModuleConfig;
 
     public SupervisorTeamGraph(LlmClient llmClient,
@@ -91,6 +98,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                                NativeToolCalling nativeToolCalling,
                                com.forge.modules.ai.agent.AgentProperties agentProperties,
                                @Qualifier("agentExecutor") Executor agentExecutor,
+                               @Qualifier("toolExecutor") Executor toolExecutor,
                                com.forge.modules.ai.config.AiModuleConfig aiModuleConfig) {
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
@@ -102,6 +110,7 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
         this.nativeToolCalling = nativeToolCalling;
         this.agentProperties = agentProperties;
         this.agentExecutor = agentExecutor;
+        this.toolExecutor = toolExecutor;
         this.aiModuleConfig = aiModuleConfig;
     }
 
@@ -470,7 +479,9 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                     }
                 }, agentExecutor));
             }
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            // 专家子图整图等待上限（含多轮 LLM/工具）：10 分钟兜底，超时异常走本节点既有异常降级
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .orTimeout(EXPERT_SUBGRAPH_WAIT_MINUTES, java.util.concurrent.TimeUnit.MINUTES).join();
             List<Map<String, Object>> reports = state.value(AgentGraphState.AGENT_REPORTS)
                     .map(v -> (List<Map<String, Object>>) v).orElse(new ArrayList<>());
             List<String> interruptDetails = new ArrayList<>();
@@ -1002,9 +1013,10 @@ public class SupervisorTeamGraph implements AgentGraphDefinition {
                             TenantContextHolder.clear();
                         }
                     }
-                }, agentExecutor));
+                }, toolExecutor));
             }
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .orTimeout(EXPERT_TOOL_WAIT_MINUTES, java.util.concurrent.TimeUnit.MINUTES).join();
             history.addAll(newHistory);
             ctx.emit(AgentEvents.Type.STEP_END, NODE_EXPERT_TOOLS, "[" + agentName + "] 工具执行", Map.of(
                     "seq", ctx.nextSeq(), "status", "SUCCESS",

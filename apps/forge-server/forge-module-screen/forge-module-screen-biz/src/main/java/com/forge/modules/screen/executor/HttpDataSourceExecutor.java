@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -39,8 +38,9 @@ import java.util.Map;
  *
  * <h3>请求构造</h3>
  * <ul>
- *   <li>使用 {@link RestClient}（Spring 6.1+）。</li>
- *   <li>连接 + 读取超时取自 {@link ScreenProperties#getHttpTimeoutMs()}。</li>
+ *   <li>使用注入的 {@link RestClient} Bean（Spring 6.1+）：连接 + 读取超时由
+ *       {@code ScreenAutoConfiguration} 按 {@link ScreenProperties#getHttpTimeoutMs()}
+ *       构造 requestFactory 收口（执行器内不再自行建客户端）。</li>
  *   <li>方法名来自 {@code config.get("method")}，缺省 {@code GET}。</li>
  *   <li>响应体以 {@code String} 形式获取，再用 Jackson 解析为 {@code Object}；
  *       解析失败时回退为原始字符串（保证调用方能拿到数据）。</li>
@@ -48,8 +48,8 @@ import java.util.Map;
  *
  * <h3>测试性</h3>
  * <p>{@code restClient} 可注入。测试场景下传 {@code null}，
- * 实现仅在真正发起请求时才需要 RestClient（延迟构造），
- * 使 SSRF 闸门可在无 mock 环境下独立验证。
+ * SSRF 闸门（①~④）在发起请求前完成校验，仍可在无 mock 环境下独立验证；
+ * 仅真正发起请求阶段会因客户端缺失而失败。
  *
  * <p>所有外部失败统一抛 {@link SqlSafetyException}，
  * 便于上层 Controller 用同一异常处理器映射 4xx。
@@ -61,7 +61,7 @@ import java.util.Map;
 public class HttpDataSourceExecutor {
 
     private final ScreenProperties props;
-    /** 可注入；为 null 时在执行阶段延迟构造。 */
+    /** 注入的共用客户端（超时由 Bean 定义收口）；测试可传 null，仅请求阶段需要。 */
     private final RestClient restClient;
 
     public HttpDataSourceExecutor(ScreenProperties props, RestClient restClient) {
@@ -111,20 +111,20 @@ public class HttpDataSourceExecutor {
             throw new SqlSafetyException("生产环境强制 HTTPS: " + url);
         }
 
-        // ⑤ 通过闸门后，构造 RestClient 并发起请求
+        // ⑤ 通过闸门后，经注入的 RestClient Bean 发起请求
+        //    （超时已由 ScreenAutoConfiguration 按 httpTimeoutMs 收口到 requestFactory）
         //    所有运行时异常（连接拒绝、HTTP 4xx/5xx、超时）统一包装为
         //    SqlSafetyException，符合"执行器对外只抛 SqlSafetyException"的契约。
         //    I1 修复：使用 ResponseExtractor 流式读取响应体，严格限制不超过
         //    props.getHttpMaxBodyBytes()，超限立即抛 SqlSafetyException 并断流，
         //    避免恶意/异常大响应拖垮 JVM 堆。
         String method = config.getOrDefault("method", "GET").toString();
-        RestClient client = buildClient();
         long rawMax = props.getHttpMaxBodyBytes();
         final long maxBytes = rawMax > 0 ? rawMax : ScreenDefaults.HTTP_MAX_BODY_BYTES_FALLBACK;
 
         String body;
         try {
-            body = client.method(HttpMethod.valueOf(method.toUpperCase(Locale.ROOT)))
+            body = restClient.method(HttpMethod.valueOf(method.toUpperCase(Locale.ROOT)))
                 .uri(uri)
                 .exchange((req, resp) -> readBoundedBody(resp, maxBytes));
         } catch (HttpBodyTooLargeException e) {
@@ -198,20 +198,4 @@ public class HttpDataSourceExecutor {
      * 复用 Jackson ObjectMapper 实例，避免每次请求 new 一份。
      */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
-    /**
-     * 构造 RestClient：若已注入则直接复用，否则按 {@link ScreenProperties#getHttpTimeoutMs()}
-     * 构造一个 {@link SimpleClientHttpRequestFactory} 实例。
-     *
-     * <p>{@code SimpleClientHttpRequestFactory.setConnectTimeout/setReadTimeout} 接受 int 毫秒。
-     */
-    private RestClient buildClient() {
-        if (restClient != null) {
-            return restClient;
-        }
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(props.getHttpTimeoutMs());
-        factory.setReadTimeout(props.getHttpTimeoutMs());
-        return RestClient.builder().requestFactory(factory).build();
-    }
 }

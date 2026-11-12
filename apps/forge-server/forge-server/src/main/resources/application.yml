@@ -94,7 +94,7 @@ forge:
       executor:
         core: ${AI_AGENT_EXEC_CORE:8}                         # Agent 专用线程池
         max: ${AI_AGENT_EXEC_MAX:16}
-        queue: ${AI_AGENT_EXEC_QUEUE:200}
+        queue: ${AI_AGENT_EXEC_QUEUE:50}
       allowed-hosts:
         - "*"            # 放行全部，仅建议开发环境
   demo:

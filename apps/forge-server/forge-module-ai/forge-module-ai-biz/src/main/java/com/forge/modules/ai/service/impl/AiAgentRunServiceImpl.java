@@ -1,6 +1,7 @@
 package com.forge.modules.ai.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.ai.agent.kernel.AgentGraphRunner;
@@ -163,7 +164,19 @@ public class AiAgentRunServiceImpl implements AiAgentRunService {
         todo.setHandlerName(SecurityHelper.getCurrentUsername());
         todo.setHandleComment(comment);
         todo.setHandleTime(LocalDateTime.now());
-        todoMapper.updateById(todo);
+        // 条件更新抢占：仅当仍处 PENDING 才写入处理结论（并发双审批只有一个成功，
+        // 输家 0 行命中——避免双双恢复图执行造成双倍 LLM/工具调用）
+        int claimed = todoMapper.update(null, new LambdaUpdateWrapper<AiAgentTodo>()
+                .eq(AiAgentTodo::getId, todo.getId())
+                .eq(AiAgentTodo::getStatus, AiAgentTodo.STATUS_PENDING)
+                .set(AiAgentTodo::getStatus, todo.getStatus())
+                .set(AiAgentTodo::getHandlerId, todo.getHandlerId())
+                .set(AiAgentTodo::getHandlerName, todo.getHandlerName())
+                .set(AiAgentTodo::getHandleComment, todo.getHandleComment())
+                .set(AiAgentTodo::getHandleTime, todo.getHandleTime()));
+        if (claimed == 0) {
+            throw new BusinessException("待办已被处理");
+        }
 
         // 异步恢复图执行：图剩余流程含多次 LLM 调用（可达数十秒），同步等待会阻塞请求直至超时
         run.setStatus(AiAgentRun.STATUS_RUNNING);

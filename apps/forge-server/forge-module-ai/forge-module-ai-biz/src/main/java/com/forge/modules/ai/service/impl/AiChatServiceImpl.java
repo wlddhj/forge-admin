@@ -1,6 +1,7 @@
 package com.forge.modules.ai.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.exception.BusinessException;
 import com.forge.framework.security.utils.SecurityHelper;
@@ -166,8 +167,21 @@ public class AiChatServiceImpl implements AiChatService {
         boolean agentConversation = currentTitle != null
                 && (currentTitle.trim().startsWith("Agent：") || currentTitle.trim().startsWith("Agent:"));
         String newTitle = agentConversation ? "Agent：" + cleaned : cleaned;
-        conversation.setTitle(newTitle);
-        conversationMapper.updateById(conversation);
+        // 乐观锁条件更新：WHERE title=生成前的占位旧值。LLM 生成耗时期间用户手动改名或
+        // 并发生成已落库时 0 行命中，放弃覆盖（保住用户手动标题）
+        LambdaUpdateWrapper<AiConversation> casUpdate = new LambdaUpdateWrapper<AiConversation>()
+                .eq(AiConversation::getId, conversationId)
+                .set(AiConversation::getTitle, newTitle);
+        if (currentTitle == null) {
+            casUpdate.isNull(AiConversation::getTitle);
+        } else {
+            casUpdate.eq(AiConversation::getTitle, currentTitle);
+        }
+        int updated = conversationMapper.update(null, casUpdate);
+        if (updated == 0) {
+            log.info("会话标题已被并发生成或手动修改，放弃覆盖: conversationId={}", conversationId);
+            return null;
+        }
         return newTitle;
     }
 

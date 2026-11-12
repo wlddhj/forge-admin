@@ -27,8 +27,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *   <li>白名单大小写不敏感：{@code LOCALHOST} → 通过 SSRF 闸门</li>
  * </ul>
  *
- * <p>构造函数注入 {@code null} RestClient：实现必须延迟构造，
- * 仅在真正发起请求时才使用 RestClient，使 SSRF 闸门在 mock 环境下也可独立验证。
+ * <p>构造函数注入 {@code null} RestClient：SSRF 闸门在发起请求前完成校验，
+ * 客户端缺失只影响请求阶段（被统一包装为 SqlSafetyException），
+ * 使闸门逻辑在 mock 环境下仍可独立验证。
  *
  * @author standadmin
  */
@@ -114,8 +115,9 @@ class HttpDataSourceExecutorTest {
 
     /**
      * 正向用例：host 在白名单（小写），SSRF 闸门通过；
-     * 由于未注入 RestClient，实际请求阶段会抛 IllegalStateException 等运行异常，
-     * 但只要不是"不在白名单"即视为 SSRF 闸门通过。
+     * 由于未注入 RestClient，请求阶段会在 try 块内失败并被统一包装为
+     * SqlSafetyException("HTTP 调用失败: ...")，但只要不是"不在白名单"
+     * 即视为 SSRF 闸门通过。
      */
     @Test
     void accepts_url_in_allowlist() {

@@ -1,15 +1,21 @@
 package com.forge.modules.workflow.im;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.forge.common.exception.BusinessException;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.modules.workflow.dto.im.ImChannelConfigRequest;
 import com.forge.modules.workflow.dto.im.ImChannelConfigResponse;
 import com.forge.modules.workflow.entity.WfImChannelConfig;
 import com.forge.modules.workflow.mapper.WfImChannelConfigMapper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.util.List;
 
@@ -19,18 +25,28 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * IM 渠道配置服务单测：upsert 语义（唯一性/secret 空保留/校验）、出参脱敏、租户解析 fail-closed
+ * IM 渠道配置服务单测：upsert 语义（唯一性/secret 空保留/校验/并发撞唯一键收敛）、
+ * 删除墓碑惯用法、出参脱敏、租户解析 fail-closed
  */
 class ImChannelConfigServiceTest {
 
     private WfImChannelConfigMapper mapper;
     private ImChannelConfigService service;
+
+    @BeforeAll
+    static void initTableInfo() {
+        // MP 3.5.18：纯单测下 LambdaUpdateWrapper 渲染（getSqlSegment）需要实体 TableInfo 缓存
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, WfImChannelConfig.class);
+    }
 
     @BeforeEach
     void setUp() {
@@ -120,6 +136,56 @@ class ImChannelConfigServiceTest {
     void upsert_DingtalkWithoutAppKey_Throws() {
         assertThrows(BusinessException.class, () ->
                 service.upsert(request("dingtalk", 1, null, "", "100", "s")));
+    }
+
+    @Test
+    void upsert_ConcurrentInsertDuplicateKey_ConvergesToUpdate() {
+        // 并发双保存同 (tenant, channel)：双方首查都判空（读的是彼此 insert 前的快照），
+        // 赢家 insert 成功，输家撞 uk_tenant_channel → 重查存量行转更新，不抛错、不落第二行
+        WfImChannelConfig winnerRow = existingRow("wework");
+        when(mapper.selectOne(any())).thenReturn(null, null, winnerRow);
+        when(mapper.insert(any(WfImChannelConfig.class)))
+                .thenReturn(1)
+                .thenThrow(new DuplicateKeyException("uk_tenant_channel"));
+
+        // 赢家
+        service.upsert(request("wework", 1, "corp001", null, "1000002", "winner-secret"));
+        // 输家：不抛错，走重查更新
+        service.upsert(request("wework", 1, "corp002", null, "1000002", "loser-secret"));
+
+        verify(mapper, times(2)).insert(any(WfImChannelConfig.class));
+        ArgumentCaptor<WfImChannelConfig> captor = ArgumentCaptor.forClass(WfImChannelConfig.class);
+        verify(mapper).updateById(captor.capture());
+        assertEquals("loser-secret", captor.getValue().getSecret(), "输家凭据收敛到赢家行");
+        assertEquals("corp002", captor.getValue().getCorpId());
+        assertEquals(99L, captor.getValue().getId(), "更新的是赢家落库的存量行");
+    }
+
+    @Test
+    void upsert_DuplicateKeyButRowStillMissing_Rethrows() {
+        // 撞唯一键却重查不到行：非常规异常（连接故障等），按原语义抛出而非吞掉
+        when(mapper.selectOne(any())).thenReturn(null, null);
+        when(mapper.insert(any(WfImChannelConfig.class)))
+                .thenThrow(new DuplicateKeyException("uk_tenant_channel"));
+
+        assertThrows(DuplicateKeyException.class,
+                () -> service.upsert(request("wework", 1, "corp001", null, "1000002", "s3cret")));
+        verify(mapper, never()).updateById(any(WfImChannelConfig.class));
+    }
+
+    @Test
+    void deleteConfig_TombstoneUsesRowIdNotOne() {
+        // 墓碑惯用法：deleted 置本行 id（配合 uk 含 deleted 列，同键多墓碑不互撞）
+        service.deleteConfig(99L);
+
+        verify(mapper, never()).deleteById(any(Long.class));
+        ArgumentCaptor<LambdaUpdateWrapper<WfImChannelConfig>> captor =
+                ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+        verify(mapper).update(isNull(), captor.capture());
+        assertTrue(captor.getValue().getParamNameValuePairs().containsValue(99L),
+                "deleted 置值与行条件均命中目标行 id");
+        assertTrue(captor.getValue().getSqlSet().contains("deleted"),
+                "SET 子句写 deleted 列（墓碑置 id）");
     }
 
     // ========== 出参脱敏 ==========

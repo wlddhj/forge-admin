@@ -20,14 +20,15 @@ import com.forge.modules.workflow.listener.event.WorkflowAiApprovalEvent;
 import com.forge.modules.workflow.mapper.WfAiApprovalRecordMapper;
 import com.forge.modules.workflow.mapper.WfApprovalCommentMapper;
 import com.forge.modules.workflow.service.WfAiApprovalService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Qualifier;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -44,7 +45,6 @@ import java.util.concurrent.TimeoutException;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class AiApprovalExecutor {
 
     private final WfAiApprovalService aiApprovalService;
@@ -52,6 +52,22 @@ public class AiApprovalExecutor {
     private final WfAiApprovalRecordMapper aiApprovalRecordMapper;
     private final WfApprovalCommentMapper approvalCommentMapper;
     private final ObjectMapper objectMapper;
+    /** 决策专用池：不占 commonPool（超时后 cancel 无法中断底层调用，commonPool 会被白烧线程耗尽） */
+    private final Executor decisionExecutor;
+
+    public AiApprovalExecutor(WfAiApprovalService aiApprovalService,
+                              FlowLongEngine flowLongEngine,
+                              WfAiApprovalRecordMapper aiApprovalRecordMapper,
+                              WfApprovalCommentMapper approvalCommentMapper,
+                              ObjectMapper objectMapper,
+                              @Qualifier("decisionExecutor") Executor decisionExecutor) {
+        this.aiApprovalService = aiApprovalService;
+        this.flowLongEngine = flowLongEngine;
+        this.aiApprovalRecordMapper = aiApprovalRecordMapper;
+        this.approvalCommentMapper = approvalCommentMapper;
+        this.objectMapper = objectMapper;
+        this.decisionExecutor = decisionExecutor;
+    }
 
     /**
      * 同步段：解析节点配置并构建AI审批事件
@@ -114,7 +130,7 @@ public class AiApprovalExecutor {
                         String.valueOf(task.getInstanceId()),
                         String.valueOf(task.getId()),
                         task.getTaskName(),
-                        variables));
+                        variables), decisionExecutor);
         try {
             return future.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException e) {

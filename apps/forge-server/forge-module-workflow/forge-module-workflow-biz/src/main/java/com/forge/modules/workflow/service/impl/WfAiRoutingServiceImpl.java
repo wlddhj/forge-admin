@@ -13,13 +13,14 @@ import com.forge.modules.workflow.dto.ai.AiRoutingConfig;
 import com.forge.modules.workflow.entity.WfAiRouteRecord;
 import com.forge.modules.workflow.mapper.WfAiRouteRecordMapper;
 import com.forge.modules.workflow.service.WfAiRoutingService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import org.springframework.beans.factory.annotation.Qualifier;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -31,13 +32,27 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class WfAiRoutingServiceImpl implements WfAiRoutingService {
 
     private final LlmClient llmClient;
     private final AiModelResolver modelResolver;
     private final ObjectMapper objectMapper;
     private final WfAiRouteRecordMapper routeRecordMapper;
+
+    public WfAiRoutingServiceImpl(
+                              LlmClient llmClient,
+                              AiModelResolver modelResolver,
+                              ObjectMapper objectMapper,
+                              WfAiRouteRecordMapper routeRecordMapper,
+                              @Qualifier("decisionExecutor") Executor decisionExecutor) {
+        this.llmClient = llmClient;
+        this.modelResolver = modelResolver;
+        this.objectMapper = objectMapper;
+        this.routeRecordMapper = routeRecordMapper;
+        this.decisionExecutor = decisionExecutor;
+    }
+    /** 决策专用池（见 WorkflowAsyncConfig） */
+    private final Executor decisionExecutor;
 
     @Override
     public AiRoutingConfig parseRoutingConfig(NodeModel nodeModel) {
@@ -132,8 +147,9 @@ public class WfAiRoutingServiceImpl implements WfAiRoutingService {
 
         int timeoutSeconds = config.getTimeoutSecondsOrDefault();
         AiModelConfig resolvedModel = modelConfig;
+        // 决策专用池（commonPool 超时后 cancel 无效会白烧线程）+ 决策入口（自带 decision-timeout）
         CompletableFuture<ChatResponse> future = CompletableFuture.supplyAsync(() ->
-                llmClient.chat(chatRequest, resolvedModel));
+                llmClient.chatForDecision(chatRequest, resolvedModel, null, null), decisionExecutor);
         try {
             return future.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException e) {

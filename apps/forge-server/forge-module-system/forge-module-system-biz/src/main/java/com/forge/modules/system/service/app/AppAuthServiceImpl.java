@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -56,6 +57,19 @@ public class AppAuthServiceImpl implements AppAuthService {
     private static final String SESSION_PREFIX = "app_session:";
     private static final String USER_SESSIONS_PREFIX = "app_user_sessions:";
     private static final String WX_CODE2SESSION_URL = "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code";
+
+    /**
+     * 微信 jscode2session 专用客户端：登录链路对微信接口抖动要有界
+     * （connect 3s / read 5s），类级单例复用连接，避免每次请求 new 无超时实例
+     */
+    private static final RestTemplate WX_REST_TEMPLATE = buildWxRestTemplate();
+
+    private static RestTemplate buildWxRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3_000);
+        factory.setReadTimeout(5_000);
+        return new RestTemplate(factory);
+    }
 
     @Override
     public AppLoginResponse wxLogin(String tenantCode, String code) {
@@ -211,8 +225,7 @@ public class AppAuthServiceImpl implements AppAuthService {
         }
         try {
             String url = String.format(WX_CODE2SESSION_URL, appId, appSecret, code);
-            RestTemplate restTemplate = new RestTemplate();
-            String response = restTemplate.getForObject(url, String.class);
+            String response = WX_REST_TEMPLATE.getForObject(url, String.class);
             JsonNode json = objectMapper.readTree(response);
             if (json.has("openid")) {
                 return json.get("openid").asText();

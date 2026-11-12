@@ -1,5 +1,6 @@
 package com.forge.modules.workflow.dto.callback;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
@@ -49,7 +50,8 @@ public class CallbackRequest {
     private Integer enabled;
 
     /**
-     * HTTP 超时（毫秒，默认 5000）
+     * HTTP 超时（毫秒，默认 5000；服务端同步钳制，超过 30s 按 30s 投递）
      */
+    @Max(value = 30000, message = "HTTP 超时不能超过 30000ms")
     private Integer timeoutMs;
 }
