@@ -89,7 +89,6 @@ public class SysDictTypeController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:dict:edit')")
     @OperationLog(title = "字典类型管理", businessType = OperationLog.BusinessType.UPDATE)
-    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysDictTypeService.updateStatus(id, status);
         return Result.success();

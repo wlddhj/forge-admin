@@ -95,7 +95,6 @@ public class SysFileConfigController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:file-config:edit')")
     @OperationLog(title = "文件存储配置", businessType = OperationLog.BusinessType.UPDATE)
-    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysFileConfigService.updateStatus(id, status);
         return Result.success();

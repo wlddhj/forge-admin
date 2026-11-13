@@ -87,7 +87,6 @@ public class SysPositionController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:position:edit')")
     @OperationLog(title = "岗位管理", businessType = OperationLog.BusinessType.UPDATE)
-    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysPositionService.updateStatus(id, status);
         return Result.success();

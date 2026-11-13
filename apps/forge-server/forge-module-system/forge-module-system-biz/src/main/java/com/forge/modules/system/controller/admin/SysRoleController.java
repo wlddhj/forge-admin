@@ -92,7 +92,6 @@ public class SysRoleController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:role:edit')")
     @OperationLog(title = "角色管理", businessType = OperationLog.BusinessType.UPDATE)
-    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysRoleService.updateStatus(id, status);
         return Result.success();

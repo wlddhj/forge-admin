@@ -79,7 +79,6 @@ public class SysJobController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:job:edit')")
     @OperationLog(title = "定时任务管理", businessType = OperationLog.BusinessType.UPDATE)
-    @RepeatSubmit
     public Result<Void> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysJobService.changeStatus(id, status);
         return Result.success();

@@ -88,7 +88,6 @@ public class SysDictDataController {
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('system:dict:edit')")
     @OperationLog(title = "字典数据管理", businessType = OperationLog.BusinessType.UPDATE)
-    @RepeatSubmit
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         sysDictDataService.updateStatus(id, status);
         return Result.success();
