@@ -138,6 +138,8 @@ payload 必填：licenseKey/pluginCodes[]/tenantCode/licensee/issuedAt/notBefore
 
 ## 8. 插件开发指南
 
+> 📖 **手把手完整教程见 [plugin-development-guide.md](./plugin-development-guide.md)**（含可复制的全量示例代码、验证清单与排错表），本节仅速览四步。
+
 以 demo（`forge-module-demo`）为标准范例，四步接入：
 
 1. **建模块**：Maven 模块依赖 `forge-spring-boot-starter-plugin`（+ 所需业务 starter），加入根 pom/BOM/forge-server 依赖三处聚合。
