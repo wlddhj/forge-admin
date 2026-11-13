@@ -70,7 +70,7 @@ mvn test -Dtest=ClassName -pl <module>         # 运行单个测试类
 
 ### 多模块结构
 
-后端是一个 16 模块的 Maven 项目（`forge-dependencies` 1 + `forge-framework` 6 + 4 个业务模块各 api/biz 2 + `forge-server` 1），包名基类为 `com.forge`。
+后端是一个 19 模块的 Maven 项目（`forge-dependencies` 1 + `forge-framework` 7（含 localcache/plugin 两个 starter）+ system/workflow/ai/screen 四模块各 api/biz 2 + `forge-module-demo`/`forge-module-plugin` 单模块 2 + `forge-server` 1），包名基类为 `com.forge`。
 
 ```
 apps/forge-server/
@@ -95,12 +95,17 @@ apps/forge-server/
 ├── forge-module-screen/             # 大屏模块
 │   ├── forge-module-screen-api/     # 实体 + DTO + 枚举
 │   └── forge-module-screen-biz/     # Controller/Service/Mapper + 安全层 + 缓存 + 熔断
+├── forge-module-demo/               # 业务示例插件（单模块；PluginDescriptor+@PluginGuard 范例）
+├── forge-module-plugin/             # 插件管理模块（单模块；注册/启停/License/scope 门面）
 └── forge-server/                    # Spring Boot 启动入口（ForgeAdminApplication.java）
 ```
 
 **模块依赖关系：**
 ```
-forge-server ← system-biz, workflow-biz, ai-biz
+forge-server ← system-biz, workflow-biz, ai-biz, demo, plugin
+plugin ← starter-plugin, system-biz（菜单/用户/部门服务委托）
+demo ← starter-plugin（插件契约）, workflow-biz
+system-biz ← starter-plugin（PluginMenuFilter 菜单过滤契约）
 workflow-biz ← workflow-api, system-api, starters, flowlong
 ai-biz ← ai-api, system-api, starters（Spring AI 直连 LLM 上游）
 system-biz ← system-api, starters, quartz, justauth

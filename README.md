@@ -39,6 +39,7 @@ RBAC 权限 · B2B SaaS 多租户 · 工作流审批 · 可视化大屏 · AI �
 | OAuth2 + 社交登录 | Spring Authorization Server 授权服务器，JustAuth 集成微信、钉钉扫码登录 |
 | 10 套 UI 主题 | 预设套餐 + 调色板/布局/风格三维度独立切换 + 自定义主色 + 明暗双模式，无刷新切换 |
 | 微信小程序 | 独立 `/app-api` 端点与 `app_user` 用户体系，微信授权登录一键注册 |
+| 插件体系 | 编译期模块插件：描述符 SPI 声明菜单/数据权限，启动自动注册；离线 License（RSA2048 签名，租户+时间窗三要素）与页面在线签发双模式；租户级启停（菜单隐藏·接口拦截·数据保留）、平台总闸、每日到期巡检自动停用 |
 | 工程化 | pnpm monorepo、业务模块脚手架（创建/删除）、项目模板化工具、Docker 容器化部署 |
 
 ## 系统架构
@@ -64,12 +65,14 @@ graph TB
         Workflow["workflow<br/>FlowLong 审批流"]
         AI["ai<br/>Spring AI 多模型"]
         ScreenBiz["screen<br/>大屏 · SQL 安全层"]
-        Demo["demo<br/>业务接入示例"]
+        Demo["demo<br/>业务接入示例<br/>首个标准插件"]
+        Plugin["plugin<br/>插件管理 · License"]
     end
 
-    subgraph framework["框架层 forge-framework（6 Starter）"]
+    subgraph framework["框架层 forge-framework（7 Starter）"]
         direction LR
         FSecurity["security<br/>JWT · OAuth2 · JustAuth"]
+        FPlugin["plugin<br/>插件契约 · License 验签"]
         FTenant["tenant<br/>SQL 级租户隔离"]
         FMybatis["mybatis<br/>数据权限 · 字段加密"]
         FWeb["web<br/>限流 · XSS · 审计日志"]
@@ -103,8 +106,8 @@ graph TB
     classDef externalStyle fill:#ECEFF1,stroke:#90A4AE
     class Web,Mini,Screen clientStyle
     class AdminAPI,AppAPI gatewayStyle
-    class System,Workflow,AI,ScreenBiz,Demo bizStyle
-    class FSecurity,FTenant,FMybatis,FWeb,FRedis,FCommon frameworkStyle
+    class System,Workflow,AI,ScreenBiz,Demo,Plugin bizStyle
+    class FSecurity,FPlugin,FTenant,FMybatis,FWeb,FRedis,FCommon frameworkStyle
     class MySQL,Redis storageStyle
     class LLM externalStyle
 ```
@@ -162,6 +165,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 | 租户管理 | 租户 CRUD（仅平台超管可见），创建时自动生成租户管理员账号 + 强密码 + 首次登录强制改密 |
 | 套餐管理 | 租户套餐（菜单包）维护，差异化菜单分配已在运行时生效（菜单树与权限码双路过滤，平台超管不受限） |
 | 租户切换 | 平台超管通过 `X-Tenant-Id` 切换操作租户上下文，前端头部下拉切换 |
+| 插件管理 | 插件注册列表（版本/提供方）、租户级启停（License 硬闸，停用菜单隐藏数据保留）、平台总闸；License 导入/在线签发（双模式）/撤销/到期巡检自动停用；插件数据权限 scope 勾选式授予（详见 [插件模块手册](./docs-base/modules/plugin-module.md)） |
 
 ### 监控中心
 
@@ -241,7 +245,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 | 项目模板化 | 基于模板创建新项目 |
 | 模块管理 | 创建/删除业务模块 |
 | API 文档 | springdoc 在线文档（Swagger UI） |
-| 业务示例模块 | `forge-module-demo`：项目立项接入审批流完整实例（业务表 businessKey 关联 + 发起/终态事件回写），业务模块接入工作流的最佳实践模板，含独立前端页面与菜单 |
+| 业务示例插件 | `forge-module-demo`：项目立项接入审批流完整实例，已插件化——`PluginDescriptor` 声明菜单与数据权限、`@PluginGuard` 请求闸、经 `PluginDataApi` 门面读底座数据，是接入插件体系的标准范例（含独立前端页面） |
 
 ### 主题系统
 
@@ -450,6 +454,7 @@ TENANT_ENABLE=false
 | `sql/upgrade-20261027-callback.sql` | 业务回调 `wf_business_callback` / `wf_callback_record` + 菜单权限 |
 | `sql/upgrade-20261027-flowlong127.sql` | FlowLong 1.2.7 任务/实例表新增 `urgent`（紧急程度）列 |
 | `sql/upgrade-20261029-project-example.sql` | 业务示例模块 `demo_biz_project` 表、菜单（id 280-284）与超管授权 |
+| `sql/upgrade-20261113-plugin-module.sql` | 插件体系：sys_plugin 四表、sys_menu 归属两列、插件管理菜单（id 2600-2607）、License 到期巡检任务、demo 存量菜单插件化迁移 |
 | `sql/upgrade-20261029-urgent-dict.sql` | 紧急程度字典 `wf_urgent`（常规/重要不紧急/紧急不重要/紧急且重要） |
 | `sql/upgrade-20261030-title-rule.sql` | `wf_process_ext` 补 `title_rule` 列（流程标题规则） |
 | `sql/upgrade-20261110-im-notify.sql` | 审批 IM 推送：`wf_im_channel_config` 表、开关种子、按钮权限（v1） |
@@ -524,7 +529,8 @@ forge-admin/
 │   │   ├── forge-module-screen/         # 大屏模块
 │   │   │   ├── forge-module-screen-api/ # 实体 + DTO + 枚举
 │   │   │   └── forge-module-screen-biz/ # Controller/Service/Mapper + safety/executor/cache/fault
-│   │   ├── forge-module-demo/           # 业务示例模块（单模块结构，项目立项接入审批流实例）
+│   │   ├── forge-module-demo/           # 业务示例插件（单模块结构，插件体系标准范例）
+│   │   ├── forge-module-plugin/          # 插件管理模块（注册/启停/License/scope 门面）
 │   │   └── forge-server/                # Spring Boot 启动入口
 │   │
 │   ├── forge-web/                       # 前端应用
@@ -582,11 +588,11 @@ forge-admin/
 
 ### 后端多模块架构
 
-后端采用 17 模块的 Maven 多项目结构，各模块职责清晰：
+后端采用 19 模块的 Maven 多项目结构，各模块职责清晰：
 
 ```
 forge-dependencies        → BOM 版本管理
-forge-framework (6模块)   → 框架层，可独立版本管理（含多租户 starter）
+forge-framework (7模块)   → 框架层，可独立版本管理（含多租户/插件契约 starter）
 forge-module-system (2)   → 系统模块，api/biz 分离
 forge-module-workflow (2) → 工作流模块，api/biz 分离（基于 FlowLong）
 forge-module-ai (2)       → AI 模块，api/biz 分离
