@@ -6,6 +6,7 @@ import lombok.Data;
 public class ConfigQueryRequest {
     private String configName;
     private String configKey;
+    private String configGroup;
     private Integer status;
     private Integer pageNum = 1;
     private Integer pageSize = 10;

@@ -10,6 +10,11 @@
         <el-form-item label="配置键">
           <el-input v-model="queryParams.configKey" placeholder="请输入配置键" clearable />
         </el-form-item>
+        <el-form-item label="分组">
+          <el-select v-model="queryParams.configGroup" placeholder="请选择分组" clearable style="width: 160px">
+            <el-option v-for="group in groupOptions" :key="group" :label="group" :value="group" />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleQuery">搜索</el-button>
           <el-button @click="handleReset">重置</el-button>
@@ -36,6 +41,11 @@
         </el-form-item>
         <el-form-item label="配置键">
           <el-input v-model="queryParams.configKey" placeholder="请输入配置键" clearable />
+        </el-form-item>
+        <el-form-item label="分组">
+          <el-select v-model="queryParams.configGroup" placeholder="请选择分组" clearable style="width: 100%">
+            <el-option v-for="group in groupOptions" :key="group" :label="group" :value="group" />
+          </el-select>
         </el-form-item>
       </template>
     </MobileSearchDrawer>
@@ -168,7 +178,7 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
-import { getConfigList, addConfig, updateConfig, deleteConfig } from '@/api/system'
+import { getConfigList, getConfigGroups, addConfig, updateConfig, deleteConfig } from '@/api/system'
 import type { Config, ConfigRequest } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useResponsive } from '@/composables/useResponsive'
@@ -198,7 +208,17 @@ const total = ref(0)
 const searchDrawerVisible = ref(false)
 const selectedRow = ref<Config | null>(null)
 
-const queryParams = reactive({ configName: '', configKey: '', pageNum: 1, pageSize: 20 })
+const queryParams = reactive({ configName: '', configKey: '', configGroup: '', pageNum: 1, pageSize: 20 })
+
+// 分组下拉选项
+const groupOptions = ref<string[]>([])
+const loadGroups = async () => {
+  try {
+    groupOptions.value = await getConfigGroups()
+  } catch {
+    // 选项加载失败不阻塞列表查询，axios 拦截器已统一弹错
+  }
+}
 
 // 序号计算
 const pageNumRef = computed(() => queryParams.pageNum)
@@ -210,6 +230,7 @@ const activeConditionsCount = computed(() => {
   let count = 0
   if (queryParams.configName) count++
   if (queryParams.configKey) count++
+  if (queryParams.configGroup) count++
   return count
 })
 
@@ -243,7 +264,7 @@ const getList = async () => {
 }
 
 const handleQuery = () => { queryParams.pageNum = 1; getList() }
-const handleReset = () => { queryParams.configName = ''; queryParams.configKey = ''; handleQuery() }
+const handleReset = () => { queryParams.configName = ''; queryParams.configKey = ''; queryParams.configGroup = ''; handleQuery() }
 
 // 移动端抽屉搜索
 const handleSearchFromDrawer = () => {
@@ -275,6 +296,7 @@ const handleSubmit = async () => {
     }
     dialogVisible.value = false
     getList()
+    loadGroups()
   } finally {
     submitLoading.value = false
   }
@@ -286,6 +308,7 @@ const handleDelete = async (row: Config) => {
     ElMessage.success('删除成功')
     cancelSelection()
     getList()
+    loadGroups()
   } catch (e) {}
 }
 
@@ -304,5 +327,5 @@ const cancelSelection = () => {
   }
 }
 
-onMounted(() => getList())
+onMounted(() => { getList(); loadGroups() })
 </script>

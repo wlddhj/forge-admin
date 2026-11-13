@@ -37,6 +37,13 @@ public class SysConfigController {
         return Result.success(result);
     }
 
+    @Operation(summary = "获取配置分组列表")
+    @GetMapping("/groups")
+    @PreAuthorize("hasAuthority('system:config:list')")
+    public Result<List<String>> listGroups() {
+        return Result.success(sysConfigService.listGroups());
+    }
+
     @Operation(summary = "根据键获取配置值")
     @GetMapping("/key/{configKey}")
     public Result<String> getByKey(@PathVariable String configKey) {

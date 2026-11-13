@@ -35,6 +35,7 @@ public class SysConfigServiceImpl extends ServiceImpl<SysConfigMapper, SysConfig
         LambdaQueryWrapper<SysConfig> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(StrUtil.isNotBlank(request.getConfigName()), SysConfig::getConfigName, request.getConfigName())
                 .like(StrUtil.isNotBlank(request.getConfigKey()), SysConfig::getConfigKey, request.getConfigKey())
+                .eq(StrUtil.isNotBlank(request.getConfigGroup()), SysConfig::getConfigGroup, request.getConfigGroup())
                 .eq(request.getStatus() != null, SysConfig::getStatus, request.getStatus())
                 .orderByDesc(SysConfig::getCreateTime);
 
@@ -49,6 +50,20 @@ public class SysConfigServiceImpl extends ServiceImpl<SysConfigMapper, SysConfig
                 .collect(Collectors.toList()));
 
         return responsePage;
+    }
+
+    @Override
+    public List<String> listGroups() {
+        return lambdaQuery()
+                .select(SysConfig::getConfigGroup)
+                .isNotNull(SysConfig::getConfigGroup)
+                .ne(SysConfig::getConfigGroup, "")
+                .orderByAsc(SysConfig::getConfigGroup)
+                .list()
+                .stream()
+                .map(SysConfig::getConfigGroup)
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @Override

@@ -9,6 +9,7 @@ import java.util.List;
 
 public interface SysConfigService {
     Page<ConfigResponse> pageConfigs(ConfigQueryRequest request);
+    List<String> listGroups();
     ConfigResponse getConfigDetail(Long id);
     String getConfigValueByKey(String configKey);
     boolean updateValueByKey(String configKey, String configValue);

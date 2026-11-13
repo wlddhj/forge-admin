@@ -334,6 +334,10 @@ export function getConfigList(params: ConfigQuery) {
   return request.get<PageResult<Config>>('/system/config/list', { params }).then(res => res.data)
 }
 
+export function getConfigGroups() {
+  return request.get<string[]>('/system/config/groups').then(res => res.data)
+}
+
 export function getConfigByKey(key: string) {
   return request.get<string>(`/system/config/key/${key}`).then(res => res.data)
 }
