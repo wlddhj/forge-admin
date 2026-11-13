@@ -542,6 +542,12 @@ public class SysXxxServiceImpl extends ServiceImpl<SysXxxMapper, SysXxx> impleme
 - 日志：`log.info("[{Module}] 操作: key={}", value)`
 - 写操作加 `@Transactional(rollbackFor = Exception.class)`
 
+#### 外部调用约束
+
+- `RestTemplate`/`RestClient` **必须显式 connect+read 超时**（3-5s 量级）且**单例复用**（Bean 或静态常量），禁每请求 `new RestTemplate()`（无超时、无连接复用）。
+- 配置注入的超时**必须验证真实生效**——警惕无参 `Xxx.create()` 覆盖带参工厂的死分支（screen `http-timeout-ms` 配置失效教训），配套测试断言 factory 超时值。
+- 外部调用超时/重试参数**必须有服务端钳制上限**（`@Max` + 服务端 `Math.min`），不信任客户端传值。
+
 ### 3.5 Controller 层
 
 ```java
@@ -660,6 +666,15 @@ BusinessType 类型：`INSERT`、`UPDATE`、`DELETE`、`EXPORT`、`IMPORT`、`OT
 
 ---
 
+### 4.5 资源归属与防泄露
+
+- 按 id 直查的资源（会话/文档/运行记录/任务等），操作前必须走 **`requireOwnedXxx(id)` 归属校验**：不存在或（非管理员且非本人）→ **404**（不泄露存在性）；列表查询非管理员强制追加 userId 条件。管理员豁免统一 `SecurityHelper.isAdmin()` / `workflow_admin` 角色。
+- 错误响应**不回传 `e.getMessage()`/内部异常细节**——固定友好文案 + 服务端日志留详情。
+- 敏感字段出参走**类型级脱敏**（如 `hasSecret` 布尔替代明文，参照 `ImChannelConfigResponse`），禁在 Controller 散点 mask。
+- 引擎/框架内部键（`__` 前缀变量、节流标记等）不得随接口出参。
+
+事故出处：AI 会话/文档/运行记录横向越权（任意用户枚举读全部对话）、错误帧回传内部异常细节。
+
 ## 5. 数据库迁移
 
 > 迁移脚本的字段/索引/命名设计细节见 [数据库设计规范](./database-design-specification.md) 第 9 章「迁移脚本规范」，本节只保留开发视角的操作速查。
@@ -768,6 +783,67 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 
 ---
 
+## 9. 并发、事务与逻辑删除卫生
+
+> 来源：2026-11-12 后端全量代码评审（175 条）中的四处 P1 级并发事故模式。逐条含真实事故出处。
+
+### 9.1 逻辑删除表 + 含 deleted 列的唯一索引（墓碑惯用法）
+
+当逻辑删除表的唯一索引包含 `deleted` 列时（如 `uk(tenant_id, channel, deleted)`）：
+
+- **墓碑值必须每行唯一**：删除时 `deleted` 置**本行 id**（或 `NULL`，MySQL 唯一索引不约束 NULL）；**禁止置 0/1**——同 `(业务键)` 第二块墓碑必撞唯一索引，"删除-重建-再删除"直接失败。
+- **`@TableLogic` 必须显式 `delval`**（如 `delval = "id"`），**禁用裸注解**：裸注解默认 delval=1，将来任何人调 MP 自带 `deleteById` 都会生成墓碑=1 撞索引。无此唯一索引约束的表，裸注解即可，不强制全仓显式化。
+- **逻辑删除字段类型用 `BIGINT/Long`**（容纳行 id 墓碑值）；H2 schema 与生产 DDL **列型逐列一致**（TINYINT 上限 127 会静默吞掉大 id 测试覆盖）。
+- 删除入口优先**显式 `LambdaUpdateWrapper.set(删除列, 行id)`**，不走 MP 自带 `deleteById`（绕开 delval 机制歧义）。`@TableLogic` 仍保留：查询/更新自动追加 `deleted=0` 过滤。
+
+参照实现：`WfImChannelConfig` + `ImChannelConfigService.deleteConfig` + `sql/upgrade-20261112-im-unique-tenant-channel.sql`。
+
+事故出处：MP 默认 `SET deleted=1` 与墓碑=id 惯用法冲突（89e8416e 加固前，"删除-重建-再删除"必撞 `uk_tenant_channel`）。
+
+### 9.2 状态变迁必须 CAS
+
+任何「读状态 → 判断 → 写状态」的竞态点，写入必须防并发双穿：
+
+- **简单状态翻转**：条件更新 `UPDATE ... SET status=新 WHERE id=? AND status=旧`，判受影响行数——0 行即已被并发处理（抛"已被处理"或静默跳过，视语义）。禁 `updateById` 无条件覆盖竞态字段。
+- **读-算-写多字段**（如 JSON 列读改写）：`SELECT ... FOR UPDATE` 行锁串行化（H2/MySQL 均支持）。
+- **保护用户输入**：自动写入可能覆盖用户手工数据时，条件带旧值（`WHERE title=旧占位值`），0 行放弃。
+- **check-then-insert 并发双插**：唯一约束兜底 + insert 捕获 `DuplicateKeyException` 重查转更新。先查后插不能作为唯一防线。
+
+事故出处：催办节流并发双穿透（WfTaskServiceUrge FOR UPDATE 行锁修复）、Agent 待办双审批双恢复（PENDING 条件更新抢占）、标题生成覆盖用户手动改名（乐观锁）、IM 配置并发双行瘫痪管理页（唯一索引）。
+
+### 9.3 事务内禁止同步外呼
+
+`@Transactional` 方法内**禁止同步调用**：WebSocket 推送、HTTP 外呼、IM 渠道、LLM 等——慢发送拉长事务持锁；回滚后外呼不可撤回（幽灵通知）。
+
+事务内要发通知/触发外呼，走事件化：
+
+1. 事务内组装并 `publishEvent`（事件为 **record 不可变快照**，内容发布时刻烘焙）；
+2. 监听器固定组合：`@TransactionalEventListener(phase = AFTER_COMMIT, fallbackExecution = true)` + `@Async("workflowExecutor")`；
+3. 组装依赖引擎/库内数据的部分**留在事务内**，只把投递事件化。
+
+参照实现：`TaskNotificationEvent` + `TaskNotifyEventHandler`（催办/待办通知共用）。
+
+事故出处：催办通知事务内直发——回滚后用户收到"催办"但库里无痕迹；慢发送拉长事务。
+
+### 9.4 异步执行约束
+
+- `@Async` **必须显式指定池名**（如 `@Async("workflowExecutor")`）——缺省回退 `SimpleAsyncTaskExecutor`（每任务新建线程、无界）。
+- `CompletableFuture.supplyAsync` **必须显式 executor，禁用 commonPool**——`cancel(true)` 对 CompletableFuture 不中断底层线程，超时后 commonPool 被白烧线程耗尽（AI 决策 45s 超时事故根因）。
+- 长耗时并行块 `join()` **必须带 `orTimeout`**（超时走降级路径），禁裸 `join()` 无限等待。
+- 跨线程任务提交前**快照租户上下文**（`TenantContextHolder.getTenantId()` → 子线程 set → finally 恢复/clear），或线程池统一 `TtlRunnable::get` TaskDecorator 包装；注意 `UserContext` 是普通 ThreadLocal **不会自动传递**，必须参数显式传。
+
+事故出处：agentExecutor 单池互等死锁、决策竞速 commonPool 白烧、候选人策略异步链 NPE。
+
+### 9.5 安全闸 fail-closed
+
+- 涉租户/归属/白名单的查询，**缺上下文或解析失败 → 返回空/拒绝 + 告警，禁止猜默认值兜底**（兜底"默认租户 1" = 跨租户串发/串读）。
+- fail-closed 的判别条件是**闸态**（`TenantProperties.enable`）：关闸单租户部署可按历史语义兜底默认租户；开闸严格拒绝。
+- 表达式求值（SpEL 等）**禁 `StandardEvaluationContext`**，一律 `SimpleEvaluationContext`；`Class.forName` 动态实例化禁用。
+
+事故出处：IM/回调租户来源塌陷、候选人策略 UserContext 异步 NPE、触发器 SpEL RCE 面。
+
+---
+
 ## 8. 检查清单
 
 后端功能提交前自查：
@@ -781,9 +857,18 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 - [ ] 写操作加 `@OperationLog`（4.1）
 - [ ] 迁移脚本命名 `V{YYYYMMDD}{seq}__{description}.sql`，放在模块自己的 `db/migration/`（5.1-5.2）
 - [ ] 菜单/权限 SQL 覆盖目录-菜单-按钮三层并分配管理员角色（6.1）
+- [ ] 状态变迁写入用条件更新（`WHERE status=旧值`）或行锁，判受影响行数（9.2）
+- [ ] 事务内无同步外呼（WebSocket/HTTP/IM/LLM），通知走事件 + AFTER_COMMIT 监听器（9.3）
+- [ ] `@Async` 显式指定池名；`supplyAsync` 显式 executor；并行 `join()` 带 `orTimeout`（9.4）
+- [ ] 跨线程任务已快照/恢复租户上下文（9.4）
+- [ ] 逻辑删除表含 deleted 唯一索引时：墓碑置行 id、`@TableLogic(delval="id")`、字段 BIGINT、H2 与生产列型一致（9.1）
+- [ ] 按 id 操作资源已做归属校验（requireOwnedXxx，404 语义）（4.5）
+- [ ] 外部调用带显式超时且配置真实生效（3.4）
 - [ ] `mvn clean compile` 编译通过
 
 ---
 
-*文档版本：v1.0*
-*最后更新：2026-10-12*
+*文档版本：v1.1*
+*最后更新：2026-11-13*
+
+**v1.1 变更记录（2026-11-13）**：新增第 9 章「并发、事务与逻辑删除卫生」（逻辑删除墓碑惯用法/状态 CAS/事务内禁外呼与事件化/异步执行约束/安全闸 fail-closed）；4.5 新增「资源归属与防泄露」；3.4 新增「外部调用约束」；检查清单增补 8 项。来源：2026-11-12 后端全量代码评审（175 条，docs/code-review/2026-11-12-backend-review.md）五批修复沉淀，条款均含真实事故出处。
