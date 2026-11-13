@@ -88,7 +88,7 @@ import LicenseDrawer from './components/LicenseDrawer.vue'
 
 defineOptions({ name: 'SystemPlugin' })
 
-const { tableHeight } = useTableHeight()
+const { tableHeight } = useTableHeight({hasPagination: false})
 
 const tableRef = ref<VxeTableInstance | null>(null)
 const loading = ref(false)

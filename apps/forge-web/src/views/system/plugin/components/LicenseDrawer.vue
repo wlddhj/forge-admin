@@ -72,7 +72,7 @@
           </template>
         </vxe-column>
 
-        <vxe-column title="操作" width="80" fixed="right">
+        <vxe-column title="操作" width="70" fixed="right">
           <template #default="{ row }">
             <el-button
               v-if="row.status === 1"
