@@ -75,24 +75,28 @@ public class PluginController {
         return Result.success(manageService.listPlugins());
     }
 
-    @Operation(summary = "插件租户明细（启停/授权/到期）")
+    @Operation(summary = "插件租户明细（全部启用租户，未操作过的行开关为关）")
     @GetMapping("/{pluginCode}/tenants")
     @PreAuthorize("hasAuthority('plugin:list')")
     public Result<List<TenantPluginVO>> tenants(@PathVariable String pluginCode) {
-        List<SysPluginTenant> states = manageService.listTenantStates(pluginCode);
-        Map<Long, String> tenantNames = sysTenantService.list().stream()
-                .collect(Collectors.toMap(SysTenant::getId, SysTenant::getName, (first, ignored) -> first));
+        // 以租户为主表 LEFT JOIN 启停状态：全新状态无启停记录也须展示（可发起启用）
+        List<SysTenant> tenants = sysTenantService.list().stream()
+                .filter(t -> Integer.valueOf(1).equals(t.getStatus()))
+                .toList();
+        Map<Long, SysPluginTenant> stateByTenant = manageService.listTenantStates(pluginCode).stream()
+                .collect(Collectors.toMap(SysPluginTenant::getTenantId, s -> s, (first, ignored) -> first));
         List<TenantPluginVO> result = new ArrayList<>();
-        for (SysPluginTenant state : states) {
-            SysPluginLicense active = manageService.getActiveLicense(state.getTenantId(), pluginCode);
+        for (SysTenant tenant : tenants) {
+            SysPluginTenant state = stateByTenant.get(tenant.getId());
+            SysPluginLicense active = manageService.getActiveLicense(tenant.getId(), pluginCode);
             TenantPluginVO.TenantPluginVOBuilder builder = TenantPluginVO.builder()
-                    .tenantId(state.getTenantId())
-                    .tenantName(tenantNames.get(state.getTenantId()))
-                    .enabled(state.getEnabled())
-                    .disabledReason(state.getDisabledReason())
-                    .enabledTime(state.getEnabledTime())
-                    .disabledTime(state.getDisabledTime())
-                    .effectiveScopes(scopeChecker.effectiveScopes(pluginCode, state.getTenantId()));
+                    .tenantId(tenant.getId())
+                    .tenantName(tenant.getName())
+                    .enabled(state == null ? 0 : state.getEnabled())
+                    .disabledReason(state == null ? null : state.getDisabledReason())
+                    .enabledTime(state == null ? null : state.getEnabledTime())
+                    .disabledTime(state == null ? null : state.getDisabledTime())
+                    .effectiveScopes(scopeChecker.effectiveScopes(pluginCode, tenant.getId()));
             if (active != null) {
                 builder.licenseKey(active.getLicenseKey())
                         .licensee(active.getLicenseeName())
