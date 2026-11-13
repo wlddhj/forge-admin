@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.forge</groupId>
+        <artifactId>forge-framework</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>forge-spring-boot-starter-plugin</artifactId>
+    <name>forge-spring-boot-starter-plugin</name>
+    <description>插件契约层 - 描述符 SPI / 请求闸切面 / 数据门面 / License 验签（无 DB 依赖，插件模块与 system 菜单过滤共用）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
+        </dependency>
+        <!-- License payload 解析（验签本身走 JDK 原生 crypto） -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

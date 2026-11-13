@@ -60,7 +60,22 @@ public enum ResultCode {
     TENANT_EXPIRED(5903, "租户已过期"),
 
     // 用户状态相关
-    USER_DEACTIVATED(5106, "账号已注销");
+    USER_DEACTIVATED(5106, "账号已注销"),
+
+    // 插件相关 60xx
+    PLUGIN_NOT_FOUND(6001, "插件不存在或未注册"),
+    PLUGIN_GLOBAL_DISABLED(6002, "插件已被平台禁用"),
+    PLUGIN_DISABLED(6003, "插件未启用或授权已失效"),
+    LICENSE_REQUIRED(6004, "无有效授权，请先导入 License"),
+    LICENSE_INVALID(6005, "License 文件无效或签名校验失败"),
+    LICENSE_TENANT_MISMATCH(6006, "License 绑定的租户不存在或已被禁用"),
+    LICENSE_PLUGIN_UNKNOWN(6007, "License 包含未注册的插件"),
+    LICENSE_EXPIRED(6008, "License 已过期"),
+    LICENSE_NOT_YET_VALID(6009, "License 尚未到生效期"),
+    LICENSE_DUPLICATED(6010, "License 已导入过，请勿重复导入"),
+    LICENSE_SCOPE_NOT_DECLARED(6011, "License 内置数据权限超出插件声明集"),
+    SCOPE_DENIED(6012, "插件未被授予该数据操作权限"),
+    SCOPE_NOT_DECLARED(6013, "该数据权限未在插件声明集内");
 
     private final Integer code;
     private final String message;

@@ -23,5 +23,6 @@
         <module>forge-spring-boot-starter-web</module>
         <module>forge-spring-boot-starter-tenant</module>
         <module>forge-spring-boot-starter-localcache</module>
+        <module>forge-spring-boot-starter-plugin</module>
     </modules>
 </project>

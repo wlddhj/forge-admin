@@ -38,10 +38,12 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     List<String> selectRoleCodesByUserId(@Param("userId") Long userId);
 
     /**
-     * 根据用户ID查询权限编码列表；menuIds 非空时仅统计套餐边界内的菜单（租户套餐过滤）
+     * 根据用户ID查询权限编码列表；menuIds 非空时仅统计套餐边界内的菜单（租户套餐过滤）；
+     * excludeMenuIds 非空时排除未启用插件的菜单（插件启停过滤，PluginMenuFilter 提供）
      */
     List<String> selectPermissionCodesByUserId(@Param("userId") Long userId,
-                                               @Param("menuIds") List<Long> menuIds);
+                                               @Param("menuIds") List<Long> menuIds,
+                                               @Param("excludeMenuIds") List<Long> excludeMenuIds);
 
     /**
      * 根据用户ID查询角色ID列表

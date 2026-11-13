@@ -26,6 +26,7 @@
         <module>forge-module-ai</module>
         <module>forge-module-screen</module>
         <module>forge-module-demo</module>
+        <module>forge-module-plugin</module>
         <module>forge-server</module>
     </modules>
 

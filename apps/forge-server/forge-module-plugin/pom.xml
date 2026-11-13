@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.forge</groupId>
+        <artifactId>forge</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>forge-module-plugin</artifactId>
+    <name>forge-module-plugin</name>
+    <description>插件管理模块 - 注册/启停/License/scope 门面（单模块形态，参照 demo：无第二消费方不拆 api/biz）</description>
+
+    <dependencies>
+        <!-- 插件契约：Descriptor / Guard 切面消费方 / LicenseVerifier / PluginDataApi 实现 -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-plugin</artifactId>
+        </dependency>
+        <!-- 菜单同步与数据门面委托（SysMenu/SysUser/SysDept 服务均在 system-biz） -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-module-system-biz</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-tenant</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-security</artifactId>
+        </dependency>
+        <!-- 启停/授权状态 Redis 缓存 -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

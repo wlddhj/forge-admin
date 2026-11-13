@@ -43,6 +43,11 @@
             <groupId>com.forge</groupId>
             <artifactId>forge-spring-boot-starter-tenant</artifactId>
         </dependency>
+        <!-- 插件菜单可见性过滤契约（PluginMenuFilter）：无插件模块装配时不过滤，行为不变 -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-plugin</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>

@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.framework.mybatis.annotation.DataPermission;
+import com.forge.framework.plugin.menu.PluginMenuFilter;
 import com.forge.framework.tenant.core.context.TenantContextHolder;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
@@ -40,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -65,6 +67,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private final com.forge.modules.system.auth.properties.PasswordPolicyProperties passwordPolicyProperties;
     private final com.forge.modules.system.service.SysUserPasswordHistoryService passwordHistoryService;
     private final CryptoUtils cryptoUtils;
+    /** 插件菜单过滤（无插件模块装配时为 empty，权限码不过滤，行为与底座无插件一致） */
+    private final Optional<PluginMenuFilter> pluginMenuFilter;
     private final com.forge.modules.system.auth.service.LoginAttemptService loginAttemptService;
     private final UserAuthCacheService userAuthCacheService;
 
@@ -386,7 +390,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (menuIds != null && menuIds.isEmpty()) {
             return new ArrayList<>();
         }
-        return sysUserMapper.selectPermissionCodesByUserId(user.getId(), menuIds);
+        // 插件启停过滤：未启用插件的权限点收敛（超管同样过滤，02 设计假设）
+        List<Long> excludeMenuIds = pluginMenuFilter
+                .map(filter -> filter.getExcludedPluginMenuIds(user.getTenantId()))
+                .orElse(List.of());
+        return sysUserMapper.selectPermissionCodesByUserId(user.getId(), menuIds, excludeMenuIds);
     }
 
     /**

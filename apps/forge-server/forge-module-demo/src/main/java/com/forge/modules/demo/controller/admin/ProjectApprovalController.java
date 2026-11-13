@@ -3,9 +3,11 @@ package com.forge.modules.demo.controller.admin;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
+import com.forge.framework.plugin.guard.PluginGuard;
 import com.forge.framework.web.annotation.OperationLog;
 import com.forge.modules.demo.dto.ProjectResponse;
 import com.forge.modules.demo.dto.ProjectSubmitRequest;
+import com.forge.modules.demo.plugin.DemoPluginDescriptor;
 import com.forge.modules.demo.service.ProjectApprovalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * @author forge-admin
  */
+@PluginGuard(DemoPluginDescriptor.PLUGIN_CODE)
 @Tag(name = "项目立项管理")
 @RestController
 @RequestMapping("/demo/project")

@@ -1,8 +1,12 @@
 -- ========================================
--- 业务示例模块 forge-module-demo（项目立项接入工作流示例）
--- 全新安装用；存量库请执行 upgrade-20261029-project-example.sql
+-- 业务示例插件 forge-module-demo（项目立项接入工作流示例，已插件化）
+-- 全新安装用；存量库请依次执行 upgrade-20261029-project-example.sql 与 upgrade-20261113-plugin-module.sql
 -- 对接文档：docs-base/modules/workflow/06.business-integration-guide.md
 -- ========================================
+
+-- 菜单不再手工初始化：启动时插件注册 Runner 按 DemoPluginDescriptor 幂等导入
+-- sys_menu（plugin_code='demo' 标记归属），并自动授予内置超管角色；
+-- 租户可见性 = 租户套餐勾选 ∩ 该租户插件已启用（License 闸）。
 
 -- 项目立项业务表
 CREATE TABLE `demo_biz_project` (
@@ -24,20 +28,4 @@ CREATE TABLE `demo_biz_project` (
     KEY `idx_status` (`approve_status`),
     KEY `idx_create_time` (`create_time`),
     KEY `idx_tenant` (`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='项目立项表（业务示例模块）';
-
--- 项目管理菜单（id 280-284 空闲段）
-INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(280, '示例模块', 0, '/demo', 'Layout', '/demo/project', 'Folder', 9, 0, NULL, 1, 1, 0, 0);
-
-INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(281, '项目立项', 280, '/demo/project', '/views/demo/project/index', NULL, 'DocumentChecked', 1, 1, 'demo:project:list', 1, 1, 0, 0);
-
-INSERT INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(282, '立项查询', 281, '', '', NULL, '', 1, 2, 'demo:project:query', 1, 1, 0, 0),
-(283, '立项提交', 281, '', '', NULL, '', 2, 2, 'demo:project:add', 1, 1, 0, 0),
-(284, '立项撤销', 281, '', '', NULL, '', 3, 2, 'demo:project:edit', 1, 1, 0, 0);
-
--- 超管角色授权（role_id=1）
-INSERT INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
-(1, 280), (1, 281), (1, 282), (1, 283), (1, 284);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='项目立项表（业务示例插件）';

@@ -83,6 +83,16 @@ public class SysMenu {
     private Integer isCached;
 
     /**
+     * 归属插件编码（null=底座菜单；非空=插件菜单，租户可见性受插件启停过滤）
+     */
+    private String pluginCode;
+
+    /**
+     * 插件菜单节点键（同一插件内唯一，插件注册菜单 diff 的幂等键；null=非插件菜单）
+     */
+    private String pluginMenuKey;
+
+    /**
      * 创建时间
      */
     @TableField(fill = FieldFill.INSERT)

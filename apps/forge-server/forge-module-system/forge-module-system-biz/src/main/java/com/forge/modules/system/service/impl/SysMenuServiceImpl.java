@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
 import com.forge.common.utils.UserContext;
+import com.forge.framework.plugin.menu.PluginMenuFilter;
 import com.forge.modules.system.api.tenant.TenantApi;
 import com.forge.modules.system.dto.menu.MenuRequest;
 import com.forge.modules.system.dto.menu.MenuResponse;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -42,6 +44,8 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     private final CacheManager cacheManager;
     private final TenantApi tenantApi;
     private final UserAuthCacheService userAuthCacheService;
+    /** 插件菜单过滤（无插件模块装配时为 empty，菜单不过滤，行为与底座无插件一致） */
+    private final Optional<PluginMenuFilter> pluginMenuFilter;
 
     @Override
     public void refreshMenuCache() {
@@ -79,6 +83,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
             }
             menus = menus.stream().filter(menu -> allowedMenuIds.contains(menu.getId())).collect(Collectors.toList());
         }
+        menus = filterPluginMenus(menus, userContext == null ? null : userContext.getTenantId());
         return buildMenuTree(menus, 0L, false);
     }
 
@@ -95,7 +100,24 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
             }
             menus = menus.stream().filter(menu -> allowedMenuIds.contains(menu.getId())).collect(Collectors.toList());
         }
+        menus = filterPluginMenus(menus, userContext == null ? null : userContext.getTenantId());
         return buildMenuTree(menus, 0L, true);
+    }
+
+    /**
+     * 插件启停过滤：plugin_code 非空且该插件未在此租户启用的菜单剔除（含平台超管，02 设计假设）。
+     * 插件体系未装配（无 PluginMenuFilter Bean）时原样返回。
+     */
+    private List<SysMenu> filterPluginMenus(List<SysMenu> menus, Long tenantId) {
+        return pluginMenuFilter.map(filter -> {
+            if (menus.stream().noneMatch(menu -> menu.getPluginCode() != null)) {
+                return menus;
+            }
+            Set<String> enabledCodes = filter.getEnabledPluginCodes(tenantId);
+            return menus.stream()
+                    .filter(menu -> menu.getPluginCode() == null || enabledCodes.contains(menu.getPluginCode()))
+                    .collect(Collectors.toList());
+        }).orElse(menus);
     }
 
     @Override

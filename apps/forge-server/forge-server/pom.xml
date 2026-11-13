@@ -39,6 +39,10 @@
         </dependency>
         <dependency>
             <groupId>com.forge</groupId>
+            <artifactId>forge-module-plugin</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forge</groupId>
             <artifactId>forge-module-ai-biz</artifactId>
         </dependency>
         <dependency>

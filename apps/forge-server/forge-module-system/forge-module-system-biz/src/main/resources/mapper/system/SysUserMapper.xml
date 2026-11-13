@@ -21,6 +21,13 @@
                 #{menuId}
             </foreach>
         </if>
+        <!-- 插件菜单排除（未启用插件的权限点收敛）：PluginMenuFilter#getExcludedPluginMenuIds 提供 -->
+        <if test="excludeMenuIds != null and excludeMenuIds.size() > 0">
+            AND m.id NOT IN
+            <foreach collection="excludeMenuIds" item="excludeId" open="(" separator="," close=")">
+                #{excludeId}
+            </foreach>
+        </if>
     </select>
 
     <select id="selectRoleIdsByUserId" resultType="java.lang.Long">

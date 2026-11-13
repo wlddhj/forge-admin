@@ -17,6 +17,11 @@
     <!-- 示例模块刻意不拆 api/biz：无第二消费方，展示形态A的最小依赖姿势；需要跨模块共享 DTO 时再拆 -->
 
     <dependencies>
+        <!-- 插件契约：PluginDescriptor 声明 + @PluginGuard 请求闸（demo 是第一个标准插件） -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-plugin</artifactId>
+        </dependency>
         <!-- 工作流门面：WfProcessInstanceService / WfProcessDefinitionService / WorkflowInstanceEvent -->
         <dependency>
             <groupId>com.forge</groupId>

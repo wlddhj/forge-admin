@@ -144,6 +144,11 @@ forge:
       - sys_print_template
       - ai_sql_whitelist
       - ai_model_config
+      # 插件管理四表：跨租户管理操作（平台管理员），tenant_id 为显式列不参与自动注入
+      - sys_plugin
+      - sys_plugin_tenant
+      - sys_plugin_license
+      - sys_plugin_scope
     # 跨租户共享的缓存名（key 不加 tenantId 前缀）
     ignore-caches:
       - dictData
