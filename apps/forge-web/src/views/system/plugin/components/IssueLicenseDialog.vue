@@ -33,10 +33,10 @@
       <el-form-item label="有效期" prop="dateRange">
         <el-date-picker
           v-model="form.dateRange"
-          type="datetimerange"
+          type="daterange"
           range-separator="至"
-          start-placeholder="生效时间（默认立即）"
-          end-placeholder="到期时间"
+          start-placeholder="生效日期（默认今天）"
+          end-placeholder="到期日期"
           style="width: 100%"
         />
       </el-form-item>
@@ -164,6 +164,13 @@ const toIso = (d: Date) => {
   )
 }
 
+/** 到期日收口到当天 23:59:59：选 2027-11-13 = 该日全天有效 */
+const endOfDay = (d: Date) => {
+  const x = new Date(d)
+  x.setHours(23, 59, 59, 0)
+  return x
+}
+
 const handleSubmit = async () => {
   await formRef.value?.validate()
   const [start, end] = form.dateRange as [Date, Date]
@@ -174,7 +181,7 @@ const handleSubmit = async () => {
       pluginCodes: form.pluginCodes,
       licensee: form.licensee,
       notBefore: toIso(start),
-      notAfter: toIso(end),
+      notAfter: toIso(endOfDay(end)),
       scopes: form.scopes,
       licenseKey: form.licenseKey || undefined,
       activate: form.activate
