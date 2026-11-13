@@ -51,6 +51,8 @@
 
 ## 1. 创建插件模块
 
+> 🚀 **快捷方式**：`pnpm run create-plugin <插件名> "<插件描述>"` 一键生成下述全部骨架（pom/实体/Mapper/Service/Controller/描述符/DDL 双份/前端占位页）并自动接线三处 pom，生成后从"替换业务代码"开始即可。本章仍完整讲解每一步的原理与写法（脚手架不能替代理解）。
+
 插件 = 一个普通 Maven 模块。**不建议**用 `pnpm run create-module` 脚手架（它生成 api/biz 拆分结构，插件用单模块即可）：
 
 ```bash
