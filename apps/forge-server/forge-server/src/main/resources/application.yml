@@ -131,6 +131,9 @@ forge:
       - sys_role_menu
       - sys_dict_type
       - sys_dict_data
+      # 菜单递归 CTE 名（SysMenuMapper.selectMenusByUserId）：非物理表，
+      # 租户插件误追加 um.tenant_id 会报 Unknown column，物理表照常注入
+      - user_menus
       - sys_config
       - sys_file_config
       - sys_job
