@@ -59,10 +59,10 @@ CREATE TABLE `flw_instance` (
     `expire_time` TIMESTAMP NULL DEFAULT NULL COMMENT '期望完成时间',
     `last_update_by` VARCHAR(50) COMMENT '上次更新人',
     `last_update_time` TIMESTAMP NULL DEFAULT NULL COMMENT '上次更新时间',
+    `urgent` TINYINT DEFAULT 0 COMMENT '实例紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
     PRIMARY KEY (`id`),
     INDEX `idx_instance_process_id` (`process_id`),
     CONSTRAINT `fk_instance_process_id` FOREIGN KEY (`process_id`) REFERENCES `flw_process` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
-    `urgent` TINYINT DEFAULT 0 COMMENT '实例紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='流程实例表';
 
 -- 3. 历史流程实例表
@@ -87,10 +87,10 @@ CREATE TABLE `flw_his_instance` (
     `instance_state` TINYINT NOT NULL DEFAULT 0 COMMENT '状态 -2暂停 -1暂存 0审批中 1通过 2拒绝 3撤销 4超时 5终止 6自动通过 7自动拒绝',
     `end_time` TIMESTAMP NULL DEFAULT NULL COMMENT '结束时间',
     `duration` BIGINT COMMENT '处理耗时',
+    `urgent` TINYINT DEFAULT 0 COMMENT '实例紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
     PRIMARY KEY (`id`),
     INDEX `idx_his_instance_process_id` (`process_id`),
     CONSTRAINT `fk_his_instance_process_id` FOREIGN KEY (`process_id`) REFERENCES `flw_process` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
-    `urgent` TINYINT DEFAULT 0 COMMENT '实例紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='历史流程实例表';
 
 -- 4. 任务表（活动）
@@ -117,10 +117,10 @@ CREATE TABLE `flw_task` (
     `remind_time` TIMESTAMP NULL DEFAULT NULL COMMENT '提醒时间',
     `remind_repeat` TINYINT NOT NULL DEFAULT 0 COMMENT '提醒次数',
     `viewed` TINYINT NOT NULL DEFAULT 0 COMMENT '已阅 0否 1是',
+    `urgent` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '任务紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
     PRIMARY KEY (`id`),
     INDEX `idx_task_instance_id` (`instance_id`),
     CONSTRAINT `fk_task_instance_id` FOREIGN KEY (`instance_id`) REFERENCES `flw_instance` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
-    `urgent` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '任务紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='任务表';
 
 -- 5. 历史任务表
@@ -150,11 +150,11 @@ CREATE TABLE `flw_his_task` (
     `finish_time` TIMESTAMP NULL DEFAULT NULL COMMENT '任务完成时间',
     `task_state` TINYINT NOT NULL DEFAULT 0 COMMENT '任务状态',
     `duration` BIGINT COMMENT '处理耗时',
+    `urgent` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '任务紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
     PRIMARY KEY (`id`),
     INDEX `idx_his_task_instance_id` (`instance_id`),
     INDEX `idx_his_task_parent_task_id` (`parent_task_id`),
     CONSTRAINT `fk_his_task_instance_id` FOREIGN KEY (`instance_id`) REFERENCES `flw_his_instance` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
-    `urgent` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '任务紧急程度 0，常规 1，重要不紧急 2，紧急不重要 3，紧急且重要',
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='历史任务表';
 
 -- 6. 任务参与者表（活动）
@@ -415,9 +415,9 @@ CREATE TABLE `wf_im_channel_config` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `create_by` VARCHAR(64) DEFAULT NULL COMMENT '创建者',
     `update_by` VARCHAR(64) DEFAULT NULL COMMENT '更新者',
-    `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除(0:正常 1:已删除)',
+    `deleted` BIGINT NOT NULL DEFAULT 0 COMMENT '逻辑删除(0:正常 已删除=行id墓碑,见 upgrade-20261112-im-unique)',
     PRIMARY KEY (`id`),
-    KEY `idx_tenant_channel` (`tenant_id`, `channel`)
+    UNIQUE KEY `uk_tenant_channel` (`tenant_id`, `channel`, `deleted`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='IM通知渠道配置表（按租户维度）';
 
 -- ========================================
@@ -689,7 +689,9 @@ CREATE TABLE IF NOT EXISTS `wf_event_audit` (
     `operator_name` VARCHAR(100) DEFAULT NULL COMMENT '操作人名称',
     `summary` VARCHAR(1000) DEFAULT NULL COMMENT '事件摘要',
     `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发生时间',
+    `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID',
     PRIMARY KEY (`id`),
     KEY `idx_instance_id` (`instance_id`),
-    KEY `idx_event_type` (`event_type`)
+    KEY `idx_event_type` (`event_type`),
+    KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工作流事件审计';

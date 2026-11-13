@@ -87,6 +87,7 @@ CREATE TABLE `ai_chat_message` (
   `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '租户ID',
   `role` varchar(20) NOT NULL COMMENT '角色(user/assistant/system)',
   `content` text NOT NULL COMMENT '消息内容',
+  `reasoning_content` text NULL COMMENT '思考内容(思考模型reasoning_content，仅assistant消息)',
   `input_tokens` int DEFAULT 0 COMMENT '输入Token数',
   `output_tokens` int DEFAULT 0 COMMENT '输出Token数',
   `cost` decimal(10,4) DEFAULT 0 COMMENT '费用(元)',
