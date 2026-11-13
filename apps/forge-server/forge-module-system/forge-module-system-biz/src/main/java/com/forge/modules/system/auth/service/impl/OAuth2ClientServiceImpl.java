@@ -19,6 +19,7 @@ import org.springframework.security.oauth2.server.authorization.settings.TokenSe
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -32,6 +33,14 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class OAuth2ClientServiceImpl implements OAuth2ClientService {
+
+    /**
+     * 客户端密钥规则：forge 前缀 + 27 位随机字母数字（SecureRandom），总长 32 位，不含 "-"
+     */
+    private static final String SECRET_PREFIX = "forge";
+    private static final int SECRET_RANDOM_LENGTH = 27;
+    private static final String SECRET_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final RegisteredClientRepository registeredClientRepository;
     private final PasswordEncoder passwordEncoder;
@@ -78,7 +87,7 @@ public class OAuth2ClientServiceImpl implements OAuth2ClientService {
         }
 
         // 生成 client_secret
-        String clientSecret = UUID.randomUUID().toString();
+        String clientSecret = generateClientSecret();
 
         RegisteredClient.Builder builder = RegisteredClient.withId(UUID.randomUUID().toString())
                 .clientId(request.getClientId())
@@ -232,7 +241,7 @@ public class OAuth2ClientServiceImpl implements OAuth2ClientService {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND);
         }
 
-        String newSecret = UUID.randomUUID().toString();
+        String newSecret = generateClientSecret();
         RegisteredClient updated = RegisteredClient.from(existing)
                 .clientSecret(passwordEncoder.encode(newSecret))
                 .build();
@@ -240,6 +249,17 @@ public class OAuth2ClientServiceImpl implements OAuth2ClientService {
         registeredClientRepository.save(updated);
         log.info("重新生成OAuth2客户端密钥: id={}", id);
         return newSecret;
+    }
+
+    /**
+     * 生成客户端密钥：forge 开头、总长 32 位、不含 "-"
+     */
+    private String generateClientSecret() {
+        StringBuilder sb = new StringBuilder(SECRET_PREFIX);
+        for (int i = 0; i < SECRET_RANDOM_LENGTH; i++) {
+            sb.append(SECRET_CHARS.charAt(SECURE_RANDOM.nextInt(SECRET_CHARS.length())));
+        }
+        return sb.toString();
     }
 
     private ClientResponse toResponse(RegisteredClient client) {
