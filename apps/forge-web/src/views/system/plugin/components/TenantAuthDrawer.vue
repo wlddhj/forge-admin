@@ -14,6 +14,7 @@
         class="mb-3"
       />
 
+      <!-- spec-guard-disable-r4 租户授权抽屉全量展示（租户数量级小），无分页 -->
       <vxe-table
         id="pluginTenantTable"
         ref="tableRef"
@@ -25,6 +26,8 @@
         stripe
         show-overflow="tooltip"
       >
+        <vxe-column type="seq" title="序号" width="60" align="center" />
+
         <vxe-column type="expand" width="40">
           <template #content="{ row }">
             <ScopeCheckGroup

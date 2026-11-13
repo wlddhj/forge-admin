@@ -39,11 +39,14 @@
         :data="records"
         :height="tableHeight"
         :loading="loading"
+        :seq-config="{ seqMethod }"
         :row-config="{ isHover: true }"
         border
         stripe
         show-overflow="tooltip"
       >
+        <vxe-column type="seq" title="序号" width="60" align="center" />
+
         <vxe-column field="licenseKey" title="License 编号" min-width="150" />
 
         <vxe-column field="licenseeName" title="被授权方" min-width="140" />
@@ -87,14 +90,9 @@
         </vxe-column>
       </vxe-table>
 
-      <el-pagination
-        v-model:current-page="pageNum"
-        v-model:page-size="pageSize"
-        :total="total"
-        layout="total, prev, pager, next"
-        class="mt-3"
-        @current-change="loadLicenses"
-      />
+      <TablePagination v-model:page-num="pageNum"
+        v-model:page-size="pageSize" :total="total"
+        @change="loadLicenses" />
     </div>
 
     <!-- 在线签发弹窗（双模式：仅私钥已配置时入口可见） -->
@@ -111,6 +109,8 @@ import { pluginApi } from '@/api/system/plugin'
 import type { PluginEntity, PluginLicenseEntity } from '@/api/system/plugin'
 import { formatDate } from '@/utils/dateFormat'
 import { useDrawerTableHeight } from '@/composables/useDrawerTableHeight'
+import { useTableSeq } from '@/composables/useTableSeq'
+import TablePagination from '@/components/TablePagination.vue'
 import IssueLicenseDialog from './IssueLicenseDialog.vue'
 
 defineOptions({ name: 'LicenseDrawer' })
@@ -134,6 +134,9 @@ const { tableHeight, updateHeight } = useDrawerTableHeight({
   containerRef,
   excludeSelectors: ['.import-bar', '.el-pagination']
 })
+
+// 跨页连续序号（R3）
+const { seqMethod } = useTableSeq({ currentPage: pageNum, pageSize })
 
 const open = async (row: PluginEntity | null) => {
   plugin.value = row

@@ -1,5 +1,6 @@
 <template>
   <div class="app-container">
+    <!-- spec-guard-disable-r4 插件注册表全量展示（启动注册，数量少），无分页 -->
     <vxe-table
       id="sysPluginTable"
       ref="tableRef"
@@ -14,7 +15,7 @@
       show-overflow="tooltip"
       show-header-overflow="tooltip"
     >
-      <vxe-column type="seq" title="序号" width="60" />
+      <vxe-column type="seq" title="序号" width="60" align="center" />
 
       <vxe-column field="name" title="插件名称" min-width="160">
         <template #default="{ row }">
