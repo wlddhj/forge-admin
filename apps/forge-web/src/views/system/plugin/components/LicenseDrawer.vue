@@ -1,5 +1,5 @@
 <template>
-  <el-drawer v-model="visible" :title="`License 管理${plugin ? ' - ' + plugin.name : ''}`" size="1000px" append-to-body>
+  <el-drawer v-model="visible" :title="`License 管理${plugin ? ' - ' + plugin.name : ''}`" size="1100px" append-to-body>
     <div ref="containerRef" class="drawer-body" style="height: 100%">
       <!-- 导入与筛选 -->
       <div class="import-bar">
@@ -41,7 +41,7 @@
         :loading="loading"
         :seq-config="{ seqMethod }"
         :row-config="{ isHover: true }"
-        border
+        border="none"
         stripe
         show-overflow="tooltip"
       >
