@@ -98,11 +98,12 @@ INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `menu_type`, `per
 (2603, 'License导入', 2600, 2, 'plugin:license:import', 3, 1, 1, 0, 0, NOW(), NOW(), 0),
 (2604, 'License撤销', 2600, 2, 'plugin:license:revoke', 4, 1, 1, 0, 0, NOW(), NOW(), 0),
 (2605, '数据权限授予', 2600, 2, 'plugin:scope:grant',  5, 1, 1, 0, 0, NOW(), NOW(), 0),
-(2606, '平台总闸', 2600, 2, 'plugin:global',           6, 1, 1, 0, 0, NOW(), NOW(), 0);
+(2606, '平台总闸', 2600, 2, 'plugin:global',           6, 1, 1, 0, 0, NOW(), NOW(), 0),
+(2607, 'License在线签发', 2600, 2, 'plugin:license:issue', 7, 1, 1, 0, 0, NOW(), NOW(), 0);
 
 -- 超管角色授权（role_id=1 SUPER_ADMIN）
 INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
-(1, 2600), (1, 2601), (1, 2602), (1, 2603), (1, 2604), (1, 2605), (1, 2606);
+(1, 2600), (1, 2601), (1, 2602), (1, 2603), (1, 2604), (1, 2605), (1, 2606), (1, 2607);
 
 -- 7) License 到期巡检任务（每日 02:30，错开日志清理 02:00）
 INSERT INTO `sys_job` (`id`, `job_name`, `job_group`, `invoke_target`, `cron_expression`, `status`, `concurrent`, `remark`) VALUES

@@ -8,6 +8,14 @@
             导入 License
           </el-button>
         </el-upload>
+        <el-button
+          v-if="issueEnabled"
+          v-permission="'plugin:license:issue'"
+          type="success"
+          @click="issueDialogRef?.open()"
+        >
+          在线签发
+        </el-button>
         <el-select
           v-model="queryPluginCode"
           placeholder="按插件筛选"
@@ -88,6 +96,9 @@
         @current-change="loadLicenses"
       />
     </div>
+
+    <!-- 在线签发弹窗（双模式：仅私钥已配置时入口可见） -->
+    <IssueLicenseDialog ref="issueDialogRef" @issued="onIssued" />
   </el-drawer>
 </template>
 
@@ -100,11 +111,14 @@ import { pluginApi } from '@/api/system/plugin'
 import type { PluginEntity, PluginLicenseEntity } from '@/api/system/plugin'
 import { formatDateTime } from '@/utils/dateFormat'
 import { useDrawerTableHeight } from '@/composables/useDrawerTableHeight'
+import IssueLicenseDialog from './IssueLicenseDialog.vue'
 
 defineOptions({ name: 'LicenseDrawer' })
 
 const visible = ref(false)
 const loading = ref(false)
+const issueEnabled = ref(false)
+const issueDialogRef = ref<InstanceType<typeof IssueLicenseDialog>>()
 const plugin = ref<PluginEntity | null>(null)
 const plugins = ref<PluginEntity[]>([])
 const records = ref<PluginLicenseEntity[]>([])
@@ -129,9 +143,22 @@ const open = async (row: PluginEntity | null) => {
     const res = await pluginApi.list()
     plugins.value = res.data ?? []
   }
+  // 签发能力探测（双模式：未配置私钥=false，入口隐藏）
+  try {
+    const form = await pluginApi.issueFormData()
+    issueEnabled.value = form.data?.enabled ?? false
+  } catch {
+    issueEnabled.value = false
+  }
   await nextTick()
   requestAnimationFrame(() => updateHeight())
   await loadLicenses()
+}
+
+const onIssued = async (activated: boolean) => {
+  if (activated) {
+    await loadLicenses()
+  }
 }
 
 const handleQuery = () => {

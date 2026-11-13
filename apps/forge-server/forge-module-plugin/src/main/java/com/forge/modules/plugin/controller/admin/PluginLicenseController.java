@@ -5,15 +5,18 @@ import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
 import com.forge.framework.web.annotation.OperationLog;
 import com.forge.framework.web.annotation.RepeatSubmit;
+import com.forge.modules.plugin.dto.LicenseIssueRequest;
 import com.forge.modules.plugin.entity.SysPluginLicense;
 import com.forge.modules.plugin.license.PluginLicenseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -69,5 +72,21 @@ public class PluginLicenseController {
     public Result<Void> revoke(@PathVariable Long id) {
         licenseService.revoke(id);
         return Result.success();
+    }
+
+    @Operation(summary = "签发表单元数据（能力开关+租户+插件声明集；登录即可，前端据此隐藏签发入口）")
+    @GetMapping("/issue/form-data")
+    public Result<Map<String, Object>> issueFormData() {
+        Map<String, Object> data = licenseService.buildIssueFormData();
+        return Result.success(data);
+    }
+
+    @Operation(summary = "在线签发（activate=true 签发并落库生效）")
+    @PostMapping("/issue")
+    @PreAuthorize("hasAuthority('plugin:license:issue')")
+    @RepeatSubmit
+    @OperationLog(title = "插件License管理", businessType = OperationLog.BusinessType.INSERT)
+    public Result<Map<String, Object>> issue(@Valid @RequestBody LicenseIssueRequest request) {
+        return Result.success(licenseService.issue(request));
     }
 }

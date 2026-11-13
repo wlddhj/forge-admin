@@ -5,9 +5,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
 import com.forge.framework.plugin.descriptor.PluginDescriptor;
+import com.forge.framework.plugin.license.LicenseIssuer;
 import com.forge.framework.plugin.license.LicensePayload;
 import com.forge.framework.plugin.license.LicenseVerifier;
 import com.forge.framework.plugin.descriptor.ScopeDefinition;
+import com.forge.modules.plugin.dto.LicenseIssueRequest;
 import com.forge.modules.plugin.entity.SysPlugin;
 import com.forge.modules.plugin.entity.SysPluginLicense;
 import com.forge.modules.plugin.entity.SysPluginTenant;
@@ -19,17 +21,22 @@ import com.forge.modules.system.entity.SysTenant;
 import com.forge.modules.system.service.SysTenantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -47,6 +54,9 @@ import java.util.stream.Collectors;
 public class PluginLicenseService {
 
     private final LicenseVerifier licenseVerifier;
+
+    /** 在线签发器（未配置私钥时为空 Provider，签发能力不暴露） */
+    private final ObjectProvider<LicenseIssuer> licenseIssuerProvider;
 
     private final SysPluginLicenseMapper licenseMapper;
 
@@ -233,6 +243,94 @@ public class PluginLicenseService {
             pluginCacheService.evictMenuCache();
         }
         return disabled;
+    }
+
+    /**
+     * 在线签发（双模式：未配置私钥即未启用）。
+     *
+     * @param request 签发表单
+     * @return licenseKey / 是否已落库生效 / 文件内容（activate=false 时前端下载）
+     */
+    public Map<String, Object> issue(LicenseIssueRequest request) {
+        LicenseIssuer issuer = licenseIssuerProvider.getIfAvailable();
+        if (issuer == null) {
+            throw new BusinessException(ResultCode.LICENSE_INVALID, "在线签发未启用（未配置 forge.plugin.license.private-key）");
+        }
+        // 租户与时间窗
+        SysTenant tenant = sysTenantService.getById(request.getTenantId());
+        if (tenant == null || !Integer.valueOf(1).equals(tenant.getStatus())) {
+            throw new BusinessException(ResultCode.LICENSE_TENANT_MISMATCH, "租户不存在或已被禁用");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        String notBeforeIso = (request.getNotBefore() == null || request.getNotBefore().isBlank())
+                ? toIso(now) : request.getNotBefore();
+        String licenseKey = (request.getLicenseKey() == null || request.getLicenseKey().isBlank())
+                ? generateLicenseKey(now) : request.getLicenseKey().trim();
+
+        LicensePayload payload = new LicensePayload(
+                licenseKey,
+                request.getPluginCodes().stream().distinct().toList(),
+                tenant.getCode(),
+                request.getLicensee(),
+                toIso(now),
+                notBeforeIso,
+                request.getNotAfter(),
+                request.getScopes(),
+                null);
+        validatePayload(payload);
+        // 唯一性前置（activate=false 的下载版也须可导入，避免签出即撞号）
+        for (String pluginCode : payload.pluginCodes()) {
+            Long duplicated = licenseMapper.selectCount(Wrappers.<SysPluginLicense>lambdaQuery()
+                    .eq(SysPluginLicense::getLicenseKey, licenseKey)
+                    .eq(SysPluginLicense::getPluginCode, pluginCode));
+            if (duplicated > 0) {
+                throw new BusinessException(ResultCode.LICENSE_DUPLICATED,
+                        "License " + licenseKey + " 已存在（插件 " + pluginCode + "）");
+            }
+        }
+
+        String content = issuer.issue(payload);
+        boolean activated = false;
+        if (request.isActivate()) {
+            importLicense(content);
+            activated = true;
+        }
+        log.info("License {} 在线签发: 租户 {} 插件 {} activate={}",
+                licenseKey, tenant.getCode(), payload.pluginCodes(), activated);
+        Map<String, Object> result = new HashMap<>();
+        result.put("licenseKey", licenseKey);
+        result.put("activated", activated);
+        result.put("licenseContent", content);
+        return result;
+    }
+
+    private String generateLicenseKey(LocalDateTime now) {
+        return "LIC-" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                + "-" + Integer.toHexString((int) (System.nanoTime() & 0xFFFF)).toUpperCase();
+    }
+
+    private String toIso(LocalDateTime localDateTime) {
+        return localDateTime.atZone(ZoneId.systemDefault()).toOffsetDateTime().toString();
+    }
+
+    /** 签发表单元数据：能力开关 + 启用租户 + 注册插件（含声明 scope 集） */
+    public Map<String, Object> buildIssueFormData() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("enabled", licenseIssuerProvider.getIfAvailable() != null);
+        data.put("tenants", sysTenantService.list().stream()
+                .filter(t -> Integer.valueOf(1).equals(t.getStatus()))
+                .map(t -> Map.of("id", t.getId(), "name", t.getName(), "code", t.getCode()))
+                .toList());
+        List<Map<String, Object>> plugins = new ArrayList<>();
+        for (PluginDescriptor descriptor : descriptors) {
+            Map<String, Object> plugin = new HashMap<>();
+            plugin.put("pluginCode", descriptor.pluginCode());
+            plugin.put("name", descriptor.name());
+            plugin.put("declaredScopes", descriptor.declaredScopes());
+            plugins.add(plugin);
+        }
+        data.put("plugins", plugins);
+        return data;
     }
 
     /** License 记录分页（管理端列表） */

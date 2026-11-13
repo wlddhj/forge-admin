@@ -2,11 +2,13 @@ package com.forge.framework.plugin.config;
 
 import com.forge.framework.plugin.guard.PluginGuardAspect;
 import com.forge.framework.plugin.guard.PluginStateResolver;
+import com.forge.framework.plugin.license.LicenseIssuer;
 import com.forge.framework.plugin.license.LicenseVerifier;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.ClassPathResource;
@@ -41,6 +43,17 @@ public class PluginAutoConfiguration {
     @ConditionalOnMissingBean
     public PluginGuardAspect pluginGuardAspect(ObjectProvider<PluginStateResolver> resolverProvider) {
         return new PluginGuardAspect(resolverProvider);
+    }
+
+    /**
+     * 在线签发器：仅在显式配置 forge.plugin.license.private-key 时装配
+     * （自营姿势）；私有化交付环境不配置，签发能力不暴露。
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "forge.plugin.license", name = "private-key")
+    @ConditionalOnMissingBean
+    public LicenseIssuer licenseIssuer(PluginProperties properties) {
+        return new LicenseIssuer(properties.getPrivateKey());
     }
 
     private String loadDefaultPublicKey() {

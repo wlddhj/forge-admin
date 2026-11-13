@@ -131,6 +131,21 @@
         <!-- 权限标识（桌面端） -->
         <vxe-column v-if="!isMobile" field="permission" title="权限标识" width="150" />
 
+        <!-- 归属插件（桌面端） -->
+        <vxe-column v-if="!isMobile" field="pluginCode" title="归属插件" width="110">
+          <template #default="{ row }">
+            <el-tag v-if="row.pluginCode" size="small" type="warning">{{ row.pluginCode }}</el-tag>
+            <span v-else>-</span>
+          </template>
+        </vxe-column>
+
+        <!-- 插件菜单键（桌面端） -->
+        <vxe-column v-if="!isMobile" field="pluginMenuKey" title="插件菜单键" min-width="140">
+          <template #default="{ row }">
+            {{ row.pluginMenuKey || '-' }}
+          </template>
+        </vxe-column>
+
         <!-- 排序（桌面端） -->
         <vxe-column v-if="!isMobile" field="sortOrder" title="排序" width="80" />
 
@@ -241,6 +256,35 @@
               </el-radio-group>
             </el-form-item>
           </el-col>
+          <!-- 插件归属（存量菜单手工补标记用；插件自身菜单由注册同步自动维护） -->
+          <el-col :span="12">
+            <el-form-item>
+              <template #label>
+                <span>归属插件</span>
+                <el-tooltip
+                  content="标记后该菜单受插件启停过滤；键须与插件描述符声明一致，否则下次启动会被插件菜单同步当作孤儿清理。留空=底座菜单"
+                  placement="top"
+                >
+                  <el-icon class="label-tip-icon"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </template>
+              <el-input v-model="formData.pluginCode" placeholder="如 demo，留空为底座菜单" clearable />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label-width="100px">
+              <template #label>
+                <span>插件菜单键</span>
+                <el-tooltip
+                  content="同一插件内唯一，是插件菜单增量同步的幂等键（如 demo-project）"
+                  placement="top"
+                >
+                  <el-icon class="label-tip-icon"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </template>
+              <el-input v-model="formData.pluginMenuKey" placeholder="如 demo-project" clearable />
+            </el-form-item>
+          </el-col>
         </el-row>
       </el-form>
       <template #footer>
@@ -320,7 +364,9 @@ const formData = reactive<MenuRequest>({
   sortOrder: 0,
   status: 1,
   visible: 1,
-  isExternal: 0
+  isExternal: 0,
+  pluginCode: null,
+  pluginMenuKey: null
 })
 
 const isExternalPath = (path?: string) => !!path && /^https?:\/\//.test(path)
@@ -471,7 +517,8 @@ const handleAdd = () => {
   dialogTitle.value = '新增菜单'
   Object.assign(formData, {
     id: undefined, parentId: undefined, menuType: 1, menuName: '',
-    routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1, isExternal: 0
+    routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1, isExternal: 0,
+    pluginCode: null, pluginMenuKey: null
   })
   dialogVisible.value = true
 }
@@ -482,7 +529,8 @@ const handleAddChild = (row: MenuTree) => {
   dialogTitle.value = '新增子菜单'
   Object.assign(formData, {
     id: undefined, parentId: row.id, menuType: 1, menuName: '',
-    routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1, isExternal: 0
+    routePath: '', componentPath: '', icon: '', permission: '', sortOrder: 0, status: 1, visible: 1, isExternal: 0,
+    pluginCode: null, pluginMenuKey: null
   })
   dialogVisible.value = true
 }
@@ -495,7 +543,8 @@ const handleEdit = (row: MenuTree) => {
     id: row.id, parentId: row.parentId, menuType: row.menuType, menuName: row.menuName,
     routePath: row.routePath, componentPath: row.componentPath,
     icon: row.icon, permission: row.permission, sortOrder: row.sortOrder, status: row.status, visible: row.visible,
-    isExternal: row.isExternal ?? 0
+    isExternal: row.isExternal ?? 0,
+    pluginCode: row.pluginCode ?? null, pluginMenuKey: row.pluginMenuKey ?? null
   })
   dialogVisible.value = true
 }

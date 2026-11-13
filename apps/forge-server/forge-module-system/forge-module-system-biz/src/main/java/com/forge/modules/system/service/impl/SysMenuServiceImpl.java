@@ -3,6 +3,7 @@ package com.forge.modules.system.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
@@ -175,6 +176,11 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
         BeanUtil.copyProperties(request, menu);
         resolveExternalFlag(menu);
         updateById(menu);
+        // 插件归属两列允许清空（改为底座菜单）：copy 与 updateById 均忽略 null，须显式 set
+        update(Wrappers.<SysMenu>lambdaUpdate()
+                .eq(SysMenu::getId, request.getId())
+                .set(SysMenu::getPluginCode, request.getPluginCode())
+                .set(SysMenu::getPluginMenuKey, request.getPluginMenuKey()));
         userAuthCacheService.evictAll();
     }
 

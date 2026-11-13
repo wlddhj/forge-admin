@@ -103,6 +103,34 @@ export const pluginApi = {
   // 撤销 License（联动停用）
   revokeLicense: (id: number) => request.post(`/plugin/license/${id}/revoke`),
 
+  // 签发表单元数据（能力开关+租户+插件声明集）
+  issueFormData: () =>
+    request.get<{
+      enabled: boolean
+      tenants: Array<{ id: number; name: string; code: string }>
+      plugins: Array<{
+        pluginCode: string
+        name: string
+        declaredScopes: Array<{ scope: string; name: string; description: string; grantedByDefault: boolean }>
+      }>
+    }>('/plugin/license/issue/form-data'),
+
+  // 在线签发（activate=true 签发并落库生效）
+  issueLicense: (data: {
+    tenantId: number
+    pluginCodes: string[]
+    licensee: string
+    notBefore?: string
+    notAfter: string
+    scopes?: string[]
+    licenseKey?: string
+    activate: boolean
+  }) =>
+    request.post<{ licenseKey: string; activated: boolean; licenseContent: string }>(
+      '/plugin/license/issue',
+      data
+    ),
+
   // scope 声明集与授予态
   scopeList: (tenantId: number, pluginCode: string) =>
     request.get<PluginScopeVO[]>('/plugin/scope/list', { params: { tenantId, pluginCode } }),

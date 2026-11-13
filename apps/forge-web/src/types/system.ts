@@ -124,6 +124,10 @@ export interface Menu {
   visible: number
   isExternal: number
   isCached: number
+  /** 归属插件编码（空=底座菜单） */
+  pluginCode?: string | null
+  /** 插件菜单节点键（插件菜单 diff 幂等键） */
+  pluginMenuKey?: string | null
   createTime: string
 }
 
@@ -148,6 +152,8 @@ export interface MenuRequest {
   visible?: number
   isExternal?: number
   isCached?: number
+  pluginCode?: string | null
+  pluginMenuKey?: string | null
 }
 
 // 部门
