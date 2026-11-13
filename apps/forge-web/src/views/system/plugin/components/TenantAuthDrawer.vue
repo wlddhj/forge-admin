@@ -61,7 +61,7 @@
                 {{ row.expiringSoon ? '即将到期' : '已授权' }}
               </el-tag>
               <span class="license-info">
-                {{ row.licensee }} · 至 {{ formatDateTime(row.notAfter) }}
+                {{ row.licensee }} · 至 {{ formatDate(row.notAfter) }}
               </span>
             </template>
             <el-tag v-else type="danger" size="small">无有效授权</el-tag>
@@ -92,7 +92,7 @@ import { ElMessage } from 'element-plus'
 import type { VxeTableInstance } from 'vxe-table'
 import { pluginApi } from '@/api/system/plugin'
 import type { PluginEntity, TenantPluginVO } from '@/api/system/plugin'
-import { formatDateTime } from '@/utils/dateFormat'
+import { formatDate } from '@/utils/dateFormat'
 import { hasAllPermissions } from '@/directives/permission'
 import { useDrawerTableHeight } from '@/composables/useDrawerTableHeight'
 import ScopeCheckGroup from './ScopeCheckGroup.vue'

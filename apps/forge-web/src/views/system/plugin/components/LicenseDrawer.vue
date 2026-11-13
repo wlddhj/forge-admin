@@ -1,5 +1,5 @@
 <template>
-  <el-drawer v-model="visible" :title="`License 管理${plugin ? ' - ' + plugin.name : ''}`" size="960px" append-to-body>
+  <el-drawer v-model="visible" :title="`License 管理${plugin ? ' - ' + plugin.name : ''}`" size="1000px" append-to-body>
     <div ref="containerRef" class="drawer-body" style="height: 100%">
       <!-- 导入与筛选 -->
       <div class="import-bar">
@@ -52,9 +52,9 @@
 
         <vxe-column field="pluginCode" title="插件" width="90" />
 
-        <vxe-column title="有效期" width="190">
+        <vxe-column title="有效期" width="200">
           <template #default="{ row }">
-            {{ formatDateTime(row.notBefore) }} ~ {{ formatDateTime(row.notAfter) }}
+            {{ formatDate(row.notBefore) }} ~ {{ formatDate(row.notAfter) }}
           </template>
         </vxe-column>
 
@@ -109,7 +109,7 @@ import type { UploadFile } from 'element-plus'
 import type { VxeTableInstance } from 'vxe-table'
 import { pluginApi } from '@/api/system/plugin'
 import type { PluginEntity, PluginLicenseEntity } from '@/api/system/plugin'
-import { formatDateTime } from '@/utils/dateFormat'
+import { formatDate } from '@/utils/dateFormat'
 import { useDrawerTableHeight } from '@/composables/useDrawerTableHeight'
 import IssueLicenseDialog from './IssueLicenseDialog.vue'
 
