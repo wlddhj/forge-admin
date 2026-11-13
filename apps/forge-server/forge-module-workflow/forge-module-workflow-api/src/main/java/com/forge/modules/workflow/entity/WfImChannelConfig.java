@@ -62,7 +62,11 @@ public class WfImChannelConfig {
     /** 更新者 */
     private String updateBy;
 
-    /** 逻辑删除 */
-    @TableLogic
-    private Integer deleted;
+    /**
+     * 逻辑删除（墓碑惯用法）：有效行恒为 0；删除时置本行 id（配合
+     * uk_tenant_channel(tenant_id, channel, deleted) 使同键多墓碑共存）。
+     * delval 显式写列名 id——防止误用 MP 自带 deleteById 生成墓碑=1 撞唯一索引。
+     */
+    @TableLogic(delval = "id")
+    private Long deleted;
 }

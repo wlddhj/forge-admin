@@ -351,7 +351,7 @@ CREATE TABLE IF NOT EXISTS wf_im_channel_config (
     update_time DATETIME,
     create_by VARCHAR(64),
     update_by VARCHAR(64),
-    deleted TINYINT DEFAULT 0
+    deleted BIGINT DEFAULT 0
 );
 
 -- 种子：三个测试用户（审批人解析/身份桥接）；先清理保证跨测试类幂等

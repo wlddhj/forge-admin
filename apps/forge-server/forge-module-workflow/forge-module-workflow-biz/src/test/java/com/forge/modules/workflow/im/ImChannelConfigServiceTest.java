@@ -175,14 +175,15 @@ class ImChannelConfigServiceTest {
 
     @Test
     void deleteConfig_TombstoneUsesRowIdNotOne() {
-        // 墓碑惯用法：deleted 置本行 id（配合 uk 含 deleted 列，同键多墓碑不互撞）
-        service.deleteConfig(99L);
+        // 墓碑惯用法：deleted 置本行 id（配合 uk 含 deleted 列，同键多墓碑不互撞）。
+        // id 取大值（>127）：H2 列已是 BIGINT，同时防回归到旧 TINYINT/墓碑=1 形态
+        service.deleteConfig(130_072L);
 
         verify(mapper, never()).deleteById(any(Long.class));
         ArgumentCaptor<LambdaUpdateWrapper<WfImChannelConfig>> captor =
                 ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
         verify(mapper).update(isNull(), captor.capture());
-        assertTrue(captor.getValue().getParamNameValuePairs().containsValue(99L),
+        assertTrue(captor.getValue().getParamNameValuePairs().containsValue(130_072L),
                 "deleted 置值与行条件均命中目标行 id");
         assertTrue(captor.getValue().getSqlSet().contains("deleted"),
                 "SET 子句写 deleted 列（墓碑置 id）");

@@ -112,7 +112,7 @@ public class ImChannelConfigService {
             entity.setUpdateTime(now);
             entity.setCreateBy(operator);
             entity.setUpdateBy(operator);
-            entity.setDeleted(0);
+            entity.setDeleted(0L);
             try {
                 configMapper.insert(entity);
                 log.info("新增IM渠道配置: tenantId={}, channel={}", request.getTenantId(), request.getChannel());
