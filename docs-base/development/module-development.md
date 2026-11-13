@@ -10,6 +10,8 @@
 | [前端开发规范](./frontend-development-specification.md) | API 文件、页面模板、vxe-table、弹窗/抽屉、样式、数据字典、检查清单 |
 | [数据库设计规范](./database-design-specification.md) | 表/字段/索引设计、迁移脚本、菜单与字典数据规范 |
 
+> **完整实战参考**：`forge-module-demo`（项目立项管理）是按本文流程落地的完整示例模块——单模块结构、业务表经 businessKey 关联流程实例、发起与终态事件回写审批状态、独立前端页面与菜单，业务模块接入工作流的对接步骤详见 [业务模块接入工作流指南](../modules/workflow/06.business-integration-guide.md)。
+
 ---
 
 ## 1. 开发流程总览

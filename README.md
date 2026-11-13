@@ -31,9 +31,9 @@ RBAC 权限 · B2B SaaS 多租户 · 工作流审批 · 可视化大屏 · AI �
 |------|------|
 | RBAC + 数据权限 | 用户/角色/菜单/部门/岗位五级管理，数据权限支持全部/本部门/本部门及以下/仅本人等多种范围 |
 | B2B SaaS 多租户 | SQL 级自动隔离（TenantLineInnerInterceptor）、套餐化菜单分配、平台超管代管，配置开关一键回归单租户 |
-| 工作流审批 | 基于 FlowLong 的可视化流程设计器，或签/会签/依次/票签多种办理方式，驳回策略/退回/撤回/加签/催办/拿回/唤醒等完整审批操作；AI 智能审批 + AI 智能路由；业务回调 SPI（签名 webhook）事件订阅外部系统 |
+| 工作流审批 | 基于 FlowLong 的可视化流程设计器，或签/会签/依次/票签多种办理方式，驳回策略/退回/撤回/加签/催办/拿回/唤醒等完整审批操作；AI 智能审批 + AI 智能路由；业务回调 SPI（签名 webhook）事件订阅外部系统；待办/超时/终态消息推送企业微信/钉钉工作通知 |
 | 可视化大屏 | goView 拖拽编辑器 + SQL/HTTP 双数据源 + AST 级 SQL 安全层（SELECT-only/表列白名单/强制 LIMIT/熔断/SSRF 防护） |
-| AI 能力 | Spring AI 直连 DeepSeek/Qwen/GLM/ERNIE，SSE 流式对话、Tika 文档解析、智能摘要，模型配置表驱动；LangGraph4j Agent 编排：工具循环 + 高危审批中断 + 检查点恢复，Supervisor 多 Agent 团队协作与定时自动化 |
+| AI 能力 | Spring AI 直连 DeepSeek/Qwen/GLM/ERNIE，SSE 流式对话（思考模型 reasoning 实时展示）、Tika 文档解析、智能摘要，模型配置表驱动；LangGraph4j Agent 编排：工具循环 + 高危审批中断 + 检查点恢复，Supervisor 多 Agent 团队协作与定时自动化 |
 | 打印模板 | 基于 hiprint 的拖拽式模板设计器，浏览器原生打印预览，按编号跨租户调用 |
 | 等保二级合规 | 密码策略/失败锁定/单点登录/AES-256-GCM 字段加密/XSS 过滤/审计脱敏（GB/T 22239-2019） |
 | OAuth2 + 社交登录 | Spring Authorization Server 授权服务器，JustAuth 集成微信、钉钉扫码登录 |
@@ -64,6 +64,7 @@ graph TB
         Workflow["workflow<br/>FlowLong 审批流"]
         AI["ai<br/>Spring AI 多模型"]
         ScreenBiz["screen<br/>大屏 · SQL 安全层"]
+        Demo["demo<br/>业务接入示例"]
     end
 
     subgraph framework["框架层 forge-framework（6 Starter）"]
@@ -102,7 +103,7 @@ graph TB
     classDef externalStyle fill:#ECEFF1,stroke:#90A4AE
     class Web,Mini,Screen clientStyle
     class AdminAPI,AppAPI gatewayStyle
-    class System,Workflow,AI,ScreenBiz bizStyle
+    class System,Workflow,AI,ScreenBiz,Demo bizStyle
     class FSecurity,FTenant,FMybatis,FWeb,FRedis,FCommon frameworkStyle
     class MySQL,Redis storageStyle
     class LLM externalStyle
@@ -153,13 +154,13 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 | 部门管理 | 部门树形结构、增删改查、负责人设置 |
 | 岗位管理 | 岗位增删改查、状态控制 |
 | 字典管理 | 字典类型和数据管理、缓存刷新 |
-| 参数配置 | 系统参数增删改查、缓存刷新 |
+| 参数配置 | 系统参数增删改查、缓存刷新、分组筛选 |
 | 品牌设置 | 项目 Logo（上传）、项目名称、登录页主/副标题运行时配置，登录页/侧边栏/顶栏/移动端菜单/标签页标题/favicon 全局生效，未配置时回退默认值 |
 | 文件配置 | 文件存储配置（本地/OSS） |
 | 通知公告 | 公告增删改查、发布状态管理 |
 | 在线用户 | 查看在线用户、强制下线 |
 | 租户管理 | 租户 CRUD（仅平台超管可见），创建时自动生成租户管理员账号 + 强密码 + 首次登录强制改密 |
-| 套餐管理 | 租户套餐（菜单包）维护，支持差异化菜单分配（待接入运行时菜单过滤） |
+| 套餐管理 | 租户套餐（菜单包）维护，差异化菜单分配已在运行时生效（菜单树与权限码双路过滤，平台超管不受限） |
 | 租户切换 | 平台超管通过 `X-Tenant-Id` 切换操作租户上下文，前端头部下拉切换 |
 
 ### 监控中心
@@ -175,7 +176,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 
 | 功能 | 说明 |
 |------|------|
-| 模型管理 | 流程模型设计（钉钉式可视化设计器：审批/抄送/条件/触发器/并行/包容/子流程/定时器/路由分支节点）、模型部署、版本管理，左侧分类树过滤 |
+| 模型管理 | 流程模型设计（钉钉式可视化设计器：审批/抄送/条件/触发器/并行/包容/子流程/定时器/路由分支节点）、模型部署、版本管理，左侧分类树过滤；流程标题规则（`${}` 变量模板：流程名/发起人/业务键/日期/表单变量组合，实例列表展示动态标题） |
 | 审批流程 | 已部署流程查看、启用/停用、版本切换，左侧分类树过滤 |
 | 表单管理 | 表单设计（可视化拖拽）、表单配置 |
 | 流程分类 | 分类树形结构（层级码编码、防环校验、前缀命中子树筛选）、增删改查 |
@@ -187,6 +188,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 | AI 智能审批 | 审批节点 AI 决策（通过/驳回/转人工），事务提交后异步执行，置信度阈值 + 失败降级策略，决策审计落库 |
 | AI 智能路由 | 条件/包容/路由网关 AI 分支决策（同步限时 30s），降级链 SpEL 条件 → 默认分支，路由审计落库 |
 | 业务回调 | 事件订阅外部系统（taskCreated/taskCompleted/instanceFinished），HMAC-SHA256 签名 webhook 投递、超时重试、投递记录审计 |
+| IM 消息推送 | 任务待办/超时/实例终态事件推送企业微信、钉钉工作通知；渠道凭据按租户独立配置（AES-256-GCM 加密入库、接口不回显），个人中心绑定企微/钉钉账号，管理端 IM 通知配置页 + 测试发送 |
 
 ### AI 功能
 
@@ -195,7 +197,9 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 | AI 文档管理 | 文档上传、智能摘要生成、对话问答 |
 | 多模型对话 | 基于 Spring AI 直连 DeepSeek、Qwen、GLM、ERNIE 等 OpenAI 兼容模型，模型配置表驱动 |
 | 文档解析 | PDF、DOCX、TXT 文档解析 |
-| 流式响应 | SSE 实时流式输出 |
+| 流式响应 | SSE 实时流式输出（打字机效果，多 IP 节点容灾与坏节点冷却） |
+| 思考过程流式 | 思考模型 reasoning 内容全链路透传，聊天/Agent 页实时展示思考过程，消除思考期反馈空窗 |
+| 会话标题自动生成 | 首轮回复完成后按首条消息 AI 生成短标题，手动改名受保护、不覆盖 |
 | Agent 编排 | LangGraph4j 多步编排：工具决策循环（SQL 查询/HTTP 抓取）、高危工具人工审批中断（可恢复）、执行步骤时间线与运行历史 |
 | Agent 团队协作 | Supervisor 调度式多 Agent：主管按成员职责动态分派子任务，专家各自独立提示词/模型/工具白名单执行并汇报，流式汇总结论；对话与定时任务双入口触发 |
 | Agent 定时任务 | cron 驱动的后台自动化（单 Agent 或团队），占位符模板输入，运行数据生命周期清理 |
@@ -218,7 +222,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 |------|------|
 | 打印模板管理 | 模板 CRUD、按编号唯一（跨租户共享）、版本号、状态控制 |
 | 模板设计器 | 基于 hiprint 的拖拽式设计器（拖元素/绑定字段/纸张/缩放/旋转/清空/导出 JSON） |
-| 打印预览 | 浏览器原生打印预览（el-dialog 弹窗 + jQuery html 兼容多种返回类型） |
+| 打印预览 | 浏览器原生打印预览（el-dialog 弹窗，打印区挂 body 顶层 + `@media print` visibility 隔离） |
 | 按编号调用 | 业务方通过 `GET /admin-api/system/print-template/code/{code}` 取模板 JSON 后调用打印 |
 | 打印 Demo | `/demo/hiprint` 提供按编号调用打印的示例页 |
 
@@ -237,6 +241,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 | 项目模板化 | 基于模板创建新项目 |
 | 模块管理 | 创建/删除业务模块 |
 | API 文档 | springdoc 在线文档（Swagger UI） |
+| 业务示例模块 | `forge-module-demo`：项目立项接入审批流完整实例（业务表 businessKey 关联 + 发起/终态事件回写），业务模块接入工作流的最佳实践模板，含独立前端页面与菜单 |
 
 ### 主题系统
 
@@ -259,12 +264,12 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 - **多租户**：B2B SaaS 多租户隔离（MyBatis Plus `TenantLineInnerInterceptor` + SQL 自动注入 + 缓存 key 前缀），可配置开关 `forge.tenant.enable`
 - **OAuth2 授权服务器**：基于 Spring Authorization Server，支持授权码、客户端凭证等标准 OAuth2/OIDC 协议
 - **第三方登录**：支持微信、钉钉扫码登录，基于 JustAuth 实现
-- **工作流引擎**：集成 FlowLong 国产工作流引擎，支持流程设计、审批管理、待办任务、流程实例监控；或签/会签/依次/票签（权重+门槛）多种办理方式，驳回策略（终止/回发起人/上一节点/指定节点），催办/拿回/撤回/唤醒，发起紧急程度；AI 智能审批与 AI 智能路由；业务回调 SPI（签名 webhook 投递 + 重试 + 审计）
+- **工作流引擎**：集成 FlowLong 国产工作流引擎，支持流程设计、审批管理、待办任务、流程实例监控；或签/会签/依次/票签（权重+门槛）多种办理方式，驳回策略（终止/回发起人/上一节点/指定节点），催办/拿回/撤回/唤醒，发起紧急程度；AI 智能审批与 AI 智能路由；业务回调 SPI（签名 webhook 投递 + 重试 + 审计）；待办/超时/终态事件推送企业微信/钉钉工作通知（渠道凭据按租户配置）
 - **可视化大屏**：基于 goView 的拖拽式大屏编辑器、多数据源配置、列级 SQL 白名单、SSRF 防护、数据源熔断
 - **字典管理**：灵活的数据字典配置，支持缓存刷新
 - **定时任务**：基于 Quartz 的定时任务管理和日志
 - **文件存储**：支持本地存储，可扩展 OSS 等
-- **AI 功能**：基于 Spring AI 原生实现（Java 直连上游模型），支持多模型对话、文档解析、智能摘要
+- **AI 功能**：基于 Spring AI 原生实现（Java 直连上游模型），支持多模型对话、文档解析、智能摘要、思考过程实时流式展示、会话标题自动生成
 - **API 文档**：springdoc-openapi 原生 Swagger UI
 - **移动端支持**：独立的 `/app-api` 端点，支持微信小程序授权登录
 - **强大表格**：vxe-table 提供列自定义、导出、打印等功能
@@ -292,7 +297,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 - MyBatis Plus 3.5.18.1
 - MySQL 8.0+
 - Redis 6.0+
-- JWT 认证
+- JWT 认证（Redis 用户上下文缓存：命中路径零 DB 查询，权限变更即时失效）
 - MyBatis Plus TenantLineInnerInterceptor（多租户）
 - Spring Authorization Server 7（并入 Spring Security 7，OAuth2/OIDC）
 - JustAuth（第三方登录）
@@ -302,6 +307,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 - FlowLong 1.2.7（国产工作流引擎）
 - JSqlParser 4.9（SQL 解析与 AST 校验）
 - jasypt-spring-boot-starter（配置文件加密）
+- easy-trans（数据翻译框架，注解替代手动查询翻译字段）
 - AES-256-GCM + BCrypt（数据加密与密码哈希）
 
 ### 前端
@@ -313,7 +319,7 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 - vxe-pc-ui 4.6
 - Pinia 2.1
 - Vite 5.0
-- vue-plugin-hiprint 0.0.58-fix（打印模板设计器）+ jQuery（hiprint 依赖）+ lodash-es + min-dash
+- vue-plugin-hiprint 0.0.58-fix（打印模板设计器）+ jQuery（hiprint 内部依赖，仅打印路由按需加载，不污染全局）+ lodash-es + min-dash
 
 ### 大屏编辑器
 
@@ -366,6 +372,7 @@ mysql -u root -p forge_admin < sql/init-ai.sql
 mysql -u root -p forge_admin < sql/init-app.sql
 mysql -u root -p forge_admin < sql/init-screen.sql
 mysql -u root -p forge_admin < sql/init-workflow.sql
+mysql -u root -p forge_admin < sql/init-demo.sql
 ```
 
 3. **启动后端**
@@ -415,16 +422,16 @@ pnpm dev:mp-weixin
 - 默认账号：`admin` / `password`（启用多租户时登录页需输入租户标识，默认 `default`）
 - OAuth2 使用文档：[docs-base/guide/oauth2-guide.md](docs-base/guide/oauth2-guide.md)
 
-### 启用多租户（SaaS 模式）
+### 多租户（SaaS 模式，v2.1.0 起默认开启）
 
-全库已租户化（2026-10-25 路径 A 治理，见 [docs-base/tenant-audit-20261025.md](docs-base/tenant-audit-20261025.md)）：
+全库已租户化（2026-10-25 路径 A 治理，见 [docs-base/tenant-audit-20261025.md](docs-base/tenant-audit-20261025.md)），`forge.tenant.enable` 默认 `true`：
 
 ```bash
 # 1. 存量库执行升级脚本（16 表补 tenant_id + 唯一键调整；全新建库跑最新 init*.sql 则跳过）
 mysql -u root -p forge_admin < sql/upgrade-20261025-tenant-full.sql
 
-# 2. 环境变量开启多租户并重启
-TENANT_ENABLE=true
+# 2. 如需回归单租户模式，环境变量关闭并重启
+TENANT_ENABLE=false
 ```
 
 - 登录页输入租户标识（默认租户 `default`）；平台超管（admin）可通过顶栏租户切换器跨租户代管
@@ -442,6 +449,13 @@ TENANT_ENABLE=true
 | `sql/upgrade-20261026-ai-route-record.sql` | AI 智能路由审计表 `wf_ai_route_record` |
 | `sql/upgrade-20261027-callback.sql` | 业务回调 `wf_business_callback` / `wf_callback_record` + 菜单权限 |
 | `sql/upgrade-20261027-flowlong127.sql` | FlowLong 1.2.7 任务/实例表新增 `urgent`（紧急程度）列 |
+| `sql/upgrade-20261029-project-example.sql` | 业务示例模块 `demo_biz_project` 表、菜单（id 280-284）与超管授权 |
+| `sql/upgrade-20261029-urgent-dict.sql` | 紧急程度字典 `wf_urgent`（常规/重要不紧急/紧急不重要/紧急且重要） |
+| `sql/upgrade-20261030-title-rule.sql` | `wf_process_ext` 补 `title_rule` 列（流程标题规则） |
+| `sql/upgrade-20261110-im-notify.sql` | 审批 IM 推送：`wf_im_channel_config` 表、开关种子、按钮权限（v1） |
+| `sql/upgrade-20261111-ai-reasoning.sql` | AI 消息表补 `reasoning_content` 列（思考过程存储） |
+| `sql/upgrade-20261112-im-unique-tenant-channel.sql` | IM 渠道配置唯一索引调整为「租户 + 渠道」，`deleted` 墓碑列 BIGINT 对齐 |
+| `sql/upgrade-20261112-tenant-wf-event-audit.sql` | 工作流事件审计表补 `tenant_id`（多租户开闸配套） |
 
 ## 开发命令
 
@@ -510,6 +524,7 @@ forge-admin/
 │   │   ├── forge-module-screen/         # 大屏模块
 │   │   │   ├── forge-module-screen-api/ # 实体 + DTO + 枚举
 │   │   │   └── forge-module-screen-biz/ # Controller/Service/Mapper + safety/executor/cache/fault
+│   │   ├── forge-module-demo/           # 业务示例模块（单模块结构，项目立项接入审批流实例）
 │   │   └── forge-server/                # Spring Boot 启动入口
 │   │
 │   ├── forge-web/                       # 前端应用
@@ -567,7 +582,7 @@ forge-admin/
 
 ### 后端多模块架构
 
-后端采用 16 模块的 Maven 多项目结构，各模块职责清晰：
+后端采用 17 模块的 Maven 多项目结构，各模块职责清晰：
 
 ```
 forge-dependencies        → BOM 版本管理
@@ -576,6 +591,7 @@ forge-module-system (2)   → 系统模块，api/biz 分离
 forge-module-workflow (2) → 工作流模块，api/biz 分离（基于 FlowLong）
 forge-module-ai (2)       → AI 模块，api/biz 分离
 forge-module-screen (2)   → 大屏模块，api/biz 分离（含 SQL 安全层）
+forge-module-demo (1)     → 业务示例模块，单模块结构（项目立项接入审批流）
 forge-server              → Spring Boot 启动入口
 ```
 
@@ -588,7 +604,7 @@ forge-server              → Spring Boot 启动入口
 框架通过 `WebMvcConfigurer.configurePathMatch()` 根据 Controller 包名（`controller.admin` / `controller.app`）自动注入路径前缀，Controller 代码无需手动指定前缀。
 
 **模块依赖关系：**
-- `forge-server` ← `system-biz`、`workflow-biz`、`ai-biz`、`screen-biz`
+- `forge-server` ← `system-biz`、`workflow-biz`、`ai-biz`、`screen-biz`、`demo`
 - `workflow-biz` ← `workflow-api`、`system-api`、`starters`、`flowlong`
 - `ai-biz` ← `ai-api`、`system-api`、`starters`、`spring-ai`（直连 LLM 上游）
 - `system-biz` ← `system-api`、`starters`、`quartz`
@@ -664,7 +680,7 @@ AI 能力全部在 Java 端实现（Spring AI 直连上游模型，无独立 AI 
   - `views/system/print/` — 列表页 + 表单弹窗 + `design/` 设计器
   - `views/demo/hiprint/` — 按编号调用打印的示例页
 - **数据表 `sys_print_template`**：跨租户共享表（在 `ignore-tables` 白名单），`template_code` 全表唯一，`contents` 字段存 hiprint JSON
-- **依赖**：`vue-plugin-hiprint@0.0.58-fix`、`jquery`（hiprint 内部依赖，main.ts 全局暴露 `window.$`）、`lodash-es`、`min-dash`
+- **依赖**：`vue-plugin-hiprint@0.0.58-fix`、`jquery`（hiprint 内部依赖，仅打印路由按需 import，已退出全局启动路径，不再暴露 `window.$`）、`lodash-es`、`min-dash`
 
 **关键流程：**
 1. 列表 → 新增模板（填编号/名称）→ 路由跳转 `/system/print/design?id=N` 进入设计器
@@ -863,6 +879,9 @@ mysql -u root -p forge_admin < sql/init-screen.sql
 | [02.condition-node-guide.md](docs-base/modules/workflow/02.condition-node-guide.md) | 流程设计者 / 后端开发 | 条件节点(type=3 / type=4)实际行为、触发条件使用时机、SpEL 求值、兜底机制 |
 | [03.trigger-bean-guide.md](docs-base/modules/workflow/03.trigger-bean-guide.md) | 后端开发 | 自定义 `@FlowLongTrigger` Bean、`AbstractFlowLongTrigger` 抽象基类、4 种业务模式、反射调用 |
 | [04.ai-approval-and-routing.md](docs-base/modules/workflow/04.ai-approval-and-routing.md) | 流程设计者 / 流程管理员 / 后端开发 | AI 智能审批与 AI 智能路由：能力对比、设计器配置、降级链、审计表查询与 FAQ |
+| [05.business-callback-guide.md](docs-base/modules/workflow/05.business-callback-guide.md) | 外部系统集成方 / 流程管理员 / 后端开发 | 业务回调（Webhook 事件订阅）：事件类型与引擎映射、HMAC-SHA256 签名验签、投递重试、载荷契约 |
+| [06.business-integration-guide.md](docs-base/modules/workflow/06.business-integration-guide.md) | 业务后端开发 | 业务模块接入工作流对接步骤：形态选型、businessKey 与业务表设计、状态回写幂等 |
+| [07.im-notify-guide.md](docs-base/modules/workflow/07.im-notify-guide.md) | 流程管理员 / 运维 / 后端开发 | 审批消息推送企业微信/钉钉：渠道配置、账号绑定、事件类型、故障排查 |
 
 ### 其他文档
 
@@ -878,6 +897,9 @@ mysql -u root -p forge_admin < sql/init-screen.sql
 | [docs-base/development/frontend-development-specification.md](docs-base/development/frontend-development-specification.md) | 前端开发规范(API、页面模板、vxe-table、弹窗/抽屉) |
 | [docs-base/guide/print-template-guide.md](docs-base/guide/print-template-guide.md) | 打印模板使用指南（hiprint 设计器/调用打印/多租户行为/常见问题） |
 | [docs-base/modules/ai-module.md](docs-base/modules/ai-module.md) | AI 模块使用手册（多模型对话/文档解析摘要、模型配置管理、流式分工、API 端点） |
+| [docs-base/modules/screen-module.md](docs-base/modules/screen-module.md) | 大屏模块使用手册（使用流程、API、SQL 白名单管理、安全护栏、故障排查） |
+| [docs-base/guide/quartz-job-guide.md](docs-base/guide/quartz-job-guide.md) | 定时任务（Quartz）使用指南（JobHandler 接口约束、invoke_target 格式、开发与排查） |
+| [docs-base/tenant-audit-20261025.md](docs-base/tenant-audit-20261025.md) | 全库租户化路径 A 治理审计报告（16 表改造记录、已知限制） |
 
 ## 许可证
 

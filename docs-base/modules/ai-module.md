@@ -2,7 +2,7 @@
 
 > 适用范围：`apps/forge-server/forge-module-ai`（后端）与 `apps/forge-web/src/views/ai`（前端管理页）。
 >
-> AI 能力全部在 Java 端实现（基于 Spring AI 2.0.2 + LangGraph4j 1.9，无独立 AI 服务进程），四个 provider（deepseek/qwen/glm/ernie）统一走 OpenAI 兼容协议直连上游；模型传输层为官方 OpenAI Java SDK（OkHttp），超时/重试按 `ai.client.*` 配置传入。
+> AI 能力全部在 Java 端实现（基于 Spring AI 2.0.2 + LangGraph4j 1.9，无独立 AI 服务进程），四个 provider（deepseek/qwen/glm/ernie）统一走 OpenAI 兼容协议直连上游；模型传输层为官方 OpenAI Java SDK（OkHttp），超时/重试按 `ai.client.*` 配置传入；流式链路由原生 `OpenAiCompatStreamClient`（JDK HttpClient）承载，负责透传思考模型的 `reasoning_content` 增量。
 
 ## 目录
 
@@ -24,6 +24,8 @@
 | 能力 | 说明 |
 |------|------|
 | 多模型对话 | 非流式（同步返回）+ SSE 流式两种模式，支持按 modelId / modelName 选择模型 |
+| 思考过程流式 | 思考模型（deepseek-reasoner 等）的 reasoning 增量实时透传，聊天/Agent 页边思考边展示，消除思考期反馈空窗 |
+| 会话标题自动生成 | 首轮回复完成后按首条消息 AI 生成短标题；占位标题才生成、手动改名后不再覆盖 |
 | 文档解析 | 上传 pdf/docx/txt，基于 Apache Tika 提取文本内容 |
 | 文档摘要 | 调用 LLM 生成 brief / detailed / bullet 三种风格摘要 |
 | 模型配置管理 | `ai_model_config` 表为唯一配置源（端点/密钥/温度/maxTokens），页面可增删改、启停、切换默认模型、探测可用性 |
@@ -105,10 +107,10 @@ Controller → AiModelResolver.resolve(request)   # 解析出 AiModelConfig
 POST /admin-api/ai/chat/message/stream   # 只发 SSE 流，不落库 AI 回复
      │  （服务端先在同步线程 prepareStreamChat 保存用户消息，需要 Security Context）
      ▼
-前端接收 SSE 帧：{"content":"…"} 增量 → [DONE] 结束（{"error":true,"message":"…"} 异常）
+前端接收 SSE 帧：{"reasoning":"…"} 思考增量（思考模型才有）→ {"content":"…"} 正文增量 → [DONE] 结束（{"error":true,"message":"…"} 异常）
      │
      ▼
-POST /admin-api/ai/chat/message/save-ai  # 前端收完后保存 AI 回复
+POST /admin-api/ai/chat/message/save-ai  # 前端收完后保存 AI 回复（reasoning 一并入库）
 ```
 
 ### 2.6 Agent 编排架构（LangGraph4j）
@@ -166,8 +168,8 @@ START → supervisor（主管模型决策：按成员职责分派/给最终答�
 
 | 页面 | 路径 | 功能 |
 |------|------|------|
-| AI 对话 | `views/ai/chat` | 对话窗口：发送消息（流式渲染）、模型切换、消息历史；Agent 模式下单 Agent/团队下拉选择、执行时间线 |
-| 会话管理 | `views/ai/conversation` | 对话列表：分页查询、改名、删除 |
+| AI 对话 | `views/ai/chat` | 对话窗口：发送消息（流式渲染，思考模型的思考过程实时折叠展示）、模型切换、消息历史；Agent 模式下单 Agent/团队下拉选择、执行时间线 |
+| 会话管理 | `views/ai/conversation` | 对话列表：分页查询、改名、删除；首轮对话标题由 AI 自动生成，手动改名后不再覆盖 |
 | 文档管理 | `views/ai/document` | 文档上传（pdf/docx/txt）、内容查看、摘要生成 |
 | 模型管理 | `views/ai/model` | 模型配置：新增/编辑、启停、默认模型切换、状态探测刷新 |
 | Agent 管理 | `views/ai/agent/config` | Agent 配置：提示词/模型绑定/步数上限编辑、启停 |
@@ -184,7 +186,7 @@ START → supervisor（主管模型决策：按成员职责分派/给最终答�
 
 前缀 `/admin-api`，权限码格式 `ai:{entity}:{action}`。
 
-### 4.1 AI 对话（AiChatController，9 个）
+### 4.1 AI 对话（AiChatController，10 个）
 
 | 方法 | 路径 | 权限码 | 说明 |
 |------|------|--------|------|
@@ -192,6 +194,7 @@ START → supervisor（主管模型决策：按成员职责分派/给最终答�
 | GET | `/ai/chat/conversation/list` | `ai:chat:query` | 对话列表（分页，可按 modelId 过滤） |
 | GET | `/ai/chat/conversation/{id}` | `ai:chat:query` | 对话详情 |
 | GET | `/ai/chat/conversation/{id}/messages` | `ai:chat:query` | 对话消息列表 |
+| POST | `/ai/chat/conversation/{id}/generate-title` | `ai:chat:edit` | AI 生成会话标题（仅占位标题生成一次，手动改名后调用无效） |
 | PUT | `/ai/chat/conversation/{id}/title` | `ai:chat:edit` | 更新对话标题 |
 | DELETE | `/ai/chat/conversation/{id}` | `ai:chat:delete` | 删除对话 |
 | POST | `/ai/chat/message` | `ai:chat:create` | 发送消息（非流式） |
@@ -280,7 +283,7 @@ ai:
 |----|------|---------|
 | `ai_model_config` | **唯一模型配置源** | `model_name`、`model_code`、`provider`、`api_endpoint`（base-url）、`api_key`、`max_tokens`、`temperature`、`context_window`、`input_price`/`output_price`、`is_default`、`status` |
 | `ai_chat_conversation` | 对话会话 | `conversation_id`（业务ID）、`user_id`、`model_id`、`title`、`summary`、`total_messages`、`total_tokens`、`total_cost`、`last_message_time` |
-| `ai_chat_message` | 对话消息 | `message_id`、`conversation_id`、`role`（user/assistant）、`content`、`input_tokens`/`output_tokens`、`cost`、`model_id`、`parent_message_id`、`metadata`、`status`、`error_msg` |
+| `ai_chat_message` | 对话消息 | `message_id`、`conversation_id`、`role`（user/assistant）、`content`、`reasoning_content`（思考过程，思考模型才有）、`input_tokens`/`output_tokens`、`cost`、`model_id`、`parent_message_id`、`metadata`、`status`、`error_msg` |
 | `ai_document` | 文档 | `attachment_id`（关联附件）、`file_name`、`content`（解析文本）、`summary`、`model_name`、`status`、`error_message` |
 | `ai_api_usage` | 用量统计 | `user_id`、`model_id`、`usage_date`、`request_count`、`success_count`/`failure_count`、`total_input_tokens`/`total_output_tokens`、`total_cost`、`avg_response_time` |
 | `ai_agent_config` | Agent 配置 | `agent_code`、`graph_key`（编排图）、`system_prompt`、`user_prompt_template`、`model_bindings`（节点→模型）、`max_steps`、`status` |
