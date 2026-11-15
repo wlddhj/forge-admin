@@ -53,4 +53,13 @@ public interface PluginDescriptor {
     default List<ScopeDefinition> declaredScopes() {
         return List.of();
     }
+
+    /**
+     * 收费模式默认值声明：true=免费开放（免 License 闸），false=收费授权。
+     * 仅在插件首次注册时写入 sys_plugin.charge_mode，此后以管理端设置为准
+     * （升级重启不覆盖运营决策）。
+     */
+    default boolean freeOpen() {
+        return false;
+    }
 }

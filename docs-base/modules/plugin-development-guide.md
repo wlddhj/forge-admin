@@ -420,6 +420,7 @@ public class MeetingPluginDescriptor implements PluginDescriptor {
 |------|------|
 | `pluginCode` | kebab-case 全局唯一；License 与启停都关联它 |
 | `version` | 必须 SemVer（`1.0.0`）；变更自动记操作日志 |
+| `freeOpen` | 收费模式默认值（默认 false=收费授权）：true 免费开放（免 License 闸、新租户自动启用）；仅注册首次写入，管理端可改 |
 | `menuKey` | 插件内唯一，**幂等键**——升级时改菜单靠它保 id 不断角色关联，**一经发布不要改**（要改=删旧 key 加新 key） |
 | `parentKey` | 只能指向同一声明内的 menuKey 或 null（顶级）；成环/悬空启动报错但不影响其他插件 |
 | `componentPath` | 前端组件路径（`/views/...` 开头，与第 7 步文件位置一致） |

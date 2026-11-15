@@ -80,6 +80,9 @@ public class PluginController {
     @PreAuthorize("hasAuthority('plugin:list')")
     public Result<List<TenantPluginVO>> tenants(@PathVariable String pluginCode) {
         // 以租户为主表 LEFT JOIN 启停状态：全新状态无启停记录也须展示（可发起启用）
+        SysPlugin pluginMeta = manageService.listPlugins().stream()
+                .filter(p -> p.getPluginCode().equals(pluginCode)).findFirst().orElse(null);
+        Integer chargeMode = pluginMeta == null ? SysPlugin.CHARGE_MODE_LICENSE : pluginMeta.getChargeMode();
         List<SysTenant> tenants = sysTenantService.list().stream()
                 .filter(t -> Integer.valueOf(1).equals(t.getStatus()))
                 .toList();
@@ -92,6 +95,7 @@ public class PluginController {
             TenantPluginVO.TenantPluginVOBuilder builder = TenantPluginVO.builder()
                     .tenantId(tenant.getId())
                     .tenantName(tenant.getName())
+                    .chargeMode(chargeMode)
                     .enabled(state == null ? 0 : state.getEnabled())
                     .disabledReason(state == null ? null : state.getDisabledReason())
                     .enabledTime(state == null ? null : state.getEnabledTime())
@@ -125,6 +129,15 @@ public class PluginController {
     @OperationLog(title = "插件管理", businessType = OperationLog.BusinessType.UPDATE)
     public Result<Void> disable(@PathVariable String pluginCode, @PathVariable Long tenantId) {
         manageService.disable(pluginCode, tenantId, "手动停用");
+        return Result.success();
+    }
+
+    @Operation(summary = "收费模式切换（免费开放/收费授权；不联动租户启停）")
+    @PutMapping("/{pluginCode}/charge-mode")
+    @PreAuthorize("hasAuthority('plugin:charge')")
+    @OperationLog(title = "插件管理", businessType = OperationLog.BusinessType.UPDATE)
+    public Result<Void> updateChargeMode(@PathVariable String pluginCode, @RequestParam int mode) {
+        manageService.updateChargeMode(pluginCode, mode);
         return Result.success();
     }
 

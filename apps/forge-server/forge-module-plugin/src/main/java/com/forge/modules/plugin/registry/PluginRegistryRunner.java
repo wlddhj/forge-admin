@@ -74,6 +74,9 @@ public class PluginRegistryRunner implements ApplicationRunner {
             plugin.setProvider(descriptor.provider());
             plugin.setRunningVersion(descriptor.version());
             plugin.setGlobalStatus(SysPlugin.GLOBAL_STATUS_ENABLED);
+            // 收费模式默认值仅首次注册写入（此后管理端设置为准，升级不覆盖）
+            plugin.setChargeMode(descriptor.freeOpen()
+                    ? SysPlugin.CHARGE_MODE_FREE : SysPlugin.CHARGE_MODE_LICENSE);
             plugin.setMenusSynced(0);
             plugin.setCreateTime(LocalDateTime.now());
             plugin.setUpdateTime(LocalDateTime.now());

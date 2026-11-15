@@ -10,6 +10,8 @@ export interface PluginEntity {
   provider: string | null
   runningVersion: string
   globalStatus: number
+  /** 1收费授权 0免费开放 */
+  chargeMode: number
   menusSynced: number
   updateTime: string | null
 }
@@ -18,6 +20,8 @@ export interface PluginEntity {
 export interface TenantPluginVO {
   tenantId: number
   tenantName: string | null
+  /** 1收费授权 0免费开放 */
+  chargeMode?: number
   enabled: number
   disabledReason: string | null
   enabledTime: string | null
@@ -82,6 +86,10 @@ export const pluginApi = {
   updateGlobalStatus: (pluginCode: string, globalStatus: number) =>
     request.put(`/plugin/${pluginCode}/global-status`, null, { params: { globalStatus } }),
 
+  // 收费模式切换（0免费开放 1收费授权；不联动租户启停）
+  updateChargeMode: (pluginCode: string, mode: number) =>
+    request.put(`/plugin/${pluginCode}/charge-mode`, null, { params: { mode } }),
+
   // License 导入（一码多插件原子导入）
   importLicense: (file: File) => {
     const formData = new FormData()
@@ -111,6 +119,7 @@ export const pluginApi = {
       plugins: Array<{
         pluginCode: string
         name: string
+        freeOpen: boolean
         declaredScopes: Array<{ scope: string; name: string; description: string; grantedByDefault: boolean }>
       }>
     }>('/plugin/license/issue/form-data'),

@@ -63,6 +63,14 @@
           >
             {{ row.globalStatus === 1 ? '平台禁用' : '平台启用' }}
           </el-button>
+          <el-button
+            v-permission="'plugin:charge'"
+            link
+            :type="row.chargeMode === 0 ? 'warning' : 'success'"
+            @click="toggleChargeMode(row)"
+          >
+            {{ row.chargeMode === 0 ? '转收费' : '设为免费' }}
+          </el-button>
         </div>
       </el-card>
 
@@ -120,6 +128,18 @@ const toggleGlobal = async (row: PluginEntity) => {
   await ElMessageBox.confirm(tip, '平台总闸', { type: 'warning' })
   await pluginApi.updateGlobalStatus(row.pluginCode, disabling ? 0 : 1)
   ElMessage.success('操作成功')
+  await loadPlugins()
+}
+
+/** 收费模式切换：免费→收费后已启用无 License 的租户由每日巡检收口停用（最长 24h） */
+const toggleChargeMode = async (row: PluginEntity) => {
+  const toFree = row.chargeMode !== 0
+  const tip = toFree
+    ? `「${row.name}」设为免费开放：各租户启用不再需要 License（已启用租户不受影响）。确定？`
+    : `「${row.name}」转为收费授权：此后启用需 License；已启用但无有效授权的租户将在每日巡检时自动停用（最长 24 小时内）。确定？`
+  await ElMessageBox.confirm(tip, '收费模式', { type: 'warning' })
+  await pluginApi.updateChargeMode(row.pluginCode, toFree ? 0 : 1)
+  ElMessage.success('已切换')
   await loadPlugins()
 }
 

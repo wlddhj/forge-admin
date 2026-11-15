@@ -376,6 +376,15 @@ public class ${pascal}PluginDescriptor implements PluginDescriptor {
         return "1.0.0";
     }
 
+    /**
+     * 收费模式默认值（仅注册首次写入，管理端可改）：
+     * false=收费授权（License 硬闸）true=免费开放（免闸，新租户自动启用）
+     */
+    @Override
+    public boolean freeOpen() {
+        return false;
+    }
+
     @Override
     public List<PluginMenuNode> menus() {
         return List.of(

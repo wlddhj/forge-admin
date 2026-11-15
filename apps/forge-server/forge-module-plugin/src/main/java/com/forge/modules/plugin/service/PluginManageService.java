@@ -76,7 +76,10 @@ public class PluginManageService {
         if (!Integer.valueOf(SysPlugin.GLOBAL_STATUS_ENABLED).equals(plugin.getGlobalStatus())) {
             throw new BusinessException(ResultCode.PLUGIN_GLOBAL_DISABLED, "插件已被平台禁用，无法启用");
         }
-        if (!licenseService.hasActiveLicense(tenantId, pluginCode, LocalDateTime.now())) {
+        // 收费授权插件：License 硬闸；免费开放插件：跳过（仍需显式启用动作）
+        // fail-closed：charge_mode 仅显式等于 FREE 才免闸（null/异常值按收费处理）
+        if (!Integer.valueOf(SysPlugin.CHARGE_MODE_FREE).equals(plugin.getChargeMode())
+                && !licenseService.hasActiveLicense(tenantId, pluginCode, LocalDateTime.now())) {
             throw new BusinessException(ResultCode.LICENSE_REQUIRED,
                     "租户 " + tenantId + " 对插件[" + pluginCode + "]无有效授权，请先导入 License");
         }
@@ -127,6 +130,25 @@ public class PluginManageService {
         }
         afterStateChanged(tenantId, pluginCode);
         log.info("插件[{}]对租户 {} 停用（原因: {}）", pluginCode, tenantId, reason);
+    }
+
+    /**
+     * 收费模式切换（平台运营决策；不联动租户启停）：
+     * 免费→收费后，已启用但无 License 的租户由每日巡检收口停用（02 确认记录 Q3）。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateChargeMode(String pluginCode, int chargeMode) {
+        SysPlugin plugin = requirePlugin(pluginCode);
+        if (chargeMode != SysPlugin.CHARGE_MODE_FREE && chargeMode != SysPlugin.CHARGE_MODE_LICENSE) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "收费模式非法: " + chargeMode);
+        }
+        SysPlugin patch = new SysPlugin();
+        patch.setId(plugin.getId());
+        patch.setChargeMode(chargeMode);
+        patch.setUpdateTime(LocalDateTime.now());
+        pluginMapper.updateById(patch);
+        log.info("插件[{}]收费模式切换为 {}", pluginCode,
+                chargeMode == SysPlugin.CHARGE_MODE_FREE ? "免费开放" : "收费授权");
     }
 
     /** 平台总闸：禁用=全部租户瞬时不可访问（fail-closed，缓存 evict 后立即生效） */

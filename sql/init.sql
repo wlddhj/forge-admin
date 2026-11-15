@@ -982,10 +982,11 @@ INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `menu_type`, `per
 (2604, 'License撤销', 2600, 2, 'plugin:license:revoke', 4, 1, 1, 0, 0, NOW(), NOW(), 0),
 (2605, '数据权限授予', 2600, 2, 'plugin:scope:grant',  5, 1, 1, 0, 0, NOW(), NOW(), 0),
 (2606, '平台总闸', 2600, 2, 'plugin:global',           6, 1, 1, 0, 0, NOW(), NOW(), 0),
-(2607, 'License在线签发', 2600, 2, 'plugin:license:issue', 7, 1, 1, 0, 0, NOW(), NOW(), 0);
+(2607, 'License在线签发', 2600, 2, 'plugin:license:issue', 7, 1, 1, 0, 0, NOW(), NOW(), 0),
+(2608, '收费模式切换', 2600, 2, 'plugin:charge', 8, 1, 1, 0, 0, NOW(), NOW(), 0);
 
 INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
-(1, 2600), (1, 2601), (1, 2602), (1, 2603), (1, 2604), (1, 2605), (1, 2606), (1, 2607);
+(1, 2600), (1, 2601), (1, 2602), (1, 2603), (1, 2604), (1, 2605), (1, 2606), (1, 2607), (1, 2608);
 
 -- 插件注册表（全局共享表，墓碑列 BIGINT delval=id）
 DROP TABLE IF EXISTS `sys_plugin`;
@@ -997,6 +998,7 @@ CREATE TABLE `sys_plugin` (
     `provider` VARCHAR(100) DEFAULT NULL COMMENT '提供方',
     `running_version` VARCHAR(32) NOT NULL COMMENT '运行版本(启动刷新,变更记操作日志)',
     `global_status` TINYINT NOT NULL DEFAULT 1 COMMENT '1正常 0平台禁用(总闸)',
+    `charge_mode` TINYINT NOT NULL DEFAULT 1 COMMENT '1收费授权 0免费开放(免License闸,仍需租户启用)',
     `menus_synced` TINYINT NOT NULL DEFAULT 0 COMMENT '菜单已同步',
     `create_time` DATETIME DEFAULT NULL,
     `update_time` DATETIME DEFAULT NULL,

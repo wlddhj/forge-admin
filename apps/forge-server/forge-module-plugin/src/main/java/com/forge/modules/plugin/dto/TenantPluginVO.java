@@ -29,6 +29,9 @@ public class TenantPluginVO {
 
     private LocalDateTime disabledTime;
 
+    /** 插件收费模式：1收费授权 0免费开放（前端据此显示标签/跳过授权提示） */
+    private Integer chargeMode;
+
     /** 当前有效 License 编号（null=无有效授权） */
     private String licenseKey;
 

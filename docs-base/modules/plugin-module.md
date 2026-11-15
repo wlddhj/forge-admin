@@ -25,7 +25,8 @@
 |------|------|
 | 插件注册 | 启动时扫描全部 `PluginDescriptor` Bean，元数据 upsert `sys_plugin`；版本变化自动记操作日志（无人工确认环节） |
 | 菜单同步 | 插件声明菜单树，按 `pluginMenuKey` 幂等 diff 导入 `sys_menu`（保留菜单 id 不断角色关联，自动授予内置超管角色） |
-| 租户级启停 | 启用硬闸=有效 License；停用=菜单隐藏+接口拦截，**业务数据全量保留**，重新启用即恢复 |
+| 租户级启停 | 启用硬闸=有效 License（**收费插件**；免费插件 charge_mode=0 免闸）；停用=菜单隐藏+接口拦截，**业务数据全量保留**，重新启用即恢复 |
+| 收费双模式 | charge_mode：收费授权（License 闸）/免费开放（免闸仍需租户启用）；描述符 freeOpen() 声明默认仅注册首次写入，管理端可切换（plugin:charge）；**新租户创建自动启用全部免费插件**（free_auto）；免费→收费后已启用无授权租户由每日巡检收口停用（≤24h） |
 | 平台总闸 | 一键禁用某插件对全部租户的访问（fail-closed，秒级生效） |
 | License 校验 | 三要素：签名（RSA2048-SHA256）+ 租户 code + 时间窗；外加 scope ⊆ 插件声明集结构校验；每日 02:30 Quartz 巡检到期自动停用 |
 | 在线签发（双模式） | 配置 `forge.plugin.license.private-key` → 页面直接签发（落库生效或下载 .lic）；不配置 → 仅导入（私有化交付姿势） |
@@ -84,6 +85,7 @@ apps/forge-server/forge-module-plugin              ← 管理模块（单模块�
 | POST | `/admin-api/plugin/{code}/tenants/{tenantId}/enable` | plugin:enable | 启用（无有效 License 报 LICENSE_REQUIRED） |
 | POST | `/admin-api/plugin/{code}/tenants/{tenantId}/disable` | plugin:disable | 停用（菜单隐藏数据保留） |
 | PUT | `/admin-api/plugin/{code}/global-status` | plugin:global | 平台总闸 |
+| PUT | `/admin-api/plugin/{code}/charge-mode?mode=0\|1` | plugin:charge | 收费模式切换（不联动租户启停） |
 | GET | `/admin-api/plugin/my` | 登录 | 本租户启用插件（租户视角只读） |
 | GET | `/admin-api/plugin/license/page` | plugin:list | License 记录分页 |
 | POST | `/admin-api/plugin/license/import` | plugin:license:import | 上传 .lic 导入（@RepeatSubmit） |
@@ -164,6 +166,6 @@ payload 必填：licenseKey/pluginCodes[]/tenantCode/licensee/issuedAt/notBefore
 | 租户授权抽屉无数据 | 已修复（0bf66332）：现为全部启用租户 LEFT JOIN；仍空则查 sys_tenant status=1 是否有租户 |
 | 菜单同步报「声明无效」 | 描述符 parentKey 不在声明集 / menuKey 重复 / 父子成环，看启动日志 ERROR |
 | 手工标记的插件菜单被删 | pluginMenuKey 与描述符声明不一致被当孤儿清理——菜单管理页可补标记，键必须与声明一致 |
-| 启用报「无有效授权」 | 查 sys_plugin_license：status=1 且 not_before≤now<not_after |
+| 启用报「无有效授权」 | 查 sys_plugin_license：status=1 且 not_before≤now<not_after；确认 charge_mode（免费插件不查 License） |
 | 插件接口 403 PLUGIN_DISABLED | 切面拦截：租户未启用/总闸禁用/异步线程无租户上下文 |
 | 在线签发按钮不出现 | 未配置 forge.plugin.license.private-key（能力探测 enabled=false，属预期） |

@@ -23,8 +23,10 @@ import com.forge.modules.system.mapper.SysUserRoleMapper;
 import com.forge.modules.system.service.SysTenantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.forge.modules.system.event.TenantCreatedEvent;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +60,7 @@ public class SysTenantServiceImpl extends ServiceImpl<SysTenantMapper, SysTenant
     private final SysRoleMapper sysRoleMapper;
     private final PasswordEncoder passwordEncoder;
     private final CacheManager cacheManager;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public Long getIdByCode(String code) {
@@ -188,6 +191,8 @@ public class SysTenantServiceImpl extends ServiceImpl<SysTenantMapper, SysTenant
                 response.setPackageName(pkg.getName());
             }
         }
+        // 租户创建完成事件：监听方（免费插件自动启用等）AFTER_COMMIT 消费，失败不回滚本事务
+        eventPublisher.publishEvent(new TenantCreatedEvent(tenantId));
         return response;
     }
 

@@ -22,7 +22,7 @@
           <el-option
             v-for="p in plugins"
             :key="p.pluginCode"
-            :label="p.name"
+            :label="p.freeOpen ? `${p.name}（免费·无需授权）` : p.name"
             :value="p.pluginCode"
           />
         </el-select>
@@ -93,6 +93,7 @@ const plugins = ref<
   Array<{
     pluginCode: string
     name: string
+    freeOpen: boolean
     declaredScopes: Array<{ scope: string; name: string; description: string; grantedByDefault: boolean }>
   }>
 >([])

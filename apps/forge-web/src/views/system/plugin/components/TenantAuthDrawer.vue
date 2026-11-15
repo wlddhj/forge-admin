@@ -59,7 +59,8 @@
 
         <vxe-column title="授权状态" min-width="220">
           <template #default="{ row }">
-            <template v-if="row.licenseKey">
+            <el-tag v-if="row.chargeMode === 0" type="success" size="small">免费开放</el-tag>
+            <template v-else-if="row.licenseKey">
               <el-tag :type="row.expiringSoon ? 'warning' : 'success'" size="small">
                 {{ row.expiringSoon ? '即将到期' : '已授权' }}
               </el-tag>

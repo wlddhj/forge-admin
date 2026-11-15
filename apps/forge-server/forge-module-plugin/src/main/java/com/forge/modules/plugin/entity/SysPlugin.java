@@ -35,6 +35,9 @@ public class SysPlugin {
     /** 1正常 0平台禁用（总闸，停用全部租户访问） */
     private Integer globalStatus;
 
+    /** 1收费授权（License 硬闸） 0免费开放（免闸，仍需租户启用）；描述符默认仅注册首次写入，此后管理端为准 */
+    private Integer chargeMode;
+
     /** 菜单已同步标记（1=已按描述符导入 sys_menu） */
     private Integer menusSynced;
 
@@ -51,4 +54,8 @@ public class SysPlugin {
     public static final int GLOBAL_STATUS_ENABLED = 1;
 
     public static final int GLOBAL_STATUS_DISABLED = 0;
+
+    public static final int CHARGE_MODE_LICENSE = 1;
+
+    public static final int CHARGE_MODE_FREE = 0;
 }

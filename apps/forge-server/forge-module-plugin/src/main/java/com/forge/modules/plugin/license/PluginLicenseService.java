@@ -242,7 +242,47 @@ public class PluginLicenseService {
         if (disabled > 0) {
             pluginCacheService.evictMenuCache();
         }
+        // 收口扫描（02 Q3）：免费→收费切换后，已启用但无有效 License 的租户行停用
+        disabled += enforceLicenseForChargedPlugins(now);
         return disabled;
+    }
+
+    /**
+     * 收费收口：charge_mode=LICENSE 且租户 enabled=1 且无 ACTIVE License 的行 → 停用
+     * （免费期启用的租户在模式切换后的首个巡检周期收口，reason 区分）。
+     */
+    private int enforceLicenseForChargedPlugins(LocalDateTime now) {
+        List<SysPluginTenant> enabledRows = tenantPluginMapper.selectList(Wrappers.<SysPluginTenant>lambdaQuery()
+                .eq(SysPluginTenant::getEnabled, 1));
+        if (enabledRows.isEmpty()) {
+            return 0;
+        }
+        Map<String, Integer> chargeModeByCode = pluginMapper.selectList(Wrappers.<SysPlugin>lambdaQuery()
+                        .select(SysPlugin::getPluginCode, SysPlugin::getChargeMode))
+                .stream().collect(Collectors.toMap(SysPlugin::getPluginCode, SysPlugin::getChargeMode, (a, b) -> a));
+        int stopped = 0;
+        for (SysPluginTenant row : enabledRows) {
+            if (!Integer.valueOf(SysPlugin.CHARGE_MODE_LICENSE).equals(chargeModeByCode.get(row.getPluginCode()))) {
+                continue;
+            }
+            if (hasActiveLicense(row.getTenantId(), row.getPluginCode(), now)) {
+                continue;
+            }
+            SysPluginTenant patch = new SysPluginTenant();
+            patch.setId(row.getId());
+            patch.setEnabled(0);
+            patch.setDisabledReason("license_required_after_charge");
+            patch.setDisabledTime(now);
+            patch.setUpdateTime(now);
+            tenantPluginMapper.updateById(patch);
+            pluginCacheService.evictTenantCaches(row.getTenantId(), row.getPluginCode());
+            log.info("收费收口: 租户 {} 插件 {} 已切收费但无有效授权，自动停用", row.getTenantId(), row.getPluginCode());
+            stopped++;
+        }
+        if (stopped > 0) {
+            pluginCacheService.evictMenuCache();
+        }
+        return stopped;
     }
 
     /**
@@ -326,6 +366,7 @@ public class PluginLicenseService {
             Map<String, Object> plugin = new HashMap<>();
             plugin.put("pluginCode", descriptor.pluginCode());
             plugin.put("name", descriptor.name());
+            plugin.put("freeOpen", descriptor.freeOpen());
             plugin.put("declaredScopes", descriptor.declaredScopes());
             plugins.add(plugin);
         }
