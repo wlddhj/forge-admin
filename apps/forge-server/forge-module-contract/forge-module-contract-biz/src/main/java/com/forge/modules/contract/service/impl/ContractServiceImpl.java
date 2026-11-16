@@ -124,7 +124,9 @@ public class ContractServiceImpl implements ContractService {
         if (template.getStatus() != CtTemplate.STATUS_ENABLED || template.getCurrentVersionId() == null) {
             throw new BusinessException(400, "模板未启用，无法创建合同");
         }
+        validateContractNo(request.getContractNo(), null);
         CtContract c = new CtContract();
+        c.setContractNo(normalizeNo(request.getContractNo()));
         c.setTitle(request.getTitle().trim());
         c.setTemplateId(template.getId());
         c.setTemplateVersionId(template.getCurrentVersionId());
@@ -139,11 +141,13 @@ public class ContractServiceImpl implements ContractService {
     public void updateContract(ContractDtos.UpdateRequest request) {
         CtContract exists = requireEditable(request.getId());
         // CAS：仅 0/3/4 可改，防与提交并发（提交置 1 后编辑覆写会污染在途合同）
+        validateContractNo(request.getContractNo(), exists.getId());
         int rows = contractMapper.update(null, new LambdaUpdateWrapper<CtContract>()
                 .eq(CtContract::getId, exists.getId())
                 .in(CtContract::getStatus, CtContract.STATUS_DRAFT,
                         CtContract.STATUS_REJECTED, CtContract.STATUS_CANCELED)
                 .set(CtContract::getTitle, request.getTitle().trim())
+                .set(CtContract::getContractNo, normalizeNo(request.getContractNo()))
                 .set(CtContract::getFieldValues, request.getFieldValues())
                 .set(CtContract::getStatus, CtContract.STATUS_DRAFT) // 3/4 重置回草稿语义
                 .set(CtContract::getUpdateBy, SecurityUtils.getCurrentUserId()));
@@ -275,7 +279,10 @@ public class ContractServiceImpl implements ContractService {
         if (category == null) {
             throw new BusinessException(400, "模板挂载的合同分类已不存在，无法生成编号");
         }
-        String contractNo = contractNoGenerator.next(category.getCategoryCode());
+        // 手填编号沿用；留空才自动生成
+        String contractNo = contract.getContractNo() != null && !contract.getContractNo().isBlank()
+                ? contract.getContractNo()
+                : contractNoGenerator.next(category.getCategoryCode());
 
         // CAS：仅审批中可落终态 2；未命中=已定稿或状态漂移，幂等跳过
         int rows = contractMapper.update(null, new LambdaUpdateWrapper<CtContract>()
@@ -376,6 +383,25 @@ public class ContractServiceImpl implements ContractService {
             }
         }
         return "合同";
+    }
+
+    /** 手填编号：trim；与租户内其他合同查重（自动生成的唯一性由 Redis 序列保证） */
+    private void validateContractNo(String contractNo, Long selfId) {
+        if (contractNo == null || contractNo.isBlank()) {
+            return;
+        }
+        String no = normalizeNo(contractNo);
+        Long dup = contractMapper.selectCount(new LambdaQueryWrapper<CtContract>()
+                .eq(CtContract::getContractNo, no)
+                .ne(selfId != null, CtContract::getId, selfId)
+                .last("LIMIT 1"));
+        if (dup != null && dup > 0) {
+            throw new BusinessException(400, "合同编号「" + no + "」已存在");
+        }
+    }
+
+    private String normalizeNo(String contractNo) {
+        return contractNo == null || contractNo.isBlank() ? null : contractNo.trim();
     }
 
     private CtContract requireContract(Long id) {

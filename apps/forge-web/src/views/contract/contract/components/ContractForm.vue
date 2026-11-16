@@ -21,6 +21,15 @@
       <el-form-item label="合同标题" prop="title">
         <el-input v-model="form.title" placeholder="请输入合同标题" maxlength="200" show-word-limit />
       </el-form-item>
+      <el-form-item label="合同编号">
+        <el-input v-model="form.contractNo" placeholder="选填，如 CT-LD-20261116-0001" maxlength="64">
+          <template #append>
+            <el-tooltip content="留空则审批通过后按 CT-分类码-日期-序列 自动生成" placement="top">
+              <el-icon><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </template>
+        </el-input>
+      </el-form-item>
 
       <el-divider content-position="left">合同变量</el-divider>
       <el-empty v-if="!fieldDefs.length" description="选择模板后此处按模板变量生成填写项" :image-size="60" />
@@ -74,6 +83,7 @@ const versionNo = ref<number | null>(null)
 const form = reactive({
   templateId: '',
   title: '',
+  contractNo: '',
   fieldValues: {} as Record<string, string | number | undefined>
 })
 
@@ -85,9 +95,10 @@ const rules: FormRules = {
 const onOpened = async () => {
   templates.value = await templateApi.listEnabled()
   if (props.contract) {
-    // 编辑：模板已锁定，回填标题与字段值，字段定义取锁定版本
+    // 编辑：模板已锁定，回填标题/编号与字段值，字段定义取锁定版本
     form.templateId = props.contract.templateId
     form.title = props.contract.title
+    form.contractNo = props.contract.contractNo ?? ''
     form.fieldValues = { ...(props.contract.fieldValues ?? {}) } as Record<string, string | number | undefined>
     templateName.value = props.contract.templateName ?? ''
     versionNo.value = props.contract.templateVersionNo ?? null
@@ -136,6 +147,7 @@ const confirm = async () => {
       await contractApi.update({
         id: props.contract.id,
         title: form.title,
+        contractNo: form.contractNo.trim() || undefined,
         fieldValues: form.fieldValues as Record<string, unknown>
       })
       ElMessage.success('草稿已保存')
@@ -143,6 +155,7 @@ const confirm = async () => {
       await contractApi.create({
         templateId: form.templateId,
         title: form.title,
+        contractNo: form.contractNo.trim() || undefined,
         fieldValues: form.fieldValues as Record<string, unknown>
       })
       ElMessage.success('草稿已创建')

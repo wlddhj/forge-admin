@@ -32,6 +32,10 @@ public class ContractDtos {
         @Size(max = 200, message = "合同标题最长 200 字")
         private String title;
 
+        @Schema(description = "合同编号（选填，租户内唯一；留空则审批通过后自动生成）")
+        @Size(max = 64, message = "合同编号最长 64 字")
+        private String contractNo;
+
         @Schema(description = "变量初值（可空，草稿期可反复编辑）")
         private Map<String, Object> fieldValues;
     }
@@ -45,6 +49,10 @@ public class ContractDtos {
         @NotBlank(message = "合同标题不能为空")
         @Size(max = 200, message = "合同标题最长 200 字")
         private String title;
+
+        @Schema(description = "合同编号（选填，草稿期可改；留空则审批通过后自动生成）")
+        @Size(max = 64, message = "合同编号最长 64 字")
+        private String contractNo;
 
         private Map<String, Object> fieldValues;
     }
