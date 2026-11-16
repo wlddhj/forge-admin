@@ -202,6 +202,7 @@ H3
             <el-select v-model="paper.paperSize" size="small" style="width: 104px">
               <el-option label="A4" value="A4" />
               <el-option label="A5" value="A5" />
+              <el-option label="B3" value="B3" />
               <el-option label="Letter" value="LETTER" />
               <el-option label="Legal" value="LEGAL" />
               <el-option label="自定义" value="CUSTOM" />
@@ -300,10 +301,10 @@ const hasDefDiff = computed(() => {
 
 /** 纸张内容宽（mm→px @96dpi，减左右页边距 31.8mm×2；横向按交换后的宽计算，随纸张卡即改即见） */
 const paperWidthPx = computed(() => {
-  const table: Record<PaperSizeCode, number> = { A4: 210, A5: 148, LETTER: 215.9, LEGAL: 215.9, CUSTOM: 0 }
+  const table: Record<PaperSizeCode, number> = { A4: 210, A5: 148, B3: 250, LETTER: 215.9, LEGAL: 215.9, CUSTOM: 0 }
   let widthMm = paper.paperSize === 'CUSTOM' ? Number(paper.customWidthMm ?? 210) : table[paper.paperSize]
   if (paper.paperOrientation === 'LANDSCAPE') {
-    const tableH: Record<PaperSizeCode, number> = { A4: 297, A5: 210, LETTER: 279.4, LEGAL: 355.6, CUSTOM: 0 }
+    const tableH: Record<PaperSizeCode, number> = { A4: 297, A5: 210, B3: 353, LETTER: 279.4, LEGAL: 355.6, CUSTOM: 0 }
     widthMm = paper.paperSize === 'CUSTOM' ? Number(paper.customHeightMm ?? 297) : tableH[paper.paperSize]
   }
   // 钳制最小 120px，防窄纸张出现负宽/零宽

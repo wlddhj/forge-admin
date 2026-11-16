@@ -27,6 +27,7 @@
         <el-select v-model="form.paperSize" style="width: 160px">
           <el-option label="A4" value="A4" />
           <el-option label="A5" value="A5" />
+          <el-option label="B3" value="B3" />
           <el-option label="Letter" value="LETTER" />
           <el-option label="Legal" value="LEGAL" />
           <el-option label="自定义" value="CUSTOM" />

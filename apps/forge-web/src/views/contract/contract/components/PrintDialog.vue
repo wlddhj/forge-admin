@@ -5,6 +5,7 @@
         <el-radio-group v-model="paperSize">
           <el-radio-button label="A4" value="A4" />
           <el-radio-button label="A5" value="A5" />
+          <el-radio-button label="B3" value="B3" />
           <el-radio-button label="Letter" value="LETTER" />
           <el-radio-button label="Legal" value="LEGAL" />
           <el-radio-button label="自定义" value="CUSTOM" />

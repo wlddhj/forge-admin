@@ -161,7 +161,7 @@ onMounted(() => {
 })
 
 const paperLabel = (code: PaperSizeCode): string => {
-  const map: Record<PaperSizeCode, string> = { A4: 'A4', A5: 'A5', LETTER: 'Letter', LEGAL: 'Legal', CUSTOM: '自定义' }
+  const map: Record<PaperSizeCode, string> = { A4: 'A4', A5: 'A5', B3: 'B3', LETTER: 'Letter', LEGAL: 'Legal', CUSTOM: '自定义' }
   return map[code] ?? code
 }
 

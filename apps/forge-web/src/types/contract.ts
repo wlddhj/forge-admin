@@ -12,7 +12,7 @@ export interface FieldDef {
 }
 
 /** 纸张规格 */
-export type PaperSizeCode = 'A4' | 'A5' | 'LETTER' | 'LEGAL' | 'CUSTOM'
+export type PaperSizeCode = 'A4' | 'A5' | 'B3' | 'LETTER' | 'LEGAL' | 'CUSTOM'
 
 /** 纸张方向 */
 export type PaperOrientationCode = 'PORTRAIT' | 'LANDSCAPE'
