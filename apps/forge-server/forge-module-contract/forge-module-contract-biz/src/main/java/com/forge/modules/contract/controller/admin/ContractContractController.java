@@ -2,6 +2,7 @@ package com.forge.modules.contract.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.response.PageResult;
+import jakarta.validation.constraints.NotNull;
 import com.forge.common.response.Result;
 import com.forge.framework.web.annotation.OperationLog;
 import com.forge.framework.web.annotation.RepeatSubmit;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.List;
 
 /**
@@ -96,6 +99,22 @@ public class ContractContractController {
     @PreAuthorize("hasAuthority('contract:contract:preview')")
     public byte[] preview(@PathVariable Long id) {
         return contractService.previewPdf(id);
+    }
+
+    @Operation(summary = "临时预览 PDF（编辑表单：版本+当前表单值，不落库）")
+    @PostMapping(value = "/preview-draft", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAuthority('contract:contract:preview')")
+    public byte[] previewDraft(@Valid @RequestBody PreviewDraftRequest request) {
+        return contractService.previewDraft(request.getTemplateVersionId(), request.getFieldValues());
+    }
+
+    /** 临时预览请求体 */
+    @Data
+    public static class PreviewDraftRequest {
+        @NotNull(message = "模板版本ID不能为空")
+        private Long templateVersionId;
+
+        private Map<String, Object> fieldValues;
     }
 
     @Operation(summary = "打印 PDF（按所选纸张重渲染，草稿/定稿水印）")
