@@ -1,5 +1,10 @@
 <template>
   <div class="app-container">
+    <div class="aside-tree-layout">
+    <!-- 左侧分类树（点击筛选，选父含子孙） -->
+    <CategoryAsideTree v-model="queryParams.categoryId" @select="handleQuery" />
+
+    <div class="aside-main">
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card">
       <el-form :model="queryParams" inline>
@@ -8,11 +13,6 @@
         </el-form-item>
         <el-form-item label="合同编号">
           <el-input v-model="queryParams.contractNo" placeholder="如 CT-LD-20261116-0001" clearable />
-        </el-form-item>
-        <el-form-item label="分类">
-          <el-select v-model="queryParams.categoryCode" placeholder="请选择" clearable style="width: 130px">
-            <el-option v-for="d in categoryOptions" :key="d.dictValue" :label="d.dictLabel" :value="d.dictValue" />
-          </el-select>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择" clearable style="width: 120px">
@@ -61,11 +61,8 @@
           <template #default="{ row }">{{ row.contractNo || '-' }}</template>
         </vxe-column>
         <vxe-column field="title" title="合同标题" min-width="180" />
-        <vxe-column title="分类" width="100" align="center">
-          <template #default="{ row }">
-            <dict-value v-if="row.categoryCode" dict-type="contract_category" :value="row.categoryCode" />
-            <span v-else>-</span>
-          </template>
+        <vxe-column title="分类" width="110" align="center">
+          <template #default="{ row }">{{ row.categoryName || '-' }}</template>
         </vxe-column>
         <vxe-column title="模板" width="150">
           <template #default="{ row }">
@@ -119,6 +116,8 @@
     <ContractDetail v-model="detailVisible" :contract-id="detailId" />
     <!-- 列表行直接打印 -->
     <PrintDialog v-model="printVisible" :contract-id="printId" />
+    </div>
+    </div>
   </div>
 </template>
 
@@ -128,8 +127,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
-import { useDict } from '@/composables/useDict'
 import { formatDateTime } from '@/utils/dateFormat'
+import CategoryAsideTree from '@/views/contract/components/CategoryAsideTree.vue'
 import TablePagination from '@/components/TablePagination.vue'
 import { contractApi } from '@/api/contract/contract'
 import { CONTRACT_STATUS_LABEL, CONTRACT_STATUS_TAG, isEditableStatus, type ContractItem } from '@/types/contract'
@@ -138,8 +137,6 @@ import ContractDetail from './components/ContractDetail.vue'
 import PrintDialog from './components/PrintDialog.vue'
 
 defineOptions({ name: 'ContractContract' })
-
-const { dictData: categoryOptions } = useDict('contract_category')
 
 const { tableHeight } = useTableHeight()
 const tableRef = ref<VxeTableInstance | null>(null)
@@ -165,7 +162,7 @@ const queryParams = reactive({
   pageSize: 20,
   title: undefined as string | undefined,
   contractNo: undefined as string | undefined,
-  categoryCode: undefined as string | undefined,
+  categoryId: undefined as string | undefined,
   status: undefined as number | undefined
 })
 
@@ -188,7 +185,6 @@ const handleQuery = () => {
 const handleReset = () => {
   queryParams.title = undefined
   queryParams.contractNo = undefined
-  queryParams.categoryCode = undefined
   queryParams.status = undefined
   handleQuery()
 }
@@ -239,7 +235,7 @@ const handleExport = async () => {
   const blob = await contractApi.export({
     title: queryParams.title,
     contractNo: queryParams.contractNo,
-    categoryCode: queryParams.categoryCode,
+    categoryId: queryParams.categoryId,
     status: queryParams.status
   })
   const url = URL.createObjectURL(blob)

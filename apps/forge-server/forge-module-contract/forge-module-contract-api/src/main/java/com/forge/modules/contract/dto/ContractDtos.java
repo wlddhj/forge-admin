@@ -71,6 +71,8 @@ public class ContractDtos {
         private Long templateId;
         private String templateName;
         private String categoryCode;
+        /** 装配：分类名称（ct_category） */
+        private String categoryName;
         private Long templateVersionId;
         private Integer templateVersionNo;
         private Map<String, Object> fieldValues;

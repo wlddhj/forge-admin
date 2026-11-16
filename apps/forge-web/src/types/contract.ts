@@ -14,10 +14,28 @@ export interface FieldDef {
 /** 纸张规格 */
 export type PaperSizeCode = 'A4' | 'A5' | 'LETTER' | 'LEGAL' | 'CUSTOM'
 
+/** 合同分类树节点 */
+export interface CategoryNode {
+  id: string
+  categoryName: string
+  categoryCode: string
+  parentId: string
+  sortOrder: number
+  status: number
+  remark?: string
+  /** 是否叶子（仅启用叶子可挂模板） */
+  leaf: boolean
+  /** 前端标注：不可选（非叶子或停用） */
+  disabled?: boolean
+  children?: CategoryNode[]
+}
+
 /** 模板基础信息 */
 export interface TemplateItem {
   id: string
-  categoryCode: string
+  categoryId: string
+  categoryName?: string
+  categoryCode?: string
   name: string
   currentVersionId?: string | null
   currentVersionNo?: number | null
@@ -34,7 +52,9 @@ export interface TemplateItem {
 /** 启用模板下拉项 */
 export interface TemplateBrief {
   id: string
-  categoryCode: string
+  categoryId: string
+  categoryName?: string
+  categoryCode?: string
   name: string
   currentVersionId: string
   paperSize: PaperSizeCode
@@ -57,7 +77,7 @@ export interface TemplateVersionItem {
 /** 模板基础信息表单 */
 export interface TemplateForm {
   id?: string
-  categoryCode: string
+  categoryId: string | undefined
   name: string
   paperSize: PaperSizeCode
   customWidthMm?: number
@@ -77,6 +97,7 @@ export interface ContractItem {
   templateVersionNo?: number
   fieldValues?: Record<string, unknown>
   status: number
+  categoryName?: string
   pdfAttachmentId?: string | null
   /** 定稿 PDF 直链（详情用） */
   pdfFileUrl?: string | null

@@ -11,7 +11,7 @@ export const contractApi = {
     pageSize: number
     title?: string
     contractNo?: string
-    categoryCode?: string
+    categoryId?: string
     status?: number
   }) => request.get<PageResult<ContractItem>>('/contract/contract/list', { params }).then(res => res.data),
 
@@ -37,7 +37,7 @@ export const contractApi = {
   submit: (id: string) => request.post(`/contract/contract/${id}/submit`),
 
   /** 导出合同清单（blob 下载） */
-  export: (params: { title?: string; contractNo?: string; categoryCode?: string; status?: number }) =>
+  export: (params: { title?: string; contractNo?: string; categoryId?: string; status?: number }) =>
     request.post<Blob>('/contract/contract/export', null, {
       params,
       responseType: 'blob'

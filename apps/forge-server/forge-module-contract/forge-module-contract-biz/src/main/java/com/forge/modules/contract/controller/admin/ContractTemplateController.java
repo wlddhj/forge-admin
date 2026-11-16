@@ -41,10 +41,10 @@ public class ContractTemplateController {
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "20") int pageSize,
             @RequestParam(required = false) String name,
-            @RequestParam(required = false) String categoryCode,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Integer status) {
         Page<TemplateDtos.TemplateResponse> page =
-                templateService.pageTemplates(pageNum, pageSize, name, categoryCode, status);
+                templateService.pageTemplates(pageNum, pageSize, name, categoryId, status);
         return Result.success(PageResult.of(page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize()));
     }
 

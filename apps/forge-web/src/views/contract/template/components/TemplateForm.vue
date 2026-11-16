@@ -11,10 +11,17 @@
       <el-form-item label="模板名称" prop="name">
         <el-input v-model="form.name" placeholder="请输入模板名称" maxlength="100" show-word-limit />
       </el-form-item>
-      <el-form-item label="合同分类" prop="categoryCode">
-        <el-select v-model="form.categoryCode" placeholder="请选择分类" style="width: 100%">
-          <el-option v-for="d in categoryOptions" :key="d.dictValue" :label="d.dictLabel" :value="d.dictValue" />
-        </el-select>
+      <el-form-item label="合同分类" prop="categoryId">
+        <el-tree-select
+          v-model="form.categoryId"
+          :data="categoryTree"
+          :props="{ label: 'categoryName', children: 'children', disabled: 'disabled' }"
+          node-key="id"
+          default-expand-all
+          placeholder="请选择分类（仅叶子可挂模板）"
+          check-strictly
+          style="width: 100%"
+        />
       </el-form-item>
       <el-form-item label="纸张大小" prop="paperSize">
         <el-select v-model="form.paperSize" style="width: 160px">
@@ -45,22 +52,31 @@
 import { reactive, ref } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { templateApi } from '@/api/contract/template'
-import { useDict } from '@/composables/useDict'
-import type { TemplateForm, TemplateItem } from '@/types/contract'
+import { categoryApi } from '@/api/contract/category'
+import type { CategoryNode, TemplateForm, TemplateItem } from '@/types/contract'
 
 defineOptions({ name: 'TemplateForm' })
 
-const DICT_CONTRACT_CATEGORY = 'contract_category'
 const emit = defineEmits<{ success: [] }>()
 const visible = defineModel<boolean>({ default: false })
 
-const { dictData: categoryOptions } = useDict(DICT_CONTRACT_CATEGORY)
+/** 分类树：仅启用叶子可选（非叶子/停用节点 disabled），带分组名路径展示 */
+const categoryTree = ref<CategoryNode[]>([])
+const loadCategoryTree = async () => {
+  const all = await categoryApi.treeAll()
+  const mark = (nodes: CategoryNode[]): CategoryNode[] =>
+    nodes.map(n => {
+      const disabled = !n.leaf || n.status !== 1
+      return { ...n, disabled, children: n.children ? mark(n.children) : n.children }
+    })
+  categoryTree.value = mark(all)
+}
 const formRef = ref<FormInstance | null>(null)
 const saving = ref(false)
 
 const form = reactive<TemplateForm>({
   id: undefined,
-  categoryCode: '',
+  categoryId: undefined,
   name: '',
   paperSize: 'A4',
   customWidthMm: undefined,
@@ -70,16 +86,17 @@ const form = reactive<TemplateForm>({
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
-  categoryCode: [{ required: true, message: '请选择分类', trigger: 'change' }],
+  categoryId: [{ required: true, message: '请选择合同分类', trigger: 'change' }],
   paperSize: [{ required: true, message: '请选择纸张', trigger: 'change' }]
 }
 
 /** 打开（传模板=编辑回填，不传=新建） */
 const open = (template?: TemplateItem | null) => {
+  loadCategoryTree()
   if (template) {
     Object.assign(form, {
       id: template.id,
-      categoryCode: template.categoryCode,
+      categoryId: template.categoryId,
       name: template.name,
       paperSize: template.paperSize,
       customWidthMm: template.customWidthMm ?? undefined,

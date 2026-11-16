@@ -1,15 +1,15 @@
 <template>
   <div class="app-container">
+    <div class="aside-tree-layout">
+    <!-- 左侧分类树（点击筛选，选父含子孙） -->
+    <CategoryAsideTree v-model="queryParams.categoryId" @select="handleQuery" />
+
+    <div class="aside-main">
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card">
       <el-form :model="queryParams" inline>
         <el-form-item label="模板名称">
           <el-input v-model="queryParams.name" placeholder="请输入模板名称" clearable />
-        </el-form-item>
-        <el-form-item label="合同分类">
-          <el-select v-model="queryParams.categoryCode" placeholder="请选择" clearable style="width: 140px">
-            <el-option v-for="d in categoryOptions" :key="d.dictValue" :label="d.dictLabel" :value="d.dictValue" />
-          </el-select>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择" clearable style="width: 120px">
@@ -54,10 +54,8 @@
       >
         <vxe-column type="seq" title="序号" width="60" align="center" />
         <vxe-column field="name" title="模板名称" min-width="180" />
-        <vxe-column title="合同分类" width="110" align="center">
-          <template #default="{ row }">
-            <dict-value dict-type="contract_category" :value="row.categoryCode" />
-          </template>
+        <vxe-column title="合同分类" width="130" align="center">
+          <template #default="{ row }">{{ row.categoryName || '-' }}</template>
         </vxe-column>
         <vxe-column title="当前版本" width="90" align="center">
           <template #default="{ row }">{{ row.currentVersionNo ? 'v' + row.currentVersionNo : '-' }}</template>
@@ -122,6 +120,8 @@
     <TemplateEditor v-model="editorVisible" :template="editingTemplate" @saved="onEditorSaved" />
     <!-- 版本历史 -->
     <VersionList v-model="versionVisible" :template="editingTemplate" @changed="getList" />
+    </div>
+    </div>
   </div>
 </template>
 
@@ -131,8 +131,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { useTableHeight } from '@/composables/useTableHeight'
 import { useTableSeq } from '@/composables/useTableSeq'
-import { useDict } from '@/composables/useDict'
 import { formatDateTime } from '@/utils/dateFormat'
+import CategoryAsideTree from '@/views/contract/components/CategoryAsideTree.vue'
 import TablePagination from '@/components/TablePagination.vue'
 import { templateApi } from '@/api/contract/template'
 import type { PaperSizeCode, TagType, TemplateItem } from '@/types/contract'
@@ -144,8 +144,6 @@ defineOptions({ name: 'ContractTemplate' })
 
 const TEMPLATE_STATUS_TAG: Record<number, TagType> = { 0: 'info', 1: 'success', 2: 'warning' }
 const TEMPLATE_STATUS_LABEL: Record<number, string> = { 0: '草稿', 1: '启用', 2: '停用' }
-
-const { dictData: categoryOptions } = useDict('contract_category')
 
 const { tableHeight } = useTableHeight()
 const tableRef = ref<VxeTableInstance | null>(null)
@@ -175,7 +173,7 @@ const queryParams = reactive({
   pageNum: 1,
   pageSize: 20,
   name: undefined as string | undefined,
-  categoryCode: undefined as string | undefined,
+  categoryId: undefined as string | undefined,
   status: undefined as number | undefined
 })
 
@@ -197,7 +195,6 @@ const handleQuery = () => {
 
 const handleReset = () => {
   queryParams.name = undefined
-  queryParams.categoryCode = undefined
   queryParams.status = undefined
   handleQuery()
 }

@@ -12,7 +12,7 @@ public interface ContractTemplateService {
 
     /** 分页查询模板 */
     Page<TemplateDtos.TemplateResponse> pageTemplates(int pageNum, int pageSize,
-                                                      String name, String categoryCode, Integer status);
+                                                      String name, Long categoryId, Integer status);
 
     /** 启用中的模板下拉（合同新建用） */
     java.util.List<TemplateDtos.BriefResponse> listEnabled();

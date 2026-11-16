@@ -6,14 +6,17 @@ import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
 import com.forge.modules.contract.dto.FieldDef;
 import com.forge.modules.contract.dto.TemplateDtos;
+import com.forge.modules.contract.entity.CtCategory;
 import com.forge.modules.contract.entity.CtContract;
 import com.forge.modules.contract.entity.CtTemplate;
 import com.forge.modules.contract.entity.CtTemplateVersion;
 import com.forge.modules.contract.enums.PaperSize;
 import com.forge.modules.contract.framework.html.ContractHtmlProcessor;
+import com.forge.modules.contract.mapper.CtCategoryMapper;
 import com.forge.modules.contract.mapper.CtContractMapper;
 import com.forge.modules.contract.mapper.CtTemplateMapper;
 import com.forge.modules.contract.mapper.CtTemplateVersionMapper;
+import com.forge.modules.contract.service.ContractCategoryService;
 import com.forge.modules.contract.service.ContractTemplateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -42,37 +45,53 @@ public class ContractTemplateServiceImpl implements ContractTemplateService {
     private final CtTemplateMapper templateMapper;
     private final CtTemplateVersionMapper versionMapper;
     private final CtContractMapper contractMapper;
+    private final CtCategoryMapper categoryMapper;
+    private final ContractCategoryService categoryService;
     private final ObjectMapper objectMapper;
 
     @Override
     public Page<TemplateDtos.TemplateResponse> pageTemplates(int pageNum, int pageSize,
-                                                             String name, String categoryCode, Integer status) {
+                                                             String name, Long categoryId, Integer status) {
+        // 选父分类含全部子孙
+        List<Long> categoryIds = null;
+        if (categoryId != null) {
+            categoryIds = List.copyOf(categoryService.collectDescendantIds(categoryId));
+            if (categoryIds.isEmpty()) {
+                Page<TemplateDtos.TemplateResponse> empty = new Page<>(pageNum, pageSize, 0);
+                empty.setRecords(List.of());
+                return empty;
+            }
+        }
         Page<CtTemplate> page = templateMapper.selectPage(new Page<>(pageNum, pageSize),
                 new LambdaQueryWrapper<CtTemplate>()
                         .like(notBlank(name), CtTemplate::getName, name)
-                        .eq(notBlank(categoryCode), CtTemplate::getCategoryCode, categoryCode)
+                        .in(categoryIds != null, CtTemplate::getCategoryId, categoryIds)
                         .eq(status != null, CtTemplate::getStatus, status)
                         .orderByDesc(CtTemplate::getUpdateTime));
         Page<TemplateDtos.TemplateResponse> result = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
         result.setRecords(page.getRecords().stream().map(TemplateDtos.TemplateResponse::from).toList());
         fillCurrentVersionNos(result.getRecords());
+        fillCategoryInfo(result.getRecords());
         return result;
     }
 
     @Override
     public List<TemplateDtos.BriefResponse> listEnabled() {
-        return templateMapper.selectList(new LambdaQueryWrapper<CtTemplate>()
+        List<TemplateDtos.BriefResponse> list = templateMapper.selectList(new LambdaQueryWrapper<CtTemplate>()
                         .eq(CtTemplate::getStatus, CtTemplate.STATUS_ENABLED)
                         .isNotNull(CtTemplate::getCurrentVersionId)
                         .orderByAsc(CtTemplate::getName))
                 .stream().map(TemplateDtos.BriefResponse::from).toList();
+        fillBriefCategory(list);
+        return list;
     }
 
     @Override
     public Long createTemplate(TemplateDtos.CreateRequest request) {
         validatePaper(request.getPaperSize(), request.getCustomWidthMm(), request.getCustomHeightMm());
+        CtCategory category = requireLeafCategory(request.getCategoryId());
         CtTemplate t = new CtTemplate();
-        t.setCategoryCode(request.getCategoryCode().trim());
+        t.setCategoryId(category.getId());
         t.setName(request.getName().trim());
         t.setStatus(CtTemplate.STATUS_DRAFT);
         t.setPaperSize(paperOrDefault(request.getPaperSize()));
@@ -88,9 +107,10 @@ public class ContractTemplateServiceImpl implements ContractTemplateService {
     public void updateTemplate(TemplateDtos.UpdateRequest request) {
         CtTemplate exists = requireTemplate(request.getId());
         validatePaper(request.getPaperSize(), request.getCustomWidthMm(), request.getCustomHeightMm());
+        CtCategory category = requireLeafCategory(request.getCategoryId());
         CtTemplate t = new CtTemplate();
         t.setId(exists.getId());
-        t.setCategoryCode(request.getCategoryCode().trim());
+        t.setCategoryId(category.getId());
         t.setName(request.getName().trim());
         t.setPaperSize(paperOrDefault(request.getPaperSize()));
         t.setCustomWidthMm(request.getCustomWidthMm());
@@ -123,6 +143,7 @@ public class ContractTemplateServiceImpl implements ContractTemplateService {
     @Override
     public TemplateDtos.TemplateResponse getTemplate(Long id) {
         TemplateDtos.TemplateResponse resp = TemplateDtos.TemplateResponse.from(requireTemplate(id));
+        fillCategoryInfo(List.of(resp));
         if (resp.getCurrentVersionId() != null) {
             CtTemplateVersion v = versionMapper.selectById(resp.getCurrentVersionId());
             if (v != null) {
@@ -242,6 +263,58 @@ public class ContractTemplateServiceImpl implements ContractTemplateService {
     }
 
     // ---------- 私有工具 ----------
+
+    /** 叶子+启用分类守卫：模板仅可挂启用叶子节点 */
+    private CtCategory requireLeafCategory(Long categoryId) {
+        CtCategory category = categoryMapper.selectById(categoryId);
+        if (category == null) {
+            throw new BusinessException(404, "合同分类不存在");
+        }
+        if (CtCategory.STATUS_DISABLED == category.getStatus()) {
+            throw new BusinessException(400, "合同分类「" + category.getCategoryName() + "」已停用");
+        }
+        Long childCount = categoryMapper.selectCount(new LambdaQueryWrapper<CtCategory>()
+                .eq(CtCategory::getParentId, categoryId).last("LIMIT 1"));
+        if (childCount > 0) {
+            throw new BusinessException(400, "模板仅可挂在叶子分类下，「" + category.getCategoryName() + "」含子分类");
+        }
+        return category;
+    }
+
+    /** 列表批量装配分类名/编码（防 N+1） */
+    private void fillCategoryInfo(List<TemplateDtos.TemplateResponse> records) {
+        List<Long> ids = records.stream().map(TemplateDtos.TemplateResponse::getCategoryId)
+                .filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<Long, CtCategory> map = categoryMapper.selectBatchIds(ids).stream()
+                .collect(Collectors.toMap(CtCategory::getId, c -> c));
+        records.forEach(r -> {
+            CtCategory c = map.get(r.getCategoryId());
+            if (c != null) {
+                r.setCategoryName(c.getCategoryName());
+                r.setCategoryCode(c.getCategoryCode());
+            }
+        });
+    }
+
+    private void fillBriefCategory(List<TemplateDtos.BriefResponse> records) {
+        List<Long> ids = records.stream().map(TemplateDtos.BriefResponse::getCategoryId)
+                .filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<Long, CtCategory> map = categoryMapper.selectBatchIds(ids).stream()
+                .collect(Collectors.toMap(CtCategory::getId, c -> c));
+        records.forEach(r -> {
+            CtCategory c = map.get(r.getCategoryId());
+            if (c != null) {
+                r.setCategoryName(c.getCategoryName());
+                r.setCategoryCode(c.getCategoryCode());
+            }
+        });
+    }
 
     private void fillCurrentVersionNos(List<TemplateDtos.TemplateResponse> records) {
         List<Long> versionIds = records.stream().map(TemplateDtos.TemplateResponse::getCurrentVersionId)

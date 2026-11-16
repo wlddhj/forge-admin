@@ -28,8 +28,8 @@ public class CtTemplate {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 分类编码（contract_category 字典 value，兼作合同编号分类码段） */
-    private String categoryCode;
+    /** 合同分类ID（ct_category，仅启用叶子；叶子编码参与合同编号） */
+    private Long categoryId;
 
     /** 模板名称（租户内唯一） */
     private String name;

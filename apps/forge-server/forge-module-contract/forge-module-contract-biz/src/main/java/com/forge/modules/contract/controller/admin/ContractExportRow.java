@@ -20,6 +20,9 @@ public class ContractExportRow {
     private String title;
 
     @ExcelProperty("分类")
+    private String categoryName;
+
+    @ExcelProperty("分类编码")
     private String categoryCode;
 
     @ExcelProperty("模板")

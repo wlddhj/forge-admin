@@ -13,7 +13,7 @@ public interface ContractService {
 
     /** 分页查询合同 */
     Page<ContractDtos.ContractResponse> pageContracts(int pageNum, int pageSize, String title,
-                                                      String contractNo, String categoryCode, Integer status);
+                                                      String contractNo, Long categoryId, Integer status);
 
     /** 合同详情（含模板名/版本号） */
     ContractDtos.ContractResponse getContract(Long id);

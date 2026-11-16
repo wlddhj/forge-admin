@@ -24,9 +24,9 @@ public class TemplateDtos {
     /** 新建模板（基础信息，状态=草稿，内容随首版保存产生） */
     @Data
     public static class CreateRequest {
-        @Schema(description = "分类编码", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank(message = "分类编码不能为空")
-        private String categoryCode;
+        @Schema(description = "合同分类ID（须为启用叶子节点）", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull(message = "合同分类不能为空")
+        private Long categoryId;
 
         @Schema(description = "模板名称", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "模板名称不能为空")
@@ -52,8 +52,8 @@ public class TemplateDtos {
         @NotNull(message = "模板ID不能为空")
         private Long id;
 
-        @NotBlank(message = "分类编码不能为空")
-        private String categoryCode;
+        @NotNull(message = "合同分类不能为空")
+        private Long categoryId;
 
         @NotBlank(message = "模板名称不能为空")
         @Size(max = 100, message = "模板名称最长 100 字")
@@ -109,6 +109,9 @@ public class TemplateDtos {
     @Data
     public static class TemplateResponse {
         private Long id;
+        private Long categoryId;
+        /** 装配：分类名称/编码（ct_category） */
+        private String categoryName;
         private String categoryCode;
         private String name;
         private Long currentVersionId;
@@ -125,7 +128,7 @@ public class TemplateDtos {
         public static TemplateResponse from(CtTemplate t) {
             TemplateResponse r = new TemplateResponse();
             r.setId(t.getId());
-            r.setCategoryCode(t.getCategoryCode());
+            r.setCategoryId(t.getCategoryId());
             r.setName(t.getName());
             r.setCurrentVersionId(t.getCurrentVersionId());
             r.setStatus(t.getStatus());
@@ -171,6 +174,9 @@ public class TemplateDtos {
     @Data
     public static class BriefResponse {
         private Long id;
+        private Long categoryId;
+        /** 装配：分类名称/编码（ct_category） */
+        private String categoryName;
         private String categoryCode;
         private String name;
         private Long currentVersionId;
@@ -181,7 +187,7 @@ public class TemplateDtos {
         public static BriefResponse from(CtTemplate t) {
             BriefResponse r = new BriefResponse();
             r.setId(t.getId());
-            r.setCategoryCode(t.getCategoryCode());
+            r.setCategoryId(t.getCategoryId());
             r.setName(t.getName());
             r.setCurrentVersionId(t.getCurrentVersionId());
             r.setPaperSize(t.getPaperSize());

@@ -12,7 +12,7 @@
         <el-select v-model="form.templateId" placeholder="请选择模板（启用中）" style="width: 100%"
           @change="onTemplateChange">
           <el-option v-for="t in templates" :key="t.id" :value="t.id"
-            :label="`${t.name}（${categoryLabel(t.categoryCode)}）`" />
+            :label="`${t.name}（${t.categoryName ?? t.categoryCode ?? ''}）`" />
         </el-select>
       </el-form-item>
       <el-form-item v-else label="合同模板">
@@ -56,7 +56,6 @@ import { reactive, ref } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { contractApi } from '@/api/contract/contract'
 import { templateApi } from '@/api/contract/template'
-import { useDict } from '@/composables/useDict'
 import type { ContractItem, FieldDef, TemplateBrief } from '@/types/contract'
 
 defineOptions({ name: 'ContractForm' })
@@ -64,10 +63,6 @@ defineOptions({ name: 'ContractForm' })
 const emit = defineEmits<{ success: [] }>()
 const visible = defineModel<boolean>({ default: false })
 const props = defineProps<{ contract: ContractItem | null }>()
-
-const { dictData: categoryDict } = useDict('contract_category')
-const categoryLabel = (code: string): string =>
-  categoryDict.value.find(d => d.dictValue === code)?.dictLabel ?? code
 
 const formRef = ref<FormInstance | null>(null)
 const saving = ref(false)

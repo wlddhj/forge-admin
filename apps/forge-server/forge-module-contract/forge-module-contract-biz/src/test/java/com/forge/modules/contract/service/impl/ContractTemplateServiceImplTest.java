@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -43,13 +44,17 @@ class ContractTemplateServiceImplTest {
     private CtTemplateVersionMapper versionMapper;
     @Mock
     private CtContractMapper contractMapper;
+    @Mock
+    private com.forge.modules.contract.mapper.CtCategoryMapper categoryMapper;
+    @Mock
+    private com.forge.modules.contract.service.ContractCategoryService categoryService;
 
     private ContractTemplateServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new ContractTemplateServiceImpl(templateMapper, versionMapper, contractMapper,
-                new ObjectMapper());
+                categoryMapper, categoryService, new ObjectMapper());
     }
 
     @Test
@@ -132,6 +137,41 @@ class ContractTemplateServiceImplTest {
         request.setId(1L);
         request.setStatus(CtTemplate.STATUS_ENABLED);
         assertThrows(BusinessException.class, () -> service.changeStatus(1L, CtTemplate.STATUS_ENABLED));
+    }
+
+    @Test
+    void createTemplateRejectsNonLeafCategory() {
+        // 分类存在但有子节点 → 禁止挂载
+        com.forge.modules.contract.entity.CtCategory category =
+                new com.forge.modules.contract.entity.CtCategory();
+        category.setId(2L);
+        category.setCategoryName("商务类");
+        category.setStatus(com.forge.modules.contract.entity.CtCategory.STATUS_ENABLED);
+        lenient().when(categoryMapper.selectById(2L)).thenReturn(category);
+        lenient().when(categoryMapper.selectCount(any())).thenReturn(2L);
+
+        TemplateDtos.CreateRequest request = new TemplateDtos.CreateRequest();
+        request.setCategoryId(2L);
+        request.setName("采购模板");
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.createTemplate(request));
+        assertTrue(ex.getMessage().contains("叶子"));
+    }
+
+    @Test
+    void createTemplateRejectsDisabledCategory() {
+        com.forge.modules.contract.entity.CtCategory category =
+                new com.forge.modules.contract.entity.CtCategory();
+        category.setId(9L);
+        category.setCategoryName("停用分类");
+        category.setStatus(com.forge.modules.contract.entity.CtCategory.STATUS_DISABLED);
+        lenient().when(categoryMapper.selectById(9L)).thenReturn(category);
+        lenient().when(categoryMapper.selectCount(any())).thenReturn(0L);
+
+        TemplateDtos.CreateRequest request = new TemplateDtos.CreateRequest();
+        request.setCategoryId(9L);
+        request.setName("模板");
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.createTemplate(request));
+        assertTrue(ex.getMessage().contains("停用"));
     }
 
     private FieldDef def(String key) {

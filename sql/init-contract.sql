@@ -1,15 +1,50 @@
 -- ========================================
--- 合同模板模块 forge-module-contract
--- 全新库一次性初始化（DROP+CREATE 可重复执行；存量库增量走 upgrade-20261116-contract.sql）
--- 菜单 id 段 285-299（demo 占 280-284、AI 占 300-323，2026-11-16 核对空闲）
--- 字典 id 段：type 225 / data 2250-2256（现值 max 224/2245，核对空闲）
+-- 合同模板模块 forge-module-contract（全新库一次性初始化·树形分类版）
+-- DROP+CREATE 可重复执行；存量库增量走 upgrade-20261116-contract.sql + upgrade-20261117-contract-category.sql
+-- 菜单 id 段：285-299（模块首批）+ 326-330（分类）
+-- 分类为 ct_category 两级树（叶子编码参与合同编号），原 contract_category 字典方案已废弃
 -- ========================================
 
--- 合同模板主表（唯一索引含 deleted，按编码规范 v1.1：deleted BIGINT + delval=id）
+-- 合同分类树表
+DROP TABLE IF EXISTS `ct_category`;
+CREATE TABLE `ct_category` (
+    `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `category_name` VARCHAR(100) NOT NULL COMMENT '分类名称',
+    `category_code` VARCHAR(100) NOT NULL COMMENT '分类编码（租户内唯一；叶子编码参与合同编号）',
+    `parent_id`     BIGINT       NOT NULL DEFAULT 0 COMMENT '父分类ID（0=根）',
+    `sort_order`    INT          NOT NULL DEFAULT 0 COMMENT '排序',
+    `status`        TINYINT      NOT NULL DEFAULT 1 COMMENT '状态（0:停用 1:启用）',
+    `remark`        VARCHAR(255) DEFAULT NULL COMMENT '备注',
+    `create_by`     BIGINT       DEFAULT NULL COMMENT '创建人',
+    `create_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_by`     BIGINT       DEFAULT NULL COMMENT '更新人',
+    `update_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted`       BIGINT       NOT NULL DEFAULT 0 COMMENT '逻辑删除墓碑（delval=id）',
+    `tenant_id`     BIGINT       NOT NULL DEFAULT 1 COMMENT '租户ID（多租户拦截器自动隔离）',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_tenant_code` (`tenant_id`, `category_code`, `deleted`) COMMENT '租户内编码唯一',
+    KEY `idx_parent` (`parent_id`),
+    KEY `idx_tenant` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='合同分类（树形）';
+
+-- 种子：默认租户两级树（人事 RS / 商务 BS / 财务 FN；分组可页面调整）
+INSERT INTO `ct_category` (`id`, `category_name`, `category_code`, `parent_id`, `sort_order`, `status`, `tenant_id`, `create_by`) VALUES
+(1, '人事类', 'RS', 0, 1, 1, 1, 1),
+(2, '商务类', 'BS', 0, 2, 1, 1, 1),
+(3, '财务类', 'FN', 0, 3, 1, 1, 1),
+(4, '劳动合同', 'LD', 1, 1, 1, 1, 1),
+(5, '保密协议', 'BM', 1, 2, 1, 1, 1),
+(6, '采购合同', 'CG', 2, 1, 1, 1, 1),
+(7, '销售合同', 'XS', 2, 2, 1, 1, 1),
+(8, '服务合同', 'FW', 2, 3, 1, 1, 1),
+(9, '借款合同', 'JK', 3, 1, 1, 1, 1),
+(10, '租赁合同', 'ZL', 3, 2, 1, 1, 1);
+
+-- 合同模板主表（category_id 关联 ct_category 叶子）
 DROP TABLE IF EXISTS `ct_template`;
 CREATE TABLE `ct_template` (
     `id`                 BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
-    `category_code`      VARCHAR(32)  NOT NULL COMMENT '分类编码（contract_category 字典 value）',
+    `category_id`        BIGINT       NOT NULL COMMENT '合同分类ID（ct_category，仅启用叶子）',
     `name`               VARCHAR(100) NOT NULL COMMENT '模板名称',
     `current_version_id` BIGINT       DEFAULT NULL COMMENT '当前版本ID（首版保存后回填，合同创建锁定该版本）',
     `status`             TINYINT      NOT NULL DEFAULT 0 COMMENT '状态（0:草稿 1:启用 2:停用）',
@@ -25,7 +60,7 @@ CREATE TABLE `ct_template` (
     `tenant_id`          BIGINT       NOT NULL DEFAULT 1 COMMENT '租户ID（多租户拦截器自动隔离）',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_tenant_name` (`tenant_id`, `name`, `deleted`) COMMENT '租户内模板名唯一',
-    KEY `idx_category` (`category_code`),
+    KEY `idx_category` (`category_id`),
     KEY `idx_tenant` (`tenant_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='合同模板';
 
@@ -78,10 +113,19 @@ CREATE TABLE `ct_contract` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='合同记录';
 
 -- ========================================
--- 菜单与权限（id 285-299，超管角色同步授权）
+-- 菜单与权限（id 285-299 模块首批 + 326-330 分类，超管授权）
 -- ========================================
 INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
-(285, '合同管理', 0, '/contract', 'Layout', '/contract/template', 'Folder', 10, 0, NULL, 1, 1, 0, 0);
+(285, '合同管理', 0, '/contract', 'Layout', '/contract/category', 'Folder', 10, 0, NULL, 1, 1, 0, 0);
+
+INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(326, '合同分类', 285, '/contract/category', '/views/contract/category/index', NULL, 'FolderOpened', 0, 1, 'contract:category:list', 1, 1, 0, 0);
+
+INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
+(327, '分类新增', 326, '', '', NULL, '', 1, 2, 'contract:category:create', 1, 1, 0, 0),
+(328, '分类修改', 326, '', '', NULL, '', 2, 2, 'contract:category:update', 1, 1, 0, 0),
+(329, '分类删除', 326, '', '', NULL, '', 3, 2, 'contract:category:delete', 1, 1, 0, 0),
+(330, '分类停启用', 326, '', '', NULL, '', 4, 2, 'contract:category:update', 1, 1, 0, 0);
 
 INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `component_path`, `redirect_path`, `icon`, `sort_order`, `menu_type`, `permission`, `status`, `visible`, `is_external`, `is_cached`) VALUES
 (286, '合同模板', 285, '/contract/template', '/views/contract/template/index', NULL, 'DocumentCopy', 1, 1, 'contract:template:list', 1, 1, 0, 0);
@@ -108,19 +152,5 @@ INSERT IGNORE INTO `sys_menu` (`id`, `menu_name`, `parent_id`, `route_path`, `co
 -- 超管角色授权（role_id=1）
 INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`) VALUES
 (1, 285), (1, 286), (1, 287), (1, 288), (1, 289), (1, 290), (1, 291),
-(1, 292), (1, 293), (1, 294), (1, 295), (1, 296), (1, 297), (1, 298), (1, 299);
-
--- ========================================
--- 字典：合同分类（前端维护后须调 reloadDictCache('contract_category')）
--- ========================================
-INSERT IGNORE INTO `sys_dict_type` (`id`, `dict_name`, `dict_type`, `status`, `is_system`, `remark`) VALUES
-(225, '合同分类', 'contract_category', 1, 1, '合同模板/合同分类（value 兼作合同编号分类码段）');
-
-INSERT IGNORE INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dict_sort`, `status`, `list_class`) VALUES
-(2250, 'contract_category', '劳动合同', 'LD', 1, 1, 'primary'),
-(2251, 'contract_category', '采购合同', 'CG', 2, 1, 'info'),
-(2252, 'contract_category', '销售合同', 'XS', 3, 1, 'success'),
-(2253, 'contract_category', '租赁合同', 'ZL', 4, 1, 'warning'),
-(2254, 'contract_category', '借款合同', 'JK', 5, 1, 'danger'),
-(2255, 'contract_category', '保密协议', 'BM', 6, 1, 'info'),
-(2256, 'contract_category', '服务合同', 'FW', 7, 1, 'primary');
+(1, 292), (1, 293), (1, 294), (1, 295), (1, 296), (1, 297), (1, 298), (1, 299),
+(1, 326), (1, 327), (1, 328), (1, 329), (1, 330);

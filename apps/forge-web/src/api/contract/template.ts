@@ -10,7 +10,7 @@ export const templateApi = {
     pageNum: number
     pageSize: number
     name?: string
-    categoryCode?: string
+    categoryId?: string
     status?: number
   }) => request.get<PageResult<TemplateItem>>('/contract/template/list', { params }).then(res => res.data),
 

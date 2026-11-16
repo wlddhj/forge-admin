@@ -13,8 +13,7 @@
           {{ detail?.templateName ? `${detail.templateName} · v${detail.templateVersionNo}` : '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="分类">
-          <dict-value v-if="detail?.categoryCode" dict-type="contract_category" :value="detail.categoryCode" />
-          <span v-else>-</span>
+          {{ detail?.categoryName || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="流程编号">{{ detail?.processNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ formatDateTime(detail?.createTime) }}</el-descriptions-item>

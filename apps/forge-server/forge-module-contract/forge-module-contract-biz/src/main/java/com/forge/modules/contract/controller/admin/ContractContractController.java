@@ -50,10 +50,10 @@ public class ContractContractController {
             @RequestParam(defaultValue = "20") int pageSize,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String contractNo,
-            @RequestParam(required = false) String categoryCode,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Integer status) {
         Page<ContractDtos.ContractResponse> page =
-                contractService.pageContracts(pageNum, pageSize, title, contractNo, categoryCode, status);
+                contractService.pageContracts(pageNum, pageSize, title, contractNo, categoryId, status);
         return Result.success(PageResult.of(page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize()));
     }
 
@@ -119,16 +119,17 @@ public class ContractContractController {
     @PreAuthorize("hasAuthority('contract:contract:export')")
     public void export(@RequestParam(required = false) String title,
                        @RequestParam(required = false) String contractNo,
-                       @RequestParam(required = false) String categoryCode,
+                       @RequestParam(required = false) Long categoryId,
                        @RequestParam(required = false) Integer status,
                        HttpServletResponse response) {
         Page<ContractDtos.ContractResponse> page = contractService.pageContracts(1, 10_000,
-                title, contractNo, categoryCode, status);
+                title, contractNo, categoryId, status);
         List<ContractExportRow> rows = new ArrayList<>();
         for (ContractDtos.ContractResponse c : page.getRecords()) {
             ContractExportRow row = new ContractExportRow();
             row.setContractNo(c.getContractNo());
             row.setTitle(c.getTitle());
+            row.setCategoryName(c.getCategoryName());
             row.setCategoryCode(c.getCategoryCode());
             row.setTemplateName(c.getTemplateName());
             row.setTemplateVersionNo(c.getTemplateVersionNo());

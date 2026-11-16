@@ -11,6 +11,7 @@ import com.forge.modules.contract.dto.ContractDtos;
 import com.forge.modules.contract.dto.FieldDef;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceResponse;
 import com.forge.modules.workflow.dto.instance.ProcessStartRequest;
+import com.forge.modules.contract.entity.CtCategory;
 import com.forge.modules.contract.entity.CtContract;
 import com.forge.modules.contract.entity.CtTemplate;
 import com.forge.modules.contract.entity.CtTemplateVersion;
@@ -19,10 +20,12 @@ import com.forge.modules.contract.framework.html.ContractHtmlProcessor;
 import com.forge.modules.contract.framework.pdf.InMemoryMultipartFile;
 import com.forge.modules.contract.framework.pdf.PdfRenderClient;
 import com.forge.modules.contract.framework.pdf.WatermarkStamper;
+import com.forge.modules.contract.mapper.CtCategoryMapper;
 import com.forge.modules.contract.mapper.CtContractMapper;
 import com.forge.modules.contract.mapper.CtTemplateMapper;
 import com.forge.modules.contract.listener.ContractModelProvisioner;
 import com.forge.modules.contract.mapper.CtTemplateVersionMapper;
+import com.forge.modules.contract.service.ContractCategoryService;
 import com.forge.modules.contract.service.ContractNoGenerator;
 import com.forge.modules.contract.service.ContractService;
 import com.forge.modules.system.dto.attachment.AttachmentResponse;
@@ -60,6 +63,8 @@ public class ContractServiceImpl implements ContractService {
 
     private final CtContractMapper contractMapper;
     private final CtTemplateMapper templateMapper;
+    private final CtCategoryMapper categoryMapper;
+    private final ContractCategoryService categoryService;
     private final CtTemplateVersionMapper versionMapper;
     private final PdfRenderClient pdfRenderClient;
     private final WatermarkStamper watermarkStamper;
@@ -73,11 +78,14 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     public Page<ContractDtos.ContractResponse> pageContracts(int pageNum, int pageSize, String title,
-                                                             String contractNo, String categoryCode, Integer status) {
+                                                             String contractNo, Long categoryId, Integer status) {
         List<Long> templateIds = null;
-        if (categoryCode != null && !categoryCode.isBlank()) {
-            templateIds = templateMapper.selectList(new LambdaQueryWrapper<CtTemplate>()
-                            .eq(CtTemplate::getCategoryCode, categoryCode))
+        if (categoryId != null) {
+            // 选父分类含全部子孙：分类集 → 模板集
+            List<Long> categoryIds = List.copyOf(categoryService.collectDescendantIds(categoryId));
+            templateIds = categoryIds.isEmpty() ? List.of()
+                    : templateMapper.selectList(new LambdaQueryWrapper<CtTemplate>()
+                            .in(CtTemplate::getCategoryId, categoryIds))
                     .stream().map(CtTemplate::getId).toList();
             if (templateIds.isEmpty()) {
                 Page<ContractDtos.ContractResponse> empty = new Page<>(pageNum, pageSize, 0);
@@ -262,7 +270,12 @@ public class ContractServiceImpl implements ContractService {
         AttachmentResponse attachment = attachmentService.upload(
                 new InMemoryMultipartFile("file", fileName, APPLICATION_PDF, watermarked),
                 "contract", contract.getId());
-        String contractNo = contractNoGenerator.next(template.getCategoryCode());
+        CtCategory category = template.getCategoryId() == null ? null
+                : categoryMapper.selectById(template.getCategoryId());
+        if (category == null) {
+            throw new BusinessException(400, "模板挂载的合同分类已不存在，无法生成编号");
+        }
+        String contractNo = contractNoGenerator.next(category.getCategoryCode());
 
         // CAS：仅审批中可落终态 2；未命中=已定稿或状态漂移，幂等跳过
         int rows = contractMapper.update(null, new LambdaUpdateWrapper<CtContract>()
@@ -296,11 +309,20 @@ public class ContractServiceImpl implements ContractService {
         Map<Long, CtTemplateVersion> versionMap = versionIds.isEmpty() ? Map.of()
                 : versionMapper.selectBatchIds(versionIds).stream()
                         .collect(Collectors.toMap(CtTemplateVersion::getId, v -> v));
+        List<Long> categoryIds = templateMap.values().stream().map(CtTemplate::getCategoryId)
+                .filter(Objects::nonNull).distinct().toList();
+        Map<Long, CtCategory> categoryMap = categoryIds.isEmpty() ? Map.of()
+                : categoryMapper.selectBatchIds(categoryIds).stream()
+                        .collect(Collectors.toMap(CtCategory::getId, c -> c));
         for (ContractDtos.ContractResponse resp : records) {
             CtTemplate t = templateMap.get(resp.getTemplateId());
             if (t != null) {
                 resp.setTemplateName(t.getName());
-                resp.setCategoryCode(t.getCategoryCode());
+                CtCategory c = categoryMap.get(t.getCategoryId());
+                if (c != null) {
+                    resp.setCategoryName(c.getCategoryName());
+                    resp.setCategoryCode(c.getCategoryCode());
+                }
             }
             CtTemplateVersion v = versionMap.get(resp.getTemplateVersionId());
             if (v != null) {
