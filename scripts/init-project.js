@@ -246,6 +246,9 @@ function main() {
     { from: 'com.forge.admin', to: config.basePackage },
     { from: 'com.forge', to: config.basePackage },
     { from: 'forge_admin-page-config', to: `${config.nameSnake}-page-config` },
+    { from: 'forge-module-contract-biz', to: `${config.nameKebab}-module-contract-biz` },
+    { from: 'forge-module-contract-api', to: `${config.nameKebab}-module-contract-api` },
+    { from: 'forge-module-contract', to: `${config.nameKebab}-module-contract` },
     // Maven 子模块（长名优先）- 包含占位符的模板字符串
     { from: 'forge-module-{module}-biz', to: `${config.nameKebab}-module-{module}-biz` },
     { from: 'forge-module-{module}-api', to: `${config.nameKebab}-module-{module}-api` },
@@ -403,6 +406,10 @@ function main() {
   const renamedServerDir = path.join(targetDir, 'apps', `${config.nameKebab}-server`)
   if (fs.existsSync(renamedServerDir)) {
     const submoduleRenames = [
+      // 合同模板管理
+      { from: 'forge-module-contract/forge-module-contract-api', to: `forge-module-contract/${config.nameKebab}-module-contract-api` },
+      { from: 'forge-module-contract/forge-module-contract-biz', to: `forge-module-contract/${config.nameKebab}-module-contract-biz` },
+      // 中层目录
       // forge-framework 子目录（深层优先）
       { from: 'forge-framework/forge-common', to: `forge-framework/${config.nameKebab}-common` },
       { from: 'forge-framework/forge-spring-boot-starter-mybatis', to: `forge-framework/${config.nameKebab}-spring-boot-starter-mybatis` },
@@ -428,6 +435,7 @@ function main() {
       { from: 'forge-module-workflow', to: `${config.nameKebab}-module-workflow` },
       { from: 'forge-module-ai', to: `${config.nameKebab}-module-ai` },
       { from: 'forge-module-screen', to: `${config.nameKebab}-module-screen` },
+      { from: 'forge-module-contract', to: `${config.nameKebab}-module-contract` },
       { from: 'forge-dependencies', to: `${config.nameKebab}-dependencies` },
       // 内部 forge-server 模块（启动入口）
       { from: 'forge-server', to: `${config.nameKebab}-server` },

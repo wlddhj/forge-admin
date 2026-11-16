@@ -1,0 +1,59 @@
+package com.forge.modules.contract.framework.pdf;
+
+import com.forge.modules.contract.enums.PaperSize;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * PDF 渲染/水印冒烟：验证思源可变 TTF 在 openhtmltopdf(PDFBox3) 下的中文渲染链路
+ *
+ * @author forge-admin
+ */
+class ContractPdfRenderTest {
+
+    @Test
+    @Timeout(120)
+    void renderChineseToPdf() {
+        String html = "<h1>劳动合同书</h1>"
+                + "<p>甲方（用人单位）：<span data-field=\"party_a\" class=\"ct-var\">甲方名称</span></p>"
+                + "<p>乙方（劳动者）：张三</p>"
+                + "<table><thead><tr><th>条款</th><th>内容</th></tr></thead>"
+                + "<tbody><tr><td>合同期限</td><td>2026-01-01 至 2028-12-31</td></tr>"
+                + "<tr><td>工作地点</td><td>北京市海淀区</td></tr></tbody></table>"
+                + "<p>本合同一式两份，甲乙双方各执一份，具有同等法律效力。</p>";
+
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("party_a", "北京某某科技有限公司");
+
+        String filled = com.forge.modules.contract.framework.html.ContractHtmlProcessor.fillChips(html, values);
+        byte[] pdf = new OpenHtmlToPdfClient().render(filled, PaperSize.A4, null, null);
+
+        assertNotNull(pdf);
+        assertTrue(pdf.length > 10_000, "PDF 应含内嵌字体，体积应显著大于空文档: " + pdf.length);
+        assertArrayEquals("%PDF".getBytes(StandardCharsets.US_ASCII),
+                java.util.Arrays.copyOfRange(pdf, 0, 4), "应为 PDF 魔数开头");
+    }
+
+    @Test
+    @Timeout(120)
+    void renderCustomPaperAndWatermark() {
+        String html = "<h2>保密协议</h2><p>双方本着诚实信用原则，约定如下保密义务。</p>";
+        OpenHtmlToPdfClient client = new OpenHtmlToPdfClient();
+        byte[] pdf = client.render(html, PaperSize.CUSTOM, new BigDecimal("148"), new BigDecimal("210"));
+        assertTrue(pdf.length > 5_000);
+
+        byte[] stamped = new WatermarkStamper().stamp(pdf, "北京某某科技有限公司 · 定稿");
+        assertTrue(stamped.length > pdf.length, "盖章后体积应增长");
+        assertArrayEquals("%PDF".getBytes(StandardCharsets.US_ASCII),
+                java.util.Arrays.copyOfRange(stamped, 0, 4));
+    }
+}

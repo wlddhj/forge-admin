@@ -19,6 +19,8 @@
         <justauth.version>1.16.6</justauth.version>
         <flowlong.version>1.2.7</flowlong.version>
         <easyexcel.version>3.3.4</easyexcel.version>
+        <openhtmltopdf.version>1.1.113</openhtmltopdf.version>
+        <jsoup.version>1.21.1</jsoup.version>
         <jsqlparser.version>4.9</jsqlparser.version>
         <spring-ai.version>2.0.2</spring-ai.version>
         <langgraph4j.version>1.9.2</langgraph4j.version>
@@ -133,6 +135,18 @@
             <dependency>
                 <groupId>com.forge</groupId>
                 <artifactId>forge-module-screen-biz</artifactId>
+                <version>${forge.version}</version>
+            </dependency>
+
+            <!-- 合同模板模块 -->
+            <dependency>
+                <groupId>com.forge</groupId>
+                <artifactId>forge-module-contract-api</artifactId>
+                <version>${forge.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forge</groupId>
+                <artifactId>forge-module-contract-biz</artifactId>
                 <version>${forge.version}</version>
             </dependency>
 
@@ -258,6 +272,18 @@
                 <groupId>com.alibaba</groupId>
                 <artifactId>easyexcel</artifactId>
                 <version>${easyexcel.version}</version>
+            </dependency>
+
+            <!-- 合同模块：HTML→PDF（社区后继 fork，PDFBox 3）与 HTML 处理 -->
+            <dependency>
+                <groupId>io.github.openhtmltopdf</groupId>
+                <artifactId>openhtmltopdf-pdfbox</artifactId>
+                <version>${openhtmltopdf.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jsoup</groupId>
+                <artifactId>jsoup</artifactId>
+                <version>${jsoup.version}</version>
             </dependency>
 
             <!-- commons-io -->

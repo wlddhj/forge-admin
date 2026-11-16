@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.forge</groupId>
+        <artifactId>forge</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>forge-module-contract</artifactId>
+    <packaging>pom</packaging>
+    <name>forge-module-contract</name>
+    <description>合同模板管理</description>
+
+    <modules>
+        <module>forge-module-contract-api</module>
+        <module>forge-module-contract-biz</module>
+    </modules>
+</project>

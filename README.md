@@ -377,6 +377,7 @@ mysql -u root -p forge_admin < sql/init-app.sql
 mysql -u root -p forge_admin < sql/init-screen.sql
 mysql -u root -p forge_admin < sql/init-workflow.sql
 mysql -u root -p forge_admin < sql/init-demo.sql
+mysql -u root -p forge_admin < sql/init-contract.sql
 ```
 
 3. **启动后端**
@@ -461,6 +462,7 @@ TENANT_ENABLE=false
 | `sql/upgrade-20261111-ai-reasoning.sql` | AI 消息表补 `reasoning_content` 列（思考过程存储） |
 | `sql/upgrade-20261112-im-unique-tenant-channel.sql` | IM 渠道配置唯一索引调整为「租户 + 渠道」，`deleted` 墓碑列 BIGINT 对齐 |
 | `sql/upgrade-20261112-tenant-wf-event-audit.sql` | 工作流事件审计表补 `tenant_id`（多租户开闸配套） |
+| `sql/upgrade-20261116-contract.sql` | 合同模板模块：`ct_template`/`ct_template_version`/`ct_contract` 三表 + 菜单权限（285-299）+ 合同分类字典 |
 
 ## 开发命令
 

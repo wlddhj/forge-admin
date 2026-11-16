@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.forge</groupId>
+        <artifactId>forge-module-contract</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>forge-module-contract-biz</artifactId>
+    <name>forge-module-contract-biz</name>
+    <description>合同模板管理 - 业务实现</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-module-contract-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-module-system-api</artifactId>
+        </dependency>
+        <!-- 附件上传（SysAttachmentService，与 workflow/ai 模块同款 system-biz 依赖模式） -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-module-system-biz</artifactId>
+        </dependency>
+        <!-- 工作流门面：WfProcessInstanceService / WfProcessDefinitionService / WorkflowInstanceEvent -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-module-workflow-biz</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-mybatis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-security</artifactId>
+        </dependency>
+        <!-- 事件回调异步线程租户上下文重建用 TenantContextHolder -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-tenant</artifactId>
+        </dependency>
+        <!-- 合同编号自增序列 -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-spring-boot-starter-redis</artifactId>
+        </dependency>
+        <!-- HTML→PDF 渲染与 HTML 管道 -->
+        <dependency>
+            <groupId>io.github.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-pdfbox</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
