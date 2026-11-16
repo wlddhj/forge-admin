@@ -105,12 +105,13 @@ public class OpenHtmlToPdfClient implements PdfRenderClient {
             + "h2 { font-family: '" + SANS_FAMILY + "'; font-size: 15pt; margin: 12pt 0 6pt; break-after: avoid; }"
             + "h3, h4 { font-family: '" + SANS_FAMILY + "'; font-size: 13pt; margin: 10pt 0 5pt; break-after: avoid; }"
             + "p { margin: 0 0 6pt; text-align: justify; }"
-            + "table { width: 100%; border-collapse: collapse; margin: 6pt 0; }"
-            + "th, td { border: 0.5pt solid #333; padding: 4pt 6pt; font-size: 11pt; }"
+            + "table { width: 100%; border-collapse: collapse; margin: 8px 0; }"
+            + "th, td { border: 1px solid #333; padding: 5px 8px; }"
             + "th { font-family: '" + SANS_FAMILY + "'; background-color: #f2f2f2; }"
             + "tr { break-inside: avoid; }"
-            + "ul, ol { margin: 0 0 6pt; padding-left: 2em; }"
-            + "li { margin: 0 0 2pt; break-inside: avoid; }"
+            + "ul, ol { margin: 0 0 8px; padding-left: 32px; }"
+            + "li { margin: 0 0 3px; break-inside: avoid; }"
+            + "blockquote { margin: 0 0 8px; padding-left: 32px; border-left: 3px solid #ccc; color: #555; }"
             + "img { max-width: 100%; }"
             + "a { color: #000; text-decoration: none; }";
 

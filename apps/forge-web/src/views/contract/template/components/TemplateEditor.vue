@@ -722,29 +722,27 @@ watch(visible, open => {
 }
 
 
-/* 编辑器正文基础样式（与 PDF 基础样式对齐：宋体正文/黑体标题） */
+/* 编辑器正文基础样式：逐条对齐 PDF BASE_CSS（12pt=16px 口径，所见即所渲染） */
 .editor-content :deep(.tiptap) {
   outline: none;
   min-height: 200px;
   font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 14px;
+  font-size: 16px; /* =12pt */
   line-height: 1.7;
 }
-.editor-content :deep(.tiptap h1) { font-family: 'Noto Sans SC', 'PingFang SC', sans-serif; text-align: center; }
-.editor-content :deep(.tiptap h2),
-.editor-content :deep(.tiptap h3) { font-family: 'Noto Sans SC', 'PingFang SC', sans-serif; }
-.editor-content :deep(.tiptap table) {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 6px 0;
-}
+.editor-content :deep(.tiptap h1) { font-family: 'Noto Sans SC', 'PingFang SC', sans-serif; font-size: 24px; text-align: center; margin: 0 0 19px; }
+.editor-content :deep(.tiptap h2) { font-family: 'Noto Sans SC', 'PingFang SC', sans-serif; font-size: 20px; margin: 16px 0 8px; }
+.editor-content :deep(.tiptap h3) { font-family: 'Noto Sans SC', 'PingFang SC', sans-serif; font-size: 17px; margin: 13px 0 7px; }
+.editor-content :deep(.tiptap h4) { font-family: 'Noto Sans SC', 'PingFang SC', sans-serif; font-size: 16px; margin: 13px 0 7px; }
+.editor-content :deep(.tiptap p) { margin: 0 0 8px; text-align: justify; }
+.editor-content :deep(.tiptap table) { width: 100%; border-collapse: collapse; margin: 8px 0; }
 .editor-content :deep(.tiptap th),
-.editor-content :deep(.tiptap td) {
-  border: 1px solid #333;
-  padding: 4px 6px;
-}
-.editor-content :deep(.tiptap th) { background: #f2f2f2; }
-.editor-content :deep(.tiptap p) { margin: 0 0 6pt; }
+.editor-content :deep(.tiptap td) { border: 1px solid #333; padding: 5px 8px; }
+.editor-content :deep(.tiptap th) { background: #f2f2f2; font-family: 'Noto Sans SC', 'PingFang SC', sans-serif; }
+.editor-content :deep(.tiptap ul),
+.editor-content :deep(.tiptap ol) { margin: 0 0 8px; padding-left: 32px; }
+.editor-content :deep(.tiptap li) { margin: 0 0 3px; }
+.editor-content :deep(.tiptap blockquote) { margin: 0 0 8px; padding-left: 32px; border-left: 3px solid #ccc; color: #555; }
 
 /* 变量芯片 */
 .editor-content :deep(.ct-var) {
