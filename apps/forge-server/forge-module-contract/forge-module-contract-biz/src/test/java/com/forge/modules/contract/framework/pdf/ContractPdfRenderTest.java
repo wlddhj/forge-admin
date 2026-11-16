@@ -80,6 +80,34 @@ class ContractPdfRenderTest {
 
     @Test
     @Timeout(120)
+    void renderTableCellCenterAlignTakesEffect() throws Exception {
+        // 单元格对齐写在 td>p（tiptap 结构，sanitize 不解包）；断言居中格文本 x 明显大于左对齐格
+        String raw = "<table><tbody><tr>"
+                + "<td><p style=\"text-align: left\">左</p></td>"
+                + "<td><p style=\"text-align: center\">中</p></td>"
+                + "</tr></tbody></table>";
+        String prepared = ContractHtmlProcessor.fillChips(ContractHtmlProcessor.sanitize(raw), null);
+        byte[] pdf = new OpenHtmlToPdfClient().render(prepared, PaperSize.A4, null, null, null);
+        java.util.Map<Character, Float> gx = new java.util.LinkedHashMap<>();
+        try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            new org.apache.pdfbox.text.PDFTextStripper() {
+                { setSortByPosition(true); }
+                @Override protected void writeString(String t, java.util.List<org.apache.pdfbox.text.TextPosition> ps) {
+                    for (var tp : ps) {
+                        char u = tp.getUnicode().charAt(0);
+                        if ((u == '左' || u == '中') && !gx.containsKey(u)) {
+                            gx.put(u, tp.getX());
+                        }
+                    }
+                }
+            }.getText(doc);
+        }
+        assertTrue(gx.get('中') - gx.get('左') > 40f,
+                "居中格文本应明显右移: 左=" + gx.get('左') + " 中=" + gx.get('中'));
+    }
+
+    @Test
+    @Timeout(120)
     void renderListsPipelineBulletAndNumber() throws Exception {
         // 端到端：sanitize(li>p 解包) → fillChips(注入圆点) → PDF 文本层圆点与序号都在
         String raw = "<ul><li><p>甲项</p></li></ul><ol><li><p>第一项</p></li></ol>";
