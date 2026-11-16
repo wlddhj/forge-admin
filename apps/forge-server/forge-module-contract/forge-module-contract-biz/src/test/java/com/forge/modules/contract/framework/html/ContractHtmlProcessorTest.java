@@ -46,6 +46,18 @@ class ContractHtmlProcessorTest {
     }
 
     @Test
+    void sanitizeMovesCellParagraphAlignToCell() {
+        String html = "<table><tbody><tr>"
+                + "<td><p style=\"text-align: center\">居中格</p></td>"
+                + "<th><p style=\"text-align: right\">右表头</p></th>"
+                + "</tr></tbody></table>";
+        String clean = ContractHtmlProcessor.sanitize(html);
+        assertTrue(clean.contains("<td style=\"text-align: center\"") || clean.contains("text-align: center"), "td 应承接对齐: " + clean);
+        assertTrue(clean.contains("text-align: right"), "th 应承接对齐");
+        assertFalse(clean.contains("<td><p"), "td>p 应已解包: " + clean);
+    }
+
+    @Test
     void fillChipsInjectsBulletOnceAndIdempotent() {
         String html = "<ul><li>甲项</li><li>乙项</li></ul>";
         String once = ContractHtmlProcessor.fillChips(html, null);

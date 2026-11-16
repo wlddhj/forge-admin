@@ -6,6 +6,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.safety.Safelist;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -54,10 +55,16 @@ public final class ContractHtmlProcessor {
         return doc.body().html();
     }
 
-    /** 渲染前归一化：td/th/li 的块级 p 解包 + 空白文本节点清除 + 紧凑输出（覆盖存量数据） */
+    /** 渲染前归一化：td/th/li 的块级 p 解包（style 转移给宿主单元格）+ 空白清除 + 紧凑输出 */
     private static void normalize(Document doc) {
         doc.outputSettings().prettyPrint(false);
-        doc.body().select("li > p, th > p, td > p").forEach(Element::unwrap);
+        doc.body().select("li > p, th > p, td > p").forEach(p -> {
+            // 单元格对齐等样式写在 tiptap 的 td>p 上，解包前转移到 td/th/li 宿主（p 属性优先）
+            if (p.hasAttr("style") && p.parent() != null) {
+                mergeStyle(p.parent(), p.attr("style"));
+            }
+            p.unwrap();
+        });
         for (Element cell : doc.body().select("td, th, li")) {
             for (TextNode tn : cell.textNodes()) {
                 if (tn.isBlank()) {
@@ -106,5 +113,35 @@ public final class ContractHtmlProcessor {
             }
         }
         return keys;
+    }
+
+    /** 合并内联 style 到宿主（source 属性优先覆盖宿主） */
+    private static void mergeStyle(Element host, String sourceStyle) {
+        Map<String, String> merged = parseStyle(host.attr("style"));
+        merged.putAll(parseStyle(sourceStyle));
+        StringBuilder sb = new StringBuilder();
+        merged.forEach((k, v) -> {
+            if (!sb.isEmpty()) {
+                sb.append("; ");
+            }
+            sb.append(k).append(": ").append(v);
+        });
+        if (!sb.isEmpty()) {
+            host.attr("style", sb.toString());
+        }
+    }
+
+    private static Map<String, String> parseStyle(String style) {
+        Map<String, String> map = new LinkedHashMap<>();
+        if (style == null || style.isBlank()) {
+            return map;
+        }
+        for (String pair : style.split(";")) {
+            int idx = pair.indexOf(':');
+            if (idx > 0 && idx < pair.length() - 1) {
+                map.put(pair.substring(0, idx).trim(), pair.substring(idx + 1).trim());
+            }
+        }
+        return map;
     }
 }
