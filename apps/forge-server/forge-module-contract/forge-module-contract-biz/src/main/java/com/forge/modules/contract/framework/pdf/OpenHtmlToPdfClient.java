@@ -89,6 +89,9 @@ public class OpenHtmlToPdfClient implements PdfRenderClient {
             // 模板维护的连续空格/行首缩进须与编辑器所见一致（tiptap 编辑区默认 pre-wrap），
             // normal 会折叠连续空格——真机反馈「空格被忽略」的根因
             + "p, h1, h2, h3, h4, li, td, th, blockquote { white-space: pre-wrap; }"
+            // 空段落（回车空行）须保留整行高度：normal 下空块高度为 0 且 margin 折叠，
+            // 连续空行在 PDF 里被压成小间隙（真机 v4 模板大量 <p></p> 实证）
+            + "p:empty::before { content: '\\200B'; }"
             + "h1 { font-family: '" + SANS_FAMILY + "'; font-size: 18pt; text-align: center; margin: 0 0 14pt; break-after: avoid; }"
             + "h2 { font-family: '" + SANS_FAMILY + "'; font-size: 15pt; margin: 12pt 0 6pt; break-after: avoid; }"
             + "h3, h4 { font-family: '" + SANS_FAMILY + "'; font-size: 13pt; margin: 10pt 0 5pt; break-after: avoid; }"
