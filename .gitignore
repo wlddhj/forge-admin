@@ -77,3 +77,6 @@ apps/forge-server/uploads/
 
 # ZCode local skills
 .zcode/
+
+# 本地上传产物(后端 ./uploads 工作目录)
+/uploads/

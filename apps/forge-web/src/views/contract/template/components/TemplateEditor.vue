@@ -701,6 +701,41 @@ watch(visible, open => {
   grid-template-columns: 1fr 1fr auto;
   gap: 8px;
 }
+.paper-card {
+  flex-shrink: 0;
+}
+.paper-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 24px;
+}
+.paper-row + .paper-row {
+  margin-top: 8px;
+}
+.paper-ctl {
+  width: 104px;
+}
+.paper-num {
+  width: 112px;
+}
+.paper-row :deep(.el-input-number.is-controls-right .el-input__inner) {
+  padding-left: 6px;
+  padding-right: 26px;
+  text-align: left;
+}
+.paper-row :deep(.el-radio-button__inner) {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.paper-x {
+  color: var(--el-text-color-secondary);
+}
+.paper-label-hint {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+}
 .var-tip {
   font-size: 12px;
   color: var(--el-text-color-secondary);

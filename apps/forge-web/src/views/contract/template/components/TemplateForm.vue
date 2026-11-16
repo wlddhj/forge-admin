@@ -33,6 +33,11 @@
           <el-option label="自定义" value="CUSTOM" />
         </el-select>
       </el-form-item>
+      <el-form-item v-if="form.paperSize === 'CUSTOM'" label="宽×高 mm">
+        <el-input-number v-model="form.customWidthMm" :min="50" :max="600" :precision="1" controls-position="right" style="width: 120px" />
+        <span style="margin: 0 6px">×</span>
+        <el-input-number v-model="form.customHeightMm" :min="50" :max="900" :precision="1" controls-position="right" style="width: 120px" />
+      </el-form-item>
       <el-form-item label="页边距">
         <el-radio-group v-model="form.marginPreset">
           <el-radio-button value="NARROW">窄</el-radio-button>
@@ -46,11 +51,7 @@
           <el-radio-button value="LANDSCAPE">横向</el-radio-button>
         </el-radio-group>
       </el-form-item>
-      <el-form-item v-if="form.paperSize === 'CUSTOM'" label="宽×高 mm">
-        <el-input-number v-model="form.customWidthMm" :min="50" :max="600" :precision="1" controls-position="right" style="width: 120px" />
-        <span style="margin: 0 6px">×</span>
-        <el-input-number v-model="form.customHeightMm" :min="50" :max="900" :precision="1" controls-position="right" style="width: 120px" />
-      </el-form-item>
+
       <el-form-item label="备注">
         <el-input v-model="form.remark" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="选填" />
       </el-form-item>
