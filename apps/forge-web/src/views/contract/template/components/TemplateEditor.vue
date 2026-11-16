@@ -2,22 +2,21 @@
   <el-drawer
     v-model="visible"
     :title="`编辑模板：${templateName}`"
-    size="92%"
+    size="94%"
     destroy-on-close
-    append-to-body
     :close-on-click-modal="false"
     @opened="initEditor"
   >
     <div class="editor-layout">
       <!-- 主编辑区 -->
       <div class="editor-main">
+        <!-- 工具栏：分组完整、单行不换行（窄屏横向滚动） -->
         <div class="editor-toolbar">
-          <el-button-group>
+          <div class="toolbar-group">
             <el-button size="small" @click="editor?.chain().focus().undo().run()">撤销</el-button>
             <el-button size="small" @click="editor?.chain().focus().redo().run()">重做</el-button>
-          </el-button-group>
-          <el-divider direction="vertical" />
-          <el-button-group>
+          </div>
+          <div class="toolbar-group">
             <el-button size="small" :type="editor?.isActive('heading', { level: 1 }) ? 'primary' : ''"
               @click="editor?.chain().focus().toggleHeading({ level: 1 }).run()">
 H1
@@ -34,9 +33,8 @@ H3
               @click="editor?.chain().focus().setParagraph().run()">
 正文
 </el-button>
-          </el-button-group>
-          <el-divider direction="vertical" />
-          <el-button-group>
+          </div>
+          <div class="toolbar-group">
             <el-button size="small" :type="editor?.isActive('bold') ? 'primary' : ''"
               @click="editor?.chain().focus().toggleBold().run()">
 <b>加粗</b>
@@ -49,9 +47,8 @@ H3
               @click="editor?.chain().focus().toggleUnderline().run()">
 <u>下划线</u>
 </el-button>
-          </el-button-group>
-          <el-divider direction="vertical" />
-          <el-button-group>
+          </div>
+          <div class="toolbar-group">
             <el-button size="small" :type="editor?.isActive('bulletList') ? 'primary' : ''"
               @click="editor?.chain().focus().toggleBulletList().run()">
 无序列表
@@ -60,70 +57,69 @@ H3
               @click="editor?.chain().focus().toggleOrderedList().run()">
 有序列表
 </el-button>
-          </el-button-group>
-          <el-divider direction="vertical" />
-          <el-button-group>
+          </div>
+          <div class="toolbar-group">
             <el-button size="small" @click="editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()">插入表格</el-button>
             <el-button size="small" @click="editor?.chain().focus().addRowAfter().run()">+行</el-button>
             <el-button size="small" @click="editor?.chain().focus().addColumnAfter().run()">+列</el-button>
             <el-button size="small" @click="editor?.chain().focus().deleteRow().run()">-行</el-button>
             <el-button size="small" @click="editor?.chain().focus().deleteColumn().run()">-列</el-button>
-          </el-button-group>
-          <el-divider direction="vertical" />
-          <el-button size="small" @click="triggerImageUpload">插入图片</el-button>
-          <input ref="imageInputRef" type="file" accept="image/*" hidden @change="handleImageUpload" />
+          </div>
+          <div class="toolbar-group">
+            <el-button size="small" @click="triggerImageUpload">插入图片</el-button>
+            <input ref="imageInputRef" type="file" accept="image/*" hidden @change="handleImageUpload" />
+          </div>
         </div>
 
-        <div class="editor-paper" :style="{ maxWidth: paperWidthPx + 'px' }">
-          <editor-content v-if="editor" :editor="editor" class="editor-content" />
+        <!-- 纸张画布：灰底衬托居中白纸，内容自适应高度 -->
+        <div class="editor-canvas">
+          <div class="editor-paper" :style="{ width: paperWidthPx + 'px' }">
+            <editor-content v-if="editor" :editor="editor" class="editor-content" />
+          </div>
+          <div class="paper-hint">编辑区宽度按纸张内容宽约束 · 分页以预览/打印 PDF 为准</div>
         </div>
-        <div class="paper-hint">编辑区宽度按纸张内容宽约束；分页以预览/打印 PDF 为准</div>
       </div>
 
-      <!-- 右侧面板：变量芯片 + 字段属性 -->
+      <!-- 右侧面板 -->
       <div class="editor-side">
         <el-card shadow="never" class="side-card">
           <template #header>
-            <div class="side-header">
-              <span>插入变量</span>
-            </div>
+            <div class="side-header">插入变量</div>
           </template>
-          <el-form inline size="small" @submit.prevent="addVariable">
-            <el-form-item label="标识" style="margin-bottom: 8px">
-              <el-input v-model="newVarKey" placeholder="如 party_a" style="width: 110px" />
-            </el-form-item>
-            <el-form-item label="名称" style="margin-bottom: 8px">
-              <el-input v-model="newVarLabel" placeholder="如 甲方名称" style="width: 110px" />
-            </el-form-item>
-            <el-form-item style="margin-bottom: 0">
-              <el-button type="primary" size="small" @click="addVariable">插入芯片</el-button>
-            </el-form-item>
-          </el-form>
-          <div class="var-tip">标识仅限字母数字下划线；芯片插入后可在正文任意移动，整只增删不可拆分</div>
+          <div class="var-form">
+            <el-input v-model="newVarKey" placeholder="标识，如 party_a" size="small" />
+            <el-input v-model="newVarLabel" placeholder="名称，如 甲方名称" size="small" />
+            <el-button type="primary" size="small" @click="addVariable">插入芯片</el-button>
+          </div>
+          <div class="var-tip">标识仅限字母数字下划线；芯片整只增删不可拆分，插入后可随文字移动</div>
         </el-card>
 
-        <el-card shadow="never" class="side-card">
+        <el-card shadow="never" class="side-card side-card-grow">
           <template #header>
             <div class="side-header">
               <span>变量字段属性（{{ fieldDefs.length }}）</span>
               <el-tag v-if="hasDefDiff" type="warning" size="small">有未同步改动</el-tag>
             </div>
           </template>
-          <div class="def-rows">
-            <div v-for="row in fieldDefs" :key="row.key" class="def-row">
-              <span class="def-key" :title="row.key">{{ row.key }}</span>
-              <el-input v-model="row.label" size="small" placeholder="显示名" style="width: 110px" />
-              <el-select v-model="row.type" size="small" style="width: 86px">
-                <el-option label="单行" value="text" />
-                <el-option label="多行" value="textarea" />
-                <el-option label="数字" value="number" />
-                <el-option label="日期" value="date" />
-                <el-option label="下拉" value="select" />
-              </el-select>
-              <el-checkbox v-model="row.required" label="必填" size="small" />
-              <el-input v-if="row.type === 'select'" v-model="row.optionsText" size="small"
-                placeholder="选项1,选项2" style="flex: 1" />
-              <span v-else class="def-options-placeholder">选项仅下拉类型</span>
+          <el-empty v-if="!fieldDefs.length" description="正文中插入变量芯片后，此处自动生成字段配置" :image-size="60" />
+          <div v-else class="def-list">
+            <div v-for="row in fieldDefs" :key="row.key" class="def-item">
+              <div class="def-item-head">
+                <el-tag size="small" type="info" class="def-key">{{ row.key }}</el-tag>
+                <el-select v-model="row.type" size="small" style="width: 92px">
+                  <el-option label="单行" value="text" />
+                  <el-option label="多行" value="textarea" />
+                  <el-option label="数字" value="number" />
+                  <el-option label="日期" value="date" />
+                  <el-option label="下拉" value="select" />
+                </el-select>
+                <el-checkbox v-model="row.required" label="必填" size="small" />
+              </div>
+              <div class="def-item-body">
+                <el-input v-model="row.label" size="small" placeholder="显示名称" />
+                <el-input v-if="row.type === 'select'" v-model="row.optionsText" size="small"
+                  placeholder="下拉选项，逗号分隔：选项1,选项2" />
+              </div>
             </div>
           </div>
         </el-card>
@@ -132,8 +128,8 @@ H3
 
     <template #footer>
       <div class="editor-footer">
-        <el-input v-model="changeLog" placeholder="版本变更说明（选填）" style="width: 360px" maxlength="500" />
-        <div>
+        <el-input v-model="changeLog" placeholder="版本变更说明（选填）" maxlength="500" class="footer-log" />
+        <div class="footer-actions">
           <el-button @click="visible = false">取消</el-button>
           <el-button type="primary" :loading="saving" :disabled="!editor" @click="save">保存为新版本</el-button>
         </div>
@@ -141,6 +137,7 @@ H3
     </template>
   </el-drawer>
 </template>
+
 
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue'
@@ -327,100 +324,201 @@ watch(visible, open => {
 </script>
 
 <style scoped>
+/* 抽屉 body 撑满：布局高度不再 calc 硬编码（跟随 SettingsPanel 先例：非 append-to-body + :deep） */
+:deep(.el-drawer__body) {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+:deep(.el-drawer__footer) {
+  padding: 8px 16px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
 .editor-layout {
   display: flex;
   gap: 12px;
-  height: calc(100vh - 140px);
+  flex: 1;
+  min-height: 0;
 }
 .editor-main {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
+
+/* 工具栏：单行不换行，分组完整（窄屏横向滚动），分组间留白替代 divider */
 .editor-toolbar {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 6px 8px;
+  gap: 14px;
+  padding: 6px 10px;
   border: 1px solid var(--el-border-color-lighter);
-  border-radius: 4px;
-  margin-bottom: 10px;
+  border-radius: 6px;
+  background: var(--el-bg-color);
+  overflow-x: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.toolbar-group {
+  display: inline-flex;
+  gap: 0;
+}
+.toolbar-group .el-button + .el-button {
+  margin-left: 0;
+}
+.toolbar-group .el-button {
+  border-radius: 0;
+}
+.toolbar-group .el-button:first-child {
+  border-radius: 4px 0 0 4px;
+}
+.toolbar-group .el-button:last-child {
+  border-radius: 0 4px 4px 0;
+}
+.toolbar-group .el-button + .el-button::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 55%;
+  border-left: 1px solid var(--el-border-color);
+  opacity: 0.6;
+}
+
+/* 纸张画布：灰底衬托 + 居中白纸（内容自适应，min-height 兜底） */
+.editor-canvas {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--el-fill-color-light);
+  border-radius: 6px;
+  padding: 20px 16px 8px;
 }
 .editor-paper {
-  flex: 1;
-  overflow-y: auto;
   margin: 0 auto;
-  width: 100%;
-  padding: 24px;
-  border: 1px dashed var(--el-border-color);
-  border-radius: 4px;
+  min-height: 480px;
+  max-width: 100%;
+  padding: 32px 36px;
   background: var(--el-bg-color);
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 8%);
+  box-sizing: border-box;
 }
 .paper-hint {
-  margin-top: 6px;
+  margin: 10px 0 6px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
   text-align: center;
 }
+
+/* 右侧面板：400px，两卡上下；属性行改两行卡片式（不再一行五件套） */
 .editor-side {
-  width: 480px;
+  width: 400px;
   flex-shrink: 0;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-height: 0;
+}
+.side-card :deep(.el-card__header) {
+  padding: 8px 12px;
+  font-weight: 600;
 }
 .side-card :deep(.el-card__body) {
-  padding: 10px;
+  padding: 10px 12px;
+}
+.side-card-grow {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.side-card-grow :deep(.el-card__body) {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 .side-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
 }
-.def-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 460px;
-  overflow-y: auto;
-}
-.def-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.def-key {
-  width: 84px;
-  flex-shrink: 0;
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--el-text-color-regular);
-}
-.def-options-placeholder {
-  flex: 1;
-  font-size: 12px;
-  color: var(--el-text-color-placeholder);
+.var-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
 }
 .var-tip {
   font-size: 12px;
   color: var(--el-text-color-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
+  margin-top: 8px;
 }
+
+/* 字段属性行：头部（标识+类型+必填）一行，主体（名称+选项）一行 */
+.def-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.def-item {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--el-bg-color);
+}
+.def-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.def-key {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: monospace;
+}
+.def-item-head .el-checkbox {
+  margin-left: auto;
+}
+.def-item-body {
+  display: flex;
+  gap: 8px;
+}
+.def-item-body .el-input:first-child {
+  flex: 0 0 132px;
+}
+
+/* footer：说明框自适应 + 按钮组右靠不缩 */
 .editor-footer {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 16px;
+}
+.footer-log {
+  flex: 1;
+  min-width: 200px;
+  max-width: 520px;
+}
+.footer-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 /* 编辑器正文基础样式（与 PDF 基础样式对齐：宋体正文/黑体标题） */
 .editor-content :deep(.tiptap) {
   outline: none;
-  min-height: 60%;
+  min-height: 420px;
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 14px;
   line-height: 1.7;
@@ -439,7 +537,7 @@ watch(visible, open => {
   padding: 4px 6px;
 }
 .editor-content :deep(.tiptap th) { background: #f2f2f2; }
-.editor-content :deep(.tiptap p) { margin: 0 0 6px; }
+.editor-content :deep(.tiptap p) { margin: 0 0 6pt; }
 
 /* 变量芯片 */
 .editor-content :deep(.ct-var) {
