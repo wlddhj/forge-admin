@@ -58,8 +58,10 @@ public final class ContractHtmlProcessor {
     /** 渲染前归一化：td/th/li 的块级 p 解包（style 转移给宿主单元格）+ 空白清除 + 紧凑输出 */
     private static void normalize(Document doc) {
         doc.outputSettings().prettyPrint(false);
-        doc.body().select("li > p, th > p, td > p").forEach(p -> {
-            // 单元格对齐等样式写在 tiptap 的 td>p 上，解包前转移到 td/th/li 宿主（p 属性优先）
+        // 仅解包 li>p（引擎列表标记排版需要）；td/th>p 保留——tiptap 单元格对齐写在 td>p 上，
+        // 且 TableCell schema 不认 td 的 style（转移到 td 会被编辑器重开时丢弃，真机实证），
+        // 行高由"紧凑输出+清空白+td>p margin:0"三件套保证
+        doc.body().select("li > p").forEach(p -> {
             if (p.hasAttr("style") && p.parent() != null) {
                 mergeStyle(p.parent(), p.attr("style"));
             }

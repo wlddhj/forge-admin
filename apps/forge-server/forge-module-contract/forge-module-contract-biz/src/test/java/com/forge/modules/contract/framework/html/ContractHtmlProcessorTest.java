@@ -46,15 +46,16 @@ class ContractHtmlProcessorTest {
     }
 
     @Test
-    void sanitizeMovesCellParagraphAlignToCell() {
+    void sanitizeKeepsCellParagraphWithAlign() {
         String html = "<table><tbody><tr>"
                 + "<td><p style=\"text-align: center\">居中格</p></td>"
                 + "<th><p style=\"text-align: right\">右表头</p></th>"
                 + "</tr></tbody></table>";
         String clean = ContractHtmlProcessor.sanitize(html);
-        assertTrue(clean.contains("<td style=\"text-align: center\"") || clean.contains("text-align: center"), "td 应承接对齐: " + clean);
-        assertTrue(clean.contains("text-align: right"), "th 应承接对齐");
-        assertFalse(clean.contains("<td><p"), "td>p 应已解包: " + clean);
+        // td>p 整体保留（tiptap schema 可回显），对齐随 p 存续
+        assertTrue(clean.contains("text-align: center"), "td>p 对齐须保留: " + clean);
+        assertTrue(clean.contains("text-align: right"), "th>p 对齐须保留");
+        assertTrue(clean.contains("<td><p"), "td>p 结构保留（不解包）");
     }
 
     @Test
