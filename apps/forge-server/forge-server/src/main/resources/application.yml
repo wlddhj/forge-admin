@@ -113,6 +113,10 @@ forge:
       - /doc.html
       - /swagger-ui/**
       - /v3/api-docs/**
+      # 附件直链：SecurityConfig 已按"UUID 不可枚举 + 公网 domain 直链"口径放行认证，
+      # 租户闸须同口径放行，否则浏览器 <a>/iframe 直链(不带 X-Tenant-Id)被 400 拦截
+      - /uploads/**
+      - /app-api/uploads/**
       - /swagger-resources/**
       - /webjars/**
       - /error
