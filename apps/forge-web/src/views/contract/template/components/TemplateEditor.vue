@@ -223,8 +223,8 @@ H3
             <div class="side-header">纸张设置</div>
           </template>
           <div class="paper-row">
-            <span class="paper-label">纸张</span>
-            <el-select v-model="paper.paperSize" size="small" style="width: 104px">
+<span class="paper-label">纸张</span>
+            <el-select v-model="paper.paperSize" size="small" class="paper-ctl">
               <el-option label="A4" value="A4" />
               <el-option label="A5" value="A5" />
               <el-option label="B3" value="B3" />
@@ -232,14 +232,16 @@ H3
               <el-option label="Legal" value="LEGAL" />
               <el-option label="自定义" value="CUSTOM" />
             </el-select>
-            <span class="paper-label">方向</span>
+          </div>
+          <div class="paper-row">
+<span class="paper-label">方向</span>
             <el-radio-group v-model="paper.paperOrientation" size="small">
               <el-radio-button value="PORTRAIT">纵向</el-radio-button>
               <el-radio-button value="LANDSCAPE">横向</el-radio-button>
             </el-radio-group>
           </div>
           <div class="paper-row">
-            <span class="paper-label">边距</span>
+<span class="paper-label">边距</span>
             <el-radio-group v-model="paper.marginPreset" size="small">
               <el-radio-button value="NARROW">窄</el-radio-button>
               <el-radio-button value="NORMAL">正常</el-radio-button>
@@ -247,15 +249,15 @@ H3
             </el-radio-group>
           </div>
           <div v-if="paper.paperSize === 'CUSTOM'" class="paper-row">
-            <span class="paper-label">宽高</span>
+<span class="paper-label">宽高</span>
             <el-input-number v-model="paper.customWidthMm" :min="50" :max="600" :precision="1"
-              size="small" controls-position="right" placeholder="宽mm" style="width: 116px" />
+              size="small" controls-position="right" placeholder="宽" class="paper-num" />
             <span class="paper-x">×</span>
             <el-input-number v-model="paper.customHeightMm" :min="50" :max="900" :precision="1"
-              size="small" controls-position="right" placeholder="高mm" style="width: 116px" />
-            <span class="paper-label-hint">mm（纵向口径）</span>
+              size="small" controls-position="right" placeholder="高" class="paper-num" />
+            <span class="paper-label-hint">mm·纵向口径</span>
           </div>
-          <div class="var-tip">保存时生效；横向=交换宽高，自定义宽高按纵向口径填写</div>
+          <div class="var-tip">保存时生效；横向=交换宽高</div>
         </el-card>
 
         <!-- 保存版本 -->
