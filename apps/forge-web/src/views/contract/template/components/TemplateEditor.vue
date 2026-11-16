@@ -123,18 +123,22 @@ H3
             </div>
           </div>
         </el-card>
+
+        <!-- 保存版本 -->
+        <el-card shadow="never" class="side-card save-card">
+          <template #header>
+            <div class="side-header">保存版本</div>
+          </template>
+          <el-input v-model="changeLog" placeholder="版本变更说明（选填）" maxlength="500" size="small" />
+          <div class="save-actions">
+            <el-button class="save-btn" @click="visible = false">取消</el-button>
+            <el-button class="save-btn" type="primary" :loading="saving" :disabled="!editor" @click="save">
+              保存为新版本
+            </el-button>
+          </div>
+        </el-card>
       </div>
     </div>
-
-    <template #footer>
-      <div class="editor-footer">
-        <el-input v-model="changeLog" placeholder="版本变更说明（选填）" maxlength="500" class="footer-log" />
-        <div class="footer-actions">
-          <el-button @click="visible = false">取消</el-button>
-          <el-button type="primary" :loading="saving" :disabled="!editor" @click="save">保存为新版本</el-button>
-        </div>
-      </div>
-    </template>
   </el-drawer>
 </template>
 
@@ -331,11 +335,6 @@ watch(visible, open => {
   flex-direction: column;
   overflow: hidden;
 }
-:deep(.el-drawer__footer) {
-  padding: 8px 16px;
-  border-top: 1px solid var(--el-border-color-lighter);
-}
-
 .editor-layout {
   display: flex;
   gap: 12px;
@@ -425,6 +424,7 @@ watch(visible, open => {
   flex-direction: column;
   gap: 10px;
   min-height: 0;
+  overflow-y: auto;
 }
 .side-card :deep(.el-card__header) {
   padding: 8px 12px;
@@ -435,7 +435,7 @@ watch(visible, open => {
 }
 .side-card-grow {
   flex: 1;
-  min-height: 0;
+  min-height: 160px;
   display: flex;
   flex-direction: column;
 }
@@ -443,6 +443,14 @@ watch(visible, open => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+.save-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.save-btn {
+  flex: 1;
 }
 .side-header {
   display: flex;
@@ -499,22 +507,6 @@ watch(visible, open => {
   flex: 0 0 132px;
 }
 
-/* footer：说明框自适应 + 按钮组右靠不缩 */
-.editor-footer {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.footer-log {
-  flex: 1;
-  min-width: 200px;
-  max-width: 520px;
-}
-.footer-actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
 
 /* 编辑器正文基础样式（与 PDF 基础样式对齐：宋体正文/黑体标题） */
 .editor-content :deep(.tiptap) {
