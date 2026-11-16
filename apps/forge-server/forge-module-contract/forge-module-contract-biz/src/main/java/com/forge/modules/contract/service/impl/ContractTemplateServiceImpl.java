@@ -177,6 +177,9 @@ public class ContractTemplateServiceImpl implements ContractTemplateService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long saveVersion(TemplateDtos.VersionSaveRequest request) {
+        if (request.getTemplateId() == null) {
+            throw new BusinessException(400, "模板ID不能为空");
+        }
         CtTemplate template = requireTemplate(request.getTemplateId());
         String contentHtml = ContractHtmlProcessor.sanitize(request.getContentHtml());
         if (contentHtml.isBlank()) {

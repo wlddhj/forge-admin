@@ -78,10 +78,10 @@ public class TemplateDtos {
         private Integer status;
     }
 
-    /** 保存新版本（content + 字段定义 + 变更说明，版本号服务端自增） */
+    /** 保存新版本（content + 字段定义 + 变更说明，版本号服务端自增）。
+     *  templateId 由 Controller 从路径参数注入，body 不传，故不参与校验 */
     @Data
     public static class VersionSaveRequest {
-        @NotNull(message = "模板ID不能为空")
         private Long templateId;
 
         @Schema(description = "模板内容 HTML（编辑器序列化）", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -95,10 +95,10 @@ public class TemplateDtos {
         private String changeLog;
     }
 
-    /** 修正当前版本字段定义（仅属性：label/type/required/options；被合同引用的版本禁改） */
+    /** 修正当前版本字段定义（仅属性：label/type/required/options；被合同引用的版本禁改）。
+     *  versionId 由 Controller 从路径参数注入，body 不传，故不参与校验 */
     @Data
     public static class FieldDefsUpdateRequest {
-        @NotNull(message = "版本ID不能为空")
         private Long versionId;
 
         @NotNull(message = "字段定义不能为空")
