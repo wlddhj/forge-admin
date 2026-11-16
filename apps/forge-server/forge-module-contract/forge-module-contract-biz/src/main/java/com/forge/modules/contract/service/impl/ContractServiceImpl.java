@@ -148,7 +148,10 @@ public class ContractServiceImpl implements ContractService {
                         CtContract.STATUS_REJECTED, CtContract.STATUS_CANCELED)
                 .set(CtContract::getTitle, request.getTitle().trim())
                 .set(CtContract::getContractNo, normalizeNo(request.getContractNo()))
-                .set(CtContract::getFieldValues, request.getFieldValues())
+                // Wrapper.set 不走实体 @TableField 的 typeHandler（MP 深坑：Map 会被 Java 原生序列化成
+                // AC ED 字节流，MySQL utf8mb4 列直接 Incorrect string value），须第三参显式指定
+                .set(CtContract::getFieldValues, request.getFieldValues(),
+                        "typeHandler=com.baomidou.mybatisplus.extension.handlers.Jackson3TypeHandler")
                 .set(CtContract::getStatus, CtContract.STATUS_DRAFT) // 3/4 重置回草稿语义
                 .set(CtContract::getUpdateBy, SecurityUtils.getCurrentUserId()));
         if (rows == 0) {
