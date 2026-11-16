@@ -45,6 +45,15 @@ class ContractPdfRenderTest {
 
     @Test
     @Timeout(120)
+    void renderHighlightAndFontSize() {
+        String html = "<p><mark style=\"background-color: #ffff00\">重点条款</mark> "
+                + "<span style=\"font-size: 18pt\">大号条款文本</span></p>";
+        byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null, null);
+        assertTrue(pdf.length > 3_000, "含高亮与字号的 PDF 应正常产出: " + pdf.length);
+    }
+
+    @Test
+    @Timeout(120)
     void renderLandscapeSwapsPageDimensions() throws Exception {
         String html = "<h2>横向合同</h2><p>宽幅条款内容。</p>";
         byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null,

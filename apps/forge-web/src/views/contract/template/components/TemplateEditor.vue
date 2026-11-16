@@ -70,6 +70,30 @@ H3
             </el-tooltip>
           </div>
           <div class="toolbar-group">
+            <el-select v-model="currentFontSize" size="small" style="width: 86px"
+              @change="applyFontSize">
+              <el-option label="默认字号" value="" />
+              <el-option v-for="sz in ['12pt', '14pt', '16pt', '18pt', '24pt', '36pt']" :key="sz"
+                :label="sz" :value="sz" />
+            </el-select>
+          </div>
+          <div class="toolbar-group">
+            <el-dropdown trigger="click" @command="applyHighlight">
+              <el-button size="small" class="tb-icon"
+                :type="editor?.isActive('highlight') ? 'primary' : ''">
+                <el-icon><Brush /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-for="c in highlightColors" :key="c.value" :command="c.value">
+                    <span class="hl-swatch" :style="{ background: c.value }" />{{ c.label }}
+                  </el-dropdown-item>
+                  <el-dropdown-item divided command="">取消高亮</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+          <div class="toolbar-group">
             <el-tooltip content="左对齐" placement="bottom">
               <el-button size="small" class="tb-text" :type="editor?.isActive({ textAlign: 'left' }) ? 'primary' : ''"
                 @click="editor?.chain().focus().setTextAlign('left').run()">
@@ -248,6 +272,9 @@ import StarterKit from '@tiptap/starter-kit'
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table'
 import Image from '@tiptap/extension-image'
 import TextAlign from '@tiptap/extension-text-align'
+import Highlight from '@tiptap/extension-highlight'
+import { TextStyle } from '@tiptap/extension-text-style'
+import { FontSize } from '@tiptap/extension-font-size'
 import { ElMessage } from 'element-plus'
 import { templateApi } from '@/api/contract/template'
 import { uploadAttachment } from '@/api/system'
@@ -269,6 +296,35 @@ const saving = ref(false)
 const changeLog = ref('')
 const newVarKey = ref('')
 const newVarLabel = ref('')
+/** 字号（textStyle.fontSize，空=默认 12pt 基础样式） */
+const currentFontSize = ref('')
+const applyFontSize = (v: string) => {
+  if (v) {
+    editor.value?.chain().focus().setFontSize(v).run()
+  } else {
+    editor.value?.chain().focus().unsetFontSize().run()
+  }
+}
+const syncFontSize = () => {
+  currentFontSize.value = (editor.value?.getAttributes('textStyle').fontSize as string) ?? ''
+}
+
+/** 高亮色板（multicolor） */
+const highlightColors = [
+  { label: '黄色', value: '#ffff00' },
+  { label: '绿色', value: '#66ff66' },
+  { label: '青色', value: '#66ffff' },
+  { label: '粉色', value: '#ff99cc' },
+  { label: '橙色', value: '#ffcc99' }
+]
+const applyHighlight = (color: string) => {
+  if (color) {
+    editor.value?.chain().focus().setHighlight({ color }).run()
+  } else {
+    editor.value?.chain().focus().unsetHighlight().run()
+  }
+}
+
 /** 纸张设置（编辑器内可改，保存时与版本一起生效） */
 const paper = reactive({
   paperSize: 'A4' as PaperSizeCode,
@@ -343,9 +399,15 @@ const buildEditor = (content: string) => {
       TableCell,
       Image,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TextStyle,
+      FontSize,
+      Highlight.configure({ multicolor: true }),
       VariableNode
     ],
-    onUpdate: () => syncDefsFromContent()
+    onUpdate: () => {
+      syncDefsFromContent()
+      syncFontSize()
+    }
   })
 }
 
@@ -506,6 +568,15 @@ watch(visible, open => {
 .tb-icon {
   width: 32px;
   padding: 8px 0;
+}
+.hl-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -2px;
 }
 .tb-text {
   min-width: 32px;

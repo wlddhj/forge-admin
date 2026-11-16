@@ -46,6 +46,16 @@ class ContractHtmlProcessorTest {
     }
 
     @Test
+    void sanitizeKeepsHighlightAndFontSize() {
+        String html = "<p><mark style=\"background-color: #ffff00\">重点条款</mark> "
+                + "<span style=\"font-size: 18pt\">大字</span></p>";
+        String clean = ContractHtmlProcessor.sanitize(html);
+        assertTrue(clean.contains("<mark"), "mark(高亮)须保留");
+        assertTrue(clean.contains("background-color"), "高亮色样式须保留");
+        assertTrue(clean.contains("font-size"), "字号样式须保留");
+    }
+
+    @Test
     void extractFieldKeysDistinctInOrder() {
         String html = "<p><span data-field=\"b\">x</span> <span data-field=\"a\">y</span> "
                 + "<span data-field=\"b\">z</span> <span data-field=\"\">空键忽略</span></p>";

@@ -24,7 +24,7 @@ public final class ContractHtmlProcessor {
             .addTags("p", "div", "h1", "h2", "h3", "h4",
                     "ul", "ol", "li",
                     "table", "thead", "tbody", "tfoot", "tr", "th", "td",
-                    "strong", "em", "u", "s", "br", "sub", "sup", "blockquote",
+                    "strong", "em", "u", "s", "br", "sub", "sup", "blockquote", "mark",
                     "span", "a", "img")
             // 变量芯片：data-field 是渲染键，class 用于芯片样式
             .addAttributes("span", FIELD_ATTR, "class")
