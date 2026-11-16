@@ -456,6 +456,7 @@ TENANT_ENABLE=false
 | `sql/upgrade-20261027-flowlong127.sql` | FlowLong 1.2.7 任务/实例表新增 `urgent`（紧急程度）列 |
 | `sql/upgrade-20261029-project-example.sql` | 业务示例模块 `demo_biz_project` 表、菜单（id 280-284）与超管授权 |
 | `sql/upgrade-20261113-plugin-module.sql` | 插件体系：sys_plugin 四表、sys_menu 归属两列、插件管理菜单（id 2600-2607）、License 到期巡检任务、demo 存量菜单插件化迁移 |
+| `sql/upgrade-20261115-plugin-charge-mode.sql` | 插件收费双模式：`sys_plugin` 补 `charge_mode`（1 收费授权 / 0 免费开放）+ 收费模式切换按钮（id 2608） |
 | `sql/upgrade-20261029-urgent-dict.sql` | 紧急程度字典 `wf_urgent`（常规/重要不紧急/紧急不重要/紧急且重要） |
 | `sql/upgrade-20261030-title-rule.sql` | `wf_process_ext` 补 `title_rule` 列（流程标题规则） |
 | `sql/upgrade-20261110-im-notify.sql` | 审批 IM 推送：`wf_im_channel_config` 表、开关种子、按钮权限（v1） |

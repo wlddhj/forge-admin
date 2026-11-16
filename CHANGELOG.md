@@ -4,6 +4,28 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.2.0] - 2026-11-16
+
+### 新增
+
+- **插件体系全量落地**：编译期模块插件架构，平台总闸 + 租户级启停（停用后菜单隐藏、数据保留）；License 离线授权（三要素校验 + 到期巡检自动停用）与在线签发双模式；每插件可切换「免费开放 / 收费授权」双收费模式，新租户自动启用免费插件；插件数据权限 scope 勾选式授予；插件管理页卡片式布局；`create-plugin` 脚手架指令一键生成完整插件骨架；配套《插件模块手册》《插件开发指南》文档
+- **合同模板管理模块**：tiptap3 在线富文本编辑（工具栏图标化、高亮 5 色、字号档位、对齐/删除线/引用/水平线/清除格式），变量芯片插入；纯 Java PDF 渲染（openhtmltopdf），PDFBox 3 水印升级 3×3 平铺小字 + 文案带日期，实时预览同样盖章；FlowLong 审批集成——审批中可预览打印（带『审批中』水印），定稿走直链；纸张 A 系列 + 信函 + B3、横竖方向、页边距三档（窄/正常/宽，Word 同口径）编辑器内可直接调整且渲染全链路生效；编辑器分页参考虚线 + 页码角标；编辑合同弹窗免保存预览；新建/编辑合同可手填合同编号（租户内查重，留空定稿自动生成）；PDF 预览独立全屏弹窗
+- **合同分类树形化**：`ct_category` 树表 + 列表页左树筛选 + 仅叶子可挂模板，原分类字典平滑迁移停用
+
+### 修复
+
+- **附件直链 iframe 预览全链路打通**（四层连环）：Spring 7 路径属性口径导致 404、租户闸放行缺失、uploads 安全链默认 X-Frame-Options=DENY 拒绝跨源 iframe
+- **PDF 渲染系列根治**：表格行高暴涨（单元格隐形空行）、列表序号与内容同行、空格渲染不丢失、回车空行保留整行高、表格单元格对齐丢失与编辑器回显、预览乱码（端点显式 `produces=application/pdf`）
+- **框架**：未匹配路径/方法/媒体类型异常误报 500，补 404/405/415 语义处理
+- 合同模块：编辑合同 Incorrect string value（Wrapper.set 显式 typeHandler）、修改模板方向/边距不生效、保存模板版本误报「模板ID不能为空」、新建合同 Unknown column、preview-draft 端点改动静默丢失
+- 插件：租户授权抽屉改以租户为主表展示（全新租户无启停记录也能发起首次启用）
+
+### 变更
+
+- 编辑器排版重做：白纸整页模型（padding 与 PDF 页边距同口径）撑满画布，保存操作挪右侧面板，纸张设置卡单列对齐；编辑器与 PDF 表格/列表/标题样式双向统一，所见即所渲染；思源字体仅 PDF 内嵌，编辑器退回系统字体（前端省 41MB）
+- 插件 License 有效期展示精确到天，签发弹窗改按天选择（到期日收口 23:59:59）；列表左侧分类树去掉快捷新增入口，分类维护统一走分类管理页
+- **升级脚本（存量库须手工执行）**：`sql/upgrade-20261113-plugin-module.sql`、`sql/upgrade-20261115-plugin-charge-mode.sql`、`sql/upgrade-20261116-contract.sql`、`sql/upgrade-20261116-contract-orientation.sql`、`sql/upgrade-20261116-contract-margin.sql`、`sql/upgrade-20261117-contract-category.sql`
+
 ## [2.1.0] - 2026-11-13
 
 ### 新增
@@ -210,6 +232,7 @@
 
 全新建库直接执行 `sql/init*.sql`，无需以上脚本。
 
+[2.2.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.2.0
 [2.1.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.1.0
 [2.0.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.0.0
 [1.1.0]: https://github.com/wlddhj/forge-admin/releases/tag/v1.1.0
