@@ -35,7 +35,7 @@ class ContractPdfRenderTest {
         values.put("party_a", "北京某某科技有限公司");
 
         String filled = com.forge.modules.contract.framework.html.ContractHtmlProcessor.fillChips(html, values);
-        byte[] pdf = new OpenHtmlToPdfClient().render(filled, PaperSize.A4, null, null);
+        byte[] pdf = new OpenHtmlToPdfClient().render(filled, PaperSize.A4, null, null, null);
 
         assertNotNull(pdf);
         assertTrue(pdf.length > 10_000, "PDF 应含内嵌字体，体积应显著大于空文档: " + pdf.length);
@@ -45,10 +45,24 @@ class ContractPdfRenderTest {
 
     @Test
     @Timeout(120)
+    void renderLandscapeSwapsPageDimensions() throws Exception {
+        String html = "<h2>横向合同</h2><p>宽幅条款内容。</p>";
+        byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null,
+                com.forge.modules.contract.enums.PaperOrientation.LANDSCAPE);
+        try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            var box = doc.getPage(0).getMediaBox();
+            // A4 横向：297mm≈841.9pt 宽 > 595.3pt 高
+            assertTrue(box.getWidth() > 800 && box.getHeight() < 600,
+                    "横向应交换宽高, 实测 " + box.getWidth() + "x" + box.getHeight());
+        }
+    }
+
+    @Test
+    @Timeout(120)
     void renderPreservesConsecutiveSpaces() throws Exception {
         // 真机回归：模板维护的连续空格在 PDF 中不得被 CSS normal 折叠
         String html = "<p>甲方：A公司      乙方：B公司</p>";
-        byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null);
+        byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null, null);
         try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
             org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
             String text = stripper.getText(doc);
@@ -62,7 +76,7 @@ class ContractPdfRenderTest {
     void renderCustomPaperAndWatermark() throws Exception {
         String html = "<h2>保密协议</h2><p>双方本着诚实信用原则，约定如下保密义务。</p>";
         OpenHtmlToPdfClient client = new OpenHtmlToPdfClient();
-        byte[] pdf = client.render(html, PaperSize.CUSTOM, new BigDecimal("148"), new BigDecimal("210"));
+        byte[] pdf = client.render(html, PaperSize.CUSTOM, new BigDecimal("148"), new BigDecimal("210"), null);
         assertTrue(pdf.length > 5_000);
 
         byte[] stamped = new WatermarkStamper().stamp(pdf, "北京某某科技有限公司 · 定稿");

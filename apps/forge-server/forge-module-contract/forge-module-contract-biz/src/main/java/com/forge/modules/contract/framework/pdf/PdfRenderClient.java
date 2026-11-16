@@ -1,5 +1,6 @@
 package com.forge.modules.contract.framework.pdf;
 
+import com.forge.modules.contract.enums.PaperOrientation;
 import com.forge.modules.contract.enums.PaperSize;
 
 import java.math.BigDecimal;
@@ -24,7 +25,9 @@ public interface PdfRenderClient {
      * @param paper       纸张规格（CUSTOM 时以 customWidthMm/customHeightMm 为准）
      * @param customWidthMm  自定义纸宽 mm（可空）
      * @param customHeightMm 自定义纸高 mm（可空）
+     * @param orientation    纸张方向（横向交换宽高，null=纵向）
      * @return PDF 字节
      */
-    byte[] render(String contentHtml, PaperSize paper, BigDecimal customWidthMm, BigDecimal customHeightMm);
+    byte[] render(String contentHtml, PaperSize paper, BigDecimal customWidthMm, BigDecimal customHeightMm,
+                  PaperOrientation orientation);
 }

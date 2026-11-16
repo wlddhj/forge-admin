@@ -15,6 +15,7 @@ import com.forge.modules.contract.entity.CtCategory;
 import com.forge.modules.contract.entity.CtContract;
 import com.forge.modules.contract.entity.CtTemplate;
 import com.forge.modules.contract.entity.CtTemplateVersion;
+import com.forge.modules.contract.enums.PaperOrientation;
 import com.forge.modules.contract.enums.PaperSize;
 import com.forge.modules.contract.framework.html.ContractHtmlProcessor;
 import com.forge.modules.contract.framework.pdf.InMemoryMultipartFile;
@@ -181,7 +182,8 @@ public class ContractServiceImpl implements ContractService {
         CtTemplateVersion version = requireVersion(contract.getTemplateVersionId());
         String filled = ContractHtmlProcessor.fillChips(version.getContentHtml(), contract.getFieldValues());
         byte[] pdf = pdfRenderClient.render(filled, PaperSize.of(template.getPaperSize()),
-                template.getCustomWidthMm(), template.getCustomHeightMm());
+                template.getCustomWidthMm(), template.getCustomHeightMm(),
+                PaperOrientation.of(template.getPaperOrientation()));
         // 预览同样盖章（2026-11-16 需求）：按状态文案+当日日期，防截图外流
         return watermarkStamper.stamp(pdf, watermarkText(statusFlag(contract.getStatus())));
     }
@@ -192,7 +194,8 @@ public class ContractServiceImpl implements ContractService {
         CtTemplate template = requireTemplate(version.getTemplateId());
         String filled = ContractHtmlProcessor.fillChips(version.getContentHtml(), fieldValues);
         byte[] pdf = pdfRenderClient.render(filled, PaperSize.of(template.getPaperSize()),
-                template.getCustomWidthMm(), template.getCustomHeightMm());
+                template.getCustomWidthMm(), template.getCustomHeightMm(),
+                PaperOrientation.of(template.getPaperOrientation()));
         return watermarkStamper.stamp(pdf, watermarkText("草稿"));
     }
 
@@ -221,7 +224,8 @@ public class ContractServiceImpl implements ContractService {
             CtTemplateVersion version = requireVersion(contract.getTemplateVersionId());
             content = ContractHtmlProcessor.fillChips(version.getContentHtml(), contract.getFieldValues());
         }
-        byte[] pdf = pdfRenderClient.render(content, paper, w, h);
+        byte[] pdf = pdfRenderClient.render(content, paper, w, h,
+                PaperOrientation.of(template.getPaperOrientation()));
         return watermarkStamper.stamp(pdf, watermarkText(statusFlag(contract.getStatus())));
     }
 
@@ -278,7 +282,8 @@ public class ContractServiceImpl implements ContractService {
         // 定稿快照：模板内容 + 锁定字段值（此后模板/字段改动不影响本合同）
         String renderedHtml = ContractHtmlProcessor.fillChips(version.getContentHtml(), contract.getFieldValues());
         byte[] pdf = pdfRenderClient.render(renderedHtml, PaperSize.of(template.getPaperSize()),
-                template.getCustomWidthMm(), template.getCustomHeightMm());
+                template.getCustomWidthMm(), template.getCustomHeightMm(),
+                PaperOrientation.of(template.getPaperOrientation()));
         byte[] watermarked = watermarkStamper.stamp(pdf, watermarkText("定稿"));
 
         String fileName = "contract-" + contract.getId() + ".pdf";

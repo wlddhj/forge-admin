@@ -43,6 +43,9 @@ public class CtTemplate {
     /** 纸张 A4/A5/LETTER/LEGAL/CUSTOM */
     private String paperSize;
 
+    /** 纸张方向 PORTRAIT:纵向 LANDSCAPE:横向 */
+    private String paperOrientation;
+
     /** 自定义纸宽 mm（CUSTOM 时有效） */
     private BigDecimal customWidthMm;
 

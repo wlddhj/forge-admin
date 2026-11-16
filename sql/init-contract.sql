@@ -49,6 +49,7 @@ CREATE TABLE `ct_template` (
     `current_version_id` BIGINT       DEFAULT NULL COMMENT '当前版本ID（首版保存后回填，合同创建锁定该版本）',
     `status`             TINYINT      NOT NULL DEFAULT 0 COMMENT '状态（0:草稿 1:启用 2:停用）',
     `paper_size`         VARCHAR(16)  NOT NULL DEFAULT 'A4' COMMENT '纸张（A4/A5/LETTER/LEGAL/CUSTOM）',
+    `paper_orientation`  VARCHAR(8)   NOT NULL DEFAULT 'PORTRAIT' COMMENT '纸张方向（PORTRAIT:纵向 LANDSCAPE:横向）',
     `custom_width_mm`    DECIMAL(6,1) DEFAULT NULL COMMENT '自定义纸宽 mm（CUSTOM 时有效）',
     `custom_height_mm`   DECIMAL(6,1) DEFAULT NULL COMMENT '自定义纸高 mm（CUSTOM 时有效）',
     `remark`             VARCHAR(500) DEFAULT NULL COMMENT '备注',

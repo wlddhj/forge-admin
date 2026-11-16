@@ -464,6 +464,7 @@ TENANT_ENABLE=false
 | `sql/upgrade-20261112-tenant-wf-event-audit.sql` | 工作流事件审计表补 `tenant_id`（多租户开闸配套） |
 | `sql/upgrade-20261116-contract.sql` | 合同模板模块：`ct_template`/`ct_template_version`/`ct_contract` 三表 + 菜单权限（285-299）+ 合同分类字典 |
 | `sql/upgrade-20261117-contract-category.sql` | 合同分类树形化：`ct_category` 树表 + 字典迁移两级树 + 模板改挂 `category_id`（删旧 `category_code` 列）+ 分类菜单（326-330），原分类字典停用 |
+| `sql/upgrade-20261116-contract-orientation.sql` | 合同模板纸张方向：`ct_template` 补 `paper_orientation`（PORTRAIT/LANDSCAPE） |
 
 ## 开发命令
 

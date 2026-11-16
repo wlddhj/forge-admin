@@ -23,6 +23,9 @@ public interface ContractTemplateService {
     /** 修改模板基础信息 */
     void updateTemplate(TemplateDtos.UpdateRequest request);
 
+    /** 仅更新纸张配置（编辑器内调整纸张/方向） */
+    void updatePaper(TemplateDtos.PaperUpdateRequest request);
+
     /** 启用/停用（启用要求已有内容版本） */
     void changeStatus(Long id, Integer status);
 

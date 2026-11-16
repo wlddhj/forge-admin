@@ -1,5 +1,6 @@
 package com.forge.modules.contract.framework.pdf;
 
+import com.forge.modules.contract.enums.PaperOrientation;
 import com.forge.modules.contract.enums.PaperSize;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import lombok.extern.slf4j.Slf4j;
@@ -40,11 +41,12 @@ public class OpenHtmlToPdfClient implements PdfRenderClient {
     }
 
     @Override
-    public byte[] render(String contentHtml, PaperSize paper, BigDecimal customWidthMm, BigDecimal customHeightMm) {
+    public byte[] render(String contentHtml, PaperSize paper, BigDecimal customWidthMm, BigDecimal customHeightMm,
+                         PaperOrientation orientation) {
         // 空段落（回车空行）补 <br/> 占行高：CSS 生成内容(::before)在 openhtmltopdf 无效（探针实测
         // 3 空段渲染 0 空行），含 br 的段落块高度=一行是引擎确定行为；所有渲染路径（预览/打印/定稿）统一走此
         String normalized = contentHtml.replaceAll("<p>(\\s|&nbsp;|\\u00A0)*</p>", "<p><br/></p>");
-        String html = "<html><head><style>" + buildPageCss(paper, customWidthMm, customHeightMm) + BASE_CSS
+        String html = "<html><head><style>" + buildPageCss(paper, customWidthMm, customHeightMm, orientation) + BASE_CSS
                 + "</style></head><body>" + normalized + "</body></html>";
         // openhtmltopdf 要求良构 XHTML：jsoup 解析 → XML 语法 → W3C DOM（jsoup 官方桥接）
         Document jdoc = Jsoup.parse(html);
@@ -68,7 +70,8 @@ public class OpenHtmlToPdfClient implements PdfRenderClient {
     /**
      * 按纸张注入 @page（尺寸 + 页边距 + 页脚页码），自定义毫米值优先
      */
-    private String buildPageCss(PaperSize paper, BigDecimal customWidthMm, BigDecimal customHeightMm) {
+    private String buildPageCss(PaperSize paper, BigDecimal customWidthMm, BigDecimal customHeightMm,
+                                PaperOrientation orientation) {
         BigDecimal w = paper.getWidthMm();
         BigDecimal h = paper.getHeightMm();
         if (paper == PaperSize.CUSTOM && customWidthMm != null && customHeightMm != null
@@ -79,6 +82,12 @@ public class OpenHtmlToPdfClient implements PdfRenderClient {
         if (w == null || h == null) {
             w = PaperSize.A4.getWidthMm();
             h = PaperSize.A4.getHeightMm();
+        }
+        // 横向：交换宽高（自定义纸张同理，宽高按纵向口径填写）
+        if (orientation == PaperOrientation.LANDSCAPE) {
+            BigDecimal tmp = w;
+            w = h;
+            h = tmp;
         }
         return "@page { size: " + w.stripTrailingZeros().toPlainString() + "mm " + h.stripTrailingZeros().toPlainString()
                 + "mm; margin: 25.4mm 31.8mm;"

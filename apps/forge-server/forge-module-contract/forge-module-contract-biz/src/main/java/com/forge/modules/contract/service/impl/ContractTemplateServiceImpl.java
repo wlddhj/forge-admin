@@ -10,6 +10,7 @@ import com.forge.modules.contract.entity.CtCategory;
 import com.forge.modules.contract.entity.CtContract;
 import com.forge.modules.contract.entity.CtTemplate;
 import com.forge.modules.contract.entity.CtTemplateVersion;
+import com.forge.modules.contract.enums.PaperOrientation;
 import com.forge.modules.contract.enums.PaperSize;
 import com.forge.modules.contract.framework.html.ContractHtmlProcessor;
 import com.forge.modules.contract.mapper.CtCategoryMapper;
@@ -122,6 +123,20 @@ public class ContractTemplateServiceImpl implements ContractTemplateService {
         } catch (DuplicateKeyException e) {
             throw new BusinessException(400, "模板名称已存在");
         }
+    }
+
+    @Override
+    public void updatePaper(TemplateDtos.PaperUpdateRequest request) {
+        requireTemplate(request.getId());
+        validatePaper(request.getPaperSize(), request.getCustomWidthMm(), request.getCustomHeightMm());
+        CtTemplate upd = new CtTemplate();
+        upd.setId(request.getId());
+        upd.setPaperSize(paperOrDefault(request.getPaperSize()));
+        upd.setPaperOrientation(PaperOrientation.of(request.getPaperOrientation()).name());
+        upd.setCustomWidthMm(request.getCustomWidthMm());
+        upd.setCustomHeightMm(request.getCustomHeightMm());
+        upd.setUpdateBy(SecurityUtils.getCurrentUserId());
+        templateMapper.updateById(upd);
     }
 
     @Override

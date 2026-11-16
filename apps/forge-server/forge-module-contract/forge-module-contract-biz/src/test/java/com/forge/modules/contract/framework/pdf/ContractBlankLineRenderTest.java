@@ -15,7 +15,7 @@ class ContractBlankLineRenderTest {
     @Test
     void blankParagraphsKeepLineHeight() throws Exception {
         String html = "<p>AA行</p><p></p><p></p><p></p><p>BB行</p>";
-        byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null);
+        byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null, null);
         Files.write(Paths.get("/tmp/blank_probe.pdf"), pdf);
         try (PDDocument doc = Loader.loadPDF(pdf)) {
             List<TextPosition> positions = new ArrayList<>();

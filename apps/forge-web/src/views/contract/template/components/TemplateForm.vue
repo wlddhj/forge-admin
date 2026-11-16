@@ -32,6 +32,12 @@
           <el-option label="自定义" value="CUSTOM" />
         </el-select>
       </el-form-item>
+      <el-form-item label="方向">
+        <el-radio-group v-model="form.paperOrientation">
+          <el-radio-button value="PORTRAIT">纵向</el-radio-button>
+          <el-radio-button value="LANDSCAPE">横向</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
       <el-form-item v-if="form.paperSize === 'CUSTOM'" label="宽×高 mm">
         <el-input-number v-model="form.customWidthMm" :min="50" :max="600" :precision="1" controls-position="right" style="width: 120px" />
         <span style="margin: 0 6px">×</span>
@@ -79,6 +85,7 @@ const form = reactive<TemplateForm>({
   categoryId: undefined,
   name: '',
   paperSize: 'A4',
+  paperOrientation: 'PORTRAIT',
   customWidthMm: undefined,
   customHeightMm: undefined,
   remark: ''
@@ -99,6 +106,7 @@ const open = (template?: TemplateItem | null) => {
       categoryId: template.categoryId,
       name: template.name,
       paperSize: template.paperSize,
+      paperOrientation: template.paperOrientation ?? 'PORTRAIT',
       customWidthMm: template.customWidthMm ?? undefined,
       customHeightMm: template.customHeightMm ?? undefined,
       remark: template.remark ?? ''

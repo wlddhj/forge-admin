@@ -14,6 +14,9 @@ export interface FieldDef {
 /** 纸张规格 */
 export type PaperSizeCode = 'A4' | 'A5' | 'LETTER' | 'LEGAL' | 'CUSTOM'
 
+/** 纸张方向 */
+export type PaperOrientationCode = 'PORTRAIT' | 'LANDSCAPE'
+
 /** 合同分类树节点 */
 export interface CategoryNode {
   id: string
@@ -41,6 +44,7 @@ export interface TemplateItem {
   currentVersionNo?: number | null
   status: number
   paperSize: PaperSizeCode
+  paperOrientation?: PaperOrientationCode
   customWidthMm?: number | null
   customHeightMm?: number | null
   remark?: string
@@ -58,6 +62,7 @@ export interface TemplateBrief {
   name: string
   currentVersionId: string
   paperSize: PaperSizeCode
+  paperOrientation?: PaperOrientationCode
   customWidthMm?: number | null
   customHeightMm?: number | null
 }
@@ -80,6 +85,7 @@ export interface TemplateForm {
   categoryId: string | undefined
   name: string
   paperSize: PaperSizeCode
+  paperOrientation?: PaperOrientationCode
   customWidthMm?: number
   customHeightMm?: number
   remark?: string

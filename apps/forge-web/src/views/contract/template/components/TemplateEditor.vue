@@ -193,6 +193,34 @@ H3
           </div>
         </el-card>
 
+        <!-- 纸张设置（编辑器内直接调整，随保存生效） -->
+        <el-card shadow="never" class="side-card paper-card">
+          <template #header>
+            <div class="side-header">纸张设置</div>
+          </template>
+          <div class="paper-form">
+            <el-select v-model="paper.paperSize" size="small" style="width: 104px">
+              <el-option label="A4" value="A4" />
+              <el-option label="A5" value="A5" />
+              <el-option label="Letter" value="LETTER" />
+              <el-option label="Legal" value="LEGAL" />
+              <el-option label="自定义" value="CUSTOM" />
+            </el-select>
+            <el-radio-group v-model="paper.paperOrientation" size="small">
+              <el-radio-button value="PORTRAIT">纵向</el-radio-button>
+              <el-radio-button value="LANDSCAPE">横向</el-radio-button>
+            </el-radio-group>
+          </div>
+          <div v-if="paper.paperSize === 'CUSTOM'" class="paper-form" style="margin-top: 8px">
+            <el-input-number v-model="paper.customWidthMm" :min="50" :max="600" :precision="1"
+              size="small" controls-position="right" placeholder="宽mm" style="width: 120px" />
+            <span class="paper-x">×</span>
+            <el-input-number v-model="paper.customHeightMm" :min="50" :max="900" :precision="1"
+              size="small" controls-position="right" placeholder="高mm" style="width: 120px" />
+          </div>
+          <div class="var-tip">保存时生效；横向=交换宽高，自定义宽高按纵向口径填写</div>
+        </el-card>
+
         <!-- 保存版本 -->
         <el-card shadow="never" class="side-card save-card">
           <template #header>
@@ -223,7 +251,7 @@ import { ElMessage } from 'element-plus'
 import { templateApi } from '@/api/contract/template'
 import { uploadAttachment } from '@/api/system'
 import { isValidFieldKey, VariableNode } from '../extensions/variable'
-import type { FieldDef, PaperSizeCode, TemplateItem } from '@/types/contract'
+import type { FieldDef, PaperOrientationCode, PaperSizeCode, TemplateItem } from '@/types/contract'
 
 defineOptions({ name: 'TemplateEditor' })
 
@@ -240,6 +268,20 @@ const saving = ref(false)
 const changeLog = ref('')
 const newVarKey = ref('')
 const newVarLabel = ref('')
+/** 纸张设置（编辑器内可改，保存时与版本一起生效） */
+const paper = reactive({
+  paperSize: 'A4' as PaperSizeCode,
+  paperOrientation: 'PORTRAIT' as PaperOrientationCode,
+  customWidthMm: undefined as number | undefined,
+  customHeightMm: undefined as number | undefined
+})
+const paperDirty = computed(() => {
+  const t = props.template
+  return !!t && (paper.paperSize !== t.paperSize
+    || paper.paperOrientation !== (t.paperOrientation ?? 'PORTRAIT')
+    || (paper.customWidthMm ?? undefined) !== (t.customWidthMm ?? undefined)
+    || (paper.customHeightMm ?? undefined) !== (t.customHeightMm ?? undefined))
+})
 const imageInputRef = ref<HTMLInputElement | null>(null)
 
 /** 字段定义（含编辑态 optionsText 便捷字段） */
@@ -256,17 +298,26 @@ const hasDefDiff = computed(() => {
   return false
 })
 
-/** 纸张内容宽（mm→px @96dpi，减左右页边距 31.8mm×2） */
+/** 纸张内容宽（mm→px @96dpi，减左右页边距 31.8mm×2；横向按交换后的宽计算，随纸张卡即改即见） */
 const paperWidthPx = computed(() => {
-  const size = props.template?.paperSize ?? 'A4'
   const table: Record<PaperSizeCode, number> = { A4: 210, A5: 148, LETTER: 215.9, LEGAL: 215.9, CUSTOM: 0 }
-  const widthMm = size === 'CUSTOM' ? Number(props.template?.customWidthMm ?? 210) : table[size]
+  let widthMm = paper.paperSize === 'CUSTOM' ? Number(paper.customWidthMm ?? 210) : table[paper.paperSize]
+  if (paper.paperOrientation === 'LANDSCAPE') {
+    const tableH: Record<PaperSizeCode, number> = { A4: 297, A5: 210, LETTER: 279.4, LEGAL: 355.6, CUSTOM: 0 }
+    widthMm = paper.paperSize === 'CUSTOM' ? Number(paper.customHeightMm ?? 297) : tableH[paper.paperSize]
+  }
   // 钳制最小 120px，防窄纸张出现负宽/零宽
   return Math.max(120, Math.round((widthMm - 31.8 * 2) * (96 / 25.4)))
 })
 
 const initEditor = async () => {
   const t = props.template
+  if (t) {
+    paper.paperSize = t.paperSize ?? 'A4'
+    paper.paperOrientation = t.paperOrientation ?? 'PORTRAIT'
+    paper.customWidthMm = t.customWidthMm ?? undefined
+    paper.customHeightMm = t.customHeightMm ?? undefined
+  }
   if (!t || !t.currentVersionId) {
     // 无历史版本：空编辑器
     buildEditor('')
@@ -367,6 +418,21 @@ const save = async () => {
   }
   saving.value = true
   try {
+    // 纸张设置有变更：先落模板元数据（随本次保存一并生效）
+    if (paperDirty.value && t) {
+      if (paper.paperSize === 'CUSTOM' && (!paper.customWidthMm || !paper.customHeightMm)) {
+        ElMessage.warning('自定义纸张须填写宽高（mm）')
+        saving.value = false
+        return
+      }
+      await templateApi.updatePaper({
+        id: t.id,
+        paperSize: paper.paperSize,
+        customWidthMm: paper.paperSize === 'CUSTOM' ? paper.customWidthMm : undefined,
+        customHeightMm: paper.paperSize === 'CUSTOM' ? paper.customHeightMm : undefined,
+        paperOrientation: paper.paperOrientation
+      })
+    }
     const defs: FieldDef[] = fieldDefs.value.map(d => ({
       key: d.key,
       label: d.label,

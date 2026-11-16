@@ -72,6 +72,15 @@ public class ContractTemplateController {
         return Result.success();
     }
 
+    @Operation(summary = "仅更新纸张配置（编辑器内调整纸张/方向）")
+    @PutMapping("/paper")
+    @PreAuthorize("hasAuthority('contract:template:update')")
+    @OperationLog(title = "合同模板管理", businessType = OperationLog.BusinessType.UPDATE)
+    public Result<Void> updatePaper(@Valid @RequestBody TemplateDtos.PaperUpdateRequest request) {
+        templateService.updatePaper(request);
+        return Result.success();
+    }
+
     @Operation(summary = "启用/停用模板")
     @PutMapping("/status")
     @PreAuthorize("hasAuthority('contract:template:status')")
