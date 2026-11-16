@@ -28,18 +28,14 @@
         </el-descriptions-item>
       </el-descriptions>
 
-      <!-- PDF 预览 -->
+      <!-- PDF 预览（独立弹窗承载） -->
       <el-divider content-position="left">PDF 预览</el-divider>
-      <div v-if="pdfUrl" class="pdf-frame">
-        <iframe :src="pdfUrl" width="100%" height="520" :title="detail?.title || '合同预览'" />
-      </div>
-      <div v-else class="pdf-actions">
-        <el-alert :closable="false" type="info" show-icon
-          :title="previewTip"
-          :description="detail?.status === 1 ? '审批中的合同暂不可预览/打印' : '点击下方按钮实时渲染当前内容的 PDF 预览'" />
+      <div class="pdf-actions">
+        <el-alert :closable="false" type="info" show-icon :title="previewTip"
+          :description="detail?.status === 1 ? '审批中的合同暂不可预览/打印' : '在独立弹窗中查看 PDF，定稿合同展示归档件'" />
         <el-button v-if="canPreview" v-permission="'contract:contract:preview'" type="primary" plain
           style="margin-top: 10px" :loading="previewing" @click="doPreview">
-          实时预览 PDF
+          {{ detail?.status === 2 ? '预览定稿 PDF' : '实时预览 PDF' }}
         </el-button>
       </div>
     </div>
@@ -55,6 +51,12 @@
         </el-button>
       </div>
     </template>
+
+    <!-- PDF 预览弹窗（独立承载，满高 iframe） -->
+    <el-dialog v-model="pdfDialogVisible" :title="`PDF 预览：${detail?.title || ''}`" fullscreen
+      append-to-body destroy-on-close class="pdf-viewer-dialog">
+      <iframe :src="pdfUrl" class="pdf-viewer-frame" :title="detail?.title || '合同预览'" />
+    </el-dialog>
 
     <PrintDialog v-model="printVisible" :contract-id="contractId" />
     <InstanceDetailDrawer v-model="processDrawerVisible" :instance-id="processInstanceId" />
@@ -77,6 +79,7 @@ const visible = defineModel<boolean>({ default: false })
 const loading = ref(false)
 const detail = ref<ContractItem | null>(null)
 const pdfUrl = ref('')
+const pdfDialogVisible = ref(false)
 const previewing = ref(false)
 const printVisible = ref(false)
 const processDrawerVisible = ref(false)
@@ -105,12 +108,19 @@ const loadDetail = async () => {
 
 let previewUrl = ''
 const doPreview = async () => {
+  // 定稿：直接展示归档件直链；草稿/驳回/撤销：实时渲染
+  if (detail.value?.status === 2 && detail.value.pdfFileUrl) {
+    pdfUrl.value = detail.value.pdfFileUrl
+    pdfDialogVisible.value = true
+    return
+  }
   previewing.value = true
   try {
     const blob = await contractApi.previewPdf(props.contractId)
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     previewUrl = URL.createObjectURL(blob)
     pdfUrl.value = previewUrl
+    pdfDialogVisible.value = true
   } finally {
     previewing.value = false
   }
@@ -125,11 +135,6 @@ const viewProcess = () => {
 .detail-body {
   padding: 0 4px;
 }
-.pdf-frame {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 4px;
-  overflow: hidden;
-}
 .pdf-actions {
   display: flex;
   flex-direction: column;
@@ -139,5 +144,19 @@ const viewProcess = () => {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+.pdf-viewer-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+</style>
+
+<style>
+/* PDF 预览弹窗 body：fullscreen 下让 iframe 撑满（append-to-body 场景须非 scoped 覆盖） */
+.pdf-viewer-dialog .el-dialog__body {
+  padding: 0;
+  height: calc(100vh - 55px);
 }
 </style>
