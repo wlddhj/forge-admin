@@ -46,6 +46,15 @@ class ContractHtmlProcessorTest {
     }
 
     @Test
+    void sanitizeKeepsTableColumnWidths() {
+        String html = "<table><colgroup><col style=\"width: 30%\" /></colgroup>"
+                + "<tbody><tr><td>甲</td></tr></tbody></table>";
+        String clean = ContractHtmlProcessor.sanitize(html);
+        assertTrue(clean.contains("colgroup"), "colgroup 须保留（可调列宽）");
+        assertTrue(clean.contains("width: 30%"), "列宽样式须保留");
+    }
+
+    @Test
     void sanitizeKeepsHighlightAndFontSize() {
         String html = "<p><mark style=\"background-color: #ffff00\">重点条款</mark> "
                 + "<span style=\"font-size: 18pt\">大字</span></p>";

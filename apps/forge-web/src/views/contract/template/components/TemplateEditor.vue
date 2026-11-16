@@ -759,6 +759,20 @@ watch(visible, open => {
 </style>
 
 <style>
+/* 思源字体与 PDF 渲染同源（public/fonts 下同一份 TTF），编辑器字面=成品字面 */
+@font-face {
+  font-family: 'Noto Serif SC';
+  src: url('/fonts/NotoSerifSC.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Noto Sans SC';
+  src: url('/fonts/NotoSansSC.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 /* 编辑器抽屉 body 布局：el-drawer 内部节点不带本组件 scope id，:deep 选不中（真机几何验证结论），
    须非 scoped + 自定义类限定 */
 .contract-editor-drawer .el-drawer__body {

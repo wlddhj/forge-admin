@@ -23,13 +23,17 @@ public final class ContractHtmlProcessor {
     private static final Safelist SAFELIST = Safelist.none()
             .addTags("p", "div", "h1", "h2", "h3", "h4",
                     "ul", "ol", "li",
-                    "table", "thead", "tbody", "tfoot", "tr", "th", "td",
+                    "table", "thead", "tbody", "tfoot", "tr", "th", "td", "colgroup", "col",
                     "strong", "em", "u", "s", "br", "sub", "sup", "blockquote", "mark",
                     "span", "a", "img")
             // 变量芯片：data-field 是渲染键，class 用于芯片样式
             .addAttributes("span", FIELD_ATTR, "class")
             .addAttributes("a", "href", "title")
             .addAttributes("img", "src", "alt", "width", "height")
+            // 可调列宽表格：colgroup/col 的列宽必须保留，否则 PDF 列宽塌陷
+            .addAttributes("col", "width", "style")
+            .addAttributes("th", "width")
+            .addAttributes("td", "width")
             // 对齐等有限排版经 style 携带（tiptap 受控产出；PDF 渲染面无执行环境）
             .addAttributes(":all", "style");
 
