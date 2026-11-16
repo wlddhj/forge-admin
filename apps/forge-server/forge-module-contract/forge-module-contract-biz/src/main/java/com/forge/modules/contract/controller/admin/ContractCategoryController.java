@@ -3,6 +3,7 @@ package com.forge.modules.contract.controller.admin;
 import com.forge.common.response.Result;
 import com.forge.framework.web.annotation.OperationLog;
 import com.forge.modules.contract.dto.CategoryDtos;
+import com.forge.modules.contract.entity.CtCategory;
 import com.forge.modules.contract.service.ContractCategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,11 +35,11 @@ public class ContractCategoryController {
 
     private final ContractCategoryService categoryService;
 
-    @Operation(summary = "分类树（status 筛选）")
+    @Operation(summary = "分类平铺列表（status 筛选；前端 transform 组树）")
     @GetMapping("/list")
     @PreAuthorize("hasAuthority('contract:category:list')")
-    public Result<List<CategoryDtos.TreeNode>> list(@RequestParam(required = false) Integer status) {
-        return Result.success(categoryService.tree(status));
+    public Result<List<CtCategory>> list(@RequestParam(required = false) Integer status) {
+        return Result.success(categoryService.list(status));
     }
 
     @Operation(summary = "全量树（表单下拉）")

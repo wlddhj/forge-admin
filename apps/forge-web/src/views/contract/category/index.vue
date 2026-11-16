@@ -153,42 +153,43 @@ onMounted(() => {
   if (tableRef.value && toolbarRef.value) {
     tableRef.value.connect(toolbarRef.value)
   }
-  loadTree()
+  loadList()
 })
 
-// ========== 树数据 ==========
+// ========== 列表数据（后端平铺，vxe transform 组树） ==========
 const loading = ref(false)
-const treeData = ref<CategoryNode[]>([])
+const flatData = ref<CategoryNode[]>([])
 const queryParams = reactive({ status: undefined as number | undefined })
 const filterName = ref('')
 
-const loadTree = async () => {
+const loadList = async () => {
   loading.value = true
   try {
-    treeData.value = await categoryApi.tree(queryParams.status)
+    flatData.value = await categoryApi.list(queryParams.status)
   } finally {
     loading.value = false
   }
 }
 
-/** 名称关键字过滤（命中节点连带父链保留，前端轻量过滤） */
+/** 名称关键字过滤：命中节点 + 其祖先链保留（祖先缺失会让 transform 把节点提升为根） */
 const filteredTree = computed<CategoryNode[]>(() => {
-  if (!filterName.value.trim()) return treeData.value
   const keyword = filterName.value.trim()
-  const walk = (nodes: CategoryNode[]): CategoryNode[] => {
-    const result: CategoryNode[] = []
-    for (const node of nodes) {
-      const children = walk(node.children ?? [])
-      if (node.categoryName.includes(keyword) || node.categoryCode.includes(keyword) || children.length) {
-        result.push({ ...node, children })
+  if (!keyword) return flatData.value
+  const byId = new Map(flatData.value.map(n => [n.id, n]))
+  const keep = new Set<string>()
+  for (const node of flatData.value) {
+    if (node.categoryName.includes(keyword) || node.categoryCode.includes(keyword)) {
+      let cur: CategoryNode | undefined = node
+      while (cur && !keep.has(cur.id)) {
+        keep.add(cur.id)
+        cur = cur.parentId === '0' ? undefined : byId.get(cur.parentId)
       }
     }
-    return result
   }
-  return walk(treeData.value)
+  return flatData.value.filter(n => keep.has(n.id))
 })
 
-const handleQuery = () => loadTree()
+const handleQuery = () => loadList()
 
 const handleReset = () => {
   queryParams.status = undefined
@@ -230,7 +231,18 @@ const rules: FormRules = {
 }
 
 const openForm = async (row: CategoryNode | null, mode: 'edit' | 'child') => {
-  const all = await categoryApi.treeAll()
+  const allFlat = await categoryApi.list()
+  // 平铺转树（父分类下拉用 el-tree-select）
+  const buildTree = (nodes: CategoryNode[]): CategoryNode[] => {
+    const byParent = new Map<string, CategoryNode[]>()
+    for (const n of nodes) {
+      byParent.set(n.parentId, [...(byParent.get(n.parentId) ?? []), n])
+    }
+    const attach = (list: CategoryNode[]): CategoryNode[] =>
+      list.map(n => ({ ...n, children: attach(byParent.get(n.id) ?? []) }))
+    return attach(byParent.get('0') ?? [])
+  }
+  const all = buildTree(allFlat)
   if (row && mode === 'edit') {
     editingId.value = row.id
     form.parentId = row.parentId === '0' ? undefined : row.parentId
@@ -287,7 +299,7 @@ const confirm = async () => {
       ElMessage.success('分类已创建')
     }
     formVisible.value = false
-    loadTree()
+    loadList()
   } finally {
     saving.value = false
   }
@@ -301,7 +313,7 @@ const remove = async (row: CategoryNode) => {
   )
   await categoryApi.remove([row.id])
   ElMessage.success('已删除')
-  loadTree()
+  loadList()
 }
 </script>
 

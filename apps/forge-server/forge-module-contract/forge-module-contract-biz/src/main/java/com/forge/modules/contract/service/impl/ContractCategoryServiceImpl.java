@@ -37,12 +37,16 @@ public class ContractCategoryServiceImpl implements ContractCategoryService {
     private final CtTemplateMapper templateMapper;
 
     @Override
-    public List<CategoryDtos.TreeNode> tree(Integer status) {
-        List<CtCategory> all = categoryMapper.selectList(new LambdaQueryWrapper<CtCategory>()
+    public List<CtCategory> list(Integer status) {
+        return categoryMapper.selectList(new LambdaQueryWrapper<CtCategory>()
                 .eq(status != null, CtCategory::getStatus, status)
                 .orderByAsc(CtCategory::getSortOrder)
                 .orderByAsc(CtCategory::getId));
-        return buildTree(all);
+    }
+
+    @Override
+    public List<CategoryDtos.TreeNode> tree(Integer status) {
+        return buildTree(list(status));
     }
 
     @Override

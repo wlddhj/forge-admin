@@ -5,11 +5,11 @@ import type { CategoryNode } from '@/types/contract'
  * 合同分类 API（树形）
  */
 export const categoryApi = {
-  /** 分类树（status 筛选） */
-  tree: (status?: number) =>
+  /** 平铺列表（status 筛选；管理页 vxe transform 组树，对齐 wf_category /list 口径） */
+  list: (status?: number) =>
     request.get<CategoryNode[]>('/contract/category/list', { params: { status } }).then(res => res.data),
 
-  /** 全量树（表单下拉） */
+  /** 全量树（左侧树/表单下拉用 /all） */
   treeAll: () =>
     request.get<CategoryNode[]>('/contract/category/all').then(res => res.data),
 

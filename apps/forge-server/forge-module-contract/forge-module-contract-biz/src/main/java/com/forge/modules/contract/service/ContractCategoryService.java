@@ -1,6 +1,7 @@
 package com.forge.modules.contract.service;
 
 import com.forge.modules.contract.dto.CategoryDtos;
+import com.forge.modules.contract.entity.CtCategory;
 
 import java.util.List;
 import java.util.Set;
@@ -12,7 +13,10 @@ import java.util.Set;
  */
 public interface ContractCategoryService {
 
-    /** 分类树（status 可筛；leaf 标注叶子） */
+    /** 平铺列表（status 可筛；管理页 vxe-table transform 自组树，对齐 wf_category /list 口径） */
+    List<CtCategory> list(Integer status);
+
+    /** 分类树（el-tree-select/左侧树用；leaf 标注叶子） */
     List<CategoryDtos.TreeNode> tree(Integer status);
 
     /** 全量平铺树（表单下拉数据源，含停用节点由前端标注禁选） */
