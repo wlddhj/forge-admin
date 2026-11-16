@@ -46,6 +46,19 @@ class ContractHtmlProcessorTest {
     }
 
     @Test
+    void fillChipsInjectsBulletOnceAndIdempotent() {
+        String html = "<ul><li>甲项</li><li>乙项</li></ul>";
+        String once = ContractHtmlProcessor.fillChips(html, null);
+        assertTrue(once.contains("ct-li-mark"), "ul 项应注入文本圆点");
+        assertEquals(2, once.split("ct-li-mark", -1).length - 1, "每项一枚");
+        String twice = ContractHtmlProcessor.fillChips(once, null);
+        assertEquals(once, twice, "重复渲染不得叠加圆点");
+        // 有序列表不注入
+        String ol = ContractHtmlProcessor.fillChips("<ol><li>第一</li></ol>", null);
+        org.junit.jupiter.api.Assertions.assertFalse(ol.contains("ct-li-mark"));
+    }
+
+    @Test
     void sanitizeKeepsTableColumnWidths() {
         String html = "<table><colgroup><col style=\"width: 30%\" /></colgroup>"
                 + "<tbody><tr><td>甲</td></tr></tbody></table>";

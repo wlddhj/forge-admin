@@ -41,16 +41,24 @@ public final class ContractHtmlProcessor {
     }
 
     /**
-     * 白名单清洗，返回 body 内层 HTML
+     * 白名单清洗，返回 body 内层 HTML。
+     * li 内的块级 p 一并解包为内联：openhtmltopdf 对块级子元素的列表项会把
+     * 标记符单独排一行、内容另起一行（探针实证项间距被撑到 ~110pt），内联后原生标记排版正常。
      */
     public static String sanitize(String html) {
         String clean = Jsoup.clean(html, "", SAFELIST);
         Document doc = Jsoup.parseBodyFragment(clean);
+        doc.body().select("li > p").forEach(Element::unwrap);
         return doc.body().html();
     }
 
+    /** 无序列表文本圆点 class（引擎不渲染原生 disc，渲染期注入真实"•"） */
+    public static final String LI_MARK_CLASS = "ct-li-mark";
+
     /**
-     * 填充变量芯片：有值则替换芯片文本（jsoup text() 自动转义防注入），缺值保留原标签文本
+     * 填充变量芯片：有值则替换芯片文本（jsoup text() 自动转义防注入），缺值保留原标签文本。
+     * 同时给无序列表项注入文本圆点——openhtmltopdf 不绘制 ul 原生 disc 标记（探针实证：
+     * ol 数字可画、disc 恒缺失），注入真实"•"字符最确定；仅渲染期，存库内容保持干净。
      */
     public static String fillChips(String html, Map<String, Object> values) {
         Document doc = Jsoup.parseBodyFragment(html);
@@ -58,6 +66,12 @@ public final class ContractHtmlProcessor {
             String key = el.attr(FIELD_ATTR);
             if (values != null && values.containsKey(key) && values.get(key) != null) {
                 el.text(String.valueOf(values.get(key)));
+            }
+        }
+        for (Element li : doc.body().select("ul > li")) {
+            Element first = li.firstElementChild();
+            if (first == null || !first.hasClass(LI_MARK_CLASS)) {
+                li.prependElement("span").addClass(LI_MARK_CLASS).text("\u2022");
             }
         }
         return doc.body().html();

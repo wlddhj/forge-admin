@@ -1,6 +1,7 @@
 package com.forge.modules.contract.framework.pdf;
 
 import com.forge.modules.contract.enums.PaperSize;
+import com.forge.modules.contract.framework.html.ContractHtmlProcessor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -41,6 +42,20 @@ class ContractPdfRenderTest {
         assertTrue(pdf.length > 10_000, "PDF 应含内嵌字体，体积应显著大于空文档: " + pdf.length);
         assertArrayEquals("%PDF".getBytes(StandardCharsets.US_ASCII),
                 java.util.Arrays.copyOfRange(pdf, 0, 4), "应为 PDF 魔数开头");
+    }
+
+    @Test
+    @Timeout(120)
+    void renderListsPipelineBulletAndNumber() throws Exception {
+        // 端到端：sanitize(li>p 解包) → fillChips(注入圆点) → PDF 文本层圆点与序号都在
+        String raw = "<ul><li><p>甲项</p></li></ul><ol><li><p>第一项</p></li></ol>";
+        String prepared = ContractHtmlProcessor.fillChips(ContractHtmlProcessor.sanitize(raw), null);
+        byte[] pdf = new OpenHtmlToPdfClient().render(prepared, PaperSize.A4, null, null, null);
+        try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            String text = new org.apache.pdfbox.text.PDFTextStripper().getText(doc).replaceAll("\\s+", "");
+            assertTrue(text.contains("\u2022"), "无序列表圆点应出现在 PDF: " + text);
+            assertTrue(text.contains("1."), "有序列表序号应在");
+        }
     }
 
     @Test

@@ -742,6 +742,7 @@ watch(visible, open => {
 .editor-content :deep(.tiptap ul),
 .editor-content :deep(.tiptap ol) { margin: 0 0 8px; padding-left: 32px; }
 .editor-content :deep(.tiptap li) { margin: 0 0 3px; }
+.editor-content :deep(.tiptap li > p) { margin: 0; }
 .editor-content :deep(.tiptap blockquote) { margin: 0 0 8px; padding-left: 32px; border-left: 3px solid #ccc; color: #555; }
 
 /* 变量芯片 */
