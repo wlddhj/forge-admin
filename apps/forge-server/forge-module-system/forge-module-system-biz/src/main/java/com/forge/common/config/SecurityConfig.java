@@ -146,6 +146,9 @@ public class SecurityConfig {
         http
                 .securityMatcher("/app-api/uploads/**", "/uploads/**")
                 .csrf(AbstractHttpConfigurer::disable)
+                // 未配置 headers 时 Spring Security 默认 X-Frame-Options=DENY，3000 前端 iframe 嵌 8180
+                // 附件 PDF 属跨源必被拒（真机 Refused to display）；附件资源由 UUID 不可枚举保护，允许嵌入
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
         return http.build();
     }
