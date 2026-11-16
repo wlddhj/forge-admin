@@ -71,13 +71,13 @@ H3
           </div>
         </div>
 
-        <!-- 纸张画布：灰底衬托居中白纸，内容自适应高度 -->
+        <!-- 纸张画布：灰底衬托，白纸撑满剩余高度（内容超出继续滚动） -->
         <div class="editor-canvas">
           <div class="editor-paper" :style="{ width: paperWidthPx + 'px' }">
             <editor-content v-if="editor" :editor="editor" class="editor-content" />
           </div>
-          <div class="paper-hint">编辑区宽度按纸张内容宽约束 · 分页以预览/打印 PDF 为准</div>
         </div>
+        <div class="paper-hint">编辑区宽度按纸张内容宽约束 · 分页以预览/打印 PDF 为准</div>
       </div>
 
       <!-- 右侧面板 -->
@@ -397,10 +397,11 @@ watch(visible, open => {
   overflow-y: auto;
   background: var(--el-fill-color-light);
   border-radius: 6px;
-  padding: 20px 16px 8px;
+  padding: 16px;
 }
 .editor-paper {
   margin: 0 auto;
+  min-height: 100%;
   max-width: 100%;
   padding: 32px 36px;
   background: var(--el-bg-color);
@@ -409,7 +410,8 @@ watch(visible, open => {
   box-sizing: border-box;
 }
 .paper-hint {
-  margin: 10px 0 6px;
+  flex-shrink: 0;
+  margin-top: 8px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
   text-align: center;
