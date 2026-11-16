@@ -3,6 +3,7 @@ package com.forge.modules.contract.framework.html;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.TextNode;
 import org.jsoup.safety.Safelist;
 
 import java.util.LinkedHashSet;
@@ -42,14 +43,28 @@ public final class ContractHtmlProcessor {
 
     /**
      * 白名单清洗，返回 body 内层 HTML。
-     * li 内的块级 p 一并解包为内联：openhtmltopdf 对块级子元素的列表项会把
-     * 标记符单独排一行、内容另起一行（探针实证项间距被撑到 ~110pt），内联后原生标记排版正常。
+     * 列表/表格单元格内的块级 p 解包为内联（引擎对块级子元素排版异常：列表标记独占行、
+     * 单元格行高暴涨）；配合清除单元格空白文本节点与紧凑输出，杜绝 pre-wrap 把
+     * pretty-print 换行渲染成真实空行（探针实证行距 116pt 的根因）。
      */
     public static String sanitize(String html) {
         String clean = Jsoup.clean(html, "", SAFELIST);
         Document doc = Jsoup.parseBodyFragment(clean);
-        doc.body().select("li > p").forEach(Element::unwrap);
+        normalize(doc);
         return doc.body().html();
+    }
+
+    /** 渲染前归一化：td/th/li 的块级 p 解包 + 空白文本节点清除 + 紧凑输出（覆盖存量数据） */
+    private static void normalize(Document doc) {
+        doc.outputSettings().prettyPrint(false);
+        doc.body().select("li > p, th > p, td > p").forEach(Element::unwrap);
+        for (Element cell : doc.body().select("td, th, li")) {
+            for (TextNode tn : cell.textNodes()) {
+                if (tn.isBlank()) {
+                    tn.remove();
+                }
+            }
+        }
     }
 
     /** 无序列表文本圆点 class（引擎不渲染原生 disc，渲染期注入真实"•"） */
@@ -62,6 +77,7 @@ public final class ContractHtmlProcessor {
      */
     public static String fillChips(String html, Map<String, Object> values) {
         Document doc = Jsoup.parseBodyFragment(html);
+        normalize(doc);
         for (Element el : doc.body().select("[" + FIELD_ATTR + "]")) {
             String key = el.attr(FIELD_ATTR);
             if (values != null && values.containsKey(key) && values.get(key) != null) {

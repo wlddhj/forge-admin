@@ -46,6 +46,40 @@ class ContractPdfRenderTest {
 
     @Test
     @Timeout(120)
+    void renderTableCompactRowsTwoColumns() throws Exception {
+        String raw = "<table><tbody>"
+                + "<tr><th><p>A</p></th><th><p>B</p></th></tr>"
+                + "<tr><td><p>1</p></td><td><p>2</p></td></tr>"
+                + "<tr><td><p>6</p></td><td><p>5</p></td></tr>"
+                + "</tbody></table>";
+        String prepared = ContractHtmlProcessor.fillChips(ContractHtmlProcessor.sanitize(raw), null);
+        byte[] pdf = new OpenHtmlToPdfClient().render(prepared, PaperSize.A4, null, null, null);
+        java.util.Map<Character, Float> glyphY = new java.util.LinkedHashMap<>();
+        try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            java.util.List<org.apache.pdfbox.text.TextPosition> pos = new java.util.ArrayList<>();
+            new org.apache.pdfbox.text.PDFTextStripper() {
+                { setSortByPosition(true); }
+                @Override protected void writeString(String t, java.util.List<org.apache.pdfbox.text.TextPosition> p) {
+                    for (var tp : p) {
+                        char u = tp.getUnicode().charAt(0);
+                        if ("AB1265".indexOf(u) >= 0 && !glyphY.containsKey(u)) {
+                            glyphY.put(u, tp.getY());
+                        }
+                    }
+                }
+            }.getText(doc);
+        }
+        // 两列同基线（表格未塌成单列）
+        assertTrue(Math.abs(glyphY.get('A') - glyphY.get('B')) < 2f, "A/B 应同行: " + glyphY);
+        assertTrue(Math.abs(glyphY.get('1') - glyphY.get('2')) < 2f, "1/2 应同行");
+        // 行距紧凑：预期 ≈ 行高20pt+内边距7.5pt < 48pt（回归前 116pt）
+        float pitch = glyphY.get('1') - glyphY.get('A');
+        assertTrue(pitch > 0 && pitch < 48f, "行距应紧凑, 实测 " + pitch + "pt");
+        assertTrue(glyphY.get('6') - glyphY.get('1') < 48f, "第二行距同口径");
+    }
+
+    @Test
+    @Timeout(120)
     void renderListsPipelineBulletAndNumber() throws Exception {
         // 端到端：sanitize(li>p 解包) → fillChips(注入圆点) → PDF 文本层圆点与序号都在
         String raw = "<ul><li><p>甲项</p></li></ul><ol><li><p>第一项</p></li></ol>";

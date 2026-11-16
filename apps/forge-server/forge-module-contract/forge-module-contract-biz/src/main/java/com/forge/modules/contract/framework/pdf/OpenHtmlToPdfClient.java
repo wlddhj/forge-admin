@@ -115,6 +115,7 @@ public class OpenHtmlToPdfClient implements PdfRenderClient {
             + ".ct-li-mark { padding-right: 4px; }"
             + "li { margin: 0 0 3px; break-inside: avoid; }"
             + "li > p { margin: 0; }"
+            + "th > p, td > p { margin: 0; }"
             + "blockquote { margin: 0 0 8px; padding-left: 32px; border-left: 3px solid #ccc; color: #555; }"
             + "img { max-width: 100%; }"
             + "a { color: #000; text-decoration: none; }";
