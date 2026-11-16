@@ -32,8 +32,8 @@
       <el-divider content-position="left">PDF 预览</el-divider>
       <div class="pdf-actions">
         <el-alert :closable="false" type="info" show-icon :title="previewTip"
-          :description="detail?.status === 1 ? '审批中的合同暂不可预览/打印' : '在独立弹窗中查看 PDF，定稿合同展示归档件'" />
-        <el-button v-if="canPreview" v-permission="'contract:contract:preview'" type="primary" plain
+          description="在独立弹窗中查看 PDF：定稿合同展示归档件，其余状态实时渲染当前内容" />
+        <el-button v-permission="'contract:contract:preview'" type="primary" plain
           style="margin-top: 10px" :loading="previewing" @click="doPreview">
           {{ detail?.status === 2 ? '预览定稿 PDF' : '实时预览 PDF' }}
         </el-button>
@@ -46,7 +46,7 @@
           下载定稿 PDF
         </el-button>
         <el-button v-if="detail?.processInstanceId" @click="viewProcess">查看流程</el-button>
-        <el-button v-if="canPrint" v-permission="'contract:contract:print'" type="primary" @click="printVisible = true">
+        <el-button v-permission="'contract:contract:print'" type="primary" @click="printVisible = true">
           打印
         </el-button>
       </div>
@@ -67,7 +67,7 @@
 import { computed, ref } from 'vue'
 import { contractApi } from '@/api/contract/contract'
 import { formatDateTime } from '@/utils/dateFormat'
-import { CONTRACT_STATUS_LABEL, CONTRACT_STATUS_TAG, isEditableStatus, type ContractItem } from '@/types/contract'
+import { CONTRACT_STATUS_LABEL, CONTRACT_STATUS_TAG, type ContractItem } from '@/types/contract'
 import InstanceDetailDrawer from '@/views/workflow/instance/components/InstanceDetailDrawer.vue'
 import PrintDialog from './PrintDialog.vue'
 
@@ -89,8 +89,6 @@ const fieldEntries = computed<Array<[string, unknown]>>(() =>
   Object.entries(detail.value?.fieldValues ?? {})
 )
 
-const canPreview = computed(() => detail.value != null && isEditableStatus(detail.value.status))
-const canPrint = computed(() => detail.value != null && detail.value.status !== 1)
 const previewTip = computed(() =>
   detail.value?.status === 2 ? '定稿合同预览归档件' : '实时预览（不落盘）'
 )

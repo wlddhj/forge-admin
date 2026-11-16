@@ -171,7 +171,8 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     public byte[] previewPdf(Long id) {
-        CtContract contract = requireEditable(id, "仅草稿/驳回/撤销状态可预览");
+        // 任意状态可预览：定稿态看归档件（详情直链），其余按锁定版本实时渲染
+        CtContract contract = requireContract(id);
         CtTemplate template = requireTemplate(contract.getTemplateId());
         CtTemplateVersion version = requireVersion(contract.getTemplateVersionId());
         String filled = ContractHtmlProcessor.fillChips(version.getContentHtml(), contract.getFieldValues());
@@ -182,9 +183,6 @@ public class ContractServiceImpl implements ContractService {
     @Override
     public byte[] printPdf(Long id, ContractDtos.PrintRequest request) {
         CtContract contract = requireContract(id);
-        if (contract.getStatus() == CtContract.STATUS_APPROVING) {
-            throw new BusinessException(400, "审批中的合同暂不可打印");
-        }
         CtTemplate template = requireTemplate(contract.getTemplateId());
         PaperSize paper = notBlank(request.getPaperSize()) ? PaperSize.of(request.getPaperSize())
                 : PaperSize.of(template.getPaperSize());
@@ -208,7 +206,7 @@ public class ContractServiceImpl implements ContractService {
         } else {
             CtTemplateVersion version = requireVersion(contract.getTemplateVersionId());
             content = ContractHtmlProcessor.fillChips(version.getContentHtml(), contract.getFieldValues());
-            watermarkFlag = "草稿";
+            watermarkFlag = contract.getStatus() == CtContract.STATUS_APPROVING ? "审批中" : "草稿";
         }
         byte[] pdf = pdfRenderClient.render(content, paper, w, h);
         return watermarkStamper.stamp(pdf, watermarkTenantName() + " · " + watermarkFlag);

@@ -93,7 +93,7 @@
               type="success" link size="small" @click="submit(row)">
               提交审批
             </el-button>
-            <el-button v-if="row.status !== 1" v-permission="'contract:contract:print'"
+            <el-button v-permission="'contract:contract:print'"
               type="warning" link size="small" @click="printRow(row)">
               打印
             </el-button>
