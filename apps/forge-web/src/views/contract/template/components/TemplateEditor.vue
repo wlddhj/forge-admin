@@ -2,6 +2,7 @@
   <el-drawer
     v-model="visible"
     :title="`编辑模板：${templateName}`"
+    class="contract-editor-drawer"
     size="94%"
     destroy-on-close
     :close-on-click-modal="false"
@@ -328,17 +329,10 @@ watch(visible, open => {
 </script>
 
 <style scoped>
-/* 抽屉 body 撑满：布局高度不再 calc 硬编码（跟随 SettingsPanel 先例：非 append-to-body + :deep） */
-:deep(.el-drawer__body) {
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
 .editor-layout {
   display: flex;
   gap: 12px;
-  flex: 1;
+  height: 100%;
   min-height: 0;
 }
 .editor-main {
@@ -543,5 +537,16 @@ watch(visible, open => {
   border: 1px solid var(--el-color-primary-light-5);
   font-size: 13px;
   white-space: nowrap;
+}
+</style>
+
+<style>
+/* 编辑器抽屉 body 布局：el-drawer 内部节点不带本组件 scope id，:deep 选不中（真机几何验证结论），
+   须非 scoped + 自定义类限定 */
+.contract-editor-drawer .el-drawer__body {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 </style>
