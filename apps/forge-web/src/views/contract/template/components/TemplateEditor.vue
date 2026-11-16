@@ -11,65 +11,133 @@
     <div class="editor-layout">
       <!-- 主编辑区 -->
       <div class="editor-main">
-        <!-- 工具栏：分组完整、单行不换行（窄屏横向滚动） -->
+        <!-- 工具栏：图标+语义文字混合，分组完整、单行横滚 -->
         <div class="editor-toolbar">
           <div class="toolbar-group">
-            <el-button size="small" @click="editor?.chain().focus().undo().run()">撤销</el-button>
-            <el-button size="small" @click="editor?.chain().focus().redo().run()">重做</el-button>
+            <el-tooltip content="撤销" placement="bottom">
+              <el-button size="small" class="tb-icon" @click="editor?.chain().focus().undo().run()">
+                <el-icon><RefreshLeft /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="重做" placement="bottom">
+              <el-button size="small" class="tb-icon" @click="editor?.chain().focus().redo().run()">
+                <el-icon><RefreshRight /></el-icon>
+              </el-button>
+            </el-tooltip>
           </div>
           <div class="toolbar-group">
-            <el-button size="small" :type="editor?.isActive('heading', { level: 1 }) ? 'primary' : ''"
+            <el-button size="small" class="tb-text" :type="editor?.isActive('heading', { level: 1 }) ? 'primary' : ''"
               @click="editor?.chain().focus().toggleHeading({ level: 1 }).run()">
 H1
 </el-button>
-            <el-button size="small" :type="editor?.isActive('heading', { level: 2 }) ? 'primary' : ''"
+            <el-button size="small" class="tb-text" :type="editor?.isActive('heading', { level: 2 }) ? 'primary' : ''"
               @click="editor?.chain().focus().toggleHeading({ level: 2 }).run()">
 H2
 </el-button>
-            <el-button size="small" :type="editor?.isActive('heading', { level: 3 }) ? 'primary' : ''"
+            <el-button size="small" class="tb-text" :type="editor?.isActive('heading', { level: 3 }) ? 'primary' : ''"
               @click="editor?.chain().focus().toggleHeading({ level: 3 }).run()">
 H3
 </el-button>
-            <el-button size="small" :type="editor?.isActive('paragraph') ? 'primary' : ''"
+            <el-button size="small" class="tb-text" :type="editor?.isActive('paragraph') ? 'primary' : ''"
               @click="editor?.chain().focus().setParagraph().run()">
 正文
 </el-button>
           </div>
           <div class="toolbar-group">
-            <el-button size="small" :type="editor?.isActive('bold') ? 'primary' : ''"
-              @click="editor?.chain().focus().toggleBold().run()">
-<b>加粗</b>
+            <el-tooltip content="加粗" placement="bottom">
+              <el-button size="small" class="tb-text" :type="editor?.isActive('bold') ? 'primary' : ''"
+                @click="editor?.chain().focus().toggleBold().run()">
+<b>B</b>
 </el-button>
-            <el-button size="small" :type="editor?.isActive('italic') ? 'primary' : ''"
-              @click="editor?.chain().focus().toggleItalic().run()">
-<i>斜体</i>
+            </el-tooltip>
+            <el-tooltip content="斜体" placement="bottom">
+              <el-button size="small" class="tb-text" :type="editor?.isActive('italic') ? 'primary' : ''"
+                @click="editor?.chain().focus().toggleItalic().run()">
+<i>I</i>
 </el-button>
-            <el-button size="small" :type="editor?.isActive('underline') ? 'primary' : ''"
-              @click="editor?.chain().focus().toggleUnderline().run()">
-<u>下划线</u>
+            </el-tooltip>
+            <el-tooltip content="下划线" placement="bottom">
+              <el-button size="small" class="tb-text" :type="editor?.isActive('underline') ? 'primary' : ''"
+                @click="editor?.chain().focus().toggleUnderline().run()">
+<u>U</u>
 </el-button>
+            </el-tooltip>
+            <el-tooltip content="删除线" placement="bottom">
+              <el-button size="small" class="tb-text" :type="editor?.isActive('strike') ? 'primary' : ''"
+                @click="editor?.chain().focus().toggleStrike().run()">
+<s>S</s>
+</el-button>
+            </el-tooltip>
           </div>
           <div class="toolbar-group">
-            <el-button size="small" :type="editor?.isActive('bulletList') ? 'primary' : ''"
-              @click="editor?.chain().focus().toggleBulletList().run()">
-无序列表
+            <el-tooltip content="左对齐" placement="bottom">
+              <el-button size="small" class="tb-text" :type="editor?.isActive({ textAlign: 'left' }) ? 'primary' : ''"
+                @click="editor?.chain().focus().setTextAlign('left').run()">
+左
 </el-button>
-            <el-button size="small" :type="editor?.isActive('orderedList') ? 'primary' : ''"
-              @click="editor?.chain().focus().toggleOrderedList().run()">
-有序列表
+            </el-tooltip>
+            <el-tooltip content="居中" placement="bottom">
+              <el-button size="small" class="tb-text" :type="editor?.isActive({ textAlign: 'center' }) ? 'primary' : ''"
+                @click="editor?.chain().focus().setTextAlign('center').run()">
+中
 </el-button>
+            </el-tooltip>
+            <el-tooltip content="右对齐" placement="bottom">
+              <el-button size="small" class="tb-text" :type="editor?.isActive({ textAlign: 'right' }) ? 'primary' : ''"
+                @click="editor?.chain().focus().setTextAlign('right').run()">
+右
+</el-button>
+            </el-tooltip>
           </div>
           <div class="toolbar-group">
-            <el-button size="small" @click="editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()">插入表格</el-button>
-            <el-button size="small" @click="editor?.chain().focus().addRowAfter().run()">+行</el-button>
-            <el-button size="small" @click="editor?.chain().focus().addColumnAfter().run()">+列</el-button>
-            <el-button size="small" @click="editor?.chain().focus().deleteRow().run()">-行</el-button>
-            <el-button size="small" @click="editor?.chain().focus().deleteColumn().run()">-列</el-button>
+            <el-tooltip content="无序列表" placement="bottom">
+              <el-button size="small" class="tb-text" :type="editor?.isActive('bulletList') ? 'primary' : ''"
+                @click="editor?.chain().focus().toggleBulletList().run()">
+• 列表
+</el-button>
+            </el-tooltip>
+            <el-tooltip content="有序列表" placement="bottom">
+              <el-button size="small" class="tb-text" :type="editor?.isActive('orderedList') ? 'primary' : ''"
+                @click="editor?.chain().focus().toggleOrderedList().run()">
+1. 列表
+</el-button>
+            </el-tooltip>
+            <el-tooltip content="引用块" placement="bottom">
+              <el-button size="small" class="tb-text" :type="editor?.isActive('blockquote') ? 'primary' : ''"
+                @click="editor?.chain().focus().toggleBlockquote().run()">
+❝ 引用
+</el-button>
+            </el-tooltip>
           </div>
           <div class="toolbar-group">
-            <el-button size="small" @click="triggerImageUpload">插入图片</el-button>
-            <input ref="imageInputRef" type="file" accept="image/*" hidden @change="handleImageUpload" />
+            <el-tooltip content="插入表格" placement="bottom">
+              <el-button size="small" class="tb-icon" @click="editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()">
+                <el-icon><Grid /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-button size="small" class="tb-mini" @click="editor?.chain().focus().addRowAfter().run()">+行</el-button>
+            <el-button size="small" class="tb-mini" @click="editor?.chain().focus().addColumnAfter().run()">+列</el-button>
+            <el-button size="small" class="tb-mini" @click="editor?.chain().focus().deleteRow().run()">-行</el-button>
+            <el-button size="small" class="tb-mini" @click="editor?.chain().focus().deleteColumn().run()">-列</el-button>
           </div>
+          <div class="toolbar-group">
+            <el-tooltip content="插入图片（≤5MB）" placement="bottom">
+              <el-button size="small" class="tb-icon" @click="triggerImageUpload">
+                <el-icon><Picture /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="水平分割线" placement="bottom">
+              <el-button size="small" class="tb-icon" @click="editor?.chain().focus().setHorizontalRule().run()">
+                <el-icon><Minus /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="清除格式" placement="bottom">
+              <el-button size="small" class="tb-icon" @click="editor?.chain().focus().unsetAllMarks().run()">
+                <el-icon><MagicStick /></el-icon>
+              </el-button>
+            </el-tooltip>
+          </div>
+          <input ref="imageInputRef" type="file" accept="image/*" hidden @change="handleImageUpload" />
         </div>
 
         <!-- 纸张画布：灰底衬托，白纸撑满剩余高度（内容超出继续滚动） -->
@@ -150,6 +218,7 @@ import { Editor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table'
 import Image from '@tiptap/extension-image'
+import TextAlign from '@tiptap/extension-text-align'
 import { ElMessage } from 'element-plus'
 import { templateApi } from '@/api/contract/template'
 import { uploadAttachment } from '@/api/system'
@@ -221,6 +290,7 @@ const buildEditor = (content: string) => {
       TableHeader,
       TableCell,
       Image,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
       VariableNode
     ],
     onUpdate: () => syncDefsFromContent()
@@ -365,6 +435,18 @@ watch(visible, open => {
 }
 .toolbar-group .el-button {
   border-radius: 0;
+}
+.tb-icon {
+  width: 32px;
+  padding: 8px 0;
+}
+.tb-text {
+  min-width: 32px;
+  padding: 8px 8px;
+}
+.tb-mini {
+  padding: 8px 6px;
+  font-size: 12px;
 }
 .toolbar-group .el-button:first-child {
   border-radius: 4px 0 0 4px;

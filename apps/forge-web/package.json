@@ -23,6 +23,7 @@
     "@tiptap/core": "^3.34.0",
     "@tiptap/extension-image": "^3.34.0",
     "@tiptap/extension-table": "^3.34.0",
+    "@tiptap/extension-text-align": "^3.34.0",
     "@tiptap/starter-kit": "^3.34.0",
     "@tiptap/vue-3": "^3.34.0",
     "@vueuse/core": "^14.3.0",
