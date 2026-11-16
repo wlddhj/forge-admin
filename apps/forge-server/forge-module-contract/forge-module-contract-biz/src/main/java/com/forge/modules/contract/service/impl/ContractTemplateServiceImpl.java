@@ -114,6 +114,7 @@ public class ContractTemplateServiceImpl implements ContractTemplateService {
         t.setId(exists.getId());
         t.setCategoryId(category.getId());
         t.setName(request.getName().trim());
+        t.setPaperOrientation(PaperOrientation.of(request.getPaperOrientation()).name());
         t.setPaperSize(paperOrDefault(request.getPaperSize()));
         t.setCustomWidthMm(request.getCustomWidthMm());
         t.setCustomHeightMm(request.getCustomHeightMm());
