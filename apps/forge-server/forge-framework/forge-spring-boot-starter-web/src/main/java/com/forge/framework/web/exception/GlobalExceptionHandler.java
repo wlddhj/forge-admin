@@ -17,7 +17,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -112,6 +115,37 @@ public class GlobalExceptionHandler {
     public Result<Void> handleNoHandlerFoundException(NoHandlerFoundException e) {
         log.warn("资源不存在: {}", e.getRequestURL());
         return Result.failed(ResultCode.NOT_FOUND);
+    }
+
+    /**
+     * 静态资源未命中（Spring 6.1+/SB3.2+ 未匹配路径由资源链抛 NoResourceFoundException，
+     * 原先落入 Exception 兜底被误包装为 500，排障被误导）
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Result<Void> handleNoResourceFoundException(NoResourceFoundException e) {
+        log.warn("资源不存在: {}", e.getResourcePath());
+        return Result.failed(ResultCode.NOT_FOUND);
+    }
+
+    /**
+     * 405 方法不支持
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
+    public Result<Void> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        log.warn("方法不支持: {}", e.getMessage());
+        return Result.failed(ResultCode.METHOD_NOT_ALLOWED);
+    }
+
+    /**
+     * 415 媒体类型不支持
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+    public Result<Void> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException e) {
+        log.warn("媒体类型不支持: {}", e.getMessage());
+        return Result.failed(ResultCode.UNSUPPORTED_MEDIA_TYPE);
     }
 
     /**

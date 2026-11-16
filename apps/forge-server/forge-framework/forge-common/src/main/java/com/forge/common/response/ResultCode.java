@@ -20,6 +20,8 @@ public enum ResultCode {
     UNAUTHORIZED(401, "未登录或登录已过期"),
     FORBIDDEN(403, "没有相关权限"),
     NOT_FOUND(404, "资源不存在"),
+    METHOD_NOT_ALLOWED(405, "请求方法不支持"),
+    UNSUPPORTED_MEDIA_TYPE(415, "媒体类型不支持"),
 
     // 业务错误 5xx
     DATA_NOT_FOUND(5000, "数据不存在"),
