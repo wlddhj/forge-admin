@@ -168,6 +168,10 @@ H3
         <div class="editor-canvas">
           <div class="editor-paper" :style="{ width: paperWidthPx + 'px', padding: paperPadding }">
             <editor-content v-if="editor" :editor="editor" class="editor-content" />
+            <!-- 分页参考虚线：每页内容高 = 纸高 - 上下边距（与 @page 同源计算） -->
+            <div v-for="i in pageGuides" :key="i" class="page-guide" :style="{ top: guideTopPx(i) + 'px' }">
+              <span class="page-guide-label">第 {{ i }} 页</span>
+            </div>
           </div>
         </div>
         <div class="paper-hint">编辑区宽度按纸张内容宽约束 · 分页以预览/打印 PDF 为准</div>
@@ -378,6 +382,47 @@ const paperWidthPx = computed(() => {
   return Math.max(200, Math.round(widthMm * (96 / 25.4)))
 })
 
+/** 每页内容高 px（纸高-上下边距，与 @page 分页同源；方向/自定义/边距档联动） */
+const pageContentPx = computed(() => {
+  const tableH: Record<PaperSizeCode, number> = { A4: 297, A5: 210, B3: 353, LETTER: 279.4, LEGAL: 355.6, CUSTOM: 0 }
+  let hMm = paper.paperSize === 'CUSTOM' ? Number(paper.customHeightMm ?? 297) : tableH[paper.paperSize]
+  if (paper.paperOrientation === 'LANDSCAPE') {
+    const tableW: Record<PaperSizeCode, number> = { A4: 210, A5: 148, B3: 250, LETTER: 215.9, LEGAL: 215.9, CUSTOM: 0 }
+    hMm = paper.paperSize === 'CUSTOM' ? Number(paper.customWidthMm ?? 210) : tableW[paper.paperSize]
+  }
+  const tbPx = marginTbPx.value
+  return Math.max(200, Math.round(hMm * (96 / 25.4)) - tbPx * 2)
+})
+
+/** 档位→上下边距 px */
+const marginTbPx = computed(() => (paper.marginPreset === 'NARROW' ? 48 : 96))
+
+/** 内容实际高（ResizeObserver 跟随输入） */
+const contentEl = ref<HTMLElement | null>(null)
+const contentHeightPx = ref(0)
+let contentObserver: ResizeObserver | null = null
+const watchContent = (el: HTMLElement | null) => {
+  contentEl.value = el
+  contentObserver?.disconnect()
+  if (!el) return
+  contentObserver = new ResizeObserver(() => {
+    contentHeightPx.value = el.offsetHeight
+  })
+  contentObserver.observe(el)
+  contentHeightPx.value = el.offsetHeight
+}
+
+/** 参考线序号集合：内容每越过一个"页内容高"画一条（首条=第1页结束线） */
+const pageGuides = computed(() => {
+  const n = pageContentPx.value
+  if (!n || !contentHeightPx.value) return [] as number[]
+  const count = Math.floor((contentHeightPx.value - 1) / n)
+  return Array.from({ length: Math.max(0, count) }, (_, k) => k + 1)
+})
+
+/** 线顶 = 纸上边距 + 第 i 页内容高 */
+const guideTopPx = (i: number) => marginTbPx.value + i * pageContentPx.value
+
 /** 档位→页边距 px（mm*96/25.4），与 @page 注入完全同口径 */
 const paperPadding = computed(() => {
   const map: Record<PaperMarginCode, string> = {
@@ -387,6 +432,14 @@ const paperPadding = computed(() => {
   }
   return map[paper.marginPreset] ?? map.NORMAL
 })
+
+/** editor DOM 就绪后绑定高度观测 */
+const nextTickBoundWatch = () => {
+  requestAnimationFrame(() => {
+    const el = document.querySelector('.contract-editor-drawer .editor-content') as HTMLElement | null
+    watchContent(el)
+  })
+}
 
 const initEditor = async () => {
   const t = props.template
@@ -411,6 +464,7 @@ const initEditor = async () => {
 
 const buildEditor = (content: string) => {
   editor.value?.destroy()
+  nextTickBoundWatch()
   editor.value = new Editor({
     content: content || '<h1>合同标题</h1><p>正文段落…</p>',
     extensions: [
@@ -545,6 +599,7 @@ watch(visible, open => {
   if (!open) {
     editor.value?.destroy()
     editor.value = null
+    contentObserver?.disconnect()
     changeLog.value = ''
   }
 })
@@ -636,6 +691,7 @@ watch(visible, open => {
   padding: 16px;
 }
 .editor-paper {
+  position: relative;
   margin: 0 auto;
   min-height: 100%;
   max-width: none;
@@ -731,6 +787,22 @@ watch(visible, open => {
 }
 .paper-x {
   color: var(--el-text-color-secondary);
+}
+.page-guide {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed #c0c4cc;
+  pointer-events: none;
+}
+.page-guide-label {
+  position: absolute;
+  right: 4px;
+  top: 2px;
+  font-size: 11px;
+  color: #c0c4cc;
+  background: var(--el-bg-color);
+  padding: 0 4px;
 }
 .paper-label-hint {
   font-size: 12px;
