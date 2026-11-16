@@ -46,8 +46,8 @@ public class CtContract {
     /** 模板版本ID（创建时锁定） */
     private Long templateVersionId;
 
-    /** 变量值 JSON（key→值，Jackson3TypeHandler） */
-    @TableField(typeHandler = Jackson3TypeHandler.class)
+    /** 变量值 JSON（key→值，Jackson3TypeHandler；列名显式对齐 field_values_json） */
+    @TableField(value = "field_values_json", typeHandler = Jackson3TypeHandler.class)
     private Map<String, Object> fieldValues;
 
     /** 状态 0:草稿 1:审批中 2:已通过 3:已驳回 4:已撤销 */
