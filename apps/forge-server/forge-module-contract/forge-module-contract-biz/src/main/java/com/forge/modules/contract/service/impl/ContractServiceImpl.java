@@ -42,6 +42,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -179,8 +180,10 @@ public class ContractServiceImpl implements ContractService {
         CtTemplate template = requireTemplate(contract.getTemplateId());
         CtTemplateVersion version = requireVersion(contract.getTemplateVersionId());
         String filled = ContractHtmlProcessor.fillChips(version.getContentHtml(), contract.getFieldValues());
-        return pdfRenderClient.render(filled, PaperSize.of(template.getPaperSize()),
+        byte[] pdf = pdfRenderClient.render(filled, PaperSize.of(template.getPaperSize()),
                 template.getCustomWidthMm(), template.getCustomHeightMm());
+        // 预览同样盖章（2026-11-16 需求）：按状态文案+当日日期，防截图外流
+        return watermarkStamper.stamp(pdf, watermarkText(statusFlag(contract.getStatus())));
     }
 
     @Override
@@ -196,7 +199,6 @@ public class ContractServiceImpl implements ContractService {
         }
 
         String content;
-        String watermarkFlag;
         if (contract.getStatus() == CtContract.STATUS_APPROVED) {
             // 定稿用快照；快照缺失（历史数据）回退按锁定版本+字段值现场渲染
             if (contract.getRenderedHtml() != null && !contract.getRenderedHtml().isBlank()) {
@@ -205,14 +207,12 @@ public class ContractServiceImpl implements ContractService {
                 CtTemplateVersion version = requireVersion(contract.getTemplateVersionId());
                 content = ContractHtmlProcessor.fillChips(version.getContentHtml(), contract.getFieldValues());
             }
-            watermarkFlag = "定稿";
         } else {
             CtTemplateVersion version = requireVersion(contract.getTemplateVersionId());
             content = ContractHtmlProcessor.fillChips(version.getContentHtml(), contract.getFieldValues());
-            watermarkFlag = contract.getStatus() == CtContract.STATUS_APPROVING ? "审批中" : "草稿";
         }
         byte[] pdf = pdfRenderClient.render(content, paper, w, h);
-        return watermarkStamper.stamp(pdf, watermarkTenantName() + " · " + watermarkFlag);
+        return watermarkStamper.stamp(pdf, watermarkText(statusFlag(contract.getStatus())));
     }
 
     @Override
@@ -269,7 +269,7 @@ public class ContractServiceImpl implements ContractService {
         String renderedHtml = ContractHtmlProcessor.fillChips(version.getContentHtml(), contract.getFieldValues());
         byte[] pdf = pdfRenderClient.render(renderedHtml, PaperSize.of(template.getPaperSize()),
                 template.getCustomWidthMm(), template.getCustomHeightMm());
-        byte[] watermarked = watermarkStamper.stamp(pdf, watermarkTenantName() + " · 定稿");
+        byte[] watermarked = watermarkStamper.stamp(pdf, watermarkText("定稿"));
 
         String fileName = "contract-" + contract.getId() + ".pdf";
         AttachmentResponse attachment = attachmentService.upload(
@@ -372,6 +372,19 @@ public class ContractServiceImpl implements ContractService {
         }
         return objectMapper.readValue(json, new TypeReference<List<FieldDef>>() {
         });
+    }
+
+    /** 水印文案：租户名 · 状态 · 当日日期 */
+    private String watermarkText(String flag) {
+        return watermarkTenantName() + " · " + flag + " · " + LocalDate.now();
+    }
+
+    /** 状态 → 水印状态段 */
+    private String statusFlag(int status) {
+        if (status == CtContract.STATUS_APPROVING) {
+            return "审批中";
+        }
+        return status == CtContract.STATUS_APPROVED ? "定稿" : "草稿";
     }
 
     /** 水印租户名（租户上下文缺失时回退「合同」） */

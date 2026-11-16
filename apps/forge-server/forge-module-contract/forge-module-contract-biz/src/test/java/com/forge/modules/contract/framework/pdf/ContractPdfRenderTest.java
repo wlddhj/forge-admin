@@ -59,7 +59,7 @@ class ContractPdfRenderTest {
 
     @Test
     @Timeout(120)
-    void renderCustomPaperAndWatermark() {
+    void renderCustomPaperAndWatermark() throws Exception {
         String html = "<h2>保密协议</h2><p>双方本着诚实信用原则，约定如下保密义务。</p>";
         OpenHtmlToPdfClient client = new OpenHtmlToPdfClient();
         byte[] pdf = client.render(html, PaperSize.CUSTOM, new BigDecimal("148"), new BigDecimal("210"));
@@ -69,5 +69,13 @@ class ContractPdfRenderTest {
         assertTrue(stamped.length > pdf.length, "盖章后体积应增长");
         assertArrayEquals("%PDF".getBytes(StandardCharsets.US_ASCII),
                 java.util.Arrays.copyOfRange(stamped, 0, 4));
+        // 平铺：单页 3×3 网格，水印文本应出现 9 次
+        try (var doc = org.apache.pdfbox.Loader.loadPDF(stamped)) {
+            org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
+            // 斜排文本提取会插入空白/换行，归一化后按公司名关键词计数
+            String text = stripper.getText(doc).replaceAll("\\s+", "");
+            int count = text.split("北京某某科技有限公司", -1).length - 1;
+            assertTrue(count == 9, "平铺水印应出现 9 次, 实测 " + count);
+        }
     }
 }

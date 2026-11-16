@@ -27,9 +27,12 @@ public class WatermarkStamper {
     private static final String WATERMARK_FONT = "/fonts/NotoSansSC.ttf";
     /** 字体字节进程内仅加载一次 */
     private static final byte[] FONT_TTF = loadFontBytes();
-    private static final float FONT_SIZE = 52f;
-    private static final float ALPHA = 0.12f;
+    /** 平铺水印：3×3 网格，小字号淡灰 45° 斜排（2026-11-16 由单枚大字改平铺） */
+    private static final float FONT_SIZE = 20f;
+    private static final float ALPHA = 0.10f;
     private static final double ROTATE_RAD = Math.toRadians(45);
+    private static final int TILES_X = 3;
+    private static final int TILES_Y = 3;
 
     /**
      * 为 PDF 每页盖水印，返回新 PDF 字节
@@ -51,8 +54,6 @@ public class WatermarkStamper {
     private void stampPage(PDDocument doc, PDPage page, PDType0Font font, String text) throws IOException {
         PDRectangle box = page.getMediaBox();
         float textWidth = font.getStringWidth(text) / 1000f * FONT_SIZE;
-        float x = (box.getWidth() - textWidth) / 2f;
-        float y = box.getHeight() / 4f;
 
         PDExtendedGraphicsState gs = new PDExtendedGraphicsState();
         gs.setNonStrokingAlphaConstant(ALPHA);
@@ -61,11 +62,20 @@ public class WatermarkStamper {
                 PDPageContentStream.AppendMode.APPEND, true, true)) {
             cs.setGraphicsStateParameters(gs);
             cs.setNonStrokingColor(new Color(130, 130, 130));
-            cs.beginText();
             cs.setFont(font, FONT_SIZE);
-            cs.setTextMatrix(org.apache.pdfbox.util.Matrix.getRotateInstance(ROTATE_RAD, x, y));
-            cs.showText(text);
-            cs.endText();
+            // 网格单元中心逐枚盖章：单元格边距内均分，文本按自身宽度左上角补偿居中
+            float cellW = box.getWidth() / TILES_X;
+            float cellH = box.getHeight() / TILES_Y;
+            for (int row = 0; row < TILES_Y; row++) {
+                for (int col = 0; col < TILES_X; col++) {
+                    float cx = cellW * col + (cellW - textWidth) / 2f;
+                    float cy = cellH * row + cellH / 2f;
+                    cs.beginText();
+                    cs.setTextMatrix(org.apache.pdfbox.util.Matrix.getRotateInstance(ROTATE_RAD, cx, cy));
+                    cs.showText(text);
+                    cs.endText();
+                }
+            }
         }
     }
 
