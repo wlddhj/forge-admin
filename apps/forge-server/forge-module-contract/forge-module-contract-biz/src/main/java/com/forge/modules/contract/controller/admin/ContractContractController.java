@@ -15,6 +15,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -91,14 +92,14 @@ public class ContractContractController {
     }
 
     @Operation(summary = "实时预览 PDF（草稿态）")
-    @PostMapping("/{id}/preview")
+    @PostMapping(value = "/{id}/preview", produces = MediaType.APPLICATION_PDF_VALUE)
     @PreAuthorize("hasAuthority('contract:contract:preview')")
     public byte[] preview(@PathVariable Long id) {
         return contractService.previewPdf(id);
     }
 
     @Operation(summary = "打印 PDF（按所选纸张重渲染，草稿/定稿水印）")
-    @PostMapping("/{id}/print")
+    @PostMapping(value = "/{id}/print", produces = MediaType.APPLICATION_PDF_VALUE)
     @PreAuthorize("hasAuthority('contract:contract:print')")
     public byte[] print(@PathVariable Long id, @RequestBody(required = false) ContractDtos.PrintRequest request) {
         return contractService.printPdf(id, request == null ? new ContractDtos.PrintRequest() : request);
