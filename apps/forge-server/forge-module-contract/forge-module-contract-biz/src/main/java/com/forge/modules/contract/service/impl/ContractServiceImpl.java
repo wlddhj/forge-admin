@@ -187,6 +187,16 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
+    public byte[] previewDraft(Long templateVersionId, Map<String, Object> fieldValues) {
+        CtTemplateVersion version = requireVersion(templateVersionId);
+        CtTemplate template = requireTemplate(version.getTemplateId());
+        String filled = ContractHtmlProcessor.fillChips(version.getContentHtml(), fieldValues);
+        byte[] pdf = pdfRenderClient.render(filled, PaperSize.of(template.getPaperSize()),
+                template.getCustomWidthMm(), template.getCustomHeightMm());
+        return watermarkStamper.stamp(pdf, watermarkText("草稿"));
+    }
+
+    @Override
     public byte[] printPdf(Long id, ContractDtos.PrintRequest request) {
         CtContract contract = requireContract(id);
         CtTemplate template = requireTemplate(contract.getTemplateId());

@@ -79,7 +79,7 @@
         <vxe-column title="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
         </vxe-column>
-        <vxe-column title="操作" width="320" fixed="right">
+        <vxe-column title="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'contract:contract:list'" type="primary" link size="small"
               @click="openDetail(row)">

@@ -54,9 +54,19 @@
       </template>
     </el-form>
     <template #footer>
+      <el-button v-permission="'contract:contract:preview'" :disabled="!currentVersionId" :loading="previewing"
+        @click="doPreviewDraft">
+        预览 PDF
+      </el-button>
       <el-button @click="visible = false">取消</el-button>
       <el-button type="primary" :loading="saving" @click="confirm">保存草稿</el-button>
     </template>
+  </el-dialog>
+
+  <!-- 临时预览弹窗（未保存也可看） -->
+  <el-dialog v-model="previewVisible" :title="`PDF 预览：${form.title || '未命名合同'}`" fullscreen
+    append-to-body destroy-on-close class="pdf-viewer-dialog">
+    <iframe :src="previewUrl" class="pdf-viewer-frame" title="合同预览" />
   </el-dialog>
 </template>
 
@@ -77,6 +87,12 @@ const formRef = ref<FormInstance | null>(null)
 const saving = ref(false)
 const templates = ref<TemplateBrief[]>([])
 const fieldDefs = ref<FieldDef[]>([])
+/** 当前锁定的模板版本（预览/渲染基准） */
+const currentVersionId = ref<string | null>(null)
+const previewing = ref(false)
+const previewVisible = ref(false)
+const previewUrl = ref('')
+let previewBlobUrl = ''
 const templateName = ref('')
 const versionNo = ref<number | null>(null)
 
@@ -97,6 +113,7 @@ const onOpened = async () => {
   if (props.contract) {
     // 编辑：模板已锁定，回填标题/编号与字段值，字段定义取锁定版本
     form.templateId = props.contract.templateId
+    currentVersionId.value = props.contract.templateVersionId
     form.title = props.contract.title
     form.contractNo = props.contract.contractNo ?? ''
     form.fieldValues = { ...(props.contract.fieldValues ?? {}) } as Record<string, string | number | undefined>
@@ -119,6 +136,7 @@ const onTemplateChange = async (templateId: string) => {
   }
   const version = await templateApi.getVersion(tpl.currentVersionId)
   fieldDefs.value = version.fieldDefs ?? []
+  currentVersionId.value = tpl.currentVersionId
 }
 
 const fieldRules = (def: FieldDef) => {
@@ -137,6 +155,27 @@ const numberModel = (key: string) => {
 const dateModel = (key: string) => form.fieldValues[key] as string | undefined
 const setFieldValue = (key: string, v: unknown) => {
   form.fieldValues[key] = v as string
+}
+
+/** 临时预览：按当前表单值渲染（未保存也可看，不落库） */
+const doPreviewDraft = async () => {
+  if (!currentVersionId.value) {
+    ElMessage.warning('请先选择合同模板')
+    return
+  }
+  previewing.value = true
+  try {
+    const blob = await contractApi.previewDraft({
+      templateVersionId: currentVersionId.value,
+      fieldValues: form.fieldValues as Record<string, unknown>
+    })
+    if (previewBlobUrl) URL.revokeObjectURL(previewBlobUrl)
+    previewBlobUrl = URL.createObjectURL(blob)
+    previewUrl.value = previewBlobUrl
+    previewVisible.value = true
+  } finally {
+    previewing.value = false
+  }
 }
 
 const confirm = async () => {
@@ -167,3 +206,12 @@ const confirm = async () => {
   }
 }
 </script>
+
+<style scoped>
+.pdf-viewer-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+</style>

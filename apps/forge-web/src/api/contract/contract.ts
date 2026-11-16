@@ -26,6 +26,10 @@ export const contractApi = {
 
   remove: (id: string) => request.delete(`/contract/contract/${id}`),
 
+  /** 临时预览（编辑表单：版本+当前表单值，不落库） */
+  previewDraft: (data: { templateVersionId: string; fieldValues?: Record<string, unknown> }) =>
+    request.post<Blob>('/contract/contract/preview-draft', data, { responseType: 'blob' }) as unknown as Promise<Blob>,
+
   /** 实时预览 PDF（草稿态） */
   previewPdf: (id: string) =>
     request.post<Blob>(`/contract/contract/${id}/preview`, undefined, { responseType: 'blob' }) as unknown as Promise<Blob>,

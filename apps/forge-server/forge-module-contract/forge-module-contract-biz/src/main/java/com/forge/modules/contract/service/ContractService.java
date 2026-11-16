@@ -27,8 +27,13 @@ public interface ContractService {
     /** 删除（仅草稿态） */
     void deleteContract(Long id);
 
-    /** 实时预览 PDF（草稿态：填充+渲染，无水印，不落盘） */
+    /** 实时预览 PDF（按已存合同渲染） */
     byte[] previewPdf(Long id);
+
+    /**
+     * 临时预览（编辑表单用）：按模板版本+表单当前值渲染，不落库不依赖合同存在（新建未保存亦可预览）。
+     */
+    byte[] previewDraft(Long templateVersionId, java.util.Map<String, Object> fieldValues);
 
     /** 打印 PDF（草稿盖「草稿」水印；已通过用定稿快照盖「定稿」水印；按所选纸张重渲染） */
     byte[] printPdf(Long id, ContractDtos.PrintRequest request);
