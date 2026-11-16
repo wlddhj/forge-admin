@@ -10,6 +10,7 @@ import com.forge.modules.contract.entity.CtCategory;
 import com.forge.modules.contract.entity.CtContract;
 import com.forge.modules.contract.entity.CtTemplate;
 import com.forge.modules.contract.entity.CtTemplateVersion;
+import com.forge.modules.contract.enums.PaperMarginPreset;
 import com.forge.modules.contract.enums.PaperOrientation;
 import com.forge.modules.contract.enums.PaperSize;
 import com.forge.modules.contract.framework.html.ContractHtmlProcessor;
@@ -133,6 +134,7 @@ public class ContractTemplateServiceImpl implements ContractTemplateService {
         upd.setId(request.getId());
         upd.setPaperSize(paperOrDefault(request.getPaperSize()));
         upd.setPaperOrientation(PaperOrientation.of(request.getPaperOrientation()).name());
+        upd.setMarginPreset(PaperMarginPreset.of(request.getMarginPreset()).name());
         upd.setCustomWidthMm(request.getCustomWidthMm());
         upd.setCustomHeightMm(request.getCustomHeightMm());
         upd.setUpdateBy(SecurityUtils.getCurrentUserId());

@@ -33,6 +33,13 @@
           <el-option label="自定义" value="CUSTOM" />
         </el-select>
       </el-form-item>
+      <el-form-item label="页边距">
+        <el-radio-group v-model="form.marginPreset">
+          <el-radio-button value="NARROW">窄</el-radio-button>
+          <el-radio-button value="NORMAL">正常</el-radio-button>
+          <el-radio-button value="WIDE">宽</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
       <el-form-item label="方向">
         <el-radio-group v-model="form.paperOrientation">
           <el-radio-button value="PORTRAIT">纵向</el-radio-button>
@@ -87,6 +94,7 @@ const form = reactive<TemplateForm>({
   name: '',
   paperSize: 'A4',
   paperOrientation: 'PORTRAIT',
+  marginPreset: 'NORMAL',
   customWidthMm: undefined,
   customHeightMm: undefined,
   remark: ''
@@ -108,6 +116,7 @@ const open = (template?: TemplateItem | null) => {
       name: template.name,
       paperSize: template.paperSize,
       paperOrientation: template.paperOrientation ?? 'PORTRAIT',
+      marginPreset: template.marginPreset ?? 'NORMAL',
       customWidthMm: template.customWidthMm ?? undefined,
       customHeightMm: template.customHeightMm ?? undefined,
       remark: template.remark ?? ''
@@ -123,6 +132,8 @@ const resetForm = () => {
     categoryCode: '',
     name: '',
     paperSize: 'A4',
+    paperOrientation: 'PORTRAIT',
+    marginPreset: 'NORMAL',
     customWidthMm: undefined,
     customHeightMm: undefined,
     remark: ''

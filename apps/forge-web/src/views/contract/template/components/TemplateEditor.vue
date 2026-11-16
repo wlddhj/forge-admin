@@ -166,7 +166,7 @@ H3
 
         <!-- 纸张画布：灰底衬托，白纸撑满剩余高度（内容超出继续滚动） -->
         <div class="editor-canvas">
-          <div class="editor-paper" :style="{ width: paperWidthPx + 'px' }">
+          <div class="editor-paper" :style="{ width: paperWidthPx + 'px', padding: paperPadding }">
             <editor-content v-if="editor" :editor="editor" class="editor-content" />
           </div>
         </div>
@@ -236,6 +236,14 @@ H3
               <el-radio-button value="LANDSCAPE">横向</el-radio-button>
             </el-radio-group>
           </div>
+          <div class="paper-form" style="margin-top: 8px">
+            <span class="paper-label">边距</span>
+            <el-radio-group v-model="paper.marginPreset" size="small">
+              <el-radio-button value="NARROW">窄</el-radio-button>
+              <el-radio-button value="NORMAL">正常</el-radio-button>
+              <el-radio-button value="WIDE">宽</el-radio-button>
+            </el-radio-group>
+          </div>
           <div v-if="paper.paperSize === 'CUSTOM'" class="paper-form" style="margin-top: 8px">
             <el-input-number v-model="paper.customWidthMm" :min="50" :max="600" :precision="1"
               size="small" controls-position="right" placeholder="宽mm" style="width: 120px" />
@@ -279,7 +287,7 @@ import { ElMessage } from 'element-plus'
 import { templateApi } from '@/api/contract/template'
 import { uploadAttachment } from '@/api/system'
 import { isValidFieldKey, VariableNode } from '../extensions/variable'
-import type { FieldDef, PaperOrientationCode, PaperSizeCode, TemplateItem } from '@/types/contract'
+import type { FieldDef, PaperMarginCode, PaperOrientationCode, PaperSizeCode, TemplateItem } from '@/types/contract'
 
 defineOptions({ name: 'TemplateEditor' })
 
@@ -329,6 +337,7 @@ const applyHighlight = (color: string) => {
 const paper = reactive({
   paperSize: 'A4' as PaperSizeCode,
   paperOrientation: 'PORTRAIT' as PaperOrientationCode,
+  marginPreset: 'NORMAL' as PaperMarginCode,
   customWidthMm: undefined as number | undefined,
   customHeightMm: undefined as number | undefined
 })
@@ -336,6 +345,7 @@ const paperDirty = computed(() => {
   const t = props.template
   return !!t && (paper.paperSize !== t.paperSize
     || paper.paperOrientation !== (t.paperOrientation ?? 'PORTRAIT')
+    || paper.marginPreset !== (t.marginPreset ?? 'NORMAL')
     || (paper.customWidthMm ?? undefined) !== (t.customWidthMm ?? undefined)
     || (paper.customHeightMm ?? undefined) !== (t.customHeightMm ?? undefined))
 })
@@ -370,11 +380,22 @@ const paperWidthPx = computed(() => {
   return Math.max(200, Math.round(widthMm * (96 / 25.4)))
 })
 
+/** 档位→页边距 px（mm*96/25.4），与 @page 注入完全同口径 */
+const paperPadding = computed(() => {
+  const map: Record<PaperMarginCode, string> = {
+    NARROW: '48px 48px',
+    NORMAL: '96px 120px',
+    WIDE: '96px 192px'
+  }
+  return map[paper.marginPreset] ?? map.NORMAL
+})
+
 const initEditor = async () => {
   const t = props.template
   if (t) {
     paper.paperSize = t.paperSize ?? 'A4'
     paper.paperOrientation = t.paperOrientation ?? 'PORTRAIT'
+    paper.marginPreset = t.marginPreset ?? 'NORMAL'
     paper.customWidthMm = t.customWidthMm ?? undefined
     paper.customHeightMm = t.customHeightMm ?? undefined
   }
@@ -496,7 +517,8 @@ const save = async () => {
         paperSize: paper.paperSize,
         customWidthMm: paper.paperSize === 'CUSTOM' ? paper.customWidthMm : undefined,
         customHeightMm: paper.paperSize === 'CUSTOM' ? paper.customHeightMm : undefined,
-        paperOrientation: paper.paperOrientation
+        paperOrientation: paper.paperOrientation,
+        marginPreset: paper.marginPreset
       })
     }
     const defs: FieldDef[] = fieldDefs.value.map(d => ({
@@ -619,7 +641,7 @@ watch(visible, open => {
   margin: 0 auto;
   min-height: 100%;
   max-width: none;
-  /* 页边距与 @page 同口径：25.4mm=96px 上下 / 31.8mm=120px 左右 */
+  /* 兜底口径，实际由 :style 按档位动态注入 */
   padding: 96px 120px;
   background: var(--el-bg-color);
   border-radius: 4px;

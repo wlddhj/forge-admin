@@ -17,6 +17,9 @@ export type PaperSizeCode = 'A4' | 'A5' | 'B3' | 'LETTER' | 'LEGAL' | 'CUSTOM'
 /** 纸张方向 */
 export type PaperOrientationCode = 'PORTRAIT' | 'LANDSCAPE'
 
+/** 页边距档位（Word 同口径） */
+export type PaperMarginCode = 'NARROW' | 'NORMAL' | 'WIDE'
+
 /** 合同分类树节点 */
 export interface CategoryNode {
   id: string
@@ -45,6 +48,7 @@ export interface TemplateItem {
   status: number
   paperSize: PaperSizeCode
   paperOrientation?: PaperOrientationCode
+  marginPreset?: PaperMarginCode
   customWidthMm?: number | null
   customHeightMm?: number | null
   remark?: string
@@ -63,6 +67,7 @@ export interface TemplateBrief {
   currentVersionId: string
   paperSize: PaperSizeCode
   paperOrientation?: PaperOrientationCode
+  marginPreset?: PaperMarginCode
   customWidthMm?: number | null
   customHeightMm?: number | null
 }
@@ -86,6 +91,7 @@ export interface TemplateForm {
   name: string
   paperSize: PaperSizeCode
   paperOrientation?: PaperOrientationCode
+  marginPreset?: PaperMarginCode
   customWidthMm?: number
   customHeightMm?: number
   remark?: string

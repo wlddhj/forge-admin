@@ -21,6 +21,27 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ContractPdfRenderTest {
 
+    /** 首个含关键字的字形 y 坐标 */
+    private float firstGlyphY(byte[] pdf, String key) {
+        try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            float[] y = { -1 };
+            new org.apache.pdfbox.text.PDFTextStripper() {
+                { setSortByPosition(true); }
+                @Override protected void writeString(String t, java.util.List<org.apache.pdfbox.text.TextPosition> ps) {
+                    for (var tp : ps) {
+                        if (tp.getUnicode().contains(key) && y[0] < 0) {
+                            y[0] = tp.getY();
+                        }
+                    }
+                }
+            }.getText(doc);
+            return y[0];
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
     @Test
     @Timeout(120)
     void renderChineseToPdf() {
@@ -35,8 +56,8 @@ class ContractPdfRenderTest {
         Map<String, Object> values = new LinkedHashMap<>();
         values.put("party_a", "北京某某科技有限公司");
 
-        String filled = com.forge.modules.contract.framework.html.ContractHtmlProcessor.fillChips(html, values);
-        byte[] pdf = new OpenHtmlToPdfClient().render(filled, PaperSize.A4, null, null, null);
+        String filled = ContractHtmlProcessor.fillChips(html, values);
+        byte[] pdf = new OpenHtmlToPdfClient().render(filled, PaperSize.A4, null, null, null, null);
 
         assertNotNull(pdf);
         assertTrue(pdf.length > 10_000, "PDF 应含内嵌字体，体积应显著大于空文档: " + pdf.length);
@@ -53,7 +74,7 @@ class ContractPdfRenderTest {
                 + "<tr><td><p>6</p></td><td><p>5</p></td></tr>"
                 + "</tbody></table>";
         String prepared = ContractHtmlProcessor.fillChips(ContractHtmlProcessor.sanitize(raw), null);
-        byte[] pdf = new OpenHtmlToPdfClient().render(prepared, PaperSize.A4, null, null, null);
+        byte[] pdf = new OpenHtmlToPdfClient().render(prepared, PaperSize.A4, null, null, null, null);
         java.util.Map<Character, Float> glyphY = new java.util.LinkedHashMap<>();
         try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
             java.util.List<org.apache.pdfbox.text.TextPosition> pos = new java.util.ArrayList<>();
@@ -80,6 +101,21 @@ class ContractPdfRenderTest {
 
     @Test
     @Timeout(120)
+    void renderMarginPresetShiftsFirstLine() throws Exception {
+        String html = "<p>首行</p>";
+        var client = new OpenHtmlToPdfClient();
+        byte[] narrow = client.render(html, PaperSize.A4, null, null, null,
+                com.forge.modules.contract.enums.PaperMarginPreset.NARROW);
+        byte[] wide = client.render(html, PaperSize.A4, null, null, null,
+                com.forge.modules.contract.enums.PaperMarginPreset.WIDE);
+        float yNarrow = firstGlyphY(narrow, "首");
+        float yWide = firstGlyphY(wide, "首");
+        // 窄档上边距 12.7mm vs 宽档 25.4mm：宽档首行应下移 ≈12.7mm≈36pt
+        assertTrue(yWide - yNarrow > 25f, "宽档首行应显著下移: narrow=" + yNarrow + " wide=" + yWide);
+    }
+
+    @Test
+    @Timeout(120)
     void renderTableCellCenterAlignTakesEffect() throws Exception {
         // 单元格对齐写在 td>p（tiptap 结构，sanitize 不解包）；断言居中格文本 x 明显大于左对齐格
         String raw = "<table><tbody><tr>"
@@ -87,7 +123,7 @@ class ContractPdfRenderTest {
                 + "<td><p style=\"text-align: center\">中</p></td>"
                 + "</tr></tbody></table>";
         String prepared = ContractHtmlProcessor.fillChips(ContractHtmlProcessor.sanitize(raw), null);
-        byte[] pdf = new OpenHtmlToPdfClient().render(prepared, PaperSize.A4, null, null, null);
+        byte[] pdf = new OpenHtmlToPdfClient().render(prepared, PaperSize.A4, null, null, null, null);
         java.util.Map<Character, Float> gx = new java.util.LinkedHashMap<>();
         try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
             new org.apache.pdfbox.text.PDFTextStripper() {
@@ -112,7 +148,7 @@ class ContractPdfRenderTest {
         // 端到端：sanitize(li>p 解包) → fillChips(注入圆点) → PDF 文本层圆点与序号都在
         String raw = "<ul><li><p>甲项</p></li></ul><ol><li><p>第一项</p></li></ol>";
         String prepared = ContractHtmlProcessor.fillChips(ContractHtmlProcessor.sanitize(raw), null);
-        byte[] pdf = new OpenHtmlToPdfClient().render(prepared, PaperSize.A4, null, null, null);
+        byte[] pdf = new OpenHtmlToPdfClient().render(prepared, PaperSize.A4, null, null, null, null);
         try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
             String text = new org.apache.pdfbox.text.PDFTextStripper().getText(doc).replaceAll("\\s+", "");
             assertTrue(text.contains("\u2022"), "无序列表圆点应出现在 PDF: " + text);
@@ -125,7 +161,7 @@ class ContractPdfRenderTest {
     void renderHighlightAndFontSize() {
         String html = "<p><mark style=\"background-color: #ffff00\">重点条款</mark> "
                 + "<span style=\"font-size: 18pt\">大号条款文本</span></p>";
-        byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null, null);
+        byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null, null, null);
         assertTrue(pdf.length > 3_000, "含高亮与字号的 PDF 应正常产出: " + pdf.length);
     }
 
@@ -134,7 +170,7 @@ class ContractPdfRenderTest {
     void renderLandscapeSwapsPageDimensions() throws Exception {
         String html = "<h2>横向合同</h2><p>宽幅条款内容。</p>";
         byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null,
-                com.forge.modules.contract.enums.PaperOrientation.LANDSCAPE);
+                com.forge.modules.contract.enums.PaperOrientation.LANDSCAPE, null);
         try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
             var box = doc.getPage(0).getMediaBox();
             // A4 横向：297mm≈841.9pt 宽 > 595.3pt 高
@@ -148,7 +184,7 @@ class ContractPdfRenderTest {
     void renderPreservesConsecutiveSpaces() throws Exception {
         // 真机回归：模板维护的连续空格在 PDF 中不得被 CSS normal 折叠
         String html = "<p>甲方：A公司      乙方：B公司</p>";
-        byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null, null);
+        byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null, null, null);
         try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
             org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
             String text = stripper.getText(doc);
@@ -162,7 +198,7 @@ class ContractPdfRenderTest {
     void renderCustomPaperAndWatermark() throws Exception {
         String html = "<h2>保密协议</h2><p>双方本着诚实信用原则，约定如下保密义务。</p>";
         OpenHtmlToPdfClient client = new OpenHtmlToPdfClient();
-        byte[] pdf = client.render(html, PaperSize.CUSTOM, new BigDecimal("148"), new BigDecimal("210"), null);
+        byte[] pdf = client.render(html, PaperSize.CUSTOM, new BigDecimal("148"), new BigDecimal("210"), null, null);
         assertTrue(pdf.length > 5_000);
 
         byte[] stamped = new WatermarkStamper().stamp(pdf, "北京某某科技有限公司 · 定稿");

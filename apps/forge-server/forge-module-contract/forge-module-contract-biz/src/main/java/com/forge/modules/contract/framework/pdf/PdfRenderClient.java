@@ -1,5 +1,6 @@
 package com.forge.modules.contract.framework.pdf;
 
+import com.forge.modules.contract.enums.PaperMarginPreset;
 import com.forge.modules.contract.enums.PaperOrientation;
 import com.forge.modules.contract.enums.PaperSize;
 
@@ -26,8 +27,9 @@ public interface PdfRenderClient {
      * @param customWidthMm  自定义纸宽 mm（可空）
      * @param customHeightMm 自定义纸高 mm（可空）
      * @param orientation    纸张方向（横向交换宽高，null=纵向）
+     * @param marginPreset   页边距档位（null=正常档）
      * @return PDF 字节
      */
     byte[] render(String contentHtml, PaperSize paper, BigDecimal customWidthMm, BigDecimal customHeightMm,
-                  PaperOrientation orientation);
+                  PaperOrientation orientation, PaperMarginPreset marginPreset);
 }

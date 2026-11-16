@@ -45,6 +45,9 @@ public class TemplateDtos {
         @Schema(description = "纸张方向 PORTRAIT/LANDSCAPE，缺省纵向")
         private String paperOrientation;
 
+        @Schema(description = "页边距档位 NARROW/NORMAL/WIDE，缺省正常")
+        private String marginPreset;
+
         @Size(max = 500, message = "备注最长 500 字")
         private String remark;
     }
@@ -66,12 +69,13 @@ public class TemplateDtos {
         private java.math.BigDecimal customWidthMm;
         private java.math.BigDecimal customHeightMm;
         private String paperOrientation;
+        private String marginPreset;
 
         @Size(max = 500, message = "备注最长 500 字")
         private String remark;
     }
 
-    /** 仅改纸张配置（编辑器内调整纸张/方向） */
+    /** 仅改纸张配置（编辑器内调整纸张/方向/边距） */
     @Data
     public static class PaperUpdateRequest {
         @NotNull(message = "模板ID不能为空")
@@ -84,6 +88,8 @@ public class TemplateDtos {
         private java.math.BigDecimal customHeightMm;
 
         private String paperOrientation;
+
+        private String marginPreset;
     }
 
     /** 启用/停用 */
@@ -138,6 +144,7 @@ public class TemplateDtos {
         private Integer status;
         private String paperSize;
         private String paperOrientation;
+        private String marginPreset;
         private java.math.BigDecimal customWidthMm;
         private java.math.BigDecimal customHeightMm;
         private String remark;
@@ -154,6 +161,7 @@ public class TemplateDtos {
             r.setStatus(t.getStatus());
             r.setPaperSize(t.getPaperSize());
             r.setPaperOrientation(t.getPaperOrientation());
+            r.setMarginPreset(t.getMarginPreset());
             r.setCustomWidthMm(t.getCustomWidthMm());
             r.setCustomHeightMm(t.getCustomHeightMm());
             r.setRemark(t.getRemark());
@@ -203,6 +211,7 @@ public class TemplateDtos {
         private Long currentVersionId;
         private String paperSize;
         private String paperOrientation;
+        private String marginPreset;
         private java.math.BigDecimal customWidthMm;
         private java.math.BigDecimal customHeightMm;
 
@@ -214,6 +223,7 @@ public class TemplateDtos {
             r.setCurrentVersionId(t.getCurrentVersionId());
             r.setPaperSize(t.getPaperSize());
             r.setPaperOrientation(t.getPaperOrientation());
+            r.setMarginPreset(t.getMarginPreset());
             r.setCustomWidthMm(t.getCustomWidthMm());
             r.setCustomHeightMm(t.getCustomHeightMm());
             return r;

@@ -46,6 +46,9 @@ public class CtTemplate {
     /** 纸张方向 PORTRAIT:纵向 LANDSCAPE:横向 */
     private String paperOrientation;
 
+    /** 页边距档位 NARROW:窄 NORMAL:正常 WIDE:宽 */
+    private String marginPreset;
+
     /** 自定义纸宽 mm（CUSTOM 时有效） */
     private BigDecimal customWidthMm;
 

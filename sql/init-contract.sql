@@ -50,6 +50,7 @@ CREATE TABLE `ct_template` (
     `status`             TINYINT      NOT NULL DEFAULT 0 COMMENT '状态（0:草稿 1:启用 2:停用）',
     `paper_size`         VARCHAR(16)  NOT NULL DEFAULT 'A4' COMMENT '纸张（A4/A5/LETTER/LEGAL/CUSTOM）',
     `paper_orientation`  VARCHAR(8)   NOT NULL DEFAULT 'PORTRAIT' COMMENT '纸张方向（PORTRAIT:纵向 LANDSCAPE:横向）',
+    `margin_preset`      VARCHAR(8)   NOT NULL DEFAULT 'NORMAL' COMMENT '页边距档位（NARROW:窄 NORMAL:正常 WIDE:宽）',
     `custom_width_mm`    DECIMAL(6,1) DEFAULT NULL COMMENT '自定义纸宽 mm（CUSTOM 时有效）',
     `custom_height_mm`   DECIMAL(6,1) DEFAULT NULL COMMENT '自定义纸高 mm（CUSTOM 时有效）',
     `remark`             VARCHAR(500) DEFAULT NULL COMMENT '备注',

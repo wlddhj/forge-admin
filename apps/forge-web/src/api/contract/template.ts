@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 import type { PageResult } from '@/utils/request'
-import type { FieldDef, PaperOrientationCode, PaperSizeCode, TemplateBrief, TemplateForm, TemplateItem, TemplateVersionItem } from '@/types/contract'
+import type { FieldDef, PaperMarginCode, PaperOrientationCode, PaperSizeCode, TemplateBrief, TemplateForm, TemplateItem, TemplateVersionItem } from '@/types/contract'
 
 /**
  * 合同模板 API
@@ -24,7 +24,7 @@ export const templateApi = {
     request.put('/contract/template', data),
 
   /** 仅更新纸张配置（编辑器内调整） */
-  updatePaper: (data: { id: string; paperSize: PaperSizeCode; customWidthMm?: number; customHeightMm?: number; paperOrientation?: PaperOrientationCode }) =>
+  updatePaper: (data: { id: string; paperSize: PaperSizeCode; customWidthMm?: number; customHeightMm?: number; paperOrientation?: PaperOrientationCode; marginPreset?: PaperMarginCode }) =>
     request.put('/contract/template/paper', data),
 
   changeStatus: (id: string, status: number) =>
