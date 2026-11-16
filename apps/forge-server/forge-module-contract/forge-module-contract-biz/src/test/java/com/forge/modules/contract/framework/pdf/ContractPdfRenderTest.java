@@ -45,6 +45,20 @@ class ContractPdfRenderTest {
 
     @Test
     @Timeout(120)
+    void renderPreservesConsecutiveSpaces() throws Exception {
+        // 真机回归：模板维护的连续空格在 PDF 中不得被 CSS normal 折叠
+        String html = "<p>甲方：A公司      乙方：B公司</p>";
+        byte[] pdf = new OpenHtmlToPdfClient().render(html, PaperSize.A4, null, null);
+        try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
+            String text = stripper.getText(doc);
+            assertTrue(text.contains("A公司      乙方") || text.contains("A公司" + "　"),
+                    "连续空格应保留在 PDF 文本层: [" + text.replace("\n", "\\n") + "]");
+        }
+    }
+
+    @Test
+    @Timeout(120)
     void renderCustomPaperAndWatermark() {
         String html = "<h2>保密协议</h2><p>双方本着诚实信用原则，约定如下保密义务。</p>";
         OpenHtmlToPdfClient client = new OpenHtmlToPdfClient();
