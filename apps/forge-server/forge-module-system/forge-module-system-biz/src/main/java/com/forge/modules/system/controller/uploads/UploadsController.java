@@ -14,7 +14,6 @@ import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.HandlerMapping;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,9 +34,13 @@ public class UploadsController {
 
     @Operation(summary = "访问上传文件")
     @GetMapping({"/uploads/**", "/app-api/uploads/**"})
-    @SuppressWarnings("deprecation")
     public ResponseEntity<Resource> serve(HttpServletRequest request) {
-        String relativePath = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        // 从 URI 直接剥离 uploads/ 前缀取相对路径：原 HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE
+        // 在 Spring Framework 7 已废弃且返回完整路径，base.resolve(绝对路径) 会丢弃 base 恒 404（SB4 升级遗留，
+        // 此前被租户闸 400 掩盖未暴露）
+        String uri = request.getRequestURI();
+        int idx = uri.indexOf("uploads/");
+        String relativePath = idx >= 0 ? uri.substring(idx + "uploads/".length()) : "";
         if (StrUtil.isBlank(relativePath) || relativePath.contains("..")) {
             return ResponseEntity.notFound().build();
         }
