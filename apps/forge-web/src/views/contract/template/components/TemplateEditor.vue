@@ -401,7 +401,6 @@ watch(visible, open => {
 }
 .editor-paper {
   margin: 0 auto;
-  min-height: 480px;
   max-width: 100%;
   padding: 32px 36px;
   background: var(--el-bg-color);
@@ -518,7 +517,7 @@ watch(visible, open => {
 /* 编辑器正文基础样式（与 PDF 基础样式对齐：宋体正文/黑体标题） */
 .editor-content :deep(.tiptap) {
   outline: none;
-  min-height: 420px;
+  min-height: 200px;
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 14px;
   line-height: 1.7;
