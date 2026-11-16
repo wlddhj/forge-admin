@@ -41,8 +41,11 @@ public class OpenHtmlToPdfClient implements PdfRenderClient {
 
     @Override
     public byte[] render(String contentHtml, PaperSize paper, BigDecimal customWidthMm, BigDecimal customHeightMm) {
+        // 空段落（回车空行）补 <br/> 占行高：CSS 生成内容(::before)在 openhtmltopdf 无效（探针实测
+        // 3 空段渲染 0 空行），含 br 的段落块高度=一行是引擎确定行为；所有渲染路径（预览/打印/定稿）统一走此
+        String normalized = contentHtml.replaceAll("<p>(\\s|&nbsp;|\\u00A0)*</p>", "<p><br/></p>");
         String html = "<html><head><style>" + buildPageCss(paper, customWidthMm, customHeightMm) + BASE_CSS
-                + "</style></head><body>" + contentHtml + "</body></html>";
+                + "</style></head><body>" + normalized + "</body></html>";
         // openhtmltopdf 要求良构 XHTML：jsoup 解析 → XML 语法 → W3C DOM（jsoup 官方桥接）
         Document jdoc = Jsoup.parse(html);
         jdoc.outputSettings().syntax(Document.OutputSettings.Syntax.xml);
@@ -89,9 +92,6 @@ public class OpenHtmlToPdfClient implements PdfRenderClient {
             // 模板维护的连续空格/行首缩进须与编辑器所见一致（tiptap 编辑区默认 pre-wrap），
             // normal 会折叠连续空格——真机反馈「空格被忽略」的根因
             + "p, h1, h2, h3, h4, li, td, th, blockquote { white-space: pre-wrap; }"
-            // 空段落（回车空行）须保留整行高度：normal 下空块高度为 0 且 margin 折叠，
-            // 连续空行在 PDF 里被压成小间隙（真机 v4 模板大量 <p></p> 实证）
-            + "p:empty::before { content: '\\200B'; }"
             + "h1 { font-family: '" + SANS_FAMILY + "'; font-size: 18pt; text-align: center; margin: 0 0 14pt; break-after: avoid; }"
             + "h2 { font-family: '" + SANS_FAMILY + "'; font-size: 15pt; margin: 12pt 0 6pt; break-after: avoid; }"
             + "h3, h4 { font-family: '" + SANS_FAMILY + "'; font-size: 13pt; margin: 10pt 0 5pt; break-after: avoid; }"
