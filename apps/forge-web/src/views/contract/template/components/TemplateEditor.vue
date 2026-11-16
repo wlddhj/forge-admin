@@ -355,16 +355,19 @@ const hasDefDiff = computed(() => {
   return false
 })
 
-/** 纸张内容宽（mm→px @96dpi，减左右页边距 31.8mm×2；横向按交换后的宽计算，随纸张卡即改即见） */
+/**
+ * 整页纸宽（mm→px @96dpi；横向取交换后的宽）。白纸 padding 即 PDF 页边距
+ * （上 25.4mm=96px / 左右 31.8mm=120px），编辑器与 PDF 顶部/两侧空白同口径。
+ */
 const paperWidthPx = computed(() => {
-  const table: Record<PaperSizeCode, number> = { A4: 210, A5: 148, B3: 250, LETTER: 215.9, LEGAL: 215.9, CUSTOM: 0 }
-  let widthMm = paper.paperSize === 'CUSTOM' ? Number(paper.customWidthMm ?? 210) : table[paper.paperSize]
+  const tableW: Record<PaperSizeCode, number> = { A4: 210, A5: 148, B3: 250, LETTER: 215.9, LEGAL: 215.9, CUSTOM: 0 }
+  const tableH: Record<PaperSizeCode, number> = { A4: 297, A5: 210, B3: 353, LETTER: 279.4, LEGAL: 355.6, CUSTOM: 0 }
+  let widthMm = paper.paperSize === 'CUSTOM' ? Number(paper.customWidthMm ?? 210) : tableW[paper.paperSize]
   if (paper.paperOrientation === 'LANDSCAPE') {
-    const tableH: Record<PaperSizeCode, number> = { A4: 297, A5: 210, B3: 353, LETTER: 279.4, LEGAL: 355.6, CUSTOM: 0 }
     widthMm = paper.paperSize === 'CUSTOM' ? Number(paper.customHeightMm ?? 297) : tableH[paper.paperSize]
   }
-  // 钳制最小 120px，防窄纸张出现负宽/零宽
-  return Math.max(120, Math.round((widthMm - 31.8 * 2) * (96 / 25.4)))
+  // 钳制最小 200px，防窄纸张出现负宽/零宽
+  return Math.max(200, Math.round(widthMm * (96 / 25.4)))
 })
 
 const initEditor = async () => {
@@ -607,7 +610,7 @@ watch(visible, open => {
 .editor-canvas {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: auto;
   background: var(--el-fill-color-light);
   border-radius: 6px;
   padding: 16px;
@@ -615,8 +618,9 @@ watch(visible, open => {
 .editor-paper {
   margin: 0 auto;
   min-height: 100%;
-  max-width: 100%;
-  padding: 32px 36px;
+  max-width: none;
+  /* 页边距与 @page 同口径：25.4mm=96px 上下 / 31.8mm=120px 左右 */
+  padding: 96px 120px;
   background: var(--el-bg-color);
   border-radius: 4px;
   box-shadow: 0 2px 10px rgb(0 0 0 / 8%);
