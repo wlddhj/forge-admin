@@ -9,17 +9,20 @@
 ### 新增
 
 - **附件体系重构（A/B/C/D 四批）**：存储 SPI 补 `download` 读能力 + 上传签名去 `MultipartFile` 化（面向流），`SysAttachmentService` 新增内部流式上传与 `loadContent` 统一读附件；`AttachmentBizTypes` 常量统一 7 种业务类型（存量 `APP_AVATAR`/`brand-logo` 归一迁移）；`AttachmentRefChecker` 引用校验 SPI——公告/审批评论/合同/合同模板/AI 文档五方注册，删除被引用附件将被拒绝并提示引用方；合同模板保存时图片附件按内容自动绑定/解绑 bizId；附件孤儿回收定时任务（最小白名单 contract/wf_comment/notice、未绑定超 7 天，sys_job 种子默认暂停）；`list-by-biz` 端点补 `system:attachment:query` 权限；`fileConfig` 缓存进租户 ignore-caches
+- **合同备注字段**：`ct_contract` 补 `remark`——任意状态（含审批中/已定稿）可改的管理性信息，不参与渲染与定稿快照；合同列表/表单/详情展示，详情内独立修改端点
 
 ### 修复
 
 - **全新部署上传即炸**：`sys_attachment.file_config_id` 列从未进过任何 SQL（init.sql 已内联，含 tenant_id 一并内联）
 - **编辑文件存储配置毁密钥**：脱敏 `ABCD****` 回写覆盖真实 AccessKey、空 SecretKey 清空库中原值（空值/掩码跳过覆盖，编辑表单留空占位「留空则不修改」）
+- **顶栏布局菜单过多溢出遮挡右上角功能区**：el-menu 开启 ellipsis 溢出折叠进「…」子菜单；补 element-plus 盲区——定宽容器下 ResizeObserver 不触发，异步菜单到达后手动调 `handleResize` 重算折叠
 - AI 文档解析直读本地盘的硬耦合（改走 `loadContent`，minio/oss 默认存储下不再必然失败）；App 上传校验与全局策略两套口径并轨（错误码 5801/5802 不变）；附件服务 `RuntimeException` 全量换 `BusinessException`
 
 ### 变更
 
 - 合同定稿 PDF 上传改流式直传，`InMemoryMultipartFile` 适配器删除
-- **升级脚本（存量库须手工执行，幂等可重复跑）**：`sql/upgrade-20261117-attachment-refactor.sql`
+- 合同详情从抽屉改为对话框并优化布局；合同模板列表增方向列；定时任务对话框表单布局优化
+- **升级脚本（存量库须手工执行，幂等可重复跑）**：`sql/upgrade-20261117-attachment-refactor.sql`、`sql/upgrade-20261117-contract-remark.sql`
 
 ## [2.2.0] - 2026-11-16
 

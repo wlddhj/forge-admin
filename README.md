@@ -32,6 +32,7 @@ RBAC 权限 · B2B SaaS 多租户 · 工作流审批 · 可视化大屏 · AI �
 | RBAC + 数据权限 | 用户/角色/菜单/部门/岗位五级管理，数据权限支持全部/本部门/本部门及以下/仅本人等多种范围 |
 | B2B SaaS 多租户 | SQL 级自动隔离（TenantLineInnerInterceptor）、套餐化菜单分配、平台超管代管，配置开关一键回归单租户 |
 | 工作流审批 | 基于 FlowLong 的可视化流程设计器，或签/会签/依次/票签多种办理方式，驳回策略/退回/撤回/加签/催办/拿回/唤醒等完整审批操作；AI 智能审批 + AI 智能路由；业务回调 SPI（签名 webhook）事件订阅外部系统；待办/超时/终态消息推送企业微信/钉钉工作通知 |
+| 合同模板 | tiptap3 在线富文本编辑 + 变量芯片，所见即所渲染（编辑器与 PDF 双向统一基准）；纯 Java PDF 渲染（openhtmltopdf），纸张/方向/页边距档位全链路生效；FlowLong 审批集成，水印三态（审批中/定稿章/预览），定稿 PDF 自动归档附件 |
 | 可视化大屏 | goView 拖拽编辑器 + SQL/HTTP 双数据源 + AST 级 SQL 安全层（SELECT-only/表列白名单/强制 LIMIT/熔断/SSRF 防护） |
 | AI 能力 | Spring AI 直连 DeepSeek/Qwen/GLM/ERNIE，SSE 流式对话（思考模型 reasoning 实时展示）、Tika 文档解析、智能摘要，模型配置表驱动；LangGraph4j Agent 编排：工具循环 + 高危审批中断 + 检查点恢复，Supervisor 多 Agent 团队协作与定时自动化 |
 | 打印模板 | 基于 hiprint 的拖拽式模板设计器，浏览器原生打印预览，按编号跨租户调用 |
@@ -193,6 +194,16 @@ forge-admin 是一款现代化的企业级后台管理解决方案，采用前�
 | AI 智能路由 | 条件/包容/路由网关 AI 分支决策（同步限时 30s），降级链 SpEL 条件 → 默认分支，路由审计落库 |
 | 业务回调 | 事件订阅外部系统（taskCreated/taskCompleted/instanceFinished），HMAC-SHA256 签名 webhook 投递、超时重试、投递记录审计 |
 | IM 消息推送 | 任务待办/超时/实例终态事件推送企业微信、钉钉工作通知；渠道凭据按租户独立配置（AES-256-GCM 加密入库、接口不回显），个人中心绑定企微/钉钉账号，管理端 IM 通知配置页 + 测试发送 |
+
+### 合同管理
+
+| 功能 | 说明 |
+|------|------|
+| 合同模板 | tiptap3 在线富文本编辑器（工具栏图标化、高亮/字号/对齐/删除线/引用/水平线、分页参考虚线 + 页码角标），`{{变量}}` 芯片插入；版本管理（版本说明留痕、可回滚历史版本）；纸张 A 系列 + 信函 + B3、横竖方向、页边距三档（窄/正常/宽，Word 同口径）编辑器内直接调整且渲染全链路生效；模板图片附件按内容自动绑定/解绑 |
+| 合同分类 | 树形分类（层级码、防环校验、仅叶子可挂模板）、左树筛选、增删改查与停启用 |
+| 合同列表 | 按模板新建合同、表单变量回填预览（免保存可看）、手填合同编号（租户内查重，留空定稿自动生成）；FlowLong 审批集成——审批中可预览/打印（带『审批中』水印），定稿 PDF 自动生成归档附件走直链；PDF 预览独立全屏弹窗；备注字段（任意状态可改、不参与渲染与定稿快照）；导出 |
+
+完整功能说明与 API 端点见 [合同模块手册](./docs-base/modules/contract-module.md)。
 
 ### AI 功能
 
@@ -524,6 +535,8 @@ forge-admin/
 │   │   │   ├── forge-spring-boot-starter-redis/     # Redis 配置
 │   │   │   ├── forge-spring-boot-starter-security/  # JWT + OAuth2
 │   │   │   ├── forge-spring-boot-starter-tenant/    # 多租户（SQL 自动注入 + 过滤器 + AOP）
+│   │   │   ├── forge-spring-boot-starter-localcache/# 本地缓存
+│   │   │   ├── forge-spring-boot-starter-plugin/    # 插件契约层（描述符/请求闸/License 验签）
 │   │   │   └── forge-spring-boot-starter-web/       # Web + WebSocket
 │   │   ├── forge-module-system/         # 系统模块
 │   │   │   ├── forge-module-system-api/ # API 接口 + 实体 + DTO
@@ -539,6 +552,9 @@ forge-admin/
 │   │   │   └── forge-module-screen-biz/ # Controller/Service/Mapper + safety/executor/cache/fault
 │   │   ├── forge-module-demo/           # 业务示例插件（单模块结构，插件体系标准范例）
 │   │   ├── forge-module-plugin/          # 插件管理模块（注册/启停/License/scope 门面）
+│   │   ├── forge-module-contract/        # 合同模板模块（模板编辑/PDF 渲染/FlowLong 审批）
+│   │   │   ├── forge-module-contract-api/ # 实体 + DTO + 纸张/方向/边距枚举
+│   │   │   └── forge-module-contract-biz/ # Controller/Service/渲染层（HTML→PDF）+ 审批监听
 │   │   └── forge-server/                # Spring Boot 启动入口
 │   │
 │   ├── forge-web/                       # 前端应用
@@ -596,16 +612,18 @@ forge-admin/
 
 ### 后端多模块架构
 
-后端采用 19 模块的 Maven 多项目结构，各模块职责清晰：
+后端采用 22 模块的 Maven 多项目结构，各模块职责清晰：
 
 ```
 forge-dependencies        → BOM 版本管理
-forge-framework (7模块)   → 框架层，可独立版本管理（含多租户/插件契约 starter）
+forge-framework (8模块)   → 框架层，可独立版本管理（含多租户/本地缓存/插件契约 starter）
 forge-module-system (2)   → 系统模块，api/biz 分离
 forge-module-workflow (2) → 工作流模块，api/biz 分离（基于 FlowLong）
 forge-module-ai (2)       → AI 模块，api/biz 分离
 forge-module-screen (2)   → 大屏模块，api/biz 分离（含 SQL 安全层）
+forge-module-contract (2) → 合同模板模块，api/biz 分离（富文本模板 + PDF 渲染 + FlowLong 审批）
 forge-module-demo (1)     → 业务示例模块，单模块结构（项目立项接入审批流）
+forge-module-plugin (1)   → 插件管理模块，单模块结构（注册/启停/License/scope）
 forge-server              → Spring Boot 启动入口
 ```
 
@@ -618,11 +636,12 @@ forge-server              → Spring Boot 启动入口
 框架通过 `WebMvcConfigurer.configurePathMatch()` 根据 Controller 包名（`controller.admin` / `controller.app`）自动注入路径前缀，Controller 代码无需手动指定前缀。
 
 **模块依赖关系：**
-- `forge-server` ← `system-biz`、`workflow-biz`、`ai-biz`、`screen-biz`、`demo`
+- `forge-server` ← `system-biz`、`workflow-biz`、`ai-biz`、`screen-biz`、`contract-biz`、`demo`、`plugin`
 - `workflow-biz` ← `workflow-api`、`system-api`、`starters`、`flowlong`
 - `ai-biz` ← `ai-api`、`system-api`、`starters`、`spring-ai`（直连 LLM 上游）
 - `system-biz` ← `system-api`、`starters`、`quartz`
 - `screen-biz` ← `screen-api`、`system-api`、`starters`
+- `contract-biz` ← `contract-api`、`system-api`、`system-biz`（附件）、`workflow-biz`（审批联动）
 
 **横切关注点：**
 - `@OperationLog` — 基于 AOP 的审计日志
@@ -912,6 +931,7 @@ mysql -u root -p forge_admin < sql/init-screen.sql
 | [docs-base/guide/print-template-guide.md](docs-base/guide/print-template-guide.md) | 打印模板使用指南（hiprint 设计器/调用打印/多租户行为/常见问题） |
 | [docs-base/modules/ai-module.md](docs-base/modules/ai-module.md) | AI 模块使用手册（多模型对话/文档解析摘要、模型配置管理、流式分工、API 端点） |
 | [docs-base/modules/screen-module.md](docs-base/modules/screen-module.md) | 大屏模块使用手册（使用流程、API、SQL 白名单管理、安全护栏、故障排查） |
+| [docs-base/modules/contract-module.md](docs-base/modules/contract-module.md) | 合同模板模块使用手册（模板编辑器/变量芯片、PDF 渲染与水印、审批集成、API 端点、数据库表） |
 | [docs-base/guide/quartz-job-guide.md](docs-base/guide/quartz-job-guide.md) | 定时任务（Quartz）使用指南（JobHandler 接口约束、invoke_target 格式、开发与排查） |
 | [docs-base/tenant-audit-20261025.md](docs-base/tenant-audit-20261025.md) | 全库租户化路径 A 治理审计报告（16 表改造记录、已知限制） |
 

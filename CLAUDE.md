@@ -70,7 +70,7 @@ mvn test -Dtest=ClassName -pl <module>         # 运行单个测试类
 
 ### 多模块结构
 
-后端是一个 19 模块的 Maven 项目（`forge-dependencies` 1 + `forge-framework` 7（含 localcache/plugin 两个 starter）+ system/workflow/ai/screen 四模块各 api/biz 2 + `forge-module-demo`/`forge-module-plugin` 单模块 2 + `forge-server` 1），包名基类为 `com.forge`。
+后端是一个 22 模块的 Maven 项目（`forge-dependencies` 1 + `forge-framework` 8（含 localcache/plugin 两个 starter）+ system/workflow/ai/screen/contract 五模块各 api/biz 2 + `forge-module-demo`/`forge-module-plugin` 单模块 2 + `forge-server` 1），包名基类为 `com.forge`。
 
 ```
 apps/forge-server/
@@ -82,6 +82,8 @@ apps/forge-server/
 │   ├── forge-spring-boot-starter-redis/     # Redis 配置、缓存配置
 │   ├── forge-spring-boot-starter-security/  # JWT、OAuth2、JustAuth 社交登录
 │   ├── forge-spring-boot-starter-tenant/    # 多租户（TenantLineInnerInterceptor + 过滤器 + AOP）
+│   ├── forge-spring-boot-starter-localcache/ # 本地缓存
+│   ├── forge-spring-boot-starter-plugin/    # 插件契约层（Descriptor/Guard/DataApi/License）
 │   └── forge-spring-boot-starter-web/       # Jackson、全局异常、WebSocket、Excel、限流
 ├── forge-module-system/             # 系统模块
 │   ├── forge-module-system-api/     # 实体 + DTO（82 个文件）
@@ -97,14 +99,18 @@ apps/forge-server/
 │   └── forge-module-screen-biz/     # Controller/Service/Mapper + 安全层 + 缓存 + 熔断
 ├── forge-module-demo/               # 业务示例插件（单模块；PluginDescriptor+@PluginGuard 范例）
 ├── forge-module-plugin/             # 插件管理模块（单模块；注册/启停/License/scope 门面）
+├── forge-module-contract/           # 合同模板模块（模板/PDF 渲染/FlowLong 审批）
+│   ├── forge-module-contract-api/   # 实体 + DTO + 纸张/方向/边距枚举
+│   └── forge-module-contract-biz/   # Controller/Service/渲染层（framework/pdf、html）+ 审批监听
 └── forge-server/                    # Spring Boot 启动入口（ForgeAdminApplication.java）
 ```
 
 **模块依赖关系：**
 ```
-forge-server ← system-biz, workflow-biz, ai-biz, demo, plugin
+forge-server ← system-biz, workflow-biz, ai-biz, screen-biz, contract-biz, demo, plugin
 plugin ← starter-plugin, system-biz（菜单/用户/部门服务委托）
 demo ← starter-plugin（插件契约）, workflow-biz
+contract-biz ← contract-api, system-api, system-biz（附件）, workflow-biz（审批联动）
 system-biz ← starter-plugin（PluginMenuFilter 菜单过滤契约）
 workflow-biz ← workflow-api, system-api, starters, flowlong
 ai-biz ← ai-api, system-api, starters（Spring AI 直连 LLM 上游）
@@ -129,6 +135,7 @@ starter-redis ← forge-common
 - `com.forge.modules.workflow` — 工作流（FlowLong 集成）
 - `com.forge.modules.ai` — AI 模块（Spring AI 直连 LLM 上游：对话/文档解析/摘要）
 - `com.forge.modules.screen` — 大屏（CRUD + 数据源执行器 + SQL 安全层）
+- `com.forge.modules.contract` — 合同模板（富文本模板 + PDF 渲染 + FlowLong 审批集成）
 
 ### 双端点架构
 
