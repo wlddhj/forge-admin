@@ -24,7 +24,7 @@
 
 - 合同定稿 PDF 上传改流式直传，`InMemoryMultipartFile` 适配器删除
 - 合同详情从抽屉改为对话框并优化布局；合同模板列表增方向列；定时任务对话框表单布局优化
-- **升级脚本（存量库须手工执行，幂等可重复跑）**：`sql/upgrade-20261117-attachment-refactor.sql`、`sql/upgrade-20261117-contract-remark.sql`、`sql/upgrade-20261117-biz-view.sql`
+- **升级脚本（存量库须手工执行，幂等可重复跑）**：`sql/upgrade-20261117-attachment-refactor.sql`、`sql/upgrade-20261117-contract-remark.sql`、`sql/upgrade-20261117-biz-view.sql`、`sql/upgrade-20261118-contract-status-dict.sql`
 
 ## [2.2.0] - 2026-11-16
 

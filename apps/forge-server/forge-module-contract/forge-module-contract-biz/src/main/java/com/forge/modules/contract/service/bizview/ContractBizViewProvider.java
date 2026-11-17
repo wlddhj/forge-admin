@@ -4,11 +4,14 @@ import com.forge.modules.contract.dto.ContractDtos;
 import com.forge.modules.contract.entity.CtContract;
 import com.forge.modules.contract.service.ContractService;
 import com.forge.modules.system.constant.AttachmentBizTypes;
+import com.forge.modules.system.dto.dict.DictDataResponse;
+import com.forge.modules.system.service.SysDictDataService;
 import com.forge.modules.workflow.dto.bizview.WfBizViewAttachmentRef;
 import com.forge.modules.workflow.dto.bizview.WfBizViewData;
 import com.forge.modules.workflow.dto.bizview.WfBizViewField;
 import com.forge.modules.workflow.spi.WfBizViewProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -23,6 +26,7 @@ import java.util.List;
  *
  * @author forge-admin
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ContractBizViewProvider implements WfBizViewProvider {
@@ -30,7 +34,11 @@ public class ContractBizViewProvider implements WfBizViewProvider {
     /** businessKey 前缀（对齐 ContractServiceImpl.BUSINESS_KEY_PREFIX 的冒号前段） */
     public static final String BIZ_TYPE = "contract";
 
+    /** 合同状态字典类型（码值对齐 ct_contract.status，种子见 upgrade-20261118-contract-status-dict.sql） */
+    public static final String STATUS_DICT_TYPE = "contract_status";
+
     private final ContractService contractService;
+    private final SysDictDataService dictDataService;
 
     @Override
     public String bizType() {
@@ -80,9 +88,29 @@ public class ContractBizViewProvider implements WfBizViewProvider {
         }
     }
 
+    /**
+     * 合同状态 label：优先数据字典（contract_status），字典缺失/未命中回退内置映射
+     * （字典种子未执行的库仍可正常渲染，不阻断审批界面）
+     */
     private String statusName(Integer status) {
         if (status == null) {
             return null;
+        }
+        String value = String.valueOf(status);
+        try {
+            List<DictDataResponse> dictData = dictDataService.getDictDataByType(STATUS_DICT_TYPE);
+            if (dictData != null) {
+                String label = dictData.stream()
+                        .filter(d -> value.equals(d.getDictValue()) && Integer.valueOf(1).equals(d.getStatus()))
+                        .map(DictDataResponse::getDictLabel)
+                        .findFirst()
+                        .orElse(null);
+                if (label != null) {
+                    return label;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("合同状态字典读取失败，回退内置映射: status={}", status, e);
         }
         return switch (status) {
             case CtContract.STATUS_DRAFT -> "草稿";
@@ -90,7 +118,7 @@ public class ContractBizViewProvider implements WfBizViewProvider {
             case CtContract.STATUS_APPROVED -> "已通过";
             case CtContract.STATUS_REJECTED -> "已驳回";
             case CtContract.STATUS_CANCELED -> "已撤销";
-            default -> String.valueOf(status);
+            default -> value;
         };
     }
 }
