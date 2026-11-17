@@ -95,6 +95,19 @@
           </el-descriptions>
         </el-card>
 
+        <!-- 业务单据卡（formType=20 业务表单，SPI 命中时展示；预览/附件经参与人鉴权代理端点） -->
+        <BizViewCard
+          v-if="bizViewData?.available && instance?.id"
+          :instance-id="instance.id"
+          :data="bizViewData"
+        />
+
+        <!-- 申请数据兜底：无流程表单且无业务单据视图时平铺实例变量（剔除系统变量） -->
+        <SnapshotCard
+          v-else-if="!formReady || formRule.length === 0"
+          :variables="snapshotVariables"
+        />
+
         <!-- 流程表单 -->
         <el-card v-if="formReady && formRule.length > 0" shadow="never" class="form-card">
           <template #header>申请表单</template>
@@ -329,10 +342,12 @@ import { ArrowDown, Paperclip } from '@element-plus/icons-vue'
 import { processInstanceApi } from '@/api/workflow/process-instance'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
 import { formApi } from '@/api/workflow/form'
-import type { ProcessInstance, ApprovalNode, ApprovalComment, AiDecisionRecords } from '@/types/workflow'
+import type { ProcessInstance, ApprovalNode, ApprovalComment, AiDecisionRecords, BizViewData } from '@/types/workflow'
 import { formatDateTime } from '@/utils/dateFormat'
 import { decodeFieldsDisabled } from '@/utils/formCreate'
 import FlowDiagramDialog from '@/views/workflow/process/components/FlowDiagramDialog.vue'
+import BizViewCard from '@/views/workflow/components/BizViewCard.vue'
+import SnapshotCard from '@/views/workflow/components/SnapshotCard.vue'
 import ApprovalTimeline from './components/ApprovalTimeline.vue'
 import InstanceCopyDialog from './components/InstanceCopyDialog.vue'
 import { useResponsive } from '@/composables/useResponsive'
@@ -518,17 +533,29 @@ const formOption = ref({ submitBtn: false, resetBtn: false, disabled: true } as 
 const formData = ref<Record<string, any>>({})
 const formReady = ref(false)
 
+// 业务单据视图（formType=20）与实例变量快照（兜底展示）
+const bizViewData = ref<BizViewData | null>(null)
+const snapshotVariables = ref<Record<string, unknown> | null>(null)
+
 // 获取实例详情
 const getInstanceDetail = async () => {
   if (!instanceId.value) return
   loading.value = true
+  bizViewData.value = null
+  snapshotVariables.value = null
   try {
-    const [instanceData, detailData, commentsData, aiDecisionsData] = await Promise.allSettled([
+    const [instanceData, detailData, commentsData, aiDecisionsData, variablesData] = await Promise.allSettled([
       processInstanceApi.getById(instanceId.value),
       processInstanceApi.getApprovalDetail(instanceId.value),
       processInstanceApi.getComments(instanceId.value),
-      processInstanceApi.getAiDecisions(instanceId.value)
+      processInstanceApi.getAiDecisions(instanceId.value),
+      processInstanceApi.getVariables(instanceId.value)
     ])
+
+    // 实例变量统一此处拉取：流程表单回填与快照兜底共用，避免重复请求
+    if (variablesData.status === 'fulfilled') {
+      snapshotVariables.value = variablesData.value || null
+    }
 
     if (instanceData.status === 'fulfilled') {
       instance.value = instanceData.value
@@ -537,6 +564,12 @@ const getInstanceDetail = async () => {
         const processDefId = instanceData.value.processDefinitionId
         try {
           const processDef = await processDefinitionApi.getById(processDefId)
+          // 业务表单流程（formType=20）：拉取业务单据视图；失败静默降级为快照兜底
+          if (processDef.formType === 20) {
+            try {
+              bizViewData.value = await processInstanceApi.getBizView(instanceId.value)
+            } catch { /* ignore */ }
+          }
           if (processDef.formId) {
             const formDefData = await formApi.getById(processDef.formId)
             if (formDefData.conf && formDefData.fields) {
@@ -548,10 +581,7 @@ const getInstanceDetail = async () => {
               formOption.value.resetBtn = false
               formOption.value.disabled = true
 
-              try {
-                const variables = await processInstanceApi.getVariables(instanceId.value)
-                formData.value = variables || {}
-              } catch { /* ignore */ }
+              formData.value = snapshotVariables.value ? { ...snapshotVariables.value } : {}
 
               formReady.value = true
 

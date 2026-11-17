@@ -205,17 +205,26 @@
         </el-col>
         <el-col :span="12">
         <el-form-item label="表单类型">
-          <el-select v-model="formData.formType" placeholder="请选择表单类型" clearable style="width: 100%">
+          <el-select
+            v-model="formData.formType"
+            placeholder="请选择表单类型"
+            clearable
+            style="width: 100%"
+            @change="handleFormTypeChange"
+          >
             <el-option label="流程表单" :value="10" />
             <el-option label="业务表单" :value="20" />
           </el-select>
+          <div v-if="formData.formType === 20" class="form-type-help">
+            业务表单：审批界面展示业务模块提供的单据视图（须业务侧实现 WfBizViewProvider），无需配置流程表单
+          </div>
         </el-form-item>
         </el-col>
         </el-row>
         <el-form-item label="描述">
           <el-input v-model="formData.description" type="textarea" :rows="3" placeholder="请输入描述" />
         </el-form-item>
-        <el-form-item v-if="formData.formType" label="关联表单">
+        <el-form-item v-if="formData.formType === 10" label="关联表单">
           <el-select v-model="formData.formId" placeholder="请选择表单" clearable filterable style="width: 100%">
             <el-option
               v-for="item in formList"
@@ -569,6 +578,13 @@ const handleEdit = (row: WfModel) => {
   dialogVisible.value = true
 }
 
+/** 表单类型切换：业务表单（20）不走流程表单，残留的 formId 立即清空 */
+const handleFormTypeChange = (value: number | undefined) => {
+  if (value === 20) {
+    formData.formId = undefined
+  }
+}
+
 /** 提交表单 */
 const handleSubmit = async () => {
   if (!formRef.value) return
@@ -599,7 +615,7 @@ const handleSubmit = async () => {
         categoryId: formData.categoryId,
         description: formData.description,
         formType: formData.formType,
-        formId: formData.formId,
+        formId: formData.formType === 20 ? undefined : formData.formId,
         autoCopyStrategy: formData.autoCopyStrategy,
         autoCopyParam: formData.autoCopyParam,
         useScope: formData.useScope,
@@ -617,7 +633,7 @@ const handleSubmit = async () => {
         categoryId: formData.categoryId,
         description: formData.description,
         formType: formData.formType,
-        formId: formData.formId,
+        formId: formData.formType === 20 ? undefined : formData.formId,
         autoCopyStrategy: formData.autoCopyStrategy,
         autoCopyParam: formData.autoCopyParam,
         useScope: formData.useScope,
@@ -727,6 +743,13 @@ const loadAutoCopyReferenceData = async () => {
 .rule-help {
   font-size: 12px;
   color: var(--el-text-color-secondary);
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.form-type-help {
+  font-size: 12px;
+  color: var(--el-color-primary);
   line-height: 1.5;
   margin-top: 4px;
 }

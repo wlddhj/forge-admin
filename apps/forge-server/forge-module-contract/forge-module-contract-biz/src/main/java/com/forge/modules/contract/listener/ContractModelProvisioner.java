@@ -71,6 +71,8 @@ public class ContractModelProvisioner {
         request.setKey(properties.getProcessKey());
         request.setDescription("合同模块默认审批模型（自动部署，可在流程设计器替换）");
         request.setModelJson(DEFAULT_MODEL_JSON);
+        // 业务表单流程：审批界面经 ContractBizViewProvider 渲染合同单据视图（无流程表单）
+        request.setFormType(20);
         definitionService.deploy(request);
         log.info("合同默认审批模型已自动部署: processKey={}, tenant={}",
                 properties.getProcessKey(), TenantContextHolder.getTenantId());

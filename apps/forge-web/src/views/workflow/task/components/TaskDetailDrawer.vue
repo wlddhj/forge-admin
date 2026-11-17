@@ -69,6 +69,19 @@
         </el-descriptions>
       </el-card>
 
+      <!-- 业务单据卡（formType=20 业务表单，SPI 命中时展示；预览/附件经参与人鉴权代理端点） -->
+      <BizViewCard
+        v-if="bizViewData?.available && instanceInfo?.id"
+        :instance-id="instanceInfo.id"
+        :data="bizViewData"
+      />
+
+      <!-- 申请数据兜底：无流程表单且无业务单据视图时平铺实例变量（剔除系统变量） -->
+      <SnapshotCard
+        v-else-if="!formReady || formRule.length === 0"
+        :variables="snapshotVariables"
+      />
+
       <!-- 已办任务：申请表单 -->
       <el-card v-if="isDoneTask && formReady && formRule.length > 0" shadow="never" class="form-card">
         <template #header>申请表单</template>
@@ -401,11 +414,13 @@ import { processInstanceApi } from '@/api/workflow/process-instance'
 import { processDefinitionApi } from '@/api/workflow/process-definition'
 import { formApi } from '@/api/workflow/form'
 import { getUserList } from '@/api/system'
-import type { TaskInfo, ApprovalComment, ProcessInstance, ReturnNode, UserTaskNode, ApprovalNode } from '@/types/workflow'
+import type { TaskInfo, ApprovalComment, ProcessInstance, ReturnNode, UserTaskNode, ApprovalNode, BizViewData } from '@/types/workflow'
 import type { User } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { decodeFieldsDisabled } from '@/utils/formCreate'
 import FlowDiagramDialog from '@/views/workflow/process/components/FlowDiagramDialog.vue'
+import BizViewCard from '@/views/workflow/components/BizViewCard.vue'
+import SnapshotCard from '@/views/workflow/components/SnapshotCard.vue'
 import SignCreateDialog from './SignCreateDialog.vue'
 import SignDeleteDialog from './SignDeleteDialog.vue'
 import { useResponsive } from '@/composables/useResponsive'
@@ -481,6 +496,10 @@ const copyReason = ref('')
 const signCreateDialogVisible = ref(false)
 const signDeleteDialogVisible = ref(false)
 
+// 业务单据视图（formType=20）与实例变量快照（兜底展示）
+const bizViewData = ref<BizViewData | null>(null)
+const snapshotVariables = ref<Record<string, unknown> | null>(null)
+
 // 加签/减签成功：刷新抽屉详情的同时通知列表刷新，保持两侧受理人一致
 const handleSignChanged = () => {
   getTaskDetail()
@@ -511,6 +530,8 @@ const resetState = () => {
   formRule.value = []
   formData.value = {}
   formReady.value = false
+  bizViewData.value = null
+  snapshotVariables.value = null
   approveSelectTasks.value = []
   Object.keys(selectedUsers).forEach(k => delete selectedUsers[k])
 }
@@ -536,14 +557,20 @@ const getTaskDetail = async () => {
     taskInfo.value = task
 
     if (task.processInstanceId) {
-      const [instanceData, commentsData, detailData] = await Promise.allSettled([
+      const [instanceData, commentsData, detailData, variablesData] = await Promise.allSettled([
         processInstanceApi.getById(task.processInstanceId),
         processInstanceApi.getComments(task.processInstanceId),
-        processInstanceApi.getApprovalDetail(task.processInstanceId)
+        processInstanceApi.getApprovalDetail(task.processInstanceId),
+        processInstanceApi.getVariables(task.processInstanceId)
       ])
 
       if (instanceData.status === 'fulfilled') {
         instanceInfo.value = instanceData.value
+      }
+
+      // 实例变量统一此处拉取：流程表单回填与快照兜底共用，避免重复请求
+      if (variablesData.status === 'fulfilled') {
+        snapshotVariables.value = variablesData.value || null
       }
 
       if (instanceData.status === 'fulfilled' && instanceData.value?.processDefinitionId) {
@@ -559,6 +586,13 @@ const getTaskDetail = async () => {
           bpmnXml.value = xmlResult.value || ''
         }
 
+        // 业务表单流程（formType=20）：拉取业务单据视图；失败静默降级为快照兜底
+        if (processDefResult.status === 'fulfilled' && processDefResult.value?.formType === 20) {
+          try {
+            bizViewData.value = await processInstanceApi.getBizView(procInstanceId)
+          } catch { /* ignore */ }
+        }
+
         if (processDefResult.status === 'fulfilled' && processDefResult.value?.formId) {
           try {
             const formDefData = await formApi.getById(processDefResult.value.formId)
@@ -571,10 +605,7 @@ const getTaskDetail = async () => {
               formOption.value.resetBtn = false
               formOption.value.disabled = true
 
-              try {
-                const variables = await processInstanceApi.getVariables(procInstanceId)
-                formData.value = variables || {}
-              } catch { /* ignore */ }
+              formData.value = snapshotVariables.value ? { ...snapshotVariables.value } : {}
 
               formReady.value = true
 

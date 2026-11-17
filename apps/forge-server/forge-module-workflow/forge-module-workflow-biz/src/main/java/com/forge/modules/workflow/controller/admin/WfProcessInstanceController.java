@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.framework.web.annotation.OperationLog;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
+import com.forge.common.utils.SecurityUtils;
+import com.forge.modules.workflow.dto.bizview.WfBizViewResponse;
 import com.forge.modules.workflow.dto.comment.ApprovalCommentResponse;
 import com.forge.modules.workflow.dto.instance.AiDecisionResponse;
 import com.forge.modules.workflow.dto.instance.ApprovalDetailResponse;
@@ -15,10 +17,12 @@ import com.forge.modules.workflow.dto.instance.ProcessStartRequest;
 import com.forge.modules.workflow.service.WfProcessInstanceCopyService;
 import com.forge.modules.workflow.service.WfProcessInstanceService;
 import com.forge.modules.workflow.service.WfTaskService;
+import com.forge.modules.workflow.service.bizview.WfBizViewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +30,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -43,6 +48,7 @@ public class WfProcessInstanceController {
     private final WfProcessInstanceService wfProcessInstanceService;
     private final WfProcessInstanceCopyService wfProcessInstanceCopyService;
     private final WfTaskService wfTaskService;
+    private final WfBizViewService wfBizViewService;
 
     @Operation(summary = "分页查询流程实例")
     @GetMapping("/list")
@@ -175,5 +181,39 @@ public class WfProcessInstanceController {
             @PathVariable String processDefinitionId,
             @PathVariable String businessKey) {
         return Result.success(wfProcessInstanceService.getInstanceByBusinessKey(processDefinitionId, businessKey));
+    }
+
+    @Operation(summary = "获取业务单据视图（实例参与人，formType=20 业务表单）")
+    @GetMapping("/{id}/biz-view")
+    @PreAuthorize("hasAuthority('workflow:instance:query')")
+    public Result<WfBizViewResponse> getBizView(@PathVariable String id) {
+        return Result.success(wfBizViewService.getBizView(id, SecurityUtils.getCurrentUserId()));
+    }
+
+    @Operation(summary = "获取业务单据预览（如合同 PDF，实例参与人）")
+    @GetMapping("/{id}/biz-preview")
+    @PreAuthorize("hasAuthority('workflow:instance:query')")
+    public ResponseEntity<byte[]> getBizPreview(@PathVariable String id) {
+        WfBizViewService.BizPreviewPayload payload = wfBizViewService.getBizPreview(id, SecurityUtils.getCurrentUserId());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, payload.contentType())
+                .body(payload.content());
+    }
+
+    @Operation(summary = "下载业务单据附件（实例参与人，附件须属于该单据）")
+    @GetMapping("/{id}/biz-attachment/{attachmentId}")
+    @PreAuthorize("hasAuthority('workflow:instance:query')")
+    public ResponseEntity<byte[]> downloadBizAttachment(@PathVariable String id, @PathVariable Long attachmentId) {
+        WfBizViewService.AttachmentPayload payload = wfBizViewService.downloadAttachment(
+                id, attachmentId, SecurityUtils.getCurrentUserId());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, payload.contentType() == null
+                        ? MediaType.APPLICATION_OCTET_STREAM_VALUE : payload.contentType())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(payload.fileName() == null ? "attachment" : payload.fileName(),
+                                StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .body(payload.content());
     }
 }

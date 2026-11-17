@@ -1,6 +1,6 @@
 import { request } from '@/utils/request'
 import type { PageResult } from '@/utils/request'
-import type { ProcessInstance, ProcessInstanceQuery, ProcessStartRequest, ApprovalComment, ApprovalDetail, AiDecisionRecords } from '@/types/workflow'
+import type { ProcessInstance, ProcessInstanceQuery, ProcessStartRequest, ApprovalComment, ApprovalDetail, AiDecisionRecords, BizViewData } from '@/types/workflow'
 
 export const processInstanceApi = {
   page: (params: ProcessInstanceQuery) =>
@@ -28,5 +28,14 @@ export const processInstanceApi = {
   copy: (id: string, data: { copyUserIds: number[]; reason?: string }) =>
     request.post(`/workflow/instance/${id}/copy`, data),
   resume: (id: string) =>
-    request.post(`/workflow/instance/${id}/resume`)
+    request.post(`/workflow/instance/${id}/resume`),
+  /** 业务单据视图（formType=20，实例参与人鉴权） */
+  getBizView: (id: string) =>
+    request.get<BizViewData>(`/workflow/instance/${id}/biz-view`).then(res => res.data),
+  /** 业务单据预览（如合同 PDF，返回 blob） */
+  getBizPreview: (id: string) =>
+    request.getBlob(`/workflow/instance/${id}/biz-preview`),
+  /** 业务单据附件下载（附件须属于该实例单据） */
+  downloadBizAttachment: (id: string, attachmentId: number) =>
+    request.getBlob(`/workflow/instance/${id}/biz-attachment/${attachmentId}`)
 }

@@ -120,6 +120,32 @@ export interface ProcessInstanceQuery {
   title?: string
 }
 
+/** 业务单据视图字段（formType=20，label/value 只读展示） */
+export interface BizViewField {
+  label: string
+  value: string | null
+}
+
+/** 业务单据附件清单项（经 workflow 代理端点下载） */
+export interface BizViewAttachment {
+  id: number
+  name: string
+  size: number | null
+  extension: string | null
+}
+
+/** 业务单据视图响应（available=false 时前端降级为实例变量快照） */
+export interface BizViewData {
+  available: boolean
+  bizType?: string
+  bizId?: string
+  title?: string
+  fields?: BizViewField[]
+  attachments?: BizViewAttachment[]
+  previewEnabled?: boolean
+  previewContentType?: string
+}
+
 export interface ProcessStartRequest {
   processDefinitionId: string
   businessKey?: string

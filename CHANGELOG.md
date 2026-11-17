@@ -8,6 +8,8 @@
 
 ### 新增
 
+- **审批侧业务单据视图（formType=20 业务表单做实）**：`WfBizViewProvider` SPI（workflow-api）——业务模块按 businessKey 前缀路由提供单据只读视图（结构化字段 + 附件清单 + 可选 PDF 预览），审批抽屉/流程详情内嵌「业务单据」卡；三个平台代理端点统一「实例参与人」鉴权（发起人/办理人/抄送人/工作流管理员），审批人无需业务模块查看权限，附件跨单据探测返回 404；SPI 缺失/异常/单据已删自动降级为「申请数据」实例变量快照兜底（无表单流程也一并受益）；contract（字段+附件+合同 PDF 预览）与 demo 项目立项（纯字段）首批接入，合同默认模型部署自动携带 formType=20；建模端选「业务表单」给出接入提示并清空流程表单关联
+
 - **附件体系重构（A/B/C/D 四批）**：存储 SPI 补 `download` 读能力 + 上传签名去 `MultipartFile` 化（面向流），`SysAttachmentService` 新增内部流式上传与 `loadContent` 统一读附件；`AttachmentBizTypes` 常量统一 7 种业务类型（存量 `APP_AVATAR`/`brand-logo` 归一迁移）；`AttachmentRefChecker` 引用校验 SPI——公告/审批评论/合同/合同模板/AI 文档五方注册，删除被引用附件将被拒绝并提示引用方；合同模板保存时图片附件按内容自动绑定/解绑 bizId；附件孤儿回收定时任务（最小白名单 contract/wf_comment/notice、未绑定超 7 天，sys_job 种子默认暂停）；`list-by-biz` 端点补 `system:attachment:query` 权限；`fileConfig` 缓存进租户 ignore-caches
 - **合同备注字段**：`ct_contract` 补 `remark`——任意状态（含审批中/已定稿）可改的管理性信息，不参与渲染与定稿快照；合同列表/表单/详情展示，详情内独立修改端点
 
@@ -22,7 +24,7 @@
 
 - 合同定稿 PDF 上传改流式直传，`InMemoryMultipartFile` 适配器删除
 - 合同详情从抽屉改为对话框并优化布局；合同模板列表增方向列；定时任务对话框表单布局优化
-- **升级脚本（存量库须手工执行，幂等可重复跑）**：`sql/upgrade-20261117-attachment-refactor.sql`、`sql/upgrade-20261117-contract-remark.sql`
+- **升级脚本（存量库须手工执行，幂等可重复跑）**：`sql/upgrade-20261117-attachment-refactor.sql`、`sql/upgrade-20261117-contract-remark.sql`、`sql/upgrade-20261117-biz-view.sql`
 
 ## [2.2.0] - 2026-11-16
 
