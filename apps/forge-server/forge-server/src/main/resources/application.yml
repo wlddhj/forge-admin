@@ -160,6 +160,8 @@ forge:
       - sysConfig
       - menu
       - dept
+      # 文件存储配置为全局共享表（ignore-tables），缓存不按租户分份
+      - fileConfig
   web:
     admin-api:
       prefix: /admin-api

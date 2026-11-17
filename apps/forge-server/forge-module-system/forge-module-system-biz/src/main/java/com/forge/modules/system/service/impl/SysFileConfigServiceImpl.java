@@ -97,7 +97,17 @@ public class SysFileConfigServiceImpl extends ServiceImpl<SysFileConfigMapper, S
         if (config == null) {
             throw new BusinessException(404, "配置不存在");
         }
+        String originalAccessKey = config.getAccessKey();
+        String originalSecretKey = config.getSecretKey();
         BeanUtil.copyProperties(request, config);
+        // 列表/详情回显的 AccessKey 是脱敏值（ABCD****），SecretKey 不回显（表单留空）：
+        // 空值或含掩码时跳过覆盖，保留库中原值，避免编辑一次就把云存储密钥毁掉
+        if (StrUtil.isBlank(config.getAccessKey()) || config.getAccessKey().contains("****")) {
+            config.setAccessKey(originalAccessKey);
+        }
+        if (StrUtil.isBlank(config.getSecretKey()) || config.getSecretKey().contains("****")) {
+            config.setSecretKey(originalSecretKey);
+        }
         // 如果设置为默认，先取消其他默认配置
         if (request.getIsDefault() != null && request.getIsDefault() == 1) {
             clearDefaultFlag();

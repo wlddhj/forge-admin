@@ -26,6 +26,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.utils.SecurityUtils;
+import com.forge.modules.system.constant.AttachmentBizTypes;
 import com.forge.modules.system.entity.SysAttachment;
 import com.forge.modules.system.service.SysAttachmentService;
 import com.forge.modules.workflow.dto.task.*;
@@ -76,7 +77,7 @@ public class WfTaskServiceImpl implements WfTaskService {
     private final TaskResponseAssembler taskResponseAssembler;
     private final WfUrgeService wfUrgeService;
 
-    private static final String COMMENT_ATTACHMENT_BIZ_TYPE = "wf_comment";
+    private static final String COMMENT_ATTACHMENT_BIZ_TYPE = AttachmentBizTypes.WF_COMMENT;
 
     @Override
     public Page<TaskResponse> getTodoTasks(TaskQueryRequest request) {

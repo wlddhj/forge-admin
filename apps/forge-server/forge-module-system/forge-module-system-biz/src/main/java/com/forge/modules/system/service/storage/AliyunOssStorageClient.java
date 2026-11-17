@@ -3,14 +3,14 @@ package com.forge.modules.system.service.storage;
 import cn.hutool.core.util.StrUtil;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
+import com.aliyun.oss.model.ObjectMetadata;
 import com.forge.framework.localcache.LocalCaches;
 import com.forge.modules.system.entity.SysFileConfig;
 import com.google.common.cache.Cache;
 import com.google.common.cache.RemovalListener;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -41,13 +41,23 @@ public class AliyunOssStorageClient implements FileStorageClient {
     }
 
     @Override
-    public StorageResult upload(SysFileConfig config, MultipartFile file, String key) throws Exception {
-        getClient(config).putObject(config.getBucketName(), key, new ByteArrayInputStream(file.getBytes()));
+    public StorageResult upload(SysFileConfig config, InputStream in, long size, String contentType, String key) throws Exception {
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentLength(size);
+        if (StrUtil.isNotBlank(contentType)) {
+            metadata.setContentType(contentType);
+        }
+        getClient(config).putObject(config.getBucketName(), key, in, metadata);
         String domain = config.getDomain();
         String fileUrl = StrUtil.isNotBlank(domain)
                 ? domain + "/" + key
                 : "https://" + config.getBucketName() + "." + config.getEndpoint() + "/" + key;
         return new StorageResult(config.getBucketName() + "/" + key, fileUrl);
+    }
+
+    @Override
+    public InputStream download(SysFileConfig config, String filePath) throws Exception {
+        return getClient(config).getObject(config.getBucketName(), extractKey(filePath)).getObjectContent();
     }
 
     @Override

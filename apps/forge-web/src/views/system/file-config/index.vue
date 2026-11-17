@@ -190,10 +190,15 @@
             <el-input v-model="formData.bucketName" placeholder="请输入存储桶名称" />
           </el-form-item>
           <el-form-item label="AccessKey" prop="accessKey">
-            <el-input v-model="formData.accessKey" placeholder="请输入 AccessKey" />
+            <el-input v-model="formData.accessKey" :placeholder="isEdit ? '留空则不修改' : '请输入 AccessKey'" />
           </el-form-item>
           <el-form-item label="SecretKey" prop="secretKey">
-            <el-input v-model="formData.secretKey" type="password" placeholder="请输入 SecretKey" show-password />
+            <el-input
+              v-model="formData.secretKey"
+              type="password"
+              :placeholder="isEdit ? '留空则不修改' : '请输入 SecretKey'"
+              show-password
+            />
           </el-form-item>
           <el-form-item label="自定义域名" prop="domain">
             <el-input v-model="formData.domain" placeholder="可选，自定义访问域名" />
@@ -283,6 +288,8 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('新增配置')
 const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
+/** 编辑态：密钥输入框提示「留空则不修改」 */
+const isEdit = computed(() => formData.id !== undefined)
 
 // 表单数据
 const formData = reactive({
@@ -353,6 +360,9 @@ const handleEdit = (row: any) => {
   dialogTitle.value = '编辑配置'
   resetForm()
   Object.assign(formData, row)
+  // 回显的 AccessKey 是脱敏值、SecretKey 不回显：清空表单值，留空提交=保留库中原值（后端跳过空值覆盖）
+  formData.accessKey = ''
+  formData.secretKey = ''
   dialogVisible.value = true
 }
 

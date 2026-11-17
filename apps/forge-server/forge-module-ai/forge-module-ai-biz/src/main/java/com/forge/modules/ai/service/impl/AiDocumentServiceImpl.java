@@ -8,6 +8,7 @@ import com.forge.framework.security.utils.SecurityHelper;
 import com.forge.modules.ai.dto.request.ChatRequest;
 import com.forge.modules.ai.dto.request.DocumentQueryRequest;
 import com.forge.modules.ai.dto.request.DocumentSummaryRequest;
+import com.forge.modules.system.constant.AttachmentBizTypes;
 import com.forge.modules.system.dto.attachment.AttachmentResponse;
 import com.forge.modules.ai.dto.response.DocumentResponse;
 import com.forge.modules.ai.entity.AiDocument;
@@ -111,7 +112,7 @@ public class AiDocumentServiceImpl implements AiDocumentService {
         AiDocument document = null;
 
         if (documentId == null) {
-            AttachmentResponse attachment = attachmentService.upload(file, "ai_document", null);
+            AttachmentResponse attachment = attachmentService.upload(file, AttachmentBizTypes.AI_DOCUMENT, null);
 
             document = new AiDocument();
             document.setUserId(SecurityHelper.getCurrentUserId());
@@ -210,10 +211,12 @@ public class AiDocumentServiceImpl implements AiDocumentService {
     @Transactional
     public void deleteDocument(Long documentId) {
         AiDocument document = requireOwnedDocument(documentId);
+        // 先删文档行再删附件：deleteAttachments 带引用校验（存活文档的附件视为被引用），
+        // 顺序反了会被引用校验拦死
+        documentMapper.deleteById(documentId);
         if (document.getAttachmentId() != null) {
             attachmentService.deleteAttachments(List.of(document.getAttachmentId()));
         }
-        documentMapper.deleteById(documentId);
     }
 
     /**
@@ -250,10 +253,8 @@ public class AiDocumentServiceImpl implements AiDocumentService {
     private byte[] readAttachmentBytes(Long attachmentId, String fallbackPath) {
         try {
             if (attachmentId != null) {
-                SysAttachment attachment = attachmentService.getById(attachmentId);
-                if (attachment != null && attachment.getFilePath() != null) {
-                    return readLocalFile(attachment.getFilePath());
-                }
+                // 统一走附件服务按存储配置读取（local/minio/oss/cos 均可），不再直读本地盘
+                return attachmentService.loadContent(attachmentId);
             }
             if (fallbackPath != null) {
                 return readLocalFile(fallbackPath);
@@ -264,6 +265,9 @@ public class AiDocumentServiceImpl implements AiDocumentService {
         return null;
     }
 
+    /**
+     * 仅作 legacy 兜底：早期文档无 attachment_id、file_path 直存本地路径的存量数据
+     */
     private byte[] readLocalFile(String filePath) throws Exception {
         Path path = Path.of(filePath);
         if (!path.isAbsolute()) {

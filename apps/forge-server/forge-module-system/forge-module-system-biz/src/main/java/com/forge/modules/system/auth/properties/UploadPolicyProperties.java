@@ -17,4 +17,16 @@ public class UploadPolicyProperties {
     );
     /** 是否启用 magic number 校验 */
     private boolean enableMagicCheck = true;
+
+    /** 头像场景收紧策略（App/管理端头像上传在全局策略之上叠加） */
+    private final Avatar avatar = new Avatar();
+
+    @Data
+    public static class Avatar {
+        /** 头像大小上限（字节），默认 2MB */
+        private long maxSize = 2L * 1024 * 1024;
+        /** 头像允许的 MIME 类型 */
+        private List<String> allowedContentTypes = List.of(
+            "image/jpeg", "image/png", "image/webp");
+    }
 }

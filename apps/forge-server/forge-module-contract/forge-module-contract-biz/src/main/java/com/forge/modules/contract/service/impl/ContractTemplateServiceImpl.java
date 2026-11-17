@@ -20,12 +20,16 @@ import com.forge.modules.contract.mapper.CtTemplateMapper;
 import com.forge.modules.contract.mapper.CtTemplateVersionMapper;
 import com.forge.modules.contract.service.ContractCategoryService;
 import com.forge.modules.contract.service.ContractTemplateService;
+import com.forge.modules.system.constant.AttachmentBizTypes;
+import com.forge.modules.system.entity.SysAttachment;
+import com.forge.modules.system.service.SysAttachmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
+import org.jsoup.Jsoup;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,6 +54,7 @@ public class ContractTemplateServiceImpl implements ContractTemplateService {
     private final CtCategoryMapper categoryMapper;
     private final ContractCategoryService categoryService;
     private final ObjectMapper objectMapper;
+    private final SysAttachmentService attachmentService;
 
     @Override
     public Page<TemplateDtos.TemplateResponse> pageTemplates(int pageNum, int pageSize,
@@ -239,6 +244,9 @@ public class ContractTemplateServiceImpl implements ContractTemplateService {
         upd.setCurrentVersionId(v.getId());
         upd.setUpdateBy(SecurityUtils.getCurrentUserId());
         templateMapper.updateById(upd);
+
+        // 同步模板图片附件绑定（历史版本可被重渲/设为当前版，取全部版本图片并集）
+        syncTemplateImageBindings(template.getId());
         return v.getId();
     }
 
@@ -282,9 +290,63 @@ public class ContractTemplateServiceImpl implements ContractTemplateService {
         templateMapper.deleteById(id);
         versionMapper.delete(new LambdaQueryWrapper<CtTemplateVersion>()
                 .eq(CtTemplateVersion::getTemplateId, id));
+        // 解绑模板图片附件（bizId 置空，避免悬挂指向已删模板）
+        attachmentService.lambdaUpdate()
+                .set(SysAttachment::getBizId, null)
+                .eq(SysAttachment::getBizType, AttachmentBizTypes.CONTRACT_TEMPLATE)
+                .eq(SysAttachment::getBizId, id)
+                .update();
     }
 
     // ---------- 私有工具 ----------
+
+    /**
+     * 模板图片附件绑定同步：内容中出现的图片附件绑定到模板（bizId=模板ID），
+     * 已不在任何版本内容中的解绑。绑定后附件受 ContractTemplateAttachmentRefChecker 保护，
+     * 防止附件管理侧误删模板仍在使用的图片
+     */
+    private void syncTemplateImageBindings(Long templateId) {
+        Set<String> urls = versionMapper.selectList(new LambdaQueryWrapper<CtTemplateVersion>()
+                        .eq(CtTemplateVersion::getTemplateId, templateId))
+                .stream()
+                .flatMap(v -> extractImageUrls(v.getContentHtml()).stream())
+                .collect(Collectors.toSet());
+
+        if (urls.isEmpty()) {
+            unbindTemplateImages(templateId, null);
+            return;
+        }
+        attachmentService.lambdaUpdate()
+                .set(SysAttachment::getBizId, templateId)
+                .eq(SysAttachment::getBizType, AttachmentBizTypes.CONTRACT_TEMPLATE)
+                .isNull(SysAttachment::getBizId)
+                .in(SysAttachment::getFileUrl, urls)
+                .update();
+        unbindTemplateImages(templateId, urls);
+    }
+
+    /** 解绑：urls 为 null 时解绑全部，否则解绑不在 urls 中的 */
+    private void unbindTemplateImages(Long templateId, Set<String> urls) {
+        var wrapper = attachmentService.lambdaUpdate()
+                .set(SysAttachment::getBizId, null)
+                .eq(SysAttachment::getBizType, AttachmentBizTypes.CONTRACT_TEMPLATE)
+                .eq(SysAttachment::getBizId, templateId);
+        if (urls != null) {
+            wrapper.notIn(SysAttachment::getFileUrl, urls);
+        }
+        wrapper.update();
+    }
+
+    /** 提取 HTML 内容中的图片地址（data: 内联图不是附件，跳过） */
+    private Set<String> extractImageUrls(String contentHtml) {
+        if (contentHtml == null || contentHtml.isBlank()) {
+            return Set.of();
+        }
+        return Jsoup.parse(contentHtml).select("img[src]").stream()
+                .map(el -> el.attr("src"))
+                .filter(src -> !src.startsWith("data:"))
+                .collect(Collectors.toSet());
+    }
 
     /** 叶子+启用分类守卫：模板仅可挂启用叶子节点 */
     private CtCategory requireLeafCategory(Long categoryId) {

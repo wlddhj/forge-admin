@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.common.response.ResultCode;
 import com.forge.framework.web.websocket.NotificationService;
+import com.forge.modules.system.constant.AttachmentBizTypes;
 import com.forge.modules.system.dto.attachment.AttachmentResponse;
 import com.forge.modules.system.dto.notice.NoticeQueryRequest;
 import com.forge.modules.system.dto.notice.NoticeRequest;
@@ -42,7 +43,7 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
     private final NotificationService notificationService;
     private final SysAttachmentService sysAttachmentService;
 
-    private static final String ATTACHMENT_BIZ_TYPE = "notice";
+    private static final String ATTACHMENT_BIZ_TYPE = AttachmentBizTypes.NOTICE;
 
     @Override
     public Page<NoticeResponse> pageNotices(NoticeQueryRequest request) {
@@ -115,6 +116,11 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
                 .filter(id -> !newIdSet.contains(id))
                 .collect(Collectors.toList());
         if (!toRemove.isEmpty()) {
+            // 先解绑再删：deleteAttachments 带引用校验，公告存活期间 bizId 绑定中的附件不可直接删
+            sysAttachmentService.lambdaUpdate()
+                    .set(SysAttachment::getBizId, null)
+                    .in(SysAttachment::getId, toRemove)
+                    .update();
             sysAttachmentService.deleteAttachments(toRemove);
         }
         bindAttachments(notice.getId(), newIds);
@@ -123,6 +129,9 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteNotices(Long[] ids) {
+        // 先删公告行再删附件：deleteAttachments 带引用校验（公告存活则其附件视为被引用），
+        // 顺序反了会被引用校验拦死；附件行 bizId 未清不影响 listByBiz 定位
+        removeByIds(Arrays.asList(ids));
         for (Long id : ids) {
             List<Long> attachmentIds = sysAttachmentService.listByBiz(ATTACHMENT_BIZ_TYPE, id).stream()
                     .map(AttachmentResponse::getId)
@@ -131,7 +140,6 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
                 sysAttachmentService.deleteAttachments(attachmentIds);
             }
         }
-        removeByIds(Arrays.asList(ids));
     }
 
     /**

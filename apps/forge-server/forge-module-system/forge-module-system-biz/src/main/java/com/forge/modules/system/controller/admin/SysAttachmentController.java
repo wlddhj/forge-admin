@@ -5,6 +5,7 @@ import com.forge.framework.web.annotation.OperationLog;
 import com.forge.framework.web.annotation.RepeatSubmit;
 import com.forge.common.response.PageResult;
 import com.forge.common.response.Result;
+import com.forge.modules.system.constant.AttachmentBizTypes;
 import com.forge.modules.system.dto.attachment.AttachmentQueryRequest;
 import com.forge.modules.system.dto.attachment.AttachmentResponse;
 import com.forge.modules.system.service.SysAttachmentService;
@@ -48,6 +49,7 @@ public class SysAttachmentController {
 
     @Operation(summary = "按业务查询附件列表")
     @GetMapping("/list-by-biz")
+    @PreAuthorize("hasAuthority('system:attachment:query')")
     public Result<List<AttachmentResponse>> listByBiz(@RequestParam String bizType, @RequestParam Long bizId) {
         return Result.success(sysAttachmentService.listByBiz(bizType, bizId));
     }
@@ -74,11 +76,13 @@ public class SysAttachmentController {
         return Result.success();
     }
 
+    // 权限语义：登录即可上传（无 @PreAuthorize）——任何角色都有头像，不应要求附件管理权限；
+    // 入口收紧由 FileUploadValidator + 头像场景策略兜底，落库仍统一走附件表
     @Operation(summary = "上传头像")
     @PostMapping("/avatar")
     @OperationLog(title = "个人中心", businessType = OperationLog.BusinessType.UPDATE)
     @RepeatSubmit
     public Result<AttachmentResponse> uploadAvatar(@RequestParam("file") MultipartFile file) {
-        return Result.success(sysAttachmentService.upload(file, "avatar", null));
+        return Result.success(sysAttachmentService.upload(file, AttachmentBizTypes.AVATAR, null));
     }
 }

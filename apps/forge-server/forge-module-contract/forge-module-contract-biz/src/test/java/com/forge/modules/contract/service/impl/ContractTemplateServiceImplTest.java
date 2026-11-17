@@ -1,7 +1,13 @@
 package com.forge.modules.contract.service.impl;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.conditions.update.LambdaUpdateChainWrapper;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.contract.dto.FieldDef;
+import com.forge.modules.system.entity.SysAttachment;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import com.forge.modules.contract.dto.TemplateDtos;
 import com.forge.modules.contract.entity.CtTemplate;
 import com.forge.modules.contract.entity.CtTemplateVersion;
@@ -48,13 +54,26 @@ class ContractTemplateServiceImplTest {
     private com.forge.modules.contract.mapper.CtCategoryMapper categoryMapper;
     @Mock
     private com.forge.modules.contract.service.ContractCategoryService categoryService;
+    @Mock
+    private com.forge.modules.system.service.SysAttachmentService attachmentService;
+    @Mock
+    private com.forge.modules.system.mapper.SysAttachmentMapper attachmentMapper;
 
     private ContractTemplateServiceImpl service;
 
+    @BeforeAll
+    static void initTableInfo() {
+        // MP：纯单测下 LambdaUpdateWrapper 需要 SysAttachment 的 TableInfo 缓存（图片绑定同步链）
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), SysAttachment.class);
+    }
+
     @BeforeEach
     void setUp() {
+        // 模板保存尾部的图片绑定同步走 lambdaUpdate() 链式调用：
+        // 深桩对泛型自返回方法失效，挂真 ChainWrapper 到 mock mapper
+        when(attachmentService.lambdaUpdate()).thenReturn(new LambdaUpdateChainWrapper<>(attachmentMapper));
         service = new ContractTemplateServiceImpl(templateMapper, versionMapper, contractMapper,
-                categoryMapper, categoryService, new ObjectMapper());
+                categoryMapper, categoryService, new ObjectMapper(), attachmentService);
     }
 
     @Test

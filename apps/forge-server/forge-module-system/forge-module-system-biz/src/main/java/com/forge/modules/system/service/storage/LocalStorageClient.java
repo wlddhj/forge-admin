@@ -4,12 +4,13 @@ import cn.hutool.core.util.StrUtil;
 import com.forge.modules.system.entity.SysFileConfig;
 import org.springframework.boot.web.server.autoconfigure.ServerProperties;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 /**
  * 本地磁盘存储客户端
@@ -29,7 +30,7 @@ public class LocalStorageClient implements FileStorageClient {
     }
 
     @Override
-    public StorageResult upload(SysFileConfig config, MultipartFile file, String key) throws IOException {
+    public StorageResult upload(SysFileConfig config, InputStream in, long size, String contentType, String key) throws IOException {
         String basePath = StrUtil.blankToDefault(config.getBasePath(), "./uploads");
         Path absoluteBasePath = Paths.get(basePath).toAbsolutePath().normalize();
 
@@ -38,12 +39,19 @@ public class LocalStorageClient implements FileStorageClient {
 
         String newFileName = key.substring(key.lastIndexOf("/") + 1);
         Path filePath = dirPath.resolve(newFileName);
-        file.transferTo(filePath.toFile());
+        try (in) {
+            Files.copy(in, filePath, StandardCopyOption.REPLACE_EXISTING);
+        }
 
         String domain = StrUtil.blankToDefault(config.getDomain(), buildDefaultDomain(absoluteBasePath));
         String fileUrl = domain + "/" + key;
 
         return new StorageResult(filePath.toString(), fileUrl);
+    }
+
+    @Override
+    public InputStream download(SysFileConfig config, String filePath) throws IOException {
+        return Files.newInputStream(Paths.get(filePath));
     }
 
     @Override

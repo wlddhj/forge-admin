@@ -18,6 +18,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `sys_attachment`;
 CREATE TABLE `sys_attachment` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `tenant_id` bigint NOT NULL DEFAULT 1 COMMENT '租户ID',
   `file_name` varchar(255) NOT NULL COMMENT '文件名称',
   `original_name` varchar(255) NOT NULL COMMENT '原始文件名',
   `file_path` varchar(500) NOT NULL COMMENT '文件路径',
@@ -26,13 +27,16 @@ CREATE TABLE `sys_attachment` (
   `file_type` varchar(100) DEFAULT NULL COMMENT '文件类型(MIME类型)',
   `file_extension` varchar(50) DEFAULT NULL COMMENT '文件扩展名',
   `storage_type` varchar(50) DEFAULT 'local' COMMENT '存储类型(local/oss等)',
+  `file_config_id` bigint DEFAULT NULL COMMENT '上传时所用存储配置ID',
   `biz_type` varchar(100) DEFAULT NULL COMMENT '业务类型',
   `biz_id` bigint DEFAULT NULL COMMENT '业务ID',
   `uploader_id` bigint DEFAULT NULL COMMENT '上传者ID',
   `uploader_name` varchar(100) DEFAULT NULL COMMENT '上传者名称',
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
+  KEY `idx_tenant` (`tenant_id`),
   KEY `idx_biz` (`biz_type`,`biz_id`),
+  KEY `idx_file_config` (`file_config_id`),
   KEY `idx_uploader` (`uploader_id`),
   KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统附件表';
@@ -834,7 +838,8 @@ INSERT INTO `sys_file_config` (`id`, `config_name`, `storage_type`, `base_path`,
 INSERT INTO `sys_job` (`id`, `job_name`, `job_group`, `invoke_target`, `cron_expression`, `status`, `concurrent`, `remark`) VALUES
 (1, '系统默认任务', 'DEFAULT', 'demoTask.execute(\"系统监控\")', '0 0 0 * * ?', 0, 0, '系统默认示例任务(暂停状态)'),
 (2, '日志清理任务', 'SYSTEM', 'demoTask.cleanExpiredData()', '0 0 2 * * ?', 1, 0, '每天凌晨2点清理过期日志'),
-(3, 'License到期巡检', 'SYSTEM', 'pluginLicenseCheckTask.execute', '0 30 2 * * ?', 1, 0, '过期授权置失效并自动停用对应租户插件(插件模块)');
+(3, 'License到期巡检', 'SYSTEM', 'pluginLicenseCheckTask.execute', '0 30 2 * * ?', 1, 0, '过期授权置失效并自动停用对应租户插件(插件模块)'),
+(4, '附件孤儿回收', 'SYSTEM', 'attachmentCleanupTask.execute', '0 40 3 * * ?', 0, 0, '回收上传后未绑定的合同/审批评论/公告附件(白名单类型,7天阈值);默认暂停,观察后启用(附件模块)');
 
 -- 初始化通知公告
 INSERT INTO `sys_notice` (`id`, `notice_title`, `notice_type`, `notice_content`, `status`, `create_by`, `remark`) VALUES
@@ -850,7 +855,7 @@ INSERT INTO `sys_key_sequence` (`key_category`, `key_prefix`, `date_rule`, `seq_
 -- ========================================
 
 -- 1) 业务表加 tenant_id 字段（跨租户共享表不加：sys_menu/sys_dict_*/sys_config/sys_file_config/sys_job/sys_role/sys_role_menu）
-ALTER TABLE `sys_attachment`        ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);
+-- sys_attachment 的 tenant_id 已内联建表段（连带 file_config_id 列），不再走此 ALTER
 ALTER TABLE `sys_dept`              ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);
 ALTER TABLE `sys_login_log`         ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);
 ALTER TABLE `sys_notice`            ADD COLUMN `tenant_id` BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER `id`, ADD INDEX `idx_tenant` (`tenant_id`);

@@ -467,6 +467,7 @@ TENANT_ENABLE=false
 | `sql/upgrade-20261117-contract-category.sql` | 合同分类树形化：`ct_category` 树表 + 字典迁移两级树 + 模板改挂 `category_id`（删旧 `category_code` 列）+ 分类菜单（326-330），原分类字典停用 |
 | `sql/upgrade-20261116-contract-orientation.sql` | 合同模板纸张方向：`ct_template` 补 `paper_orientation`（PORTRAIT/LANDSCAPE） |
 | `sql/upgrade-20261116-contract-margin.sql` | 合同模板页边距档位：`ct_template` 补 `margin_preset`（窄/正常/宽，Word 同口径） |
+| `sql/upgrade-20261117-attachment-refactor.sql` | 附件体系重构：`sys_attachment` 补 `file_config_id` 列+回填（幂等）、`biz_type` 归一（APP_AVATAR→avatar、brand-logo→brand_logo）、附件孤儿回收任务种子（默认暂停） |
 
 ## 开发命令
 

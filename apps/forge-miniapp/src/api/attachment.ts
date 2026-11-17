@@ -8,7 +8,7 @@ export const attachmentApi = {
         url: API_BASE_URL + '/attachment/upload',
         filePath,
         name: 'file',
-        formData: { bizType: 'APP_AVATAR' },
+        formData: { bizType: 'avatar' },
         header: { Authorization: 'Bearer ' + accessToken },
         success: (res) => {
           const body = JSON.parse(res.data)

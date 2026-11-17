@@ -3,6 +3,7 @@ package com.forge.modules.system.service.impl;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
 import com.forge.common.exception.BusinessException;
+import com.forge.modules.system.constant.AttachmentBizTypes;
 import com.forge.modules.system.dto.brand.BrandRequest;
 import com.forge.modules.system.dto.brand.BrandTheme;
 import com.forge.modules.system.dto.brand.BrandResponse;
@@ -95,7 +96,7 @@ public class SysBrandServiceImpl implements SysBrandService {
         if (file.getSize() > MAX_LOGO_SIZE) {
             throw new BusinessException(400, "Logo 图片大小不能超过 2MB");
         }
-        return sysAttachmentService.upload(file, "brand-logo", null).getFileUrl();
+        return sysAttachmentService.upload(file, AttachmentBizTypes.BRAND_LOGO, null).getFileUrl();
     }
 
     /**

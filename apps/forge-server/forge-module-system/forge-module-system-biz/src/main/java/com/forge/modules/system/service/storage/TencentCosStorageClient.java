@@ -8,11 +8,11 @@ import com.google.common.cache.RemovalListener;
 import com.qcloud.cos.COSClient;
 import com.qcloud.cos.ClientConfig;
 import com.qcloud.cos.auth.BasicCOSCredentials;
+import com.qcloud.cos.model.ObjectMetadata;
 import com.qcloud.cos.region.Region;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -43,19 +43,23 @@ public class TencentCosStorageClient implements FileStorageClient {
     }
 
     @Override
-    public StorageResult upload(SysFileConfig config, MultipartFile file, String key) throws Exception {
-        com.qcloud.cos.model.ObjectMetadata metadata = new com.qcloud.cos.model.ObjectMetadata();
-        metadata.setContentLength(file.getSize());
-        if (StrUtil.isNotBlank(file.getContentType())) {
-            metadata.setContentType(file.getContentType());
+    public StorageResult upload(SysFileConfig config, InputStream in, long size, String contentType, String key) throws Exception {
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentLength(size);
+        if (StrUtil.isNotBlank(contentType)) {
+            metadata.setContentType(contentType);
         }
-        getClient(config).putObject(config.getBucketName(), key,
-                new ByteArrayInputStream(file.getBytes()), metadata);
+        getClient(config).putObject(config.getBucketName(), key, in, metadata);
         String domain = config.getDomain();
         String fileUrl = StrUtil.isNotBlank(domain)
                 ? domain + "/" + key
                 : "https://" + config.getBucketName() + "." + config.getEndpoint() + "/" + key;
         return new StorageResult(config.getBucketName() + "/" + key, fileUrl);
+    }
+
+    @Override
+    public InputStream download(SysFileConfig config, String filePath) throws Exception {
+        return getClient(config).getObject(config.getBucketName(), extractKey(filePath)).getObjectContent();
     }
 
     @Override

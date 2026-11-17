@@ -4,13 +4,13 @@ import cn.hutool.core.util.StrUtil;
 import com.forge.framework.localcache.LocalCaches;
 import com.forge.modules.system.entity.SysFileConfig;
 import com.google.common.cache.Cache;
+import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -35,21 +35,29 @@ public class MinioStorageClient implements FileStorageClient {
     }
 
     @Override
-    public StorageResult upload(SysFileConfig config, MultipartFile file, String key) throws Exception {
+    public StorageResult upload(SysFileConfig config, InputStream in, long size, String contentType, String key) throws Exception {
         MinioClient client = getClient(config);
-        try (ByteArrayInputStream bis = new ByteArrayInputStream(file.getBytes())) {
-            client.putObject(PutObjectArgs.builder()
-                    .bucket(config.getBucketName())
-                    .object(key)
-                    .stream(bis, file.getSize(), -1)
-                    .contentType(file.getContentType())
-                    .build());
+        PutObjectArgs.Builder builder = PutObjectArgs.builder()
+                .bucket(config.getBucketName())
+                .object(key)
+                .stream(in, size, -1);
+        if (StrUtil.isNotBlank(contentType)) {
+            builder.contentType(contentType);
         }
+        client.putObject(builder.build());
         String domain = config.getDomain();
         String fileUrl = StrUtil.isNotBlank(domain)
                 ? domain + "/" + key
                 : config.getEndpoint() + "/" + config.getBucketName() + "/" + key;
         return new StorageResult(config.getBucketName() + "/" + key, fileUrl);
+    }
+
+    @Override
+    public InputStream download(SysFileConfig config, String filePath) throws Exception {
+        return getClient(config).getObject(GetObjectArgs.builder()
+                .bucket(config.getBucketName())
+                .object(extractKey(filePath))
+                .build());
     }
 
     @Override

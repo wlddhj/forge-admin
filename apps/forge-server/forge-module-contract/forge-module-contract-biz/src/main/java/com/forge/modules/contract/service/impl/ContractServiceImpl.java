@@ -19,7 +19,6 @@ import com.forge.modules.contract.enums.PaperMarginPreset;
 import com.forge.modules.contract.enums.PaperOrientation;
 import com.forge.modules.contract.enums.PaperSize;
 import com.forge.modules.contract.framework.html.ContractHtmlProcessor;
-import com.forge.modules.contract.framework.pdf.InMemoryMultipartFile;
 import com.forge.modules.contract.framework.pdf.PdfRenderClient;
 import com.forge.modules.contract.framework.pdf.WatermarkStamper;
 import com.forge.modules.contract.mapper.CtCategoryMapper;
@@ -30,6 +29,7 @@ import com.forge.modules.contract.mapper.CtTemplateVersionMapper;
 import com.forge.modules.contract.service.ContractCategoryService;
 import com.forge.modules.contract.service.ContractNoGenerator;
 import com.forge.modules.contract.service.ContractService;
+import com.forge.modules.system.constant.AttachmentBizTypes;
 import com.forge.modules.system.dto.attachment.AttachmentResponse;
 import com.forge.modules.system.entity.SysAttachment;
 import com.forge.modules.system.entity.SysTenant;
@@ -43,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -291,8 +292,8 @@ public class ContractServiceImpl implements ContractService {
 
         String fileName = "contract-" + contract.getId() + ".pdf";
         AttachmentResponse attachment = attachmentService.upload(
-                new InMemoryMultipartFile("file", fileName, APPLICATION_PDF, watermarked),
-                "contract", contract.getId());
+                new ByteArrayInputStream(watermarked), watermarked.length, APPLICATION_PDF,
+                fileName, AttachmentBizTypes.CONTRACT, contract.getId());
         CtCategory category = template.getCategoryId() == null ? null
                 : categoryMapper.selectById(template.getCategoryId());
         if (category == null) {
