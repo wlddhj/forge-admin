@@ -7,9 +7,10 @@
           <span>{{ brandStore.brand.name }}</span>
         </div>
         <el-menu
+          ref="menuRef"
           :default-active="activeMenu"
           mode="horizontal"
-          :ellipsis="false"
+          ellipsis
           background-color="transparent"
           text-color="var(--el-text-color-primary)"
           active-text-color="var(--app-color-primary)"
@@ -43,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
@@ -83,6 +84,8 @@ const shouldShowTabs = computed(() => {
   return pageConfigStore.config.showTabs
 })
 
+const menuRef = ref<{ handleResize?: () => void }>()
+
 // 顶栏布局：菜单递归渲染（SidebarMenuItem 支持任意层级，按钮/隐藏项在组件内过滤）
 const topMenuList = computed(() => {
   const menus = userStore.menus
@@ -100,6 +103,13 @@ const topMenuList = computed(() => {
   return permissionStore.routes
     .find((r: any) => r.path === '/')?.children
     ?.filter((item: any) => !item.meta?.hidden) || []
+})
+
+// ellipsis 折叠计算由 el-menu 内部 ResizeObserver 驱动，但顶栏菜单容器宽度恒定（flex 撑满），
+// 异步菜单到达时容器不 resize 不会重算，超出项依旧溢出压住右侧功能区；菜单变化后手动触发一次
+watch(topMenuList, async () => {
+  await nextTick()
+  menuRef.value?.handleResize?.()
 })
 
 watch(
