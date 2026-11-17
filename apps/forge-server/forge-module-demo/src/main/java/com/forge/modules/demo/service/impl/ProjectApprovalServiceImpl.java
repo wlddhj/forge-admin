@@ -10,7 +10,7 @@ import com.forge.modules.demo.dto.ProjectSubmitRequest;
 import com.forge.modules.demo.entity.BizProject;
 import com.forge.modules.demo.mapper.BizProjectMapper;
 import com.forge.modules.demo.service.ProjectApprovalService;
-import com.forge.modules.system.service.DictLabelResolver;
+import com.forge.modules.system.util.DictLabelUtils;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceResponse;
 import com.forge.modules.workflow.dto.instance.ProcessStartRequest;
 import com.forge.modules.workflow.service.WfProcessDefinitionService;
@@ -46,7 +46,6 @@ public class ProjectApprovalServiceImpl implements ProjectApprovalService {
     private final WfProcessDefinitionService processDefinitionService;
     private final WfProcessInstanceService processInstanceService;
     private final ProjectWorkflowProperties properties;
-    private final DictLabelResolver dictLabelResolver;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -135,8 +134,8 @@ public class ProjectApprovalServiceImpl implements ProjectApprovalService {
                         .eq(approveStatus != null && !approveStatus.isBlank(), BizProject::getApproveStatus, approveStatus)
                         .orderByDesc(BizProject::getId));
         Page<ProjectResponse> result = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
-        // 状态 label 页级一次字典解析（resolveMap），行内查 Map 免逐行查询
-        Map<String, String> statusLabels = dictLabelResolver.resolveMap(STATUS_DICT_TYPE);
+        // 状态 label 页级一次字典解析（resolveMap，本地缓存 O(1)），行内查 Map 免逐行查询
+        Map<String, String> statusLabels = DictLabelUtils.resolveMap(STATUS_DICT_TYPE);
         result.setRecords(page.getRecords().stream()
                 .map(p -> toResponse(p, statusLabels))
                 .toList());
@@ -149,7 +148,7 @@ public class ProjectApprovalServiceImpl implements ProjectApprovalService {
         if (project == null) {
             throw new BusinessException(404, "立项记录不存在");
         }
-        return toResponse(project, dictLabelResolver.resolveMap(STATUS_DICT_TYPE));
+        return toResponse(project, DictLabelUtils.resolveMap(STATUS_DICT_TYPE));
     }
 
     /**

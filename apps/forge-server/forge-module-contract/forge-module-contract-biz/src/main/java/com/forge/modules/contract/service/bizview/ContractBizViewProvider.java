@@ -3,7 +3,7 @@ package com.forge.modules.contract.service.bizview;
 import com.forge.modules.contract.dto.ContractDtos;
 import com.forge.modules.contract.service.ContractService;
 import com.forge.modules.system.constant.AttachmentBizTypes;
-import com.forge.modules.system.service.DictLabelResolver;
+import com.forge.modules.system.util.DictLabelUtils;
 import com.forge.modules.workflow.dto.bizview.WfBizViewAttachmentRef;
 import com.forge.modules.workflow.dto.bizview.WfBizViewData;
 import com.forge.modules.workflow.dto.bizview.WfBizViewField;
@@ -34,7 +34,6 @@ public class ContractBizViewProvider implements WfBizViewProvider {
     public static final String STATUS_DICT_TYPE = "contract_status";
 
     private final ContractService contractService;
-    private final DictLabelResolver dictLabelResolver;
 
     @Override
     public String bizType() {
@@ -92,6 +91,6 @@ public class ContractBizViewProvider implements WfBizViewProvider {
         if (status == null) {
             return null;
         }
-        return dictLabelResolver.resolveOrDefault(STATUS_DICT_TYPE, status, String.valueOf(status));
+        return DictLabelUtils.resolveOrDefault(STATUS_DICT_TYPE, status, String.valueOf(status));
     }
 }

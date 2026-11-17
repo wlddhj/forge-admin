@@ -13,6 +13,7 @@ import com.forge.modules.system.dto.dict.DictDataResponse;
 import com.forge.modules.system.entity.SysDictData;
 import com.forge.modules.system.mapper.SysDictDataMapper;
 import com.forge.modules.system.service.SysDictDataService;
+import com.forge.modules.system.util.DictLabelUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -86,6 +87,9 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
         SysDictData dictData = new SysDictData();
         BeanUtil.copyProperties(request, dictData);
         save(dictData);
+        // 字典写路径统一收尾：Redis 由 @CacheEvict 失效，本地缓存在此即时失效
+        // （多实例部署下其他实例靠 DictLabelUtils 的 60s TTL 收敛）
+        DictLabelUtils.evictLocalCache();
     }
 
     @Override
@@ -98,6 +102,7 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
         }
         BeanUtil.copyProperties(request, dictData);
         updateById(dictData);
+        DictLabelUtils.evictLocalCache();
     }
 
     @Override
@@ -105,6 +110,7 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
     @CacheEvict(value = "dictData", allEntries = true)
     public void deleteDictData(List<Long> ids) {
         removeByIds(ids);
+        DictLabelUtils.evictLocalCache();
     }
 
     @Override
@@ -117,12 +123,14 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
         }
         dictData.setStatus(status);
         updateById(dictData);
+        DictLabelUtils.evictLocalCache();
     }
 
     @Override
     @CacheEvict(value = "dictData", allEntries = true)
     public void refreshCache() {
         log.info("刷新字典数据缓存");
+        DictLabelUtils.evictLocalCache();
     }
 
     private DictDataResponse convertToResponse(SysDictData dictData) {
@@ -173,5 +181,6 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
         if (!toDeleteIds.isEmpty()) {
             removeByIds(toDeleteIds);
         }
+        DictLabelUtils.evictLocalCache();
     }
 }

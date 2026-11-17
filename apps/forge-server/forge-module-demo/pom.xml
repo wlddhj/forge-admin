@@ -27,7 +27,7 @@
             <groupId>com.forge</groupId>
             <artifactId>forge-module-workflow-biz</artifactId>
         </dependency>
-        <!-- 状态 label 字典解析 DictLabelResolver（与 workflow/contract 同款 system-biz 依赖模式） -->
+        <!-- 状态 label 字典解析 DictLabelUtils（与 workflow/contract 同款 system-biz 依赖模式） -->
         <dependency>
             <groupId>com.forge</groupId>
             <artifactId>forge-module-system-biz</artifactId>

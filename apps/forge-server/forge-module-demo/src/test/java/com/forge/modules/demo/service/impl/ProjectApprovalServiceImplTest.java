@@ -6,11 +6,13 @@ import com.forge.modules.demo.config.ProjectWorkflowProperties;
 import com.forge.modules.demo.dto.ProjectSubmitRequest;
 import com.forge.modules.demo.entity.BizProject;
 import com.forge.modules.demo.mapper.BizProjectMapper;
-import com.forge.modules.system.service.DictLabelResolver;
+import com.forge.modules.system.service.SysDictDataService;
+import com.forge.modules.system.util.DictLabelUtils;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceResponse;
 import com.forge.modules.workflow.dto.instance.ProcessStartRequest;
 import com.forge.modules.workflow.service.WfProcessDefinitionService;
 import com.forge.modules.workflow.service.WfProcessInstanceService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -39,10 +41,17 @@ class ProjectApprovalServiceImplTest {
     private final WfProcessDefinitionService definitionService = mock(WfProcessDefinitionService.class);
     private final WfProcessInstanceService instanceService = mock(WfProcessInstanceService.class);
     private final ProjectWorkflowProperties properties = new ProjectWorkflowProperties();
-    private final DictLabelResolver dictLabelResolver = mock(DictLabelResolver.class);
 
     private final ProjectApprovalServiceImpl service =
-            new ProjectApprovalServiceImpl(projectMapper, definitionService, instanceService, properties, dictLabelResolver);
+            new ProjectApprovalServiceImpl(projectMapper, definitionService, instanceService, properties);
+
+    @BeforeEach
+    void setUpDictLabel() {
+        // 静态字典工具初始化：mock 服务默认返回空列表 → resolveMap 空映射（未命中回退码值本身），
+        // 并清空上一用例可能残留的静态缓存
+        DictLabelUtils.init(mock(SysDictDataService.class));
+        DictLabelUtils.evictLocalCache();
+    }
 
     private ProjectSubmitRequest request() {
         ProjectSubmitRequest request = new ProjectSubmitRequest();
