@@ -74,25 +74,11 @@ public class ProjectResponse {
         response.setProcessInstanceId(project.getProcessInstanceId());
         response.setProcessNo(project.getProcessNo());
         response.setApproveStatus(project.getApproveStatus());
-        response.setApproveStatusName(approveStatusName(project.getApproveStatus()));
         response.setApproveTime(project.getApproveTime());
         response.setCreateBy(project.getCreateBy());
         response.setCreateTime(project.getCreateTime());
         response.setCancelable(BizProject.STATUS_APPROVING.equals(project.getApproveStatus())
                 && project.getProcessInstanceId() != null);
         return response;
-    }
-
-    public static String approveStatusName(String status) {
-        if (status == null) {
-            return "未知";
-        }
-        return switch (status) {
-            case BizProject.STATUS_APPROVING -> "审批中";
-            case BizProject.STATUS_APPROVED -> "已通过";
-            case BizProject.STATUS_REJECTED -> "已驳回";
-            case BizProject.STATUS_CANCELED -> "已撤销";
-            default -> status;
-        };
     }
 }

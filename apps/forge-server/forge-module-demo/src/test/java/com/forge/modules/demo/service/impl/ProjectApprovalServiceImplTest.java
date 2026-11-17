@@ -6,6 +6,7 @@ import com.forge.modules.demo.config.ProjectWorkflowProperties;
 import com.forge.modules.demo.dto.ProjectSubmitRequest;
 import com.forge.modules.demo.entity.BizProject;
 import com.forge.modules.demo.mapper.BizProjectMapper;
+import com.forge.modules.system.service.DictLabelResolver;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceResponse;
 import com.forge.modules.workflow.dto.instance.ProcessStartRequest;
 import com.forge.modules.workflow.service.WfProcessDefinitionService;
@@ -38,9 +39,10 @@ class ProjectApprovalServiceImplTest {
     private final WfProcessDefinitionService definitionService = mock(WfProcessDefinitionService.class);
     private final WfProcessInstanceService instanceService = mock(WfProcessInstanceService.class);
     private final ProjectWorkflowProperties properties = new ProjectWorkflowProperties();
+    private final DictLabelResolver dictLabelResolver = mock(DictLabelResolver.class);
 
     private final ProjectApprovalServiceImpl service =
-            new ProjectApprovalServiceImpl(projectMapper, definitionService, instanceService, properties);
+            new ProjectApprovalServiceImpl(projectMapper, definitionService, instanceService, properties, dictLabelResolver);
 
     private ProjectSubmitRequest request() {
         ProjectSubmitRequest request = new ProjectSubmitRequest();

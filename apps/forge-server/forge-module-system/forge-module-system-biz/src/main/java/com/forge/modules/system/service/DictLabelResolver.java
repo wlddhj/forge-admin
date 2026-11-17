@@ -5,7 +5,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 通用数据字典转换工具（码值 → label）。
@@ -58,5 +60,32 @@ public class DictLabelResolver {
     public String resolveOrDefault(String dictType, Object value, String defaultValue) {
         String label = resolve(dictType, value);
         return label != null ? label : defaultValue;
+    }
+
+    /**
+     * 整字典批量解析（value → label 映射）：列表页组装用，一页一次查询替代逐行 resolve
+     *
+     * @return 启用项的映射；字典为空/异常返回空 Map（永不为 null）
+     */
+    public Map<String, String> resolveMap(String dictType) {
+        if (dictType == null || dictType.isBlank()) {
+            return Map.of();
+        }
+        try {
+            List<DictDataResponse> dictData = dictDataService.getDictDataByType(dictType);
+            if (dictData == null || dictData.isEmpty()) {
+                return Map.of();
+            }
+            Map<String, String> mapping = new HashMap<>();
+            for (DictDataResponse d : dictData) {
+                if (d.getDictValue() != null && d.getDictLabel() != null) {
+                    mapping.putIfAbsent(d.getDictValue(), d.getDictLabel());
+                }
+            }
+            return mapping;
+        } catch (Exception e) {
+            log.warn("字典批量解析失败，按空映射处理: dictType={}", dictType, e);
+            return Map.of();
+        }
     }
 }

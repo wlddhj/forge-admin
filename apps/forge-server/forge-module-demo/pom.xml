@@ -27,6 +27,12 @@
             <groupId>com.forge</groupId>
             <artifactId>forge-module-workflow-biz</artifactId>
         </dependency>
+        <!-- 状态 label 字典解析 DictLabelResolver（与 workflow/contract 同款 system-biz 依赖模式） -->
+        <dependency>
+            <groupId>com.forge</groupId>
+            <artifactId>forge-module-system-biz</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <!-- 撤销时的发起人校验用 SecurityHelper.getCurrentUserId() -->
         <dependency>
             <groupId>com.forge</groupId>

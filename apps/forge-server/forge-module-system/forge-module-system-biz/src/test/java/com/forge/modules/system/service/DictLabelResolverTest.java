@@ -9,6 +9,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -72,5 +73,24 @@ class DictLabelResolverTest {
     void emptyDictType() {
         when(dictDataService.getDictDataByType("nosuch")).thenReturn(List.of());
         assertNull(resolver.resolve("nosuch", 1));
+    }
+
+    @Test
+    @DisplayName("resolveMap 批量解析：value→label 映射，供列表页级一次查询")
+    void resolveMapBatch() {
+        when(dictDataService.getDictDataByType("demo_project_status"))
+                .thenReturn(List.of(data("审批中", "APPROVING"), data("已通过", "APPROVED")));
+        var mapping = resolver.resolveMap("demo_project_status");
+        assertEquals("审批中", mapping.get("APPROVING"));
+        assertEquals(2, mapping.size());
+    }
+
+    @Test
+    @DisplayName("resolveMap 异常/空参返回空 Map（永不为 null）")
+    void resolveMapDegrades() {
+        assertTrue(resolver.resolveMap(null).isEmpty());
+        assertTrue(resolver.resolveMap("  ").isEmpty());
+        when(dictDataService.getDictDataByType(anyString())).thenThrow(new IllegalStateException("db down"));
+        assertTrue(resolver.resolveMap("demo_project_status").isEmpty());
     }
 }

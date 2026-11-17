@@ -10,6 +10,7 @@ import com.forge.modules.demo.dto.ProjectSubmitRequest;
 import com.forge.modules.demo.entity.BizProject;
 import com.forge.modules.demo.mapper.BizProjectMapper;
 import com.forge.modules.demo.service.ProjectApprovalService;
+import com.forge.modules.system.service.DictLabelResolver;
 import com.forge.modules.workflow.dto.instance.ProcessInstanceResponse;
 import com.forge.modules.workflow.dto.instance.ProcessStartRequest;
 import com.forge.modules.workflow.service.WfProcessDefinitionService;
@@ -38,10 +39,14 @@ public class ProjectApprovalServiceImpl implements ProjectApprovalService {
      */
     public static final String BUSINESS_KEY_PREFIX = "project:";
 
+    /** 审批状态字典类型（码值对齐 demo_biz_project.approve_status，种子见 upgrade-20261118-project-status-dict.sql） */
+    public static final String STATUS_DICT_TYPE = "demo_project_status";
+
     private final BizProjectMapper projectMapper;
     private final WfProcessDefinitionService processDefinitionService;
     private final WfProcessInstanceService processInstanceService;
     private final ProjectWorkflowProperties properties;
+    private final DictLabelResolver dictLabelResolver;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -130,7 +135,11 @@ public class ProjectApprovalServiceImpl implements ProjectApprovalService {
                         .eq(approveStatus != null && !approveStatus.isBlank(), BizProject::getApproveStatus, approveStatus)
                         .orderByDesc(BizProject::getId));
         Page<ProjectResponse> result = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
-        result.setRecords(page.getRecords().stream().map(ProjectResponse::from).toList());
+        // 状态 label 页级一次字典解析（resolveMap），行内查 Map 免逐行查询
+        Map<String, String> statusLabels = dictLabelResolver.resolveMap(STATUS_DICT_TYPE);
+        result.setRecords(page.getRecords().stream()
+                .map(p -> toResponse(p, statusLabels))
+                .toList());
         return result;
     }
 
@@ -140,6 +149,16 @@ public class ProjectApprovalServiceImpl implements ProjectApprovalService {
         if (project == null) {
             throw new BusinessException(404, "立项记录不存在");
         }
-        return ProjectResponse.from(project);
+        return toResponse(project, dictLabelResolver.resolveMap(STATUS_DICT_TYPE));
+    }
+
+    /**
+     * 实体 → 响应：状态 label 走字典映射，未命中（字典未配置/新码值）回退码值本身
+     */
+    private ProjectResponse toResponse(BizProject project, Map<String, String> statusLabels) {
+        ProjectResponse response = ProjectResponse.from(project);
+        String status = project.getApproveStatus();
+        response.setApproveStatusName(status == null ? null : statusLabels.getOrDefault(status, status));
+        return response;
     }
 }
