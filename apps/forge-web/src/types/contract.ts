@@ -115,6 +115,8 @@ export interface ContractItem {
   pdfFileUrl?: string | null
   processInstanceId?: string | null
   processNo?: string | null
+  /** 备注（管理性信息，任意状态可改） */
+  remark?: string | null
   createBy?: string
   createTime?: number
   updateTime?: number

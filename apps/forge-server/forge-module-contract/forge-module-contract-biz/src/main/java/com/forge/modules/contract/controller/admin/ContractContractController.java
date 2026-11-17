@@ -85,6 +85,16 @@ public class ContractContractController {
         return Result.success();
     }
 
+    @Operation(summary = "修改备注（任意状态可改，含审批中/已定稿）")
+    @PutMapping("/{id}/remark")
+    @PreAuthorize("hasAuthority('contract:contract:update')")
+    @OperationLog(title = "合同管理-备注", businessType = OperationLog.BusinessType.UPDATE)
+    public Result<Void> updateRemark(@PathVariable Long id,
+                                     @Valid @RequestBody ContractDtos.RemarkRequest request) {
+        contractService.updateRemark(id, request.getRemark());
+        return Result.success();
+    }
+
     @Operation(summary = "删除合同（仅草稿态）")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('contract:contract:delete')")

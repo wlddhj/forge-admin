@@ -69,6 +69,9 @@
             {{ row.templateName ? `${row.templateName}·v${row.templateVersionNo}` : '-' }}
           </template>
         </vxe-column>
+        <vxe-column field="remark" title="备注" min-width="140">
+          <template #default="{ row }">{{ row.remark || '-' }}</template>
+        </vxe-column>
         <vxe-column title="状态" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="CONTRACT_STATUS_TAG[row.status] || 'info'" size="small">
@@ -113,7 +116,7 @@
     <!-- 新建/编辑草稿 -->
     <ContractForm v-model="formVisible" :contract="editing" @success="getList" />
     <!-- 详情抽屉 -->
-    <ContractDetail v-model="detailVisible" :contract-id="detailId" />
+    <ContractDetail v-model="detailVisible" :contract-id="detailId" @updated="getList" />
     <!-- 列表行直接打印 -->
     <PrintDialog v-model="printVisible" :contract-id="printId" />
     </div>

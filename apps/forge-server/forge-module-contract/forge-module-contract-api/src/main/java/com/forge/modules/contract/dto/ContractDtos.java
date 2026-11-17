@@ -36,6 +36,10 @@ public class ContractDtos {
         @Size(max = 64, message = "合同编号最长 64 字")
         private String contractNo;
 
+        @Schema(description = "备注（管理性信息，不参与合同渲染）")
+        @Size(max = 500, message = "备注最长 500 字")
+        private String remark;
+
         @Schema(description = "变量初值（可空，草稿期可反复编辑）")
         private Map<String, Object> fieldValues;
     }
@@ -54,7 +58,18 @@ public class ContractDtos {
         @Size(max = 64, message = "合同编号最长 64 字")
         private String contractNo;
 
+        @Schema(description = "备注（管理性信息，不参与合同渲染）")
+        @Size(max = 500, message = "备注最长 500 字")
+        private String remark;
+
         private Map<String, Object> fieldValues;
+    }
+
+    /** 修改备注（任意状态可改，含审批中/已定稿；备注不参与渲染与定稿快照） */
+    @Data
+    public static class RemarkRequest {
+        @Size(max = 500, message = "备注最长 500 字")
+        private String remark;
     }
 
     /** 打印请求（按所选纸张 1:1 重渲染） */
@@ -90,6 +105,8 @@ public class ContractDtos {
         private String pdfFileUrl;
         private Long processInstanceId;
         private String processNo;
+        /** 备注（管理性信息，任意状态可改） */
+        private String remark;
         private Long createBy;
         private LocalDateTime createTime;
         private LocalDateTime updateTime;
@@ -106,6 +123,7 @@ public class ContractDtos {
             r.setPdfAttachmentId(c.getPdfAttachmentId());
             r.setProcessInstanceId(c.getProcessInstanceId());
             r.setProcessNo(c.getProcessNo());
+            r.setRemark(c.getRemark());
             r.setCreateBy(c.getCreateBy());
             r.setCreateTime(c.getCreateTime());
             r.setUpdateTime(c.getUpdateTime());

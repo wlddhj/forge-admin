@@ -135,6 +135,7 @@ public class ContractServiceImpl implements ContractService {
         c.setTemplateId(template.getId());
         c.setTemplateVersionId(template.getCurrentVersionId());
         c.setFieldValues(request.getFieldValues());
+        c.setRemark(trimToNull(request.getRemark()));
         c.setStatus(CtContract.STATUS_DRAFT);
         c.setCreateBy(SecurityUtils.getCurrentUserId());
         contractMapper.insert(c);
@@ -152,6 +153,7 @@ public class ContractServiceImpl implements ContractService {
                         CtContract.STATUS_REJECTED, CtContract.STATUS_CANCELED)
                 .set(CtContract::getTitle, request.getTitle().trim())
                 .set(CtContract::getContractNo, normalizeNo(request.getContractNo()))
+                .set(CtContract::getRemark, trimToNull(request.getRemark()))
                 // Wrapper.set 不走实体 @TableField 的 typeHandler（MP 深坑：Map 会被 Java 原生序列化成
                 // AC ED 字节流，MySQL utf8mb4 列直接 Incorrect string value），须第三参显式指定
                 .set(CtContract::getFieldValues, request.getFieldValues(),
@@ -160,6 +162,20 @@ public class ContractServiceImpl implements ContractService {
                 .set(CtContract::getUpdateBy, SecurityUtils.getCurrentUserId()));
         if (rows == 0) {
             throw new BusinessException(409, "合同状态已变更，请刷新后重试");
+        }
+    }
+
+    @Override
+    public void updateRemark(Long id, String remark) {
+        // 备注是管理性信息：任意状态可改（含审批中/已定稿），不触碰内容字段与状态，
+        // 不与 updateContract 的状态 CAS 冲突——单列更新天然并发安全
+        requireContract(id);
+        int rows = contractMapper.update(null, new LambdaUpdateWrapper<CtContract>()
+                .eq(CtContract::getId, id)
+                .set(CtContract::getRemark, trimToNull(remark))
+                .set(CtContract::getUpdateBy, SecurityUtils.getCurrentUserId()));
+        if (rows == 0) {
+            throw new BusinessException(404, "合同不存在");
         }
     }
 
@@ -435,6 +451,11 @@ public class ContractServiceImpl implements ContractService {
 
     private String normalizeNo(String contractNo) {
         return contractNo == null || contractNo.isBlank() ? null : contractNo.trim();
+    }
+
+    /** 备注归一：空白转 null（列存 NULL 而非空串） */
+    private String trimToNull(String remark) {
+        return remark == null || remark.isBlank() ? null : remark.trim();
     }
 
     private CtContract requireContract(Long id) {

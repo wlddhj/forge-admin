@@ -17,6 +17,7 @@
         </el-descriptions-item>
         <el-descriptions-item label="流程编号">{{ detail?.processNo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ formatDateTime(detail?.createTime) }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ detail?.remark || '-' }}</el-descriptions-item>
       </el-descriptions>
 
       <!-- 变量值 -->
@@ -27,11 +28,14 @@
           {{ value ?? '-' }}
         </el-descriptions-item>
       </el-descriptions>
-
     </div>
 
     <template #footer>
       <div class="detail-footer">
+        <!-- 备注是管理性信息：任意状态可改（含审批中/已定稿） -->
+        <el-button v-permission="'contract:contract:update'" plain @click="editRemark">
+          修改备注
+        </el-button>
         <el-button v-permission="'contract:contract:preview'" type="primary" plain :loading="previewing" @click="doPreview">
           {{ detail?.status === 2 ? '预览定稿 PDF' : '实时预览 PDF' }}
         </el-button>
@@ -58,6 +62,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { contractApi } from '@/api/contract/contract'
 import { formatDateTime } from '@/utils/dateFormat'
 import { CONTRACT_STATUS_LABEL, CONTRACT_STATUS_TAG, type ContractItem } from '@/types/contract'
@@ -67,6 +72,7 @@ import PrintDialog from './PrintDialog.vue'
 defineOptions({ name: 'ContractDetail' })
 
 const props = defineProps<{ contractId: string }>()
+const emit = defineEmits<{ updated: [] }>()
 const visible = defineModel<boolean>({ default: false })
 
 const loading = ref(false)
@@ -80,10 +86,6 @@ const processInstanceId = ref('')
 
 const fieldEntries = computed<Array<[string, unknown]>>(() =>
   Object.entries(detail.value?.fieldValues ?? {})
-)
-
-const previewTip = computed(() =>
-  detail.value?.status === 2 ? '定稿合同预览归档件' : '实时预览（不落盘）'
 )
 
 const loadDetail = async () => {
@@ -119,6 +121,27 @@ const doPreview = async () => {
 
 const viewProcess = () => {
   processDrawerVisible.value = true
+}
+
+/** 修改备注：任意状态可改（含审批中/已定稿），不影响合同内容与审批 */
+const editRemark = async () => {
+  let value: string
+  try {
+    ({ value } = await ElMessageBox.prompt('备注为管理性信息，不参与合同内容渲染', '修改备注', {
+      inputValue: detail.value?.remark ?? '',
+      inputType: 'textarea',
+      inputPlaceholder: '选填，最长 500 字',
+      inputValidator: (v: string) => !v || v.length <= 500 || '备注最长 500 字',
+      confirmButtonText: '保存',
+      cancelButtonText: '取消'
+    }))
+  } catch {
+    return // 取消
+  }
+  await contractApi.updateRemark(props.contractId, value.trim())
+  ElMessage.success('备注已更新')
+  loadDetail()
+  emit('updated')
 }
 </script>
 

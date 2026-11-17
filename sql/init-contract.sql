@@ -100,6 +100,7 @@ CREATE TABLE `ct_contract` (
     `pdf_attachment_id`  BIGINT      DEFAULT NULL COMMENT '定稿水印 PDF 附件ID（sys_attachment）',
     `process_instance_id` BIGINT     DEFAULT NULL COMMENT '流程实例ID（businessKey=contract:{id}）',
     `process_no`         VARCHAR(64) DEFAULT NULL COMMENT '流程编号（发起回写）',
+    `remark`             VARCHAR(500) DEFAULT NULL COMMENT '备注（管理性信息，任意状态可改，不参与渲染与定稿快照）',
     `create_by`          BIGINT      DEFAULT NULL COMMENT '创建人',
     `create_time`        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_by`          BIGINT      DEFAULT NULL COMMENT '更新人',

@@ -30,6 +30,10 @@
           </template>
         </el-input>
       </el-form-item>
+      <el-form-item label="备注">
+        <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="选填，管理性信息，不参与合同内容"
+          maxlength="500" show-word-limit />
+      </el-form-item>
 
       <el-divider content-position="left">合同变量</el-divider>
       <el-empty v-if="!fieldDefs.length" description="选择模板后此处按模板变量生成填写项" :image-size="60" />
@@ -100,6 +104,7 @@ const form = reactive({
   templateId: '',
   title: '',
   contractNo: '',
+  remark: '',
   fieldValues: {} as Record<string, string | number | undefined>
 })
 
@@ -116,6 +121,7 @@ const onOpened = async () => {
     currentVersionId.value = props.contract.templateVersionId
     form.title = props.contract.title
     form.contractNo = props.contract.contractNo ?? ''
+    form.remark = props.contract.remark ?? ''
     form.fieldValues = { ...(props.contract.fieldValues ?? {}) } as Record<string, string | number | undefined>
     templateName.value = props.contract.templateName ?? ''
     versionNo.value = props.contract.templateVersionNo ?? null
@@ -187,6 +193,7 @@ const confirm = async () => {
         id: props.contract.id,
         title: form.title,
         contractNo: form.contractNo.trim() || undefined,
+        remark: form.remark.trim() || undefined,
         fieldValues: form.fieldValues as Record<string, unknown>
       })
       ElMessage.success('草稿已保存')
@@ -195,6 +202,7 @@ const confirm = async () => {
         templateId: form.templateId,
         title: form.title,
         contractNo: form.contractNo.trim() || undefined,
+        remark: form.remark.trim() || undefined,
         fieldValues: form.fieldValues as Record<string, unknown>
       })
       ElMessage.success('草稿已创建')

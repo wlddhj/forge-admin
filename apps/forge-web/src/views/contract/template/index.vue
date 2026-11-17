@@ -63,6 +63,13 @@
         <vxe-column title="纸张" width="90" align="center">
           <template #default="{ row }">{{ paperLabel(row.paperSize) }}</template>
         </vxe-column>
+        <vxe-column title="方向" width="70" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.paperOrientation === 'LANDSCAPE' ? 'warning' : 'info'" size="small" effect="plain">
+              {{ row.paperOrientation === 'LANDSCAPE' ? '横向' : '纵向' }}
+            </el-tag>
+          </template>
+        </vxe-column>
         <vxe-column title="状态" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="TEMPLATE_STATUS_TAG[row.status] || 'info'" size="small">

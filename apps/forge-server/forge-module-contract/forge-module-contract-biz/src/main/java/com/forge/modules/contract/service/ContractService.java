@@ -24,6 +24,9 @@ public interface ContractService {
     /** 编辑草稿（status=3/4 时重置为 0 语义） */
     void updateContract(ContractDtos.UpdateRequest request);
 
+    /** 修改备注（任意状态可改：备注为管理性信息，不参与渲染与定稿快照） */
+    void updateRemark(Long id, String remark);
+
     /** 删除（仅草稿态） */
     void deleteContract(Long id);
 

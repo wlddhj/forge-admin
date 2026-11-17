@@ -18,11 +18,15 @@ export const contractApi = {
   detail: (id: string) =>
     request.get<ContractItem>(`/contract/contract/${id}`).then(res => res.data),
 
-  create: (data: { templateId: string; title: string; contractNo?: string; fieldValues?: Record<string, unknown> }) =>
+  create: (data: { templateId: string; title: string; contractNo?: string; remark?: string; fieldValues?: Record<string, unknown> }) =>
     request.post<string>('/contract/contract', data).then(res => res.data),
 
-  update: (data: { id: string; title: string; contractNo?: string; fieldValues?: Record<string, unknown> }) =>
+  update: (data: { id: string; title: string; contractNo?: string; remark?: string; fieldValues?: Record<string, unknown> }) =>
     request.put('/contract/contract', data),
+
+  /** 修改备注（任意状态可改，含审批中/已定稿） */
+  updateRemark: (id: string, remark: string) =>
+    request.put(`/contract/contract/${id}/remark`, { remark }),
 
   remove: (id: string) => request.delete(`/contract/contract/${id}`),
 

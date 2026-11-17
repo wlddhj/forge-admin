@@ -65,6 +65,9 @@ public class CtContract {
     /** 流程编号（发起回写） */
     private String processNo;
 
+    /** 备注（管理性信息，任意状态可改，不参与渲染与定稿快照） */
+    private String remark;
+
     /** 创建人 */
     private Long createBy;
 
