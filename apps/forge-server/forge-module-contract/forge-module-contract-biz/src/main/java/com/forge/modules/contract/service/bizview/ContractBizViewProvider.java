@@ -1,17 +1,14 @@
 package com.forge.modules.contract.service.bizview;
 
 import com.forge.modules.contract.dto.ContractDtos;
-import com.forge.modules.contract.entity.CtContract;
 import com.forge.modules.contract.service.ContractService;
 import com.forge.modules.system.constant.AttachmentBizTypes;
-import com.forge.modules.system.dto.dict.DictDataResponse;
-import com.forge.modules.system.service.SysDictDataService;
+import com.forge.modules.system.service.DictLabelResolver;
 import com.forge.modules.workflow.dto.bizview.WfBizViewAttachmentRef;
 import com.forge.modules.workflow.dto.bizview.WfBizViewData;
 import com.forge.modules.workflow.dto.bizview.WfBizViewField;
 import com.forge.modules.workflow.spi.WfBizViewProvider;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -26,7 +23,6 @@ import java.util.List;
  *
  * @author forge-admin
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ContractBizViewProvider implements WfBizViewProvider {
@@ -38,7 +34,7 @@ public class ContractBizViewProvider implements WfBizViewProvider {
     public static final String STATUS_DICT_TYPE = "contract_status";
 
     private final ContractService contractService;
-    private final SysDictDataService dictDataService;
+    private final DictLabelResolver dictLabelResolver;
 
     @Override
     public String bizType() {
@@ -89,36 +85,13 @@ public class ContractBizViewProvider implements WfBizViewProvider {
     }
 
     /**
-     * 合同状态 label：优先数据字典（contract_status），字典缺失/未命中回退内置映射
-     * （字典种子未执行的库仍可正常渲染，不阻断审批界面）
+     * 合同状态 label：统一走通用字典转换工具（contract_status 字典），
+     * 未命中（字典未配置/码值越界）回退码值本身，不在业务侧硬编码映射
      */
     private String statusName(Integer status) {
         if (status == null) {
             return null;
         }
-        String value = String.valueOf(status);
-        try {
-            List<DictDataResponse> dictData = dictDataService.getDictDataByType(STATUS_DICT_TYPE);
-            if (dictData != null) {
-                String label = dictData.stream()
-                        .filter(d -> value.equals(d.getDictValue()) && Integer.valueOf(1).equals(d.getStatus()))
-                        .map(DictDataResponse::getDictLabel)
-                        .findFirst()
-                        .orElse(null);
-                if (label != null) {
-                    return label;
-                }
-            }
-        } catch (Exception e) {
-            log.warn("合同状态字典读取失败，回退内置映射: status={}", status, e);
-        }
-        return switch (status) {
-            case CtContract.STATUS_DRAFT -> "草稿";
-            case CtContract.STATUS_APPROVING -> "审批中";
-            case CtContract.STATUS_APPROVED -> "已通过";
-            case CtContract.STATUS_REJECTED -> "已驳回";
-            case CtContract.STATUS_CANCELED -> "已撤销";
-            default -> value;
-        };
+        return dictLabelResolver.resolveOrDefault(STATUS_DICT_TYPE, status, String.valueOf(status));
     }
 }
