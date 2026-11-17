@@ -290,8 +290,43 @@
         </tbody>
       </table>
 
-      <h2 class="print-section">二、申请表单</h2>
-      <table v-if="printFormItems.length" class="print-table">
+      <!-- 业务单据（formType=20）：与界面「业务单据」卡对应，单据标题置首行 -->
+      <template v-if="printBizAvailable">
+        <h2 class="print-section">二、业务单据</h2>
+        <table class="print-table">
+          <tbody>
+            <tr v-if="bizViewData?.title">
+              <th class="print-form-label">单据标题</th>
+              <td colspan="3">{{ bizViewData.title }}</td>
+            </tr>
+            <tr v-for="(row, rowIndex) in printBizRows" :key="rowIndex">
+              <template v-for="(item, colIndex) in row" :key="item.label">
+                <th class="print-form-label">{{ item.label }}</th>
+                <td v-if="colIndex === 0 && row.length === 1" colspan="3">{{ item.value ?? '-' }}</td>
+                <td v-else>{{ item.value ?? '-' }}</td>
+              </template>
+            </tr>
+            <tr v-if="printAttachmentList">
+              <th class="print-form-label">附件</th>
+              <td colspan="3">{{ printAttachmentList }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
+
+      <h2 class="print-section">{{ printFormSectionNo }}、{{ printUseSnapshot ? '申请数据' : '申请表单' }}</h2>
+      <table v-if="printUseSnapshot" class="print-table">
+        <tbody>
+          <tr v-for="(row, rowIndex) in printSnapshotRows" :key="rowIndex">
+            <template v-for="(item, colIndex) in row" :key="item.key">
+              <th class="print-form-label">{{ item.key }}</th>
+              <td v-if="colIndex === 0 && row.length === 1" colspan="3">{{ item.value }}</td>
+              <td v-else>{{ item.value }}</td>
+            </template>
+          </tr>
+        </tbody>
+      </table>
+      <table v-else-if="printFormItems.length" class="print-table">
         <tbody>
           <!-- 与详情页栅格一致：一行两个属性，末行奇数项值列跨到行尾 -->
           <tr v-for="(row, rowIndex) in printFormRows" :key="rowIndex">
@@ -305,7 +340,7 @@
       </table>
       <p v-else class="print-empty">（本流程未配置表单）</p>
 
-      <h2 class="print-section">三、审批记录</h2>
+      <h2 class="print-section">{{ printRecordSectionNo }}、审批记录</h2>
       <table v-if="printRecords.length" class="print-table print-records">
         <thead>
           <tr>
@@ -406,6 +441,48 @@ const printFormRows = computed(() => {
   }
   return rows
 })
+
+// 业务单据打印（formType=20）：结构化字段两两成行 + 附件清单文字（PDF 全文走业务模块自有打印）
+const printBizAvailable = computed(() => !!bizViewData.value?.available)
+const printBizRows = computed(() => {
+  const items = (bizViewData.value?.fields || []).filter(f => f.label)
+  const rows: typeof items[] = []
+  for (let i = 0; i < items.length; i += 2) {
+    rows.push(items.slice(i, i + 2))
+  }
+  return rows
+})
+const printAttachmentList = computed(() =>
+  (bizViewData.value?.attachments || []).map(a => a.name).filter(Boolean).join('、')
+)
+
+// 申请数据打印兜底：无表单且无业务单据视图时平铺实例变量（剔除系统变量，与界面 SnapshotCard 同口径）
+const printSnapshotItems = computed(() => {
+  if (printBizAvailable.value || formRule.value.length > 0) return [] as Array<{ key: string; value: string }>
+  return Object.entries(snapshotVariables.value ?? {})
+    .filter(([key]) => !key.startsWith('__'))
+    .map(([key, raw]) => ({ key, value: formatSnapshotValue(raw) }))
+})
+const printSnapshotRows = computed(() => {
+  const rows: Array<{ key: string; value: string }[]> = []
+  for (let i = 0; i < printSnapshotItems.value.length; i += 2) {
+    rows.push(printSnapshotItems.value.slice(i, i + 2))
+  }
+  return rows
+})
+const formatSnapshotValue = (raw: unknown): string => {
+  if (raw === null || raw === undefined || raw === '') return '-'
+  if (Array.isArray(raw)) return raw.length > 0 ? raw.map(v => String(v)).join('、') : '-'
+  if (typeof raw === 'object') return JSON.stringify(raw)
+  return String(raw)
+}
+const printUseSnapshot = computed(() =>
+  formRule.value.length === 0 && !printBizAvailable.value && printSnapshotItems.value.length > 0
+)
+
+// 打印节序号：业务单据节插入后表单/审批记录顺延
+const printFormSectionNo = computed(() => printBizAvailable.value ? '三' : '二')
+const printRecordSectionNo = computed(() => printBizAvailable.value ? '四' : '三')
 
 const printFormField = (field: string): string => {
   const value = formData.value?.[field]
