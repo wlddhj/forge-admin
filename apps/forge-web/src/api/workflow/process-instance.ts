@@ -34,8 +34,8 @@ export const processInstanceApi = {
     request.get<BizViewData>(`/workflow/instance/${id}/biz-view`).then(res => res.data),
   /** 业务单据预览（如合同 PDF，返回 blob） */
   getBizPreview: (id: string) =>
-    request.getBlob(`/workflow/instance/${id}/biz-preview`),
+    request.getBlob(`/workflow/instance/${id}/biz-preview`, { responseType: 'blob' }),
   /** 业务单据附件下载（附件须属于该实例单据） */
   downloadBizAttachment: (id: string, attachmentId: number) =>
-    request.getBlob(`/workflow/instance/${id}/biz-attachment/${attachmentId}`)
+    request.getBlob(`/workflow/instance/${id}/biz-attachment/${attachmentId}`, { responseType: 'blob' })
 }

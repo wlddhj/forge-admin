@@ -273,9 +273,10 @@ export const request = {
     return service.get(url, config)
   },
 
-  /** blob 响应（导出下载等）：拦截器对 responseType=blob 直接返回数据，此处类型如实标注 */
+  /** blob 响应（导出下载等）：拦截器对 responseType=blob 直接返回数据，此处类型如实标注。
+   *  默认携带 responseType（getBlob 语义即 blob；历史上漏传导致 PDF 二进制被按 Result JSON 拦截抛「请求失败」两次，此处根治） */
   getBlob(url: string, config?: AxiosRequestConfig & { silent?: boolean }): Promise<Blob> {
-    return service.get(url, config)
+    return service.get(url, { responseType: 'blob', ...config })
   },
 
   post<T = any>(url: string, data?: any, config?: AxiosRequestConfig & { silent?: boolean }): Promise<Result<T>> {
