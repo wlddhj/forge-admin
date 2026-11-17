@@ -163,14 +163,19 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
-.bizview-preview-dialog :deep(.el-dialog__body) {
-  height: calc(100vh - 110px);
-  padding: 0;
-}
-
 .preview-frame {
+  display: block;
   width: 100%;
   height: 100%;
-  border: none;
+  border: 0;
+}
+</style>
+
+<style>
+/* 单据预览弹窗 body：fullscreen 下让 iframe 撑满（append-to-body 传送门须非 scoped 覆盖，
+   scoped :deep 时 data-v 挂 .el-overlay 而 custom class 落 .el-dialog，选择器两边凑不齐整条规则失效） */
+.bizview-preview-dialog .el-dialog__body {
+  padding: 0;
+  height: calc(100vh - 55px);
 }
 </style>
