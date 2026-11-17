@@ -1,5 +1,5 @@
 <template>
-  <el-drawer v-model="visible" title="合同详情" size="860px" destroy-on-close append-to-body @opened="loadDetail">
+  <el-dialog v-model="visible" title="合同详情" width="800px" destroy-on-close append-to-body @opened="loadDetail">
     <div v-loading="loading" class="detail-body">
       <el-descriptions :column="2" border size="small">
         <el-descriptions-item label="合同标题" :span="2">{{ detail?.title || '-' }}</el-descriptions-item>
@@ -28,20 +28,13 @@
         </el-descriptions-item>
       </el-descriptions>
 
-      <!-- PDF 预览（独立弹窗承载） -->
-      <el-divider content-position="left">PDF 预览</el-divider>
-      <div class="pdf-actions">
-        <el-alert :closable="false" type="info" show-icon :title="previewTip"
-          description="在独立弹窗中查看 PDF：定稿合同展示归档件，其余状态实时渲染当前内容" />
-        <el-button v-permission="'contract:contract:preview'" type="primary" plain
-          style="margin-top: 10px" :loading="previewing" @click="doPreview">
-          {{ detail?.status === 2 ? '预览定稿 PDF' : '实时预览 PDF' }}
-        </el-button>
-      </div>
     </div>
 
     <template #footer>
       <div class="detail-footer">
+        <el-button v-permission="'contract:contract:preview'" type="primary" plain :loading="previewing" @click="doPreview">
+          {{ detail?.status === 2 ? '预览定稿 PDF' : '实时预览 PDF' }}
+        </el-button>
         <el-button v-if="detail?.pdfFileUrl" tag="a" :href="detail.pdfFileUrl" target="_blank" type="success">
           下载定稿 PDF
         </el-button>
@@ -60,7 +53,7 @@
 
     <PrintDialog v-model="printVisible" :contract-id="contractId" />
     <InstanceDetailDrawer v-model="processDrawerVisible" :instance-id="processInstanceId" />
-  </el-drawer>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">

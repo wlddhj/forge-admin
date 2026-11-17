@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" title="打印合同" width="440px" append-to-body destroy-on-close>
+  <el-dialog v-model="visible" title="打印合同" width="500px" append-to-body destroy-on-close>
     <el-form label-width="90px">
       <el-form-item label="纸张大小">
         <el-radio-group v-model="paperSize">
