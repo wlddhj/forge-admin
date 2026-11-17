@@ -314,8 +314,9 @@
         </table>
       </template>
 
-      <h2 class="print-section">{{ printFormSectionNo }}、{{ printUseSnapshot ? '申请数据' : '申请表单' }}</h2>
-      <table v-if="printUseSnapshot" class="print-table">
+      <template v-if="printFormVisible">
+        <h2 class="print-section">{{ printFormSectionNo }}、{{ printUseSnapshot ? '申请数据' : '申请表单' }}</h2>
+        <table v-if="printUseSnapshot" class="print-table">
         <tbody>
           <tr v-for="(row, rowIndex) in printSnapshotRows" :key="rowIndex">
             <template v-for="(item, colIndex) in row" :key="item.key">
@@ -338,7 +339,7 @@
           </tr>
         </tbody>
       </table>
-      <p v-else class="print-empty">（本流程未配置表单）</p>
+      </template>
 
       <h2 class="print-section">{{ printRecordSectionNo }}、审批记录</h2>
       <table v-if="printRecords.length" class="print-table print-records">
@@ -479,10 +480,17 @@ const formatSnapshotValue = (raw: unknown): string => {
 const printUseSnapshot = computed(() =>
   formRule.value.length === 0 && !printBizAvailable.value && printSnapshotItems.value.length > 0
 )
+// 表单节显示条件：有流程表单或快照数据才出节，无数据整节不打印（含标题，不留「未配置表单」占位）
+const printFormVisible = computed(() => printUseSnapshot.value || printFormItems.value.length > 0)
 
-// 打印节序号：业务单据节插入后表单/审批记录顺延
+// 打印节序号：业务单据/表单节按实际存在动态编排
 const printFormSectionNo = computed(() => printBizAvailable.value ? '三' : '二')
-const printRecordSectionNo = computed(() => printBizAvailable.value ? '四' : '三')
+const printRecordSectionNo = computed(() => {
+  let no = 2
+  if (printBizAvailable.value) no += 1
+  if (printFormVisible.value) no += 1
+  return ['一', '二', '三', '四', '五'][no - 1] ?? String(no)
+})
 
 const printFormField = (field: string): string => {
   const value = formData.value?.[field]
