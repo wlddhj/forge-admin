@@ -170,6 +170,9 @@ export const useUserStore = defineStore('user', () => {
   const updateToken = (newToken: string) => {
     token.value = newToken
     localStorage.setItem('token', newToken)
+    // 平台超管跳过同步：JWT claim 固定为其所属租户（默认租户），
+    // 其租户上下文由切换器本地维护，回写会把切换后的租户冲回默认租户
+    if (userInfo.value?.accountType === 2) return
     // token 刷新后 tenantId 可能变化，重新解码同步
     const jwtTenantId = getTokenTenantId(newToken)
     if (jwtTenantId !== null && jwtTenantId !== tenantId.value) {
@@ -187,6 +190,11 @@ export const useUserStore = defineStore('user', () => {
   const getUserInfoAction = async () => {
     const res = await getUserInfo()
     userInfo.value = res
+    // 平台超管不回填：userinfo 返回的 tenantId 是 admin 所属租户（默认租户），
+    // 切换租户后的上下文存在本地，回填会把它冲回默认租户
+    if (res.accountType === 2) {
+      return res
+    }
     // 如果响应中携带 tenantId，回填到 store（后端 UserInfoResponse 未返回时保持 JWT 解码值）
     if (res.tenantId !== undefined && res.tenantId !== null) {
       setTenantId(Number(res.tenantId))
