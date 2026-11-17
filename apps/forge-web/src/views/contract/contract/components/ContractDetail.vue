@@ -5,9 +5,7 @@
         <el-descriptions-item label="合同标题" :span="2">{{ detail?.title || '-' }}</el-descriptions-item>
         <el-descriptions-item label="合同编号">{{ detail?.contractNo || '定稿后生成' }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="CONTRACT_STATUS_TAG[detail?.status ?? -1] || 'info'" size="small">
-            {{ CONTRACT_STATUS_LABEL[detail?.status ?? -1] || '-' }}
-          </el-tag>
+          <dict-value :dict-type="DICT_TYPE.CONTRACT_STATUS" :value="detail?.status ?? null" />
         </el-descriptions-item>
         <el-descriptions-item label="模板">
           {{ detail?.templateName ? `${detail.templateName} · v${detail.templateVersionNo}` : '-' }}
@@ -65,7 +63,8 @@ import { computed, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { contractApi } from '@/api/contract/contract'
 import { formatDateTime } from '@/utils/dateFormat'
-import { CONTRACT_STATUS_LABEL, CONTRACT_STATUS_TAG, type ContractItem } from '@/types/contract'
+import { DICT_TYPE } from '@/constants/dict'
+import type { ContractItem } from '@/types/contract'
 import InstanceDetailDrawer from '@/views/workflow/instance/components/InstanceDetailDrawer.vue'
 import PrintDialog from './PrintDialog.vue'
 

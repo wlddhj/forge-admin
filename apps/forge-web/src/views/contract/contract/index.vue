@@ -16,7 +16,12 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="请选择" clearable style="width: 120px">
-            <el-option v-for="(label, value) in CONTRACT_STATUS_LABEL" :key="value" :label="label" :value="Number(value)" />
+            <el-option
+              v-for="item in statusOptions"
+              :key="item.dictValue"
+              :label="item.dictLabel"
+              :value="Number(item.dictValue)"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -74,9 +79,7 @@
         </vxe-column>
         <vxe-column title="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="CONTRACT_STATUS_TAG[row.status] || 'info'" size="small">
-              {{ CONTRACT_STATUS_LABEL[row.status] || row.status }}
-            </el-tag>
+            <dict-value :dict-type="DICT_TYPE.CONTRACT_STATUS" :value="row.status" />
           </template>
         </vxe-column>
         <vxe-column title="创建时间" width="170">
@@ -134,12 +137,16 @@ import { formatDateTime } from '@/utils/dateFormat'
 import CategoryAsideTree from '@/views/contract/components/CategoryAsideTree.vue'
 import TablePagination from '@/components/TablePagination.vue'
 import { contractApi } from '@/api/contract/contract'
-import { CONTRACT_STATUS_LABEL, CONTRACT_STATUS_TAG, isEditableStatus, type ContractItem } from '@/types/contract'
+import { DICT_TYPE } from '@/constants/dict'
+import { useDict } from '@/composables/useDict'
+import { isEditableStatus, type ContractItem } from '@/types/contract'
 import ContractForm from './components/ContractForm.vue'
 import ContractDetail from './components/ContractDetail.vue'
 import PrintDialog from './components/PrintDialog.vue'
 
 defineOptions({ name: 'ContractContract' })
+
+const { dictData: statusOptions } = useDict(DICT_TYPE.CONTRACT_STATUS)
 
 const { tableHeight } = useTableHeight()
 const tableRef = ref<VxeTableInstance | null>(null)

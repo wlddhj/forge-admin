@@ -51,6 +51,9 @@ export const DICT_TYPE = {
   /** 流程紧急程度 */
   WF_URGENT: 'wf_urgent',
 
+  /** 合同状态（ct_contract.status 0-4） */
+  CONTRACT_STATUS: 'contract_status',
+
   /** AI模型类型 */
   AI_MODEL_TYPE: 'ai_model_type'
 } as const

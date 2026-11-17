@@ -14,7 +14,11 @@ INSERT IGNORE INTO `sys_dict_type` (`id`, `dict_name`, `dict_type`, `status`, `i
 
 INSERT IGNORE INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dict_sort`, `status`, `list_class`) VALUES
 (2251, 'contract_status', '草稿',   '0', 1, 1, 'info'),
-(2252, 'contract_status', '审批中', '1', 2, 1, 'primary'),
+(2252, 'contract_status', '审批中', '1', 2, 1, 'warning'),
 (2253, 'contract_status', '已通过', '2', 3, 1, 'success'),
 (2254, 'contract_status', '已驳回', '3', 4, 1, 'danger'),
-(2255, 'contract_status', '已撤销', '4', 5, 1, 'warning');
+(2255, 'contract_status', '已撤销', '4', 5, 'warning');
+
+-- 已执行过旧版脚本（审批中=primary）的库对齐前端原配色：审批中改 warning（UPDATE 天然幂等）
+UPDATE `sys_dict_data` SET `list_class` = 'warning'
+WHERE `id` = 2252 AND `dict_type` = 'contract_status' AND `list_class` = 'primary';

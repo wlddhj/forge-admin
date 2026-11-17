@@ -122,26 +122,8 @@ export interface ContractItem {
   updateTime?: number
 }
 
-/** el-tag type 配色 */
+/** el-tag type 配色（模板方向列等处使用）；合同状态文案与配色走 contract_status 字典（constants/dict.ts） */
 export type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
-
-/** 合同状态标签配色 */
-export const CONTRACT_STATUS_TAG: Record<number, TagType> = {
-  0: 'info',
-  1: 'warning',
-  2: 'success',
-  3: 'danger',
-  4: 'info'
-}
-
-/** 合同状态文案 */
-export const CONTRACT_STATUS_LABEL: Record<number, string> = {
-  0: '草稿',
-  1: '审批中',
-  2: '已通过',
-  3: '已驳回',
-  4: '已撤销'
-}
 
 /** 可编辑态（草稿/驳回/撤销） */
 export const isEditableStatus = (status: number): boolean => status === 0 || status === 3 || status === 4
