@@ -197,7 +197,7 @@
     </MobileBottomActions>
 
     <!-- 对话框 -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" class="dialog-form-responsive">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="800px" class="dialog-form-responsive">
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="120px">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -253,19 +253,17 @@
           </el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="超时时间(秒)" label-width="120px">
               <el-input-number v-model="formData.timeout" :min="0" :max="3600" placeholder="0=不限" style="width: 100%" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="失败重试次数" label-width="120px">
               <el-input-number v-model="formData.retryCount" :min="0" :max="10" style="width: 100%" />
             </el-form-item>
           </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="重试间隔(秒)" label-width="120px">
               <el-input-number v-model="formData.retryInterval" :min="10" :max="3600" style="width: 100%" />
             </el-form-item>
