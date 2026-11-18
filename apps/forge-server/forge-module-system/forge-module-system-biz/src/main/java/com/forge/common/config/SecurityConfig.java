@@ -229,7 +229,8 @@ public class SecurityConfig {
                 || configured.stream().anyMatch("*"::equals);
         if (wildcard) {
             if (environment != null && environment.acceptsProfiles(Profiles.of("dev"))) {
-                return List.of("http://localhost:3000");
+                // dev 前端端口可能变动（3001→3002→…），按 localhost 端口通配放行，避免硬编码端口再次失效
+                return List.of("http://localhost:*");
             }
             log.warn("未配置 forge.security.cors-allowed-origins 且非 dev 环境：不注册任何跨域源（同源部署不受影响）");
             return List.of();

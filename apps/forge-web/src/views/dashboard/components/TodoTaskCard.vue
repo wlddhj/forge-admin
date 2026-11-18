@@ -9,10 +9,17 @@
             {{ total > 99 ? '99+' : total }}
           </el-tag>
         </span>
-        <el-button type="primary" link @click="goTodoPage">
-          查看更多
-          <el-icon><ArrowRight /></el-icon>
-        </el-button>
+        <span class="header-actions">
+          <el-tooltip content="刷新" placement="top">
+            <el-button circle size="small" @click="loadTodos">
+              <el-icon :class="{ 'is-refreshing': loading }"><Refresh /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-button type="primary" link @click="goTodoPage">
+            查看更多
+            <el-icon><ArrowRight /></el-icon>
+          </el-button>
+        </span>
       </div>
     </template>
 
@@ -140,6 +147,26 @@ onMounted(() => {
 
   .todo-count {
     margin-left: 2px;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  // 手动刷新时图标旋转，与列表 v-loading 呼应
+  .is-refreshing {
+    animation: rotate360 1s linear infinite;
+  }
+
+  @keyframes rotate360 {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .todo-task-list {
