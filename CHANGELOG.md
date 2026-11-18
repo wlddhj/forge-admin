@@ -4,7 +4,7 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [未发布]
+## [2.3.0] - 2026-11-18
 
 ### 新增
 
@@ -12,6 +12,7 @@
 
 - **附件体系重构（A/B/C/D 四批）**：存储 SPI 补 `download` 读能力 + 上传签名去 `MultipartFile` 化（面向流），`SysAttachmentService` 新增内部流式上传与 `loadContent` 统一读附件；`AttachmentBizTypes` 常量统一 7 种业务类型（存量 `APP_AVATAR`/`brand-logo` 归一迁移）；`AttachmentRefChecker` 引用校验 SPI——公告/审批评论/合同/合同模板/AI 文档五方注册，删除被引用附件将被拒绝并提示引用方；合同模板保存时图片附件按内容自动绑定/解绑 bizId；附件孤儿回收定时任务（最小白名单 contract/wf_comment/notice、未绑定超 7 天，sys_job 种子默认暂停）；`list-by-biz` 端点补 `system:attachment:query` 权限；`fileConfig` 缓存进租户 ignore-caches
 - **合同备注字段**：`ct_contract` 补 `remark`——任意状态（含审批中/已定稿）可改的管理性信息，不参与渲染与定稿快照；合同列表/表单/详情展示，详情内独立修改端点
+- **数据字典转换统一出口（后端码值渲染）**：`DictLabelUtils` 静态工具（system-biz）——字典码值→label 解析三级链路：本地 Guava 缓存（60s TTL、同 key 并发去重、空字典负缓存）→ Redis（1h）→ DB，`resolve` 由每次一次 Redis 往返 + 整表反序列化降为 JVM 内 O(1)，异常降级不缓存；字典写路径（增删改/状态/批量保存/手动刷新）即时失效本地缓存，多实例 ≤60s 收敛；合同业务单据视图与 demo 项目立项状态 label 首批接入（业务侧不再硬编码 switch/if 映射）；`contract_status`/`demo_project_status` 两状态字典种子，前端合同状态渲染同步切到字典
 
 ### 修复
 
@@ -19,11 +20,15 @@
 - **编辑文件存储配置毁密钥**：脱敏 `ABCD****` 回写覆盖真实 AccessKey、空 SecretKey 清空库中原值（空值/掩码跳过覆盖，编辑表单留空占位「留空则不修改」）
 - **顶栏布局菜单过多溢出遮挡右上角功能区**：el-menu 开启 ellipsis 溢出折叠进「…」子菜单；补 element-plus 盲区——定宽容器下 ResizeObserver 不触发，异步菜单到达后手动调 `handleResize` 重算折叠
 - AI 文档解析直读本地盘的硬耦合（改走 `loadContent`，minio/oss 默认存储下不再必然失败）；App 上传校验与全局策略两套口径并轨（错误码 5801/5802 不变）；附件服务 `RuntimeException` 全量换 `BusinessException`
+- **业务单据预览/附件下载报「请求失败」**：`getBlob` 调用漏传 `responseType`，二进制被 axios 拦截器当 JSON 处理（已改为默认携带，新调用免传）
+- **业务单据预览弹窗只显示顶部一条**：append-to-body 传送门下 scoped `:deep` 样式失效
+- **平台超管切换租户后被回写覆盖**：切换租户的身份被后续请求回写还原
 
 ### 变更
 
 - 合同定稿 PDF 上传改流式直传，`InMemoryMultipartFile` 适配器删除
 - 合同详情从抽屉改为对话框并优化布局；合同模板列表增方向列；定时任务对话框表单布局优化
+- 审批打印无表单数据时整节隐藏（去掉「本流程未配置表单」占位）
 - **升级脚本（存量库须手工执行，幂等可重复跑）**：`sql/upgrade-20261117-attachment-refactor.sql`、`sql/upgrade-20261117-contract-remark.sql`、`sql/upgrade-20261117-biz-view.sql`、`sql/upgrade-20261118-contract-status-dict.sql`、`sql/upgrade-20261118-project-status-dict.sql`
 
 ## [2.2.0] - 2026-11-16
@@ -254,6 +259,7 @@
 
 全新建库直接执行 `sql/init*.sql`，无需以上脚本。
 
+[2.3.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.3.0
 [2.2.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.2.0
 [2.1.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.1.0
 [2.0.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.0.0
