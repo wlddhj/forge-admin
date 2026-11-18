@@ -266,7 +266,11 @@ function main() {
     { from: 'forge-module-ai-biz', to: `${config.nameKebab}-module-ai-biz` },
     { from: 'forge-module-ai-api', to: `${config.nameKebab}-module-ai-api` },
     { from: 'forge-module-ai', to: `${config.nameKebab}-module-ai` },
+    { from: 'forge-module-plugin', to: `${config.nameKebab}-module-plugin` },
+    { from: 'forge-module-demo', to: `${config.nameKebab}-module-demo` },
+    { from: 'forge-spring-boot-starter-localcache', to: `${config.nameKebab}-spring-boot-starter-localcache` },
     { from: 'forge-spring-boot-starter-mybatis', to: `${config.nameKebab}-spring-boot-starter-mybatis` },
+    { from: 'forge-spring-boot-starter-plugin', to: `${config.nameKebab}-spring-boot-starter-plugin` },
     { from: 'forge-spring-boot-starter-redis', to: `${config.nameKebab}-spring-boot-starter-redis` },
     { from: 'forge-spring-boot-starter-security', to: `${config.nameKebab}-spring-boot-starter-security` },
     { from: 'forge-spring-boot-starter-tenant', to: `${config.nameKebab}-spring-boot-starter-tenant` },
@@ -412,7 +416,9 @@ function main() {
       // 中层目录
       // forge-framework 子目录（深层优先）
       { from: 'forge-framework/forge-common', to: `forge-framework/${config.nameKebab}-common` },
+      { from: 'forge-framework/forge-spring-boot-starter-localcache', to: `forge-framework/${config.nameKebab}-spring-boot-starter-localcache` },
       { from: 'forge-framework/forge-spring-boot-starter-mybatis', to: `forge-framework/${config.nameKebab}-spring-boot-starter-mybatis` },
+      { from: 'forge-framework/forge-spring-boot-starter-plugin', to: `forge-framework/${config.nameKebab}-spring-boot-starter-plugin` },
       { from: 'forge-framework/forge-spring-boot-starter-redis', to: `forge-framework/${config.nameKebab}-spring-boot-starter-redis` },
       { from: 'forge-framework/forge-spring-boot-starter-security', to: `forge-framework/${config.nameKebab}-spring-boot-starter-security` },
       { from: 'forge-framework/forge-spring-boot-starter-tenant', to: `forge-framework/${config.nameKebab}-spring-boot-starter-tenant` },
@@ -436,6 +442,8 @@ function main() {
       { from: 'forge-module-ai', to: `${config.nameKebab}-module-ai` },
       { from: 'forge-module-screen', to: `${config.nameKebab}-module-screen` },
       { from: 'forge-module-contract', to: `${config.nameKebab}-module-contract` },
+      { from: 'forge-module-plugin', to: `${config.nameKebab}-module-plugin` },
+      { from: 'forge-module-demo', to: `${config.nameKebab}-module-demo` },
       { from: 'forge-dependencies', to: `${config.nameKebab}-dependencies` },
       // 内部 forge-server 模块（启动入口）
       { from: 'forge-server', to: `${config.nameKebab}-server` },
