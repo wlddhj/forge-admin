@@ -9,6 +9,7 @@
 | [后端开发规范](./backend-development-specification.md) | 模块结构、Maven、Entity/Mapper/DTO/Service/Controller 模板、横切关注点、迁移与菜单 SQL |
 | [前端开发规范](./frontend-development-specification.md) | API 文件、页面模板、vxe-table、弹窗/抽屉、样式、数据字典、检查清单 |
 | [数据库设计规范](./database-design-specification.md) | 表/字段/索引设计、迁移脚本、菜单与字典数据规范 |
+| [字段翻译与字典渲染指南](./field-translation-guide.md) | easy-trans 基础表字段翻译（`@Trans`）、`DictLabelUtils` 后端字典组装、前端 `useDict` 三链路分工 |
 
 > **完整实战参考**：`forge-module-demo`（项目立项管理）是按本文流程落地的完整示例模块——单模块结构、业务表经 businessKey 关联流程实例、发起与终态事件回写审批状态、独立前端页面与菜单，业务模块接入工作流的对接步骤详见 [业务模块接入工作流指南](../modules/workflow/06.business-integration-guide.md)。
 
@@ -113,6 +114,7 @@ node scripts/create-module.js <模块名称> "<模块描述>"
 - [ ] 创建 Mapper 接口（biz 模块）
 - [ ] 创建 Service 接口和实现（biz 模块）
 - [ ] 创建 Controller（biz 模块，放在 `controller.admin` 或 `controller.app` 包下）
+- [ ] 响应 DTO 外键翻译：需要「ID → 名称」时按 [字段翻译指南](./field-translation-guide.md) 加 `@Trans(SIMPLE)`（字典码值不在此列，前端 `useDict` 渲染）
 - [ ] 运行 `mvn clean compile` 验证编译
 
 ### 数据库

@@ -2,7 +2,7 @@
 
 > 适用范围：`apps/forge-server`（Java 21 / Spring Boot 4 / MyBatis Plus）。
 >
-> 配套文档：新模块端到端搭建流程见 [新模块开发向导](./module-development.md)；数据库设计与迁移脚本细节见 [数据库设计规范](./database-design-specification.md)；前端对接见 [前端开发规范](./frontend-development-specification.md)。
+> 配套文档：新模块端到端搭建流程见 [新模块开发向导](./module-development.md)；数据库设计与迁移脚本细节见 [数据库设计规范](./database-design-specification.md)；前端对接见 [前端开发规范](./frontend-development-specification.md)；ID→名称字段翻译与字典渲染见 [字段翻译与字典渲染指南](./field-translation-guide.md)。
 
 ## 0. 代码风格总则
 

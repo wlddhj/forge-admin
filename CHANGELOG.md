@@ -4,6 +4,12 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [未发布]
+
+### 新增
+
+- **easy-trans 字典注解翻译（`TransType.DICTIONARY`）正式可用**：新增 `DictTransCacheRefresher`（system-biz）统一刷新出口——字典数据增/改/删/停启/批量保存与字典类型删除、编码变更全部挂钩，事务 afterCommit 后重建翻译缓存并经框架 Redis pub/sub 广播多实例；启动加载（`MyApplicationListener`）与手动「刷新字典缓存」复用同一出口全量重建；`forge-module-demo` `ProjectResponse` 新增 `approveStatusDictLabel` 注解翻译示范字段（与既有手动组装 `approveStatusName` 并存对照两种未命中语义）；`field-translation-guide.md` 解禁改写为三条链路选型口径
+
 ## [2.3.0] - 2026-11-18
 
 ### 新增

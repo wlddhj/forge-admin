@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.forge.common.cache.DictTransCacheRefresher;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.system.dto.dict.DictTypeQueryRequest;
 import com.forge.modules.system.dto.dict.DictTypeRequest;
@@ -27,6 +28,7 @@ public class SysDictTypeServiceImpl extends ServiceImpl<SysDictTypeMapper, SysDi
 
     private final SysDictTypeMapper sysDictTypeMapper;
     private final SysDictDataMapper sysDictDataMapper;
+    private final DictTransCacheRefresher dictTransCacheRefresher;
 
     @Override
     public Page<DictTypeResponse> pageDictTypes(DictTypeQueryRequest request) {
@@ -96,7 +98,8 @@ public class SysDictTypeServiceImpl extends ServiceImpl<SysDictTypeMapper, SysDi
             throw new BusinessException(404, "字典类型不存在");
         }
 
-        if (!dictType.getDictType().equals(request.getDictType())) {
+        String oldDictType = dictType.getDictType();
+        if (!oldDictType.equals(request.getDictType())) {
             if (lambdaQuery().eq(SysDictType::getDictType, request.getDictType()).exists()) {
                 throw new BusinessException(400, "字典类型已存在");
             }
@@ -104,12 +107,23 @@ public class SysDictTypeServiceImpl extends ServiceImpl<SysDictTypeMapper, SysDi
 
         BeanUtil.copyProperties(request, dictType);
         updateById(dictType);
+        // 类型编码变更：旧编码翻译组作废移除，新编码组重建（类型改名/状态等不关翻译，不刷）
+        if (!oldDictType.equals(request.getDictType())) {
+            dictTransCacheRefresher.removeTypeAfterCommit(oldDictType);
+            dictTransCacheRefresher.refreshTypesAfterCommit(request.getDictType());
+        }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteDictTypes(List<Long> ids) {
+        // 删前收集受影响类型编码（删后无法回查）
+        List<String> dictTypes = listByIds(ids).stream()
+                .map(SysDictType::getDictType)
+                .distinct()
+                .toList();
         removeByIds(ids);
+        dictTypes.forEach(dictTransCacheRefresher::removeTypeAfterCommit);
     }
 
     @Override

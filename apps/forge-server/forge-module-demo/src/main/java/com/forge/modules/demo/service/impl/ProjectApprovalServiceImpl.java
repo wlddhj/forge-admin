@@ -39,9 +39,6 @@ public class ProjectApprovalServiceImpl implements ProjectApprovalService {
      */
     public static final String BUSINESS_KEY_PREFIX = "project:";
 
-    /** 审批状态字典类型（码值对齐 demo_biz_project.approve_status，种子见 upgrade-20261118-project-status-dict.sql） */
-    public static final String STATUS_DICT_TYPE = "demo_project_status";
-
     private final BizProjectMapper projectMapper;
     private final WfProcessDefinitionService processDefinitionService;
     private final WfProcessInstanceService processInstanceService;
@@ -135,7 +132,7 @@ public class ProjectApprovalServiceImpl implements ProjectApprovalService {
                         .orderByDesc(BizProject::getId));
         Page<ProjectResponse> result = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
         // 状态 label 页级一次字典解析（resolveMap，本地缓存 O(1)），行内查 Map 免逐行查询
-        Map<String, String> statusLabels = DictLabelUtils.resolveMap(STATUS_DICT_TYPE);
+        Map<String, String> statusLabels = DictLabelUtils.resolveMap(ProjectResponse.STATUS_DICT_TYPE);
         result.setRecords(page.getRecords().stream()
                 .map(p -> toResponse(p, statusLabels))
                 .toList());
@@ -148,7 +145,7 @@ public class ProjectApprovalServiceImpl implements ProjectApprovalService {
         if (project == null) {
             throw new BusinessException(404, "立项记录不存在");
         }
-        return toResponse(project, DictLabelUtils.resolveMap(STATUS_DICT_TYPE));
+        return toResponse(project, DictLabelUtils.resolveMap(ProjectResponse.STATUS_DICT_TYPE));
     }
 
     /**

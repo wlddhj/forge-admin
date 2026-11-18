@@ -928,6 +928,7 @@ mysql -u root -p forge_admin < sql/init-screen.sql
 | [docs-base/development/module-development.md](docs-base/development/module-development.md) | 新建业务模块的开发向导(端到端流程) |
 | [docs-base/development/backend-development-specification.md](docs-base/development/backend-development-specification.md) | 后端开发规范(模块结构、分层模板、横切关注点) |
 | [docs-base/development/frontend-development-specification.md](docs-base/development/frontend-development-specification.md) | 前端开发规范(API、页面模板、vxe-table、弹窗/抽屉) |
+| [docs-base/development/field-translation-guide.md](docs-base/development/field-translation-guide.md) | 字段翻译与字典渲染（easy-trans 基础表翻译、DictLabelUtils 后端字典组装、前端 useDict 三链路分工） |
 | [docs-base/guide/print-template-guide.md](docs-base/guide/print-template-guide.md) | 打印模板使用指南（hiprint 设计器/调用打印/多租户行为/常见问题） |
 | [docs-base/modules/ai-module.md](docs-base/modules/ai-module.md) | AI 模块使用手册（多模型对话/文档解析摘要、模型配置管理、流式分工、API 端点） |
 | [docs-base/modules/screen-module.md](docs-base/modules/screen-module.md) | 大屏模块使用手册（使用流程、API、SQL 白名单管理、安全护栏、故障排查） |

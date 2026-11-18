@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.forge.common.cache.DictTransCacheRefresher;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.system.dto.dict.DictDataBatchSaveRequest;
 import com.forge.modules.system.dto.dict.DictDataQueryRequest;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDictData> implements SysDictDataService {
 
     private final SysDictDataMapper sysDictDataMapper;
+    private final DictTransCacheRefresher dictTransCacheRefresher;
 
     @Override
     public Page<DictDataResponse> pageDictData(DictDataQueryRequest request) {
@@ -90,6 +92,8 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
         // 字典写路径统一收尾：Redis 由 @CacheEvict 失效，本地缓存在此即时失效
         // （多实例部署下其他实例靠 DictLabelUtils 的 60s TTL 收敛）
         DictLabelUtils.evictLocalCache();
+        // easy-trans DICTIONARY 翻译缓存 afterCommit 重建（pub/sub 通知其他实例）
+        dictTransCacheRefresher.refreshTypesAfterCommit(request.getDictType());
     }
 
     @Override
@@ -100,17 +104,26 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
         if (dictData == null) {
             throw new BusinessException(404, "字典数据不存在");
         }
+        String oldDictType = dictData.getDictType();
         BeanUtil.copyProperties(request, dictData);
         updateById(dictData);
         DictLabelUtils.evictLocalCache();
+        // 码值可能被挪到别的类型：旧/新类型都刷（refresher 内部去重）
+        dictTransCacheRefresher.refreshTypesAfterCommit(oldDictType, request.getDictType());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "dictData", allEntries = true)
     public void deleteDictData(List<Long> ids) {
+        // 删前收集受影响类型（删后无法回查）
+        List<String> dictTypes = listByIds(ids).stream()
+                .map(SysDictData::getDictType)
+                .distinct()
+                .toList();
         removeByIds(ids);
         DictLabelUtils.evictLocalCache();
+        dictTransCacheRefresher.refreshTypesAfterCommit(dictTypes.toArray(String[]::new));
     }
 
     @Override
@@ -124,13 +137,19 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
         dictData.setStatus(status);
         updateById(dictData);
         DictLabelUtils.evictLocalCache();
+        // 停启影响启用项集合，翻译 Map 需重建
+        dictTransCacheRefresher.refreshTypesAfterCommit(dictData.getDictType());
     }
 
     @Override
-    @CacheEvict(value = "dictData", allEntries = true)
+    // beforeInvocation=true：先进方法即清 Redis 缓存，方法体内 refreshAll 的重查才会
+    // miss 回源新值——默认(返回时才 evict)会让重建读到未清的旧缓存
+    @CacheEvict(value = "dictData", allEntries = true, beforeInvocation = true)
     public void refreshCache() {
         log.info("刷新字典数据缓存");
         DictLabelUtils.evictLocalCache();
+        // 全量重建 easy-trans DICTIONARY 翻译缓存（含 pub/sub 通知其他实例）
+        dictTransCacheRefresher.refreshAll();
     }
 
     private DictDataResponse convertToResponse(SysDictData dictData) {
@@ -182,5 +201,7 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
             removeByIds(toDeleteIds);
         }
         DictLabelUtils.evictLocalCache();
+        // 批量保存只作用于单一 dictType（子项类型被强制对齐）
+        dictTransCacheRefresher.refreshTypesAfterCommit(request.getDictType());
     }
 }
