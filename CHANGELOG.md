@@ -4,11 +4,22 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [未发布]
+## [2.4.0] - 2026-11-22
 
 ### 新增
 
+- **附件通用流式下载代理**：新增 `GET /system/attachment/{id}/download`（登录即可，四存储 local/minio/aliyun_oss/tencent_cos 通吃）——服务端流式转发、打开即验证、显式 Content-Length；新增 `AttachmentAccessChecker` 读权限扩展 SPI（按 bizType 逐类型接入严控校验，本期零实现默认放行）；workflow 业务单据视图的附件下载端点顺带流式化（参与人鉴权与前端契约不变，消除整文件读入内存的 OOM 风险）；附件管理页下载/预览从公开直链切换代理（下载保留原始文件名、图片预览 objectURL 化并在关闭时释放）；`/uploads/**` 本地直链与 AI 文档字节读取不受影响
 - **easy-trans 字典注解翻译（`TransType.DICTIONARY`）正式可用**：新增 `DictTransCacheRefresher`（system-biz）统一刷新出口——字典数据增/改/删/停启/批量保存与字典类型删除、编码变更全部挂钩，事务 afterCommit 后重建翻译缓存并经框架 Redis pub/sub 广播多实例；启动加载（`MyApplicationListener`）与手动「刷新字典缓存」复用同一出口全量重建；`forge-module-demo` `ProjectResponse` 新增 `approveStatusDictLabel` 注解翻译示范字段（与既有手动组装 `approveStatusName` 并存对照两种未命中语义）；`field-translation-guide.md` 解禁改写为三条链路选型口径
+- **工作台待办卡片手动刷新**：「我的待办任务」卡片新增刷新按钮，即时重拉待办列表
+
+### 修复
+
+- **脚手架 init-project.js**：补齐 plugin/demo 模块与 localcache/plugin starter 的重命名规则，新项目初始化不再残留 forge 前缀
+
+### 维护
+
+- jasypt CVE-2026-9370 复查落痕：修复版（≥4.0.5）仍未发布（starter ≤4.0.4 受影响线、核心库停更于 1.9.3），且受影响路径为 SimpleGCMConfig GCM 模式，本项目生产 PBEWithMD5AndDES 非该路径、不受影响，维持 3.0.5；另注生产弱算法迁移（PBEWITHHMACSHA512ANDAES_256）须重加密全部 ENC 密文，属运维专项
+- 清理历史后端代码评审报告文档
 
 ## [2.3.0] - 2026-11-18
 
@@ -265,6 +276,7 @@
 
 全新建库直接执行 `sql/init*.sql`，无需以上脚本。
 
+[2.4.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.4.0
 [2.3.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.3.0
 [2.2.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.2.0
 [2.1.0]: https://github.com/wlddhj/forge-admin/releases/tag/v2.1.0
