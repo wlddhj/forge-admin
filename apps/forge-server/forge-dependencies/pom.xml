@@ -31,7 +31,11 @@
         <minio.version>8.5.9</minio.version>
         <commons-io.version>2.15.1</commons-io.version>
         <!-- jasypt 维持 3.0.5：CVE-2026-9370 修复版（≥4.0.5）尚未发布（central 最高 4.0.4 同为受影响版本），
-             issue #417 实证 3.0.5 与 Boot 4 兼容；修复版发布后单独升级 -->
+             issue #417 实证 3.0.5 与 Boot 4 兼容；修复版发布后单独升级。
+             2026-11-22 复查：starter 最新仍 4.0.4、核心库 org.jasypt:jasypt 停更于 1.9.3，均无修复版；
+             CVE-2026-9370 受影响路径为 SimpleGCMConfig（GCM 模式可预测 salt），本项目生产用
+             PBEWithMD5AndDES 且代码零 GCM 引用，不受该 CVE 影响。
+             另注：PBEWithMD5AndDES 本身为弱算法，生产迁移 PBEWITHHMACSHA512ANDAES_256 须重加密全部 ENC 密文（运维专项） -->
         <jasypt.version>3.0.5</jasypt.version>
         <alibaba.transmittable-thread-local.version>2.14.3</alibaba.transmittable-thread-local.version>
         <guava.version>33.4.8-jre</guava.version>
