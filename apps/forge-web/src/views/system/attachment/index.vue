@@ -165,12 +165,12 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadRequestOptions } from 'element-plus'
 import type { VxeTableInstance, VxeToolbarInstance } from 'vxe-table'
 import { Picture, Document, Folder, Upload } from '@element-plus/icons-vue'
-import { getAttachmentList, deleteAttachment, uploadAttachment } from '@/api/system'
+import { getAttachmentList, deleteAttachment, uploadAttachment, downloadAttachmentById } from '@/api/system'
 import type { Attachment } from '@/types/system'
 import { formatDateTime } from '@/utils/dateFormat'
 import { FILE_MAX_SIZE_MB } from '@/constants/upload'
@@ -222,6 +222,21 @@ const activeConditionsCount = computed(() => {
 
 const previewVisible = ref(false)
 const previewUrl = ref('')
+
+// 预览走代理 blob → objectURL（img 无法携带 JWT header），弹窗关闭/换源时释放防泄漏
+let previewObjectUrl = ''
+const releasePreviewObjectUrl = () => {
+  if (previewObjectUrl) {
+    URL.revokeObjectURL(previewObjectUrl)
+    previewObjectUrl = ''
+  }
+}
+watch(previewVisible, (visible) => {
+  if (!visible) {
+    releasePreviewObjectUrl()
+    previewUrl.value = ''
+  }
+})
 
 // 关联工具栏与表格
 onMounted(() => {
@@ -278,13 +293,30 @@ const handleUpload = async (options: UploadRequestOptions) => {
   }
 }
 
-const handlePreview = (row: Attachment) => {
-  previewUrl.value = row.fileUrl
-  previewVisible.value = true
+const handlePreview = async (row: Attachment) => {
+  try {
+    const blob = await downloadAttachmentById(row.id)
+    releasePreviewObjectUrl()
+    previewObjectUrl = URL.createObjectURL(blob)
+    previewUrl.value = previewObjectUrl
+    previewVisible.value = true
+  } catch {
+    // 错误信息已由请求拦截器统一提示
+  }
 }
 
-const handleDownload = (row: Attachment) => {
-  window.open(row.fileUrl, '_blank')
+const handleDownload = async (row: Attachment) => {
+  try {
+    const blob = await downloadAttachmentById(row.id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = row.originalName
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    // 错误信息已由请求拦截器统一提示
+  }
 }
 
 const handleDelete = async (row: Attachment) => {

@@ -422,6 +422,11 @@ export function deleteAttachment(ids: number[]) {
   return request.delete(`/system/attachment/${ids.join(',')}`)
 }
 
+/** 下载附件内容（流式代理端点，登录即可；blob 由调用方触发保存/预览） */
+export function downloadAttachmentById(id: number) {
+  return request.getBlob(`/system/attachment/${id}/download`)
+}
+
 /** 上传头像（登录即可，走专用端点并落附件表） */
 export function uploadAvatarFile(file: File) {
   const formData = new FormData()

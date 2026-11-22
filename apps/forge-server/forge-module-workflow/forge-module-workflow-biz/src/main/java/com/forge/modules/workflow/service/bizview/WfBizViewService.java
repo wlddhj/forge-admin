@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -133,7 +134,7 @@ public class WfBizViewService {
                 .filter(a -> attachmentId.equals(a.getId()))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(404, "附件不存在或不属于该单据"));
-        return new AttachmentPayload(sysAttachmentService.loadContent(attachmentId),
+        return new AttachmentPayload(sysAttachmentService.openStream(attachmentId, userId).stream(),
                 target.getOriginalName(), target.getFileType());
     }
 
@@ -213,7 +214,7 @@ public class WfBizViewService {
     public record BizPreviewPayload(byte[] content, String contentType) {
     }
 
-    /** 附件下载载荷 */
-    public record AttachmentPayload(byte[] content, String fileName, String contentType) {
+    /** 附件下载载荷（流式：由调用方响应链消费并关闭，打开阶段已验证可读） */
+    public record AttachmentPayload(InputStream content, String fileName, String contentType) {
     }
 }

@@ -5,9 +5,11 @@ import com.forge.modules.system.auth.util.FileUploadValidator;
 import com.forge.modules.system.entity.SysAttachment;
 import com.forge.modules.system.entity.SysFileConfig;
 import com.forge.modules.system.entity.SysUser;
+import com.forge.modules.system.dto.attachment.AttachmentContent;
 import com.forge.modules.system.mapper.SysAttachmentMapper;
 import com.forge.modules.system.service.SysFileConfigService;
 import com.forge.modules.system.service.SysUserService;
+import com.forge.modules.system.service.spi.AttachmentAccessChecker;
 import com.forge.modules.system.service.spi.AttachmentRefChecker;
 import com.forge.modules.system.service.storage.LocalStorageClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,7 +55,7 @@ class SysAttachmentServiceImplTest {
         fileConfigService = mock(SysFileConfigService.class);
         validator = mock(FileUploadValidator.class);
         service = new SysAttachmentServiceImpl(attachmentMapper, userService, fileConfigService,
-                validator, List.of(new LocalStorageClient(new ServerProperties())), List.of());
+                validator, List.of(new LocalStorageClient(new ServerProperties())), List.of(), List.of());
         service.initClientMap();
         // 无登录上下文：上传人回退 system
         when(userService.getCurrentUser()).thenThrow(new IllegalStateException("no context"));
@@ -164,7 +166,7 @@ class SysAttachmentServiceImplTest {
         when(checker.bizType()).thenReturn("notice");
         when(checker.checkReferenced(any(SysAttachment.class))).thenReturn("公告『放假通知』");
         SysAttachmentServiceImpl guarded = new SysAttachmentServiceImpl(attachmentMapper, userService,
-                fileConfigService, validator, List.of(), List.of(checker));
+                fileConfigService, validator, List.of(), List.of(checker), List.of());
         guarded.initClientMap();
 
         SysAttachment noticeAttachment = new SysAttachment();
@@ -185,7 +187,7 @@ class SysAttachmentServiceImplTest {
         when(checker.bizType()).thenReturn("notice");
         when(checker.checkReferenced(any(SysAttachment.class))).thenReturn(null);
         SysAttachmentServiceImpl guarded = new SysAttachmentServiceImpl(attachmentMapper, userService,
-                fileConfigService, validator, List.of(), List.of(checker));
+                fileConfigService, validator, List.of(), List.of(checker), List.of());
         guarded.initClientMap();
 
         SysAttachment noticeAttachment = new SysAttachment();
@@ -197,5 +199,77 @@ class SysAttachmentServiceImplTest {
 
         guarded.deleteAttachments(List.of(2L));
         verify(attachmentMapper).deleteById(2L);
+    }
+
+    @Test
+    void openStreamReadsLocalFile() throws Exception {
+        Path file = tempDir.resolve("open.pdf");
+        Files.write(file, "stream-bytes".getBytes());
+        SysAttachment attachment = new SysAttachment();
+        attachment.setId(11L);
+        attachment.setOriginalName("开放附件.pdf");
+        attachment.setFileType("application/pdf");
+        attachment.setFileSize((long) "stream-bytes".getBytes().length);
+        attachment.setStorageType("local");
+        attachment.setFilePath(file.toString());
+        doReturn(attachment).when(attachmentMapper).selectById(11L);
+
+        AttachmentContent content = service.openStream(11L, 1L);
+        assertThat(new String(content.stream().readAllBytes())).isEqualTo("stream-bytes");
+        assertThat(content.fileName()).isEqualTo("开放附件.pdf");
+        assertThat(content.contentType()).isEqualTo("application/pdf");
+        assertThat(content.fileSize()).isEqualTo((long) "stream-bytes".getBytes().length);
+    }
+
+    @Test
+    void openStreamMissingAttachmentRejected() {
+        doReturn(null).when(attachmentMapper).selectById(404L);
+        assertThatThrownBy(() -> service.openStream(404L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("附件不存在");
+    }
+
+    @Test
+    void openStreamCheckerDenied() {
+        AttachmentAccessChecker checker = mock(AttachmentAccessChecker.class);
+        when(checker.bizType()).thenReturn("contract");
+        when(checker.checkReadDenied(any(SysAttachment.class), any())).thenReturn("仅合同参与方可下载");
+        SysAttachmentServiceImpl guarded = new SysAttachmentServiceImpl(attachmentMapper, userService,
+                fileConfigService, validator, List.of(new LocalStorageClient(new ServerProperties())),
+                List.of(), List.of(checker));
+        guarded.initClientMap();
+
+        SysAttachment attachment = new SysAttachment();
+        attachment.setId(12L);
+        attachment.setBizType("contract");
+        attachment.setStorageType("local");
+        doReturn(attachment).when(attachmentMapper).selectById(12L);
+
+        assertThatThrownBy(() -> guarded.openStream(12L, 9L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("仅合同参与方可下载");
+    }
+
+    @Test
+    void openStreamCheckerPassesFallsThroughToStorage() throws Exception {
+        AttachmentAccessChecker checker = mock(AttachmentAccessChecker.class);
+        when(checker.bizType()).thenReturn("contract");
+        when(checker.checkReadDenied(any(SysAttachment.class), any())).thenReturn(null);
+        SysAttachmentServiceImpl guarded = new SysAttachmentServiceImpl(attachmentMapper, userService,
+                fileConfigService, validator, List.of(new LocalStorageClient(new ServerProperties())),
+                List.of(), List.of(checker));
+        guarded.initClientMap();
+
+        Path file = tempDir.resolve("checker-pass.pdf");
+        Files.write(file, "ok".getBytes());
+        SysAttachment attachment = new SysAttachment();
+        attachment.setId(13L);
+        attachment.setBizType("contract");
+        attachment.setStorageType("local");
+        attachment.setFilePath(file.toString());
+        doReturn(attachment).when(attachmentMapper).selectById(13L);
+
+        AttachmentContent content = guarded.openStream(13L, 1L);
+        assertThat(new String(content.stream().readAllBytes())).isEqualTo("ok");
     }
 }

@@ -3,6 +3,7 @@ package com.forge.modules.workflow.service.bizview;
 import com.aizuda.bpm.engine.QueryService;
 import com.aizuda.bpm.engine.entity.FlwInstance;
 import com.forge.common.exception.BusinessException;
+import com.forge.modules.system.dto.attachment.AttachmentContent;
 import com.forge.modules.system.dto.attachment.AttachmentResponse;
 import com.forge.modules.system.service.SysAttachmentService;
 import com.forge.modules.workflow.dto.bizview.WfBizViewAttachmentRef;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -176,18 +179,19 @@ class WfBizViewServiceTest {
 
     @Test
     @DisplayName("附件下载：域内 ID 正常返回载荷")
-    void attachmentWithinScopeDownloads() {
+    void attachmentWithinScopeDownloads() throws Exception {
         provider.data.setAttachmentRef(new WfBizViewAttachmentRef("contract", 5L));
         AttachmentResponse att = new AttachmentResponse();
         att.setId(9L);
         att.setOriginalName("扫描件.pdf");
         att.setFileType("application/pdf");
         when(sysAttachmentService.listByBiz("contract", 5L)).thenReturn(List.of(att));
-        when(sysAttachmentService.loadContent(9L)).thenReturn(new byte[]{9});
+        when(sysAttachmentService.openStream(eq(9L), eq(1L))).thenReturn(new AttachmentContent(
+                new ByteArrayInputStream(new byte[]{9}), "扫描件.pdf", "application/pdf", 1L));
 
         WfBizViewService.AttachmentPayload payload = service.downloadAttachment("100", 9L, 1L);
         assertEquals("扫描件.pdf", payload.fileName());
-        assertEquals(1, payload.content().length);
+        assertEquals(9, payload.content().readAllBytes()[0]);
     }
 
     @Test

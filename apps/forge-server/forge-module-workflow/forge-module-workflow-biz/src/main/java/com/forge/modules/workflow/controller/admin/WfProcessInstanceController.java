@@ -22,6 +22,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -203,7 +204,7 @@ public class WfProcessInstanceController {
     @Operation(summary = "下载业务单据附件（实例参与人，附件须属于该单据）")
     @GetMapping("/{id}/biz-attachment/{attachmentId}")
     @PreAuthorize("hasAuthority('workflow:instance:query')")
-    public ResponseEntity<byte[]> downloadBizAttachment(@PathVariable String id, @PathVariable Long attachmentId) {
+    public ResponseEntity<InputStreamResource> downloadBizAttachment(@PathVariable String id, @PathVariable Long attachmentId) {
         WfBizViewService.AttachmentPayload payload = wfBizViewService.downloadAttachment(
                 id, attachmentId, SecurityUtils.getCurrentUserId());
         return ResponseEntity.ok()
@@ -214,6 +215,6 @@ public class WfProcessInstanceController {
                                 StandardCharsets.UTF_8)
                         .build()
                         .toString())
-                .body(payload.content());
+                .body(new InputStreamResource(payload.content()));
     }
 }

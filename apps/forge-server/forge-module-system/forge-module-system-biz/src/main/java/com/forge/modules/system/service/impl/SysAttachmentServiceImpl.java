@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.forge.common.exception.BusinessException;
 import com.forge.modules.system.constant.AttachmentBizTypes;
+import com.forge.modules.system.dto.attachment.AttachmentContent;
 import com.forge.modules.system.dto.attachment.AttachmentQueryRequest;
 import com.forge.modules.system.dto.attachment.AttachmentResponse;
 import com.forge.modules.system.entity.SysAttachment;
@@ -14,6 +15,7 @@ import com.forge.modules.system.mapper.SysAttachmentMapper;
 import com.forge.modules.system.service.SysAttachmentService;
 import com.forge.modules.system.service.SysFileConfigService;
 import com.forge.modules.system.service.SysUserService;
+import com.forge.modules.system.service.spi.AttachmentAccessChecker;
 import com.forge.modules.system.service.spi.AttachmentRefChecker;
 import com.forge.modules.system.service.storage.FileStorageClient;
 import com.forge.modules.system.service.storage.StorageResult;
@@ -49,6 +51,7 @@ public class SysAttachmentServiceImpl extends ServiceImpl<SysAttachmentMapper, S
     private final FileUploadValidator fileUploadValidator;
     private final List<FileStorageClient> storageClients;
     private final List<AttachmentRefChecker> refCheckers;
+    private final List<AttachmentAccessChecker> accessCheckers;
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter DATE_PATH_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
@@ -62,11 +65,18 @@ public class SysAttachmentServiceImpl extends ServiceImpl<SysAttachmentMapper, S
 
     private final Map<String, FileStorageClient> clientMap = new HashMap<>();
     private final Map<String, AttachmentRefChecker> refCheckerMap = new HashMap<>();
+    private final Map<String, AttachmentAccessChecker> accessCheckerMap = new HashMap<>();
 
     @PostConstruct
     void initClientMap() {
         storageClients.forEach(client -> clientMap.put(client.storageType(), client));
         refCheckers.forEach(checker -> refCheckerMap.put(checker.bizType(), checker));
+        accessCheckers.forEach(checker -> {
+            AttachmentAccessChecker prev = accessCheckerMap.putIfAbsent(checker.bizType(), checker);
+            if (prev != null) {
+                throw new IllegalStateException("AttachmentAccessChecker bizType 重复注册: " + checker.bizType());
+            }
+        });
     }
 
     @Override
@@ -215,15 +225,46 @@ public class SysAttachmentServiceImpl extends ServiceImpl<SysAttachmentMapper, S
         if (attachment == null) {
             throw new BusinessException(404, "附件不存在");
         }
-        FileStorageClient client = requireClient(attachment.getStorageType());
-        SysFileConfig config = resolveStorageConfig(attachment);
-        if (config == null && !"local".equals(attachment.getStorageType())) {
-            throw new BusinessException(500, "无法定位附件的存储配置，读取失败: id=" + attachmentId);
-        }
-        try (InputStream in = client.download(config, attachment.getFilePath())) {
+        try (InputStream in = openAttachmentStream(attachment)) {
             return in.readAllBytes();
         } catch (Exception e) {
             log.error("读取附件内容失败: id={}", attachmentId, e);
+            throw new BusinessException(500, "读取附件内容失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public AttachmentContent openStream(Long attachmentId, Long userId) {
+        SysAttachment attachment = sysAttachmentMapper.selectById(attachmentId);
+        if (attachment == null) {
+            throw new BusinessException(404, "附件不存在");
+        }
+        AttachmentAccessChecker checker = accessCheckerMap.get(attachment.getBizType());
+        if (checker != null) {
+            String denied = checker.checkReadDenied(attachment, userId);
+            if (denied != null) {
+                throw new BusinessException(403, denied);
+            }
+        }
+        // 打开即验证：交给响应链前确认流可读，避免 header 已写后无法回错误状态码
+        InputStream in = openAttachmentStream(attachment);
+        return new AttachmentContent(in, attachment.getOriginalName(), attachment.getFileType(), attachment.getFileSize());
+    }
+
+    /**
+     * 存储路由并打开附件流（loadContent/openStream 共核）：
+     * requireClient/配置定位/download 的异常统一包装为「读取附件内容失败」
+     */
+    private InputStream openAttachmentStream(SysAttachment attachment) {
+        FileStorageClient client = requireClient(attachment.getStorageType());
+        SysFileConfig config = resolveStorageConfig(attachment);
+        if (config == null && !"local".equals(attachment.getStorageType())) {
+            throw new BusinessException(500, "无法定位附件的存储配置，读取失败: id=" + attachment.getId());
+        }
+        try {
+            return client.download(config, attachment.getFilePath());
+        } catch (Exception e) {
+            log.error("读取附件内容失败: id={}", attachment.getId(), e);
             throw new BusinessException(500, "读取附件内容失败: " + e.getMessage());
         }
     }

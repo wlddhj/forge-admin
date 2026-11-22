@@ -2,6 +2,7 @@ package com.forge.modules.system.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.IService;
+import com.forge.modules.system.dto.attachment.AttachmentContent;
 import com.forge.modules.system.dto.attachment.AttachmentQueryRequest;
 import com.forge.modules.system.dto.attachment.AttachmentResponse;
 import com.forge.modules.system.entity.SysAttachment;
@@ -45,6 +46,13 @@ public interface SysAttachmentService extends IService<SysAttachment> {
      * 读取附件内容（按附件行内存储配置路由到对应存储），不存在或读取失败抛业务异常
      */
     byte[] loadContent(Long attachmentId);
+
+    /**
+     * 流式打开附件内容（下载代理通道）：打开即验证（存储不可达此时抛业务异常），
+     * 流由调用方消费并关闭；userId 显式传入供 per-bizType 读权限校验器（AttachmentAccessChecker）判定，
+     * 未注册校验器的 bizType 默认放行
+     */
+    AttachmentContent openStream(Long attachmentId, Long userId);
 
     /**
      * 删除附件（被存活业务引用的附件将被拒绝并提示引用方）
