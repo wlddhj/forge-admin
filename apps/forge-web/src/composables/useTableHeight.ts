@@ -1,101 +1,96 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 
 /**
- * 表格高度自适应 Hook
- * 根据窗口大小动态计算表格高度，铺满屏幕剩余区域
+ * 表格高度自适应 Hook（增量校正法）
+ *
+ * 旧实现逐项枚举上方元素高度做视口减法（.search-card/.vxe-toolbar 等），页面里的
+ * el-alert、卡片 header、表格下方的 policy-tip 等都不在清单内，高度算大导致页面
+ * 溢出滚动，各页面只能靠 extraOffset 写死补偿（12~140 不等），alert 显隐/文案换行
+ * 又会让补偿失准。
+ *
+ * 现改为实测校正：以「页面容器（.app-container）底边贴合视口底」为目标，实测容器
+ * 当前底边与目标的差值 delta，直接从表格高度中扣除。表格高度是容器高度的线性变量，
+ * 一步收敛不振荡；容器内表格上下的全部内容（搜索卡、alert、tabs、工具栏、卡片
+ * header、分页、页脚说明等）无论显隐、换行、增删，全部自动计入，页面无需任何参数。
+ *
+ * 兼容说明：hasPagination/extraOffset 参数保留；searchCardSelector/tableCardSelector
+ * 仅为旧签名兼容保留，已不参与计算。
  */
 export interface UseTableHeightOptions {
-  /** 搜索栏选择器 */
+  /** @deprecated 旧签名兼容保留，已不参与计算 */
   searchCardSelector?: string
-  /** 表格卡片选择器 */
+  /** @deprecated 旧签名兼容保留，已不参与计算 */
   tableCardSelector?: string
-  /** 额外偏移量 */
+  /** 额外偏移量（特殊场景微调，正常情况无需传） */
   extraOffset?: number
-  /** 是否预留分页高度 */
+  /** @deprecated 已不参与计算（表格下方内容经 delta 实测自动计入，无需开关） */
   hasPagination?: boolean
-  /** 标准模板之外需额外扣除高度的区块选择器（如汇总卡），随 resize 动态实测 */
-  extraSelectors?: string[]
+  /** 表格元素选择器；默认依次取 .table-card 内可见的 vxe-table、页面上可见的 vxe-table */
+  tableSelector?: string
 }
 
 export function useTableHeight(options: UseTableHeightOptions = {}) {
-  const {
-    searchCardSelector = '.search-card',
-    extraOffset = 0,
-    hasPagination = true,
-    extraSelectors = []
-  } = options
+  const { extraOffset = 0, tableSelector } = options
 
   const tableHeight = ref<number>(400)
 
   /**
-   * 获取元素高度（包括 margin）
+   * 页面主表格：同一页面可能存在多个 vxe-table（el-tabs 切换的 pane、弹窗内表格），
+   * 取第一个可见的（offsetParent 为 null 即 display:none）；主表格通常在 .table-card
+   * 内，优先匹配以避开弹窗 teleport 节点
    */
-  const getElementHeight = (selector: string): number => {
-    const el = document.querySelector(selector)
-    if (!el) return 0
-    const style = window.getComputedStyle(el)
-    const marginTop = parseFloat(style.marginTop) || 0
-    const marginBottom = parseFloat(style.marginBottom) || 0
-    return (el as HTMLElement).offsetHeight + marginTop + marginBottom
+  const findTableEl = (): HTMLElement | null => {
+    const selectors = tableSelector ? [tableSelector] : ['.table-card .vxe-table', '.vxe-table']
+    for (const selector of selectors) {
+      for (const el of document.querySelectorAll<HTMLElement>(selector)) {
+        if (el.offsetParent !== null) return el
+      }
+    }
+    return null
   }
 
-  /**
-   * 计算并更新表格高度
-   */
   const calcTableHeight = () => {
-    const viewportHeight = window.innerHeight
+    const tableEl = findTableEl()
+    // 表格未渲染（如未选账套的 v-else 分支）时保持上次值，等挂载后由 ResizeObserver 重算
+    if (!tableEl) return
 
-    // Header 高度
-    const headerHeight = getElementHeight('.layout-header') || 60
-
-    // TabsView 高度
-    const tabsViewHeight = getElementHeight('.tabs-view') || 0
-
-    // 内容区 padding (上下各 20px)
-    const contentPadding = 40
-
-    // 搜索栏高度
-    const searchCardHeight = getElementHeight(searchCardSelector) || 0
-
-    // vxe-toolbar 高度
-    const toolbarHeight = getElementHeight('.vxe-toolbar') || 0
-
-    // 分页高度 (预留)
-    const paginationHeight = hasPagination ? getElementHeight('.el-pagination') || 52 : 0
-
-    // 卡片内边距 (el-card__body padding)
-    const cardPadding = 5
-
-    // 非标准区块高度（页面特有区块，如汇总卡）
-    const extraBlocksHeight = extraSelectors.reduce(
-      (sum, selector) => sum + getElementHeight(selector), 0)
-
-    // 计算表格高度
-    const height = viewportHeight
-        - headerHeight
-        - tabsViewHeight
-        - contentPadding
-        - searchCardHeight
-        - toolbarHeight
-        - paginationHeight
-        - cardPadding
-        - extraBlocksHeight
-        - extraOffset
-
-    // 确保最小高度
-    tableHeight.value = Math.max(height, 200)
+    // 目标：页面容器底边贴合视口底（无容器结构时退化为表格底贴合视口底）
+    const container = tableEl.closest('.app-container')
+    const currentBottom = (container ?? tableEl).getBoundingClientRect().bottom
+    const delta = Math.round(currentBottom - window.innerHeight + extraOffset+10)
+    if (delta === 0) return
+    // 容器内其余元素高度不随表格变化，delta 完全由表格高度决定：一步扣除即收敛
+    const next = Math.max(tableHeight.value - delta, 200)
+    // 同值守卫：ResizeObserver 会因表格/容器尺寸变化再次触发，值不变时直接返回
+    if (next !== tableHeight.value) tableHeight.value = next
   }
 
   let resizeTimer: ReturnType<typeof setTimeout> | null = null
-
   const handleResize = () => {
     if (resizeTimer) clearTimeout(resizeTimer)
     resizeTimer = setTimeout(calcTableHeight, 100)
   }
 
+  // ResizeObserver：观察页面容器——alert 显隐、表格初次挂载、tabs 切换引起的容器
+  // 尺寸变化都会触发重算；视口尺寸变化由 window resize 监听兜底
+  let observer: ResizeObserver | null = null
+  let observedEl: Element | null = null
+  const attachObserver = () => {
+    const tableEl = findTableEl()
+    const target = tableEl?.closest('.app-container')
+        ?? document.querySelector('.table-card')
+        ?? document.body
+    if (observedEl === target) return
+    observer?.disconnect()
+    observedEl = target
+    observer = new ResizeObserver(calcTableHeight)
+    observer.observe(target)
+  }
+
   onMounted(() => {
-    // 等待 DOM 渲染完成
+    // 等待 DOM 渲染完成（表格可能由 v-if/数据加载延迟挂载，挂载后由 observer 接管重算）
     nextTick(() => {
+      attachObserver()
       calcTableHeight()
     })
     window.addEventListener('resize', handleResize)
@@ -104,6 +99,7 @@ export function useTableHeight(options: UseTableHeightOptions = {}) {
   onUnmounted(() => {
     window.removeEventListener('resize', handleResize)
     if (resizeTimer) clearTimeout(resizeTimer)
+    observer?.disconnect()
   })
 
   return {
