@@ -60,7 +60,8 @@ src/views/{module}/{entity}/
     ├── XxxFormDialog.vue          # 新增/编辑表单弹窗
     ├── XxxDetailDrawer.vue        # 详情抽屉
     ├── XxxImportDialog.vue        # 导入弹窗（如有）
-    └── XxxAssignYyyDialog.vue     # 分配/关联等业务弹窗（如有）
+    ├── XxxAssignYyyDialog.vue     # 分配/关联等业务弹窗（如有）
+    └── XxxDataList.vue            # 子表编辑组件（抽屉内可编辑表格，见 6.6，如有）
 ```
 
 ### 2.3 index.vue 职责边界
@@ -95,7 +96,7 @@ src/views/{module}/{entity}/
 | `views/workflow/process/components/FlowDiagramDialog.vue` | 流程图弹窗 |
 | `views/workflow/task/components/TaskDetailDrawer.vue` | 任务详情抽屉 |
 | `views/system/user/UserImportDialog.vue` | 用户导入弹窗 |
-| `views/system/dict-type/components/DictDataList.vue` | 字典数据弹窗（复杂列表） |
+| `views/system/dict-type/components/DictDataList.vue` | 字典数据子表（抽屉内行内编辑 + 整组批量保存，见 6.6） |
 
 ---
 
@@ -577,7 +578,7 @@ const cancelSelection = () => {
 ### 6.1 命名
 
 - 弹窗：`XxxDialog.vue`；抽屉：`XxxDrawer.vue`；PascalCase
-- 业务语义命名：表单类 `XxxFormDialog`、详情类 `XxxDetailDrawer` / `XxxDetailDialog`、导入类 `XxxImportDialog`、分配类 `XxxAssignYyyDialog`
+- 业务语义命名：表单类 `XxxFormDialog`、详情类 `XxxDetailDrawer` / `XxxDetailDialog`、导入类 `XxxImportDialog`、分配类 `XxxAssignYyyDialog`、子表数据类 `XxxDataList`（见 6.6）
 - **新文件统一放在页面目录的 `components/` 子目录下**；历史文件放在模块根目录的（如 `UserImportDialog.vue`）可保持不动，不做强制回改
 
 ### 6.2 父子通信协议
@@ -730,6 +731,158 @@ const handleView = (row: XxxEntity) => {
 - **提交**：弹窗内部调用 API，成功后 `ElMessage.success` → 关闭 → `emit('success')`；提交按钮加 `:loading` 防重复提交
 - **禁止外漏**：`formData`、`formRules`、`handleSubmit`、`formRef` 不得出现在 `index.vue` 中
 - **详情类弹窗/抽屉**：同样接收 `row`，内部按 `row.id` 加载详情并渲染 `el-descriptions`
+
+### 6.6 子表编辑（抽屉内可编辑表格）
+
+主表行需要维护一组从表数据（如字典类型 → 字典数据）时，采用「父页面抽屉 + 独立子表组件 + vxe 行内编辑 + 脏标记整组批量保存」模式。先例：`views/system/dict-type/components/DictDataList.vue`（全项目唯一行内编辑实现，新代码对齐它）。
+
+**适用场景判定**：
+
+| 从表特征 | 采用方式 |
+|------|------|
+| 单主表键下数据量小（几十条内）、字段少、整组联动维护 | 本节：抽屉内行内编辑 + 全量批量保存，不分页 |
+| 数据量大需分页、字段多、行间相互独立 | 逐行打开表单弹窗编辑（6.3），从表列表页按常规列表页写 |
+
+**父组件（index.vue）只拥有抽屉与业务键**，模板一行引用：
+
+```vue
+<!-- 打开只设开关与传参；必须 v-if 挂载：每次打开全新挂载，
+     子组件内部状态（dirty、查询参数、新增行）随之自动重置 -->
+<el-drawer v-model="dataDrawerVisible" title="字典数据" :size="isMobile ? '85%' : '70%'">
+  <dict-data-list v-if="dataDrawerVisible" :dict-type="currentDictType" />
+</el-drawer>
+```
+
+```typescript
+const dataDrawerVisible = ref(false)
+const currentDictType = ref('')
+
+const handleViewData = (row: XxxEntity) => {
+  cancelSelection()
+  currentDictType.value = row.dictType
+  dataDrawerVisible.value = true
+}
+```
+
+要点：传**业务键**（如 `dictType`）而非整行对象；子组件不含 `v-model`（显隐由父级抽屉控制，见 6.2 的差异），数据由子组件自主拉取。
+
+**子组件标准骨架**：
+
+```typescript
+const props = defineProps<{ dictType: string }>()
+
+// 业务键变化即加载（v-if 挂载后 immediate 必触发一次）
+watch(() => props.dictType, (val) => {
+  if (val) { queryParams.dictType = val; getList() }
+}, { immediate: true })
+
+// 抽屉内表格高度用 useDrawerTableHeight（不是 useTableHeight）
+const containerRef = ref<HTMLElement>()
+const { tableHeight } = useDrawerTableHeight({
+  containerRef,
+  excludeSelectors: ['.search-form', '.vxe-toolbar', '.mobile-search-actions'],
+})
+
+const dirty = ref(false)
+const hasChanges = computed(() => dirty.value)
+const validRules = { label: [{ required: true, message: '请输入名称' }] }
+```
+
+**可编辑表格核心配置**：
+
+```vue
+<!-- spec-guard-disable-r4: 小数据量一次性全量拉取(pageSize 9999)行内编辑,无需分页 -->
+<vxe-table
+  id="xxxDataListTable" ref="tableRef"
+  keep-source
+  :data="tableData" :height="tableHeight"
+  :edit-config="{}" :edit-rules="validRules"
+  :checkbox-config="{ reserve: true }"
+  @edit-closed="onEditClosed"
+>
+  <vxe-column type="checkbox" width="40" align="center" />
+  <vxe-column type="seq" title="序号" width="50" align="center" />
+  <!-- 文本/数字列：edit-render autoFocus + #edit 插槽 -->
+  <vxe-column field="label" title="名称" min-width="140" align="center" :edit-render="{ autoFocus: true }">
+    <template #edit="{ row }">
+      <el-input v-model="row.label" size="small" />
+    </template>
+  </vxe-column>
+  <!-- 枚举列：#default 展示态用 dict-value，#edit 放 select -->
+  <vxe-column field="status" title="状态" width="90" align="center" :edit-render="{}">
+    <template #default="{ row }">
+      <dict-value :dict-type="DICT_TYPE.SYS_NORMAL_DISABLE" :value="row.status" />
+    </template>
+    <template #edit="{ row }">
+      <el-select v-model="row.status" style="width: 100%" popper-class="vxe-table--ignore-clear">
+        <el-option v-for="item in statusOptions" :key="item.dictValue" :label="item.dictLabel" :value="Number(item.dictValue)" />
+      </el-select>
+    </template>
+  </vxe-column>
+</vxe-table>
+```
+
+行内编辑硬性约定：
+
+| 约定 | 说明 |
+|------|------|
+| `:edit-render` + `#edit` 插槽 | 每个可编辑列必须；文本/数字列加 `{ autoFocus: true }` 进入编辑即聚焦 |
+| 编辑控件 `size="small"` | 适配单元格高度 |
+| select 弹层 `popper-class="vxe-table--ignore-clear"` | **必须**；防止点击弹层选项触发表格清除编辑态导致选值丢失 |
+| `:teleported="false"` | 仅当弹层需跟随单元格定位/就地自定义样式时使用，须配合 popper-class |
+| `#default` 渲染展示态 | 枚举列用 `dict-value` / `el-tag`，空值显示 `-`；不可编辑列（如 createTime）无 `#edit` |
+| `@edit-closed` → `dirty.value = true` | 一切变更以脏标记驱动「保存修改」按钮可用性 |
+
+**脏标记 + 整组批量保存**（增删改只改本地、不逐行调 API）：
+
+```typescript
+const handleAddRow = () => {
+  const newRow: XxxData = { id: undefined as any, dictType: props.dictType, label: '', status: 1, /* 其余默认值 */ }
+  tableData.value.push(newRow)
+  dirty.value = true
+  // 直接进入该行编辑态并聚焦首列（nextTick 走 auto-import，也可显式 import）
+  nextTick(() => tableRef.value?.setEditRow(newRow, 'label'))
+}
+
+const handleBatchSave = async () => {
+  if (!tableRef.value) return
+  // 按 edit-rules 校验全表
+  const errMap = await tableRef.value.validate(true).catch(() => true)
+  if (errMap) { ElMessage.error('请填写必填字段'); return }
+  loading.value = true
+  try {
+    await batchSaveXxxData({
+      dictType: props.dictType,
+      dataList: tableData.value.map(row => ({
+        ...row,
+        id: row.id && row.id > 0 ? row.id : undefined, // 新行 id 置空；后端按业务键整组同步增删改
+      })),
+    })
+    ElMessage.success('保存成功')
+    getList()
+    // 字典类从表必须：刷新前端已缓存字典，已打开页面的翻译即时生效
+    reloadDictCache(props.dictType)   // import { reloadDictCache } from '@/composables/useDict'
+  } finally {
+    loading.value = false
+  }
+}
+
+const onEditClosed = () => { dirty.value = true }
+```
+
+要点：
+
+- **保存**：按钮 `:disabled="!hasChanges"` + `:loading`；提交前 `validate(true)` 按 `edit-rules` 全表校验；整组提交后重新 `getList()` 复位 `dirty`
+- **取消修改**：直接重新 `getList()`（本地未提交改动全部丢弃）
+- **删除**：勾选 `getCheckboxRecords()` → `ElMessageBox.confirm` → 本地移除（`removeCheckboxRow()` + filter）→ 置 `dirty`；不即时调 API，随保存统一提交
+- **字典写入口**：保存成功后必须 `reloadDictCache(dictType)`（见 8.2 与关键约定速查）
+- **不分页豁免**：全量拉取（`pageSize: 9999`）须在表格上方写 `<!-- spec-guard-disable-r4: 原因 -->` 豁免注释
+
+**移动端降级**（`isMobile`）：
+
+- 隐藏勾选列/序号列与次要列；操作列只留删除，走 `MobileSearchButton` + `MobileSearchDrawer` 搜索
+- 新增改为 `el-dialog` 表单（`el-form` 校验通过后 push 行、置 `dirty`，仍走批量保存）
+- 保存/取消走 `MobileBottomActions`（`:show="isMobile && hasChanges"`），取消即重新 `getList()`
 
 ---
 
@@ -957,6 +1110,7 @@ watch(dateRange, (val) => {
 |------|------|
 | 前端权限 | `v-permission="'module:entity:action'"`（数组为任一匹配）或脚本 `hasPermission()` |
 | 弹窗/抽屉 | 复杂弹窗抽为独立组件放页面 `components/` 目录，`v-model` 控显隐 + `@success` 刷新，禁止内联 index.vue（见第 6 章） |
+| 子表编辑 | 抽屉内独立子组件 `XxxDataList.vue`（父级 `v-if` 挂载 + 业务键 prop），vxe 行内编辑 + 脏标记整组批量保存，编辑态 select 弹层加 `vxe-table--ignore-clear`（见 6.6） |
 | 下拉选项 | 全部用数据字典，通过 `useDict` + `DICT_TYPE` 获取 |
 | 列表枚举显示 | 用 `<dict-value :dict-type="DICT_TYPE.XXX" :value="row.xxx" />` |
 | API 请求 | `import request from '@/utils/request'`，GET 用 params，POST/PUT 用 data |
@@ -1025,6 +1179,18 @@ watch(dateRange, (val) => {
 - [ ] 弹窗打开时正确初始化（新增重置、编辑回显、清除校验残留）
 - [ ] 提交按钮有 `:loading`，成功后弹窗自行关闭并提示
 
+### 11.6 子表编辑附加项（见 6.6）
+
+- [ ] 父组件抽屉内 `v-if` 挂载子组件，传业务键 prop；子组件 `watch(..., { immediate: true })` 自主加载
+- [ ] 表格有唯一 `id`、`keep-source`、`:edit-config` / `:edit-rules`、`@edit-closed` 置脏
+- [ ] 可编辑列有 `:edit-render` + `#edit` 插槽，编辑控件 `size="small"`
+- [ ] 编辑态 select 弹层加 `popper-class="vxe-table--ignore-clear"`
+- [ ] 表格高度用 `useDrawerTableHeight`（非 `useTableHeight`）
+- [ ] 增删改只改本地并置 `dirty`；保存按钮 `:disabled="!hasChanges"`，保存前 `validate(true)`，提交时 `id > 0` 才带 id（整组同步）
+- [ ] 全量拉取不分页已写 `spec-guard-disable-r4` 豁免注释
+- [ ] 字典类从表保存成功后调用 `reloadDictCache(dictType)`
+- [ ] 移动端：新增降级为弹窗表单，保存/取消走 `MobileBottomActions`
+
 ---
 
 ## 12. 常见问题
@@ -1051,5 +1217,5 @@ watch(dateRange, (val) => {
 
 ---
 
-*文档版本：v2.1*
+*文档版本：v2.2*
 *最后更新：2026-10-12*
