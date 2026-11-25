@@ -126,8 +126,7 @@ import TablePagination from '@/components/TablePagination.vue'
 defineOptions({ name: 'AiUsage' })
 
 const { isMobile } = useResponsive()
-// 本页顶部有汇总卡(标准模板之外区块),需从表格高度中扣除,否则页面出现滚动条
-const { tableHeight } = useTableHeight({ extraSelectors: ['.summary-card'] })
+const { tableHeight } = useTableHeight()
 
 const tableRef = ref<VxeTableInstance | null>(null)
 const toolbarRef = ref<VxeToolbarInstance | null>(null)
